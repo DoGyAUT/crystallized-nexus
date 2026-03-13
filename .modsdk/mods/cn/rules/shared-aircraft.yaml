@@ -1,0 +1,45 @@
+HUNTER:
+	Inherits@2: ^ExistsInWorld
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: actor-hunter-name
+	Health:
+		HP: 50000
+	Armor:
+		Type: Light
+	Aircraft:
+		TurnSpeed: 64
+		Speed: 355
+		Pitch: 0
+		Roll: 0
+		CruiseAltitude: 3c128
+		CruisingCondition: cruising
+		MoveIntoShroud: true
+	AttackAircraft:
+		FacingTolerance: 512
+		AttackType: Hover
+	Armament@PRIMARY:
+		Weapon: SuicideBomb
+	GrantConditionOnAttack:
+		Condition: triggered
+	KillsSelf:
+		RequiresCondition: triggered
+	Targetable:
+		TargetTypes: Ground, Vehicle
+	HiddenUnderFog:
+		Type: CenterPosition
+	BodyOrientation:
+		UseClassicPerspectiveFudge: False
+	RenderSprites:
+		Image: GGHUNT
+	WithFacingSpriteBody:
+	Hovers@CRUISING:
+		RequiresCondition: cruising
+	QuantizeFacingsFromSequence:
+	AppearsOnRadar:
+		UseLocation: true
+	Interactable:
+	HitShape:
+	MapEditorData:
+		Categories: System

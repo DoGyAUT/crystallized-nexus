@@ -1,0 +1,804 @@
+NACNST:
+	Inherits: ^Building
+	Inherits@SHAPE: ^3x3Shape
+	Building:
+		Footprint: xxx xxx xxx
+		BuildSounds: facbld1.aud
+		Dimensions: 3,3
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 1000
+		Prerequisites: ~disabled
+		Description: actor-gacnst.description
+	Health:
+		HP: 150000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		Range: 5c0
+		MaxHeightDelta: 3
+	Production:
+		Produces: Building, Support
+		PauseOnCondition: empdisable
+	Valued:
+		Cost: 2500
+	Tooltip:
+		Name: actor-gacnst.name
+	CustomSellValue:
+		Value: 2500
+	BaseBuilding:
+	Transforms:
+		RequiresCondition: factundeploy
+		PauseOnCondition: empdisable || being-demolished || build-incomplete
+		IntoActor: nmcv
+		Offset: 1,1
+		Facing: 384
+		DeployCursor: undeploy
+	TransformsIntoMobile:
+		RequiresCondition: factundeploy
+		Locomotor: tracked
+		Voice: Move
+		RequiresForceMove: true
+	TransformsIntoRepairable:
+		RequiresCondition: factundeploy
+		RepairActors: gadept
+		Voice: Move
+		RequiresForceMove: true
+	TransformsIntoEntersTunnels:
+		RequiresCondition: factundeploy
+		Voice: Move
+		RequiresForceMove: true
+	TransformsIntoPassenger:
+		RequiresCondition: factundeploy
+		CargoType: Vehicle
+		Voice: Move
+		RequiresForceMove: true
+	TransformsIntoTransforms:
+		RequiresCondition: factundeploy && build-incomplete
+	GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY:
+		Condition: factundeploy
+		Prerequisites: global-factundeploy
+	ProductionBar@Building:
+		ProductionType: Building
+	ProductionBar@Support:
+		ProductionType: Support
+	WithIdleOverlay@SMOKE1:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-smoke1
+		Palette: player25alpha
+	WithIdleOverlay@SMOKE2:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-smoke2
+		Palette: player25alpha
+	WithMakeOverlay@SMOKE1:
+		RequiresCondition: !build-incomplete
+		Sequence: make-smoke1
+		Palette: player25alpha
+	WithMakeOverlay@SMOKE2:
+		RequiresCondition: !build-incomplete
+		Sequence: make-smoke2
+		Palette: player25alpha
+	Power:
+		Amount: 0
+	ProvidesPrerequisite@nod:
+		Factions: nod
+		Prerequisite: structures.nod
+	IsometricSelectable:
+		Height: 50
+
+NAPOWR:
+	Inherits: ^Building
+	Inherits@SHAPE: ^2x2Shape
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 10
+		Prerequisites: ~structures.nod, ~techlevel.low
+		Description: actor-napowr.description
+	Valued:
+		Cost: 300
+	Tooltip:
+		Name: actor-napowr.name
+	ProvidesPrerequisite:
+		Prerequisite: anypower
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	Health:
+		HP: 75000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		Range: 4c0
+		MaxHeightDelta: 3
+	WithIdleOverlay@SMOKE:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-smoke
+		Palette: player25alpha
+	WithMakeOverlay@SMOKE:
+		Sequence: make-smoke
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-lights-bright
+		Palette: bright
+	Power:
+		Amount: 100
+		RequiresCondition: !empdisable
+	Targetable:
+		TargetTypes: Ground, Building, C4, SpyInfiltrate
+	ScalePowerWithHealth:
+	PowerTooltip:
+	IsometricSelectable:
+		Height: 48
+
+NPROC:
+	Inherits: ^Building
+	Inherits@SHAPE: ^4x3FactoryWithBibShape
+	Valued:
+		Cost: 2000
+	Tooltip:
+		Name: actor-proc.name
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 30
+		Prerequisites: anypower, ~structures.nod, ~techlevel.low
+		Description: actor-proc.description
+	Building:
+		Footprint: xxX+ xx++ xxX+
+		Dimensions: 4,3
+	Health:
+		HP: 90000
+	RevealsShroud:
+		Range: 6c0
+		MaxHeightDelta: 3
+	Refinery:
+		DiscardExcessResources: true
+	DockHost:
+		Type: Unload
+		DockAngle: 640
+		DockOffset: 362,362,0
+	StoresPlayerResources:
+		Capacity: 2000
+	CustomSellValue:
+		Value: 600
+	FreeActor:
+		Actor: NHARV
+		SpawnOffset: 2,1
+		Facing: 640
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-lights-bright
+		Palette: bright
+	WithIdleOverlay@BIB:
+		RequiresCondition: !build-incomplete
+		Sequence: bib
+	WithDockedOverlay@FLAME1:
+		RequiresCondition: !build-incomplete
+		Sequence: flame1
+		Palette: effect
+	WithDockedOverlay@FLAME2:
+		RequiresCondition: !build-incomplete
+		Sequence: flame2
+		Palette: effect
+	WithDockingOverlay@UNLOAD:
+		RequiresCondition: !build-incomplete
+	Power:
+		Amount: -30
+	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@proc:
+		Prerequisite: proc
+	GrantConditionOnPlayerResources:
+		Condition: contains-tiberium
+	FireWarheadsOnDeath:
+		RequiresCondition: contains-tiberium
+		Weapon: TiberiumExplosion
+	WithResourceStoragePipsDecoration:
+		Position: BottomLeft
+		RequiresSelection: true
+		Margin: 8, 2
+		FullSequence: pip-green-building
+		EmptySequence: pip-empty-building
+		PipStride: 4, 2
+		PipCount: 25
+		Palette: pips
+
+NAAPWR:
+	Inherits: ^Building
+	Inherits@SHAPE: ^2x3Shape
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 70
+		Prerequisites: naweap, ~structures.nod, ~techlevel.medium
+		Description: actor-naapwr.description
+	Valued:
+		Cost: 500
+	Tooltip:
+		Name: actor-naapwr.name
+	ProvidesPrerequisite:
+		Prerequisite: anypower
+	Building:
+		Footprint: xxx xxx
+		Dimensions: 2,3
+	Health:
+		HP: 75000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		Range: 4c0
+		MaxHeightDelta: 3
+	WithIdleOverlay@SMOKE1:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-smoke1
+		Palette: player25alpha
+	WithIdleOverlay@SMOKE2:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-smoke2
+		Palette: player25alpha
+	WithIdleOverlay@SMOKE3:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-smoke3
+		Palette: player25alpha
+	WithMakeOverlay@SMOKE1:
+		Sequence: make-smoke1
+	WithMakeOverlay@SMOKE2:
+		Sequence: make-smoke2
+	WithMakeOverlay@SMOKE3:
+		Sequence: make-smoke3
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-lights-bright
+		Palette: bright
+	Power:
+		Amount: 200
+		RequiresCondition: !empdisable
+	Targetable:
+		TargetTypes: Ground, Building, C4, SpyInfiltrate
+	ScalePowerWithHealth:
+	PowerTooltip:
+	ProvidesPrerequisite@buildingname:
+	IsometricSelectable:
+		Height: 48
+
+NAHAND:
+	Inherits: ^Building
+	Inherits@SHAPE: ^2x4Shape
+	Inherits@PRIMARY: ^PrimaryBuilding
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 20
+		Prerequisites: anypower, ~structures.nod, ~techlevel.low
+		Description: actor-nahand.description
+	Valued:
+		Cost: 300
+	Tooltip:
+		Name: actor-nahand.name
+	ProvidesPrerequisite:
+		Prerequisite: barracks
+	Building:
+		Footprint: xxxx xxxx
+		Dimensions: 4,2
+	Health:
+		HP: 80000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		Range: 5c0
+		MaxHeightDelta: 3
+	Exit@1:
+		SpawnOffset: 543,1086,0
+		ExitCell: 5,1
+		Priority: 2
+	Exit@2:
+		SpawnOffset: 543,1086,0
+		ExitCell: 5,2
+		Priority: 2
+	ExitsDebugOverlay:
+	RallyPoint:
+		Palette: mouse
+		IsPlayerPalette: false
+		LineWidth: 2
+		ForceSetType: Infantry
+		CirclesSequence:
+	CommandBarBlacklist:
+		DisableStop: false
+	ProductionQueue:
+		Type: Infantry
+		Group: Infantry
+		BuildDurationModifier: 120
+		LowPowerModifier: 300
+		ReadyAudio: UnitReady
+		ReadyTextNotification: notification-unit-ready
+		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: notification-unable-to-comply-building-in-progress
+		QueuedAudio: Training
+		OnHoldAudio: OnHold
+		CancelledAudio: Cancelled
+	Production:
+		Produces: Infantry
+		PauseOnCondition: empdisable
+	ProductionBar:
+		ProductionType: Infantry
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-lights-bright
+		Palette: bright
+	WithIdleOverlay@LIGHT-BRIGHT:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-light-bright
+		Palette: bright
+	Power:
+		Amount: -20
+	ProvidesPrerequisite@buildingname:
+	IsometricSelectable:
+		Height: 64
+
+NAWEAP:
+	Inherits: ^Building
+	Inherits@SHAPE: ^4x3FactoryWithBibShape
+	Inherits@PRIMARY: ^PrimaryBuilding
+	Valued:
+		Cost: 2000
+	Tooltip:
+		Name: actor-naweap.name
+	ProvidesPrerequisite:
+		Prerequisite: factory
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 50
+		Prerequisites: nproc, ~structures.nod, ~techlevel.low
+		Description: actor-naweap.description
+	Building:
+		Footprint: xxX+ xxX+ xxX+
+		Dimensions: 4,3
+	Health:
+		HP: 100000
+	Armor:
+		Type: Heavy
+	RevealsShroud:
+		Range: 4c0
+		MaxHeightDelta: 3
+	RallyPoint:
+		Palette: mouse
+		IsPlayerPalette: false
+		LineWidth: 2
+		ForceSetType: Vehicle
+		CirclesSequence:
+	CommandBarBlacklist:
+		DisableStop: false
+	Exit@1:
+		SpawnOffset: -384,-384,0
+		ExitCell: 3,1
+		ExitDelay: 5
+	ExitsDebugOverlay:
+	ProductionQueue:
+		Type: Vehicle
+		Group: Vehicle
+		BuildDurationModifier: 120
+		LowPowerModifier: 300
+		ReadyAudio: UnitReady
+		ReadyTextNotification: notification-unit-ready
+		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: notification-unable-to-comply-building-in-progress
+		QueuedAudio: Training
+		OnHoldAudio: OnHold
+		CancelledAudio: Cancelled
+	Production:
+		Produces: Vehicle
+		PauseOnCondition: empdisable
+	ProductionBar:
+		ProductionType: Vehicle
+	WithIdleOverlay@ROOF:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-roof
+	WithProductionDoorOverlay@DOOR:
+		RequiresCondition: !build-incomplete
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-lights-bright
+		Palette: bright
+	Power:
+		Amount: -30
+	ProvidesPrerequisite@buildingname:
+	IsometricSelectable:
+		Height: 48
+
+NAHPAD:
+	Inherits: ^Building
+	Inherits@SHAPE: ^2x2Shape
+	Inherits@PRIMARY: ^PrimaryBuilding
+	Valued:
+		Cost: 500
+	Tooltip:
+		Name: actor-nahpad.name
+	Buildable:
+		BuildPaletteOrder: 80
+		Queue: Building
+		Prerequisites: naradr, ~structures.nod, ~techlevel.medium
+		Description: actor-nahpad.description
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	Health:
+		HP: 60000
+	RevealsShroud:
+		Range: 5c0
+		MaxHeightDelta: 3
+	Exit@1:
+		SpawnOffset: 0,-256,0
+		Facing: 896
+	ExitsDebugOverlay:
+	RallyPoint:
+		Palette: mouse
+		IsPlayerPalette: false
+		LineWidth: 2
+		ForceSetType: Air
+		CirclesSequence:
+	CommandBarBlacklist:
+		DisableStop: false
+	ProductionQueue:
+		Type: Air
+		Group: Air
+		BuildDurationModifier: 120
+		LowPowerModifier: 300
+		ReadyAudio: UnitReady
+		ReadyTextNotification: notification-unit-ready
+		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: notification-unable-to-comply-building-in-progress
+		QueuedAudio: Training
+		OnHoldAudio: OnHold
+		CancelledAudio: Cancelled
+	Production:
+		Produces: Air
+		PauseOnCondition: empdisable
+	Reservable:
+	RepairsUnits:
+		HpPerStep: 1000
+		PauseOnCondition: empdisable
+		PlayerExperience: 5
+		StartRepairingNotification: Repairing
+		StartRepairingTextNotification: notification-repairing
+		FinishRepairingNotification: UnitRepaired
+		FinishRepairingTextNotification: notification-unit-repaired
+	ProductionBar:
+		ProductionType: Air
+	WithIdleOverlay@PLATFORM:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-platform
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-lights-bright
+		Palette: bright
+	WithDeathAnimation@BIB:
+		DeathSequence: dead-platform
+		UseDeathTypeSuffix: false
+	Power:
+		Amount: -10
+	ProvidesPrerequisite@buildingname:
+	IsometricSelectable:
+		Height: 36
+
+NARADR:
+	Inherits: ^Building
+	Inherits@IDISABLED: ^DisableOnLowPowerOrPowerDown
+	Inherits@SHAPE: ^2x2Shape
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 40
+		Prerequisites: nproc, ~structures.nod, ~techlevel.low
+		Description: actor-naradr.description
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: actor-naradr.name
+	ProvidesPrerequisite:
+		Prerequisite: radar
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	Health:
+		HP: 100000
+	Armor:
+		Type: Wood
+	ProvidesRadar:
+		RequiresCondition: !disabled && !empdisable
+	InfiltrateForExploration:
+		PlayerExperience: 10
+	DetectCloaked:
+		Range: 10c0
+	RenderDetectionCircle:
+	RevealsShroud:
+		Range: 10c0
+		MaxHeightDelta: 3
+	WithIdleOverlay@DISH:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: disabled || empdisable
+		Sequence: idle-dish
+	Targetable:
+		TargetTypes: Ground, Building, C4, SpyInfiltrate
+	Power:
+		Amount: -40
+	ProvidesPrerequisite@buildingname:
+	IsometricSelectable:
+		Height: 72
+
+NATECH:
+	Inherits: ^Building
+	Inherits@IDISABLED: ^DisableOnLowPower
+	Inherits@SHAPE: ^2x2Shape
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 90
+		Prerequisites: naweap, naradr, ~structures.nod, ~techlevel.medium
+		Description: actor-natech.description
+	Valued:
+		Cost: 1500
+	Tooltip:
+		Name: actor-natech.name
+	ProvidesPrerequisite:
+		Prerequisite: tech
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	Health:
+		HP: 50000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		Range: 4c0
+		MaxHeightDelta: 3
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-lights-bright
+		Palette: bright
+	Power:
+		Amount: -150
+	ProvidesPrerequisite@buildingname:
+
+NASTLH:
+	Inherits: ^Building
+	Inherits@IDISABLED: ^DisableOnLowPowerOrPowerDown
+	Inherits@SHAPE: ^3x2Shape
+	HitShape:
+		TargetableOffsets: 250,0,0, 600,-864,0
+	Valued:
+		Cost: 2500
+	Tooltip:
+		Name: actor-nastlh.name
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 100
+		Prerequisites: nproc, natech, ~structures.nod, ~techlevel.high
+		Description: actor-nastlh.description
+	ProvidesPrerequisite@buildingname:
+	Building:
+		Footprint: xxx XXX
+		Dimensions: 3,2
+	Health:
+		HP: 60000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		Range: 6c0
+		MaxHeightDelta: 3
+	WithIdleOverlay@pulse:
+		RequiresCondition: !build-incomplete && !empdisable && !disabled
+		Sequence: pulse
+	WithRangeCircle:
+		Range: 12c0
+		Type: cloakgenerator
+	Power:
+		Amount: -350
+	ProximityExternalCondition:
+		RequiresCondition: !empdisable && !disabled
+		Condition: cloakgenerator
+		Range: 12c0
+		EnableSound: cloak5.aud
+		DisableSound: cloak5.aud
+		AffectsParent: true
+
+NATMPL:
+	Inherits: ^Building
+	Inherits@IDISABLED: ^DisableOnLowPowerOrPowerDown
+	Inherits@SHAPE: ^4x3Shape
+	HitShape:
+		TargetableOffsets: -1280,363,0
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 110
+		Prerequisites: natech, ~structures.nod, ~techlevel.high
+		Description: actor-natmpl.description
+	ProvidesPrerequisite@buildingname:
+	Valued:
+		Cost: 2000
+	Tooltip:
+		Name: actor-natmpl.name
+	Building:
+		Footprint: xxxx xxxx xxxX
+		Dimensions: 4,3
+	RequiresBuildableArea:
+		Adjacent: 3
+	Health:
+		HP: 100000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		Range: 6c0
+		MaxHeightDelta: 3
+	Power:
+		Amount: -200
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights-bright
+		Palette: bright
+	ProduceActorPower:
+		PauseOnCondition: empdisable || disabled
+		Name: actor-natmpl.produceactorpower-name
+		Description: actor-natmpl.produceactorpower-description
+		Prerequisites: ~techlevel.superweapons
+		Icon: hunterseeker
+		Actors: hunter
+		Type: HunterSeeker
+		ChargeInterval: 18000
+	Production:
+		Produces: HunterSeeker
+		PauseOnCondition: empdisable
+	Exit@1:
+	ExitsDebugOverlay:
+	IsometricSelectable:
+		Height: 60
+
+NAMISL:
+	Inherits: ^Building
+	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
+	Inherits@SHAPE: ^2x2Shape
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 120
+		Prerequisites: natech, ~structures.nod, ~techlevel.superweapons
+		BuildLimit: 1
+		Description: actor-namisl.description
+	Valued:
+		Cost: 1300
+	Tooltip:
+		Name: actor-namisl.name
+	ProvidesPrerequisite:
+		Prerequisite: tech
+	Building:
+		Footprint: xx xx
+		Dimensions: 2,2
+	Health:
+		HP: 100000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		Range: 4c0
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights-bright
+		Palette: bright
+	Power:
+		Amount: -50
+	ProvidesPrerequisite@buildingname:
+	SupportPowerChargeBar:
+	NukePower:
+		PauseOnCondition: empdisable || disabled
+		Cursor: nuke
+		Icon: clustermissile
+		ChargeInterval: 13500
+		Name: actor-namisl.nukepower-name
+		Description: actor-namisl.nukepower-description
+		EndChargeSpeechNotification: ClusterMissileReady
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: MissileLaunchDetected
+		EndChargeTextNotification: notification-cluster-missile-ready
+		SelectTargetTextNotification: notification-select-target
+		IncomingTextNotification: notification-missile-launch-detected
+		LaunchSound: icbm1.aud
+		MissileWeapon: ClusterMissile
+		MissileImage: ClusterMissile
+		MissileDelay: 18
+		DetonationAltitude: 5c0
+		SpawnOffset: 0, 0c128, 0c512
+		DisplayTimerRelationships: None
+		DisplayBeacon: False
+		DisplayRadarPing: True
+		BeaconPoster:
+		CameraRange: 10c0
+		FlightVelocity: 1c0
+		TrailImage: small_smoke_trail
+		TrailInterval: 0
+		TrailSequences: idle
+	WithSupportPowerActivationOverlay:
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithSupportPowerActivationOverlay@BRIGHT:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights-bright
+		Palette: bright
+
+NAWAST:
+	Inherits: ^Building
+	HitShape:
+		Type: Rectangle
+			TopLeft: -1536, -1536
+			BottomRight: 512, 1536
+	Valued:
+		Cost: 1600
+	Tooltip:
+		Name: actor-nawast.name
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 130
+		Prerequisites: namisl, ~structures.nod, ~techlevel.superweapons
+		BuildLimit: 1
+		Description: actor-nawast.description
+	Building:
+		Footprint: Xx+ xx+ Xx+
+		Dimensions: 3,3
+	Health:
+		HP: 40000
+	RevealsShroud:
+		Range: 6c0
+		MaxHeightDelta: 3
+	Refinery:
+	DockHost:
+		Type: UnloadWeed
+		DockAngle: 640
+		DockOffset: 724,724,0
+	StoresPlayerResources:
+		Capacity: 56
+	Power:
+		Amount: -40
+	FreeActor:
+		Actor: WEED
+		SpawnOffset: 3,1
+		Facing: 640
+	WithIdleOverlay@GLOW:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-glow
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-lights-bright
+		Palette: bright
+	WithIdleOverlay@BIB:
+		RequiresCondition: !build-incomplete
+		Sequence: bib
+	ProvidesPrerequisite@buildingname:
+	WithResourceStoragePipsDecoration:
+		Position: BottomLeft
+		RequiresSelection: true
+		Margin: 8, 2
+		FullSequence: pip-red-building
+		EmptySequence: pip-empty-building
+		PipStride: 4, 2
+		PipCount: 15
+		Palette: pips

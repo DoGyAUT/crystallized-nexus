@@ -1,0 +1,146 @@
+SCRIN:
+	Inherits: ^EMPableAircraft
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Valued:
+		Cost: 1500
+	Tooltip:
+		Name: actor-scrin.name
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Air
+		BuildPaletteOrder: 40
+		Prerequisites: ~nahpad, natech
+		Description: actor-scrin.description
+	Selectable:
+		Bounds: 905, 1448
+	Voiced:
+		VoiceSet: Scrin
+	Aircraft:
+		CruiseAltitude: 5c0
+		TurnSpeed: 15
+		Speed: 200
+		IdleTurnSpeed: 6
+		IdleSpeed: 100
+		TakeoffSounds: dropup1.aud
+		LandingSounds: dropdwn1.aud
+		CanHover: false
+		CanSlide: false
+	Health:
+		HP: 28000
+	Armor:
+		Type: Light
+	RevealsShroud:
+		Range: 2c0
+		Type: CenterPosition
+	Armament:
+		Weapon: Proton
+		PauseOnCondition: !ammo
+	AttackAircraft:
+		Voice: Attack
+		FacingTolerance: 80
+		PersistentTargeting: false
+		PauseOnCondition: empdisable
+	AmmoPool:
+		Ammo: 15
+		ReloadCount: 5
+		AmmoCondition: ammo
+	RenderSprites:
+	DeathSounds:
+	SpawnActorOnDeath:
+		Actor: SCRIN.Husk
+		RequiresCondition: !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: SCRIN.Husk.EMP
+		RequiresCondition: empdisable
+	Rearmable:
+		RearmActors: gahpad, nahpad
+	WithAmmoPipsDecoration:
+		Position: BottomLeft
+		RequiresSelection: true
+		Margin: 4, 5
+		PipCount: 3
+		FullSequence: pip-ammo
+		EmptySequence: pip-ammoempty
+		Palette: pips
+	AppearsOnRadar:
+		ValidRelationships: Ally
+	AppearsOnRadar@ENEMY:
+		UseLocation: true
+		ValidRelationships: Neutral, Enemy
+		RequiresCondition: !rank-elite
+
+APACHE:
+	Inherits: ^EMPableAircraft
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: actor-apache.name
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Air
+		BuildPaletteOrder: 20
+		Prerequisites: ~nahpad
+		Description: actor-apache.description
+	Selectable:
+		Bounds: 905, 1448
+	Aircraft:
+		Pitch: -32
+		PitchSpeed: 8
+		Roll: 16
+		RollSpeed: 8
+		TurnSpeed: 20
+		Speed: 130
+		CanSlide: false
+		TakeOffOnResupply: true
+	Health:
+		HP: 22500
+	Armor:
+		Type: Light
+	RevealsShroud:
+		Range: 2c0
+		Type: CenterPosition
+	Armament:
+		Weapon: HarpyClaw
+		PauseOnCondition: !ammo
+	AttackAircraft:
+		FacingTolerance: 80
+		PersistentTargeting: false
+		Voice: Attack
+		PauseOnCondition: empdisable
+		AttackType: Hover
+	AmmoPool:
+		Ammo: 12
+		AmmoCondition: ammo
+	WithIdleOverlay@ROTORAIR:
+		Offset: 85,0,598
+		Sequence: rotor
+		RequiresCondition: airborne
+	WithIdleOverlay@ROTORGROUND:
+		Offset: 85,0,598
+		Sequence: slow-rotor
+		RequiresCondition: !airborne
+	RenderSprites:
+	SpawnActorOnDeath:
+		Actor: APACHE.Husk
+		RequiresCondition: !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: APACHE.Husk.EMP
+		RequiresCondition: empdisable
+	Rearmable:
+		RearmActors: gahpad, nahpad
+	WithAmmoPipsDecoration:
+		Position: BottomLeft
+		RequiresSelection: true
+		Margin: 4, 5
+		PipCount: 4
+		FullSequence: pip-ammo
+		EmptySequence: pip-ammoempty
+		Palette: pips
+	WithShadow:
+	WithVoxelBody:
+		ShowShadow: False

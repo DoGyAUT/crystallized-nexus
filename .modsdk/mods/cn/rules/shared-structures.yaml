@@ -1,0 +1,85 @@
+GASILO:
+	Inherits: ^Building
+	Inherits@SHAPE: ^2x2Shape
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 60
+		Prerequisites: proc, ~techlevel.low
+		Description: actor-gasilo.description
+	Valued:
+		Cost: 150
+	Tooltip:
+		Name: actor-gasilo.name
+	Building:
+		Footprint: xx xx
+		Dimensions: 2, 2
+	-GivesBuildableArea:
+	Health:
+		HP: 30000
+	Armor:
+		Type: Wood
+	RevealsShroud:
+		Range: 4c0
+		MaxHeightDelta: 3
+	RenderSprites:
+		Image: gasilo.gdi
+		FactionImages:
+			gdi: gasilo.gdi
+			nod: gasilo.nod
+	WithResourceLevelOverlay@FILLSTAGE:
+		RequiresCondition: !build-incomplete
+		Sequence: stages
+	WithSpriteBody:
+		Sequence: idle-underlay
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-lights-bright
+		Palette: bright
+	StoresPlayerResources:
+		Capacity: 1500
+	Power:
+		Amount: -10
+	GrantConditionOnPlayerResources:
+		Condition: contains-tiberium
+	FireWarheadsOnDeath:
+		RequiresCondition: contains-tiberium
+		Weapon: TiberiumExplosion
+	WithResourceStoragePipsDecoration:
+		Position: BottomLeft
+		RequiresSelection: true
+		Margin: 8, 2
+		FullSequence: pip-green-building
+		EmptySequence: pip-empty-building
+		PipStride: 4, 2
+		PipCount: 12
+		Palette: pips
+
+ANYPOWER:
+	Interactable:
+	Tooltip:
+		Name: actor-anypower-name
+
+PROC:
+	Interactable:
+	Tooltip:
+		Name: actor-factory-name
+
+BARRACKS:
+	Interactable:
+	Tooltip:
+		Name: actor-barracks-name
+
+FACTORY:
+	Interactable:
+	Tooltip:
+		Name: actor-factory-name
+
+RADAR:
+	Interactable:
+	Tooltip:
+		Name: actor-radar-name
+
+TECH:
+	Interactable:
+	Tooltip:
+		Name: actor-tech-name

@@ -1,0 +1,336 @@
+Metadata:
+	Title: mod-title
+	Version: bleed
+	Website: https://www.openra.net
+	WebIcon32: https://www.openra.net/images/icons/ts_32x32.png
+	WindowTitle: mod-windowtitle
+
+PackageFormats: Mix
+
+FileSystem: ContentInstallerFileSystem
+    SystemPackages:
+		^EngineDir
+		^EngineDir|mods/cnc: cnc
+		^EngineDir|mods/common: common
+		^EngineDir|mods/ts: ts
+		~^SupportDir|Content/ts: content
+		$cn: cn
+		cn|uibits
+	ContentPackages:
+		# Tiberian Sun
+		content|cache.mix
+		content|conquer.mix
+		content|isosnow.mix
+		content|isotemp.mix
+		content|local.mix
+		content|sidec01.mix: sidebar-gdi
+		content|sidec02.mix: sidebar-nod
+		content|sno.mix
+		content|snow.mix
+		content|sounds.mix
+		content|speech01.mix: speech-gdi
+		content|speech02.mix: speech-nod
+		content|tem.mix
+		content|temperat.mix
+		~content|scores.mix
+		# Firestorm
+		content|firestorm
+		content|firestorm/sounds01.mix
+		content|firestorm/e01sc01.mix
+		content|firestorm/e01sc02.mix
+		content|firestorm/e01vox01.mix
+		content|firestorm/e01vox02.mix
+		content|firestorm/ecache01.mix
+		~content|firestorm/scores01.mix
+	# Crystallized Nexus
+		cn|bits
+		cn|bits\anims
+#		cn|bits\anims\explos
+#		cn|bits\anims\trails
+#		cn|bits\anims\weapons
+		cn|bits\art
+		cn|bits\art\gdi
+		cn|bits\art\gdi\aircraft
+		cn|bits\art\gdi\infantry
+		cn|bits\art\gdi\structures
+		cn|bits\art\gdi\vehicles
+		cn|bits\art\nod
+		cn|bits\art\nod\aircraft
+		cn|bits\art\nod\infantry
+		cn|bits\art\nod\structures
+		cn|bits\art\nod\vehicles
+		cn|bits\cameo
+		cn|bits\terrain
+		cn|audio\data
+		cn|audio\data\eva
+		cn|audio\data\explosions
+		cn|audio\data\themes
+		cn|audio\data\voice
+		cn|audio\data\weapons
+	ContentInstallerMod: tn-content
+
+MapFolders:
+	cn|maps: System
+	~^SupportDir|maps/cn/bleed: User
+
+Rules:
+	cn|rules/ai.yaml
+	cn|rules/general.yaml
+	cn|rules/misc.yaml
+	cn|rules/player.yaml
+	cn|rules/world.yaml
+	cn|rules/palettes.yaml
+	cn|rules/defaults.yaml
+	cn|rules/husks.yaml
+	cn|rules/civilian-infantry.yaml
+	cn|rules/critters.yaml
+	cn|rules/civilian-structures.yaml
+	cn|rules/civilian-vehicles.yaml
+	cn|rules/gdi-aircraft.yaml
+	cn|rules/gdi-infantry.yaml
+	cn|rules/gdi-structures.yaml
+	cn|rules/gdi-support.yaml
+	cn|rules/gdi-vehicles.yaml
+	cn|rules/gdi-tech.yaml
+	cn|rules/nod-infantry.yaml
+	cn|rules/nod-infantry.yaml
+	cn|rules/nod-structures.yaml
+	cn|rules/nod-support.yaml
+	cn|rules/nod-vehicles.yaml
+	cn|rules/nod-tech.yaml
+	cn|rules/shared-aircraft.yaml
+	cn|rules/shared-infantry.yaml
+	cn|rules/shared-structures.yaml
+	cn|rules/shared-support.yaml
+	cn|rules/shared-vehicles.yaml
+	cn|rules/trees.yaml
+	cn|rules/bridges.yaml
+
+Weapons:
+	cn|weapons/ballisticweapons.yaml
+	cn|weapons/energyweapons.yaml
+	cn|weapons/explosions.yaml
+	cn|weapons/healweapons.yaml
+	cn|weapons/missiles.yaml
+	cn|weapons/otherweapons.yaml
+	cn|weapons/smallguns.yaml
+	cn|weapons/superweapons.yaml
+
+Sequences:
+	cn|sequences/aircraft.yaml
+	cn|sequences/infantry.yaml
+	cn|sequences/misc.yaml
+	cn|sequences/civilian.yaml
+	cn|sequences/structures.yaml
+	cn|sequences/vehicles.yaml
+	cn|sequences/trees.yaml
+	cn|sequences/bridges.yaml
+	cn|sequences/critters.yaml
+
+ModelSequences:
+	cn|sequences/voxels.yaml
+
+TileSets:
+	cn|tilesets/temperate.yaml
+	cn|tilesets/snow.yaml
+
+MapGrid:
+	EnableDepthBuffer: True
+	Type: RectangularIsometric
+	MaximumTerrainHeight: 16
+	SubCellOffsets: 0,0,0, -362,0,0, 0,362,0, 362,0,0
+	DefaultSubCell: 2
+
+Cursors:
+	cn|cursors.yaml
+
+Chrome:
+	cn|chrome.yaml
+
+Assemblies: OpenRA.Mods.Common.dll, OpenRA.Mods.Cnc.dll, OpenRA.Mods.CN.dll
+
+ChromeLayout:
+	common|chrome/ingame.yaml
+	common|chrome/ingame-chat.yaml
+	cn|chrome/ingame-transients.yaml
+	common|chrome/ingame-fmvplayer.yaml
+	common|chrome/ingame-menu.yaml
+	common|chrome/ingame-info.yaml
+	common|chrome/ingame-infoscripterror.yaml
+	common|chrome/ingame-infobriefing.yaml
+	common|chrome/ingame-infoobjectives.yaml
+	common|chrome/ingame-infostats.yaml
+	common|chrome/ingame-info-lobby-options.yaml
+	cn|chrome/ingame-observer.yaml
+	cn|chrome/ingame-player.yaml
+	common|chrome/ingame-perf.yaml
+	cn|chrome/ingame-debug.yaml
+	common|chrome/ingame-debug-hpf.yaml
+	common|chrome/ingame-debuginfo.yaml
+	common|chrome/ingame-infochat.yaml
+	common|chrome/mainmenu.yaml
+	common|chrome/mainmenu-prompts.yaml
+	cn|chrome/mainmenu-prerelease-notification.yaml
+	common|chrome/settings.yaml
+	common|chrome/settings-display.yaml
+	common|chrome/settings-gameplay.yaml
+	common|chrome/settings-audio.yaml
+	common|chrome/settings-input.yaml
+	cn|chrome/settings-hotkeys.yaml
+	common|chrome/settings-advanced.yaml
+	common|chrome/credits.yaml
+	common|chrome/lobby.yaml
+	common|chrome/lobby-mappreview.yaml
+	common|chrome/lobby-players.yaml
+	common|chrome/lobby-options.yaml
+	common|chrome/lobby-music.yaml
+	common|chrome/lobby-servers.yaml
+	common|chrome/lobby-kickdialogs.yaml
+	common|chrome/playerprofile.yaml
+	cn|chrome/color-picker.yaml
+	common|chrome/map-chooser.yaml
+	common|chrome/multiplayer-browser.yaml
+	common|chrome/multiplayer-browserpanels.yaml
+	common|chrome/multiplayer-createserver.yaml
+	common|chrome/multiplayer-directconnect.yaml
+	common|chrome/connection.yaml
+	common|chrome/replaybrowser.yaml
+	common|chrome/gamesave-browser.yaml
+	common|chrome/gamesave-loading.yaml
+	cn|chrome/dropdowns.yaml
+	common|chrome/musicplayer.yaml
+	common|chrome/tooltips.yaml
+	cn|chrome/assetbrowser.yaml
+	common|chrome/missionbrowser.yaml
+	common|chrome/confirmation-dialogs.yaml
+	common|chrome/editor.yaml
+	common|chrome/text-notifications.yaml
+
+FluentMessages:
+	common|fluent/common.ftl
+	common|fluent/chrome.ftl
+	common|fluent/hotkeys.ftl
+	common|fluent/rules.ftl
+	cn|fluent/ts.ftl
+	cn|fluent/chrome.ftl
+	cn|fluent/hotkeys.ftl
+	cn|fluent/rules.ftl
+
+AllowUnusedFluentMessagesInExternalPackages: false
+
+Voices:
+	cn|audio/voices.yaml
+
+Notifications:
+	cn|audio/speech-generic.yaml
+	cn|audio/speech-singleplayer.yaml
+	cn|audio/sounds-generic.yaml
+
+Music:
+	cn|audio/music.yaml
+
+Hotkeys:
+	common|hotkeys/game.yaml
+	common|hotkeys/observer.yaml
+	common|hotkeys/production-common.yaml
+	common|hotkeys/supportpowers.yaml
+	common|hotkeys/viewport.yaml
+	common|hotkeys/chat.yaml
+	common|hotkeys/editor.yaml
+	common|hotkeys/control-groups.yaml
+	cn|hotkeys.yaml
+
+LoadScreen: LogoStripeLoadScreen
+	Image: cn|uibits/loadscreen.png
+
+ServerTraits:
+	LobbyCommands
+	SkirmishLogic
+	PlayerPinger
+	MasterServerPinger
+
+ChromeMetrics:
+	common|metrics.yaml
+	cn|metrics.yaml
+
+Fonts:
+	Tiny:
+		Font: common|FreeSans.ttf
+		Size: 10
+		Ascender: 8
+	TinyBold:
+		Font: common|FreeSansBold.ttf
+		Size: 10
+		Ascender: 8
+	Small:
+		Font: common|FreeSans.ttf
+		Size: 12
+		Ascender: 9
+	Regular:
+		Font: common|FreeSans.ttf
+		Size: 14
+		Ascender: 11
+	Bold:
+		Font: common|FreeSansBold.ttf
+		Size: 14
+		Ascender: 11
+	MediumBold:
+		Font: common|FreeSansBold.ttf
+		Size: 18
+		Ascender: 14
+	BigBold:
+		Font: common|FreeSansBold.ttf
+		Size: 24
+		Ascender: 18
+	Title:
+		Font: common|FreeSansBold.ttf
+		Size: 32
+		Ascender: 24
+
+DefaultOrderGenerator: UnitOrderGenerator
+
+SupportsMapsFrom: ts, cn
+
+SoundFormats: Aud, Wav
+
+SpriteFormats: ShpTS, TmpTS, ShpTD, PngSheet
+
+VideoFormats: Vqa
+
+TerrainFormat: DefaultTerrain
+
+SpriteSequenceFormat: TilesetSpecificSpriteSequence
+
+AssetBrowser:
+	SpriteExtensions: .shp, .tem, .sno
+	ModelExtensions: .vxl
+	AudioExtensions: .aud, .wav
+	VideoExtensions: .vqa
+
+GameSpeeds:
+	DefaultSpeed: default
+	Speeds:
+		slowest:
+			Name: options-game-speed.slowest
+			Timestep: 80
+			OrderLatency: 2
+		slower:
+			Name: options-game-speed.slower
+			Timestep: 50
+			OrderLatency: 3
+		default:
+			Name: options-game-speed.normal
+			Timestep: 40
+			OrderLatency: 3
+		fast:
+			Name: options-game-speed.fast
+			Timestep: 35
+			OrderLatency: 4
+		faster:
+			Name: options-game-speed.faster
+			Timestep: 30
+			OrderLatency: 4
+		fastest:
+			Name: options-game-speed.fastest
+			Timestep: 20
+			OrderLatency: 6

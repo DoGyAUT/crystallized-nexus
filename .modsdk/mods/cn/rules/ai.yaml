@@ -1,0 +1,240 @@
+Player:
+	ModularBot@bot-test-ai:
+		Name: bot-test-ai.name
+		Type: test
+	GrantConditionOnBotOwner@test:
+		Condition: enable-test-ai
+		Bots: test
+
+	HarvesterBotModule:
+		RequiresCondition: enable-test-ai
+		HarvesterTypes: gharv, nharv
+		RefineryTypes: gproc, nproc
+
+	PowerDownBotModule:
+		RequiresCondition: enable-test-ai
+		PowerDownTypes: garadr, naradr, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam
+
+	ResourceMapBotModule:
+		RequiresCondition: enable-test-ai
+		ResourceCreatorTypes: tibtre01, tibtre02, tibtre03, bigblue, bigblue3
+		ValuableResourceTypes: Tiberium, BlueTiberium, RedTiberium
+		HarvesterTypes: gharv, nharv
+		RefineryTypes: gproc, nproc
+		EnemyBaseBuildingTypes: gacnst, nacnst, gapowr, gapowrup, napowr, naapwr, gapile, nahand, gaweap, gadept, naweap, garadr, naradr, gahpad, nahpad, gatech, natech, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, gaplug, natmpl
+
+	BaseBuilderBotModule@test:
+		RequiresCondition: enable-test-ai
+		DefenseQueues: Support
+		# Stromüberschuss: mind. 30, max 200, +30 pro 4 Gebäude
+		MinimumExcessPower: 30
+		MaximumExcessPower: 200
+		ExcessPowerIncrement: 30
+		ExcessPowerIncreaseThreshold: 4
+		# Gebäudetypen für KI-Logik
+		ConstructionYardTypes: gacnst, nacnst
+		RefineryTypes: gproc, nproc
+		PowerTypes: gapowr, gapowrup, napowr, naapwr
+		ProductionTypes: gapile, nahand, gaweap, naweap, gahpad, nahpad
+		# Tech: Radar zuerst (ermöglicht natech/gatech), dann Tech-Center, dann Superwaffen
+		TechTypes: garadr, naradr, gatech, natech, gadept, gaplug, gaplug2, gaplug3, gaplug4, natmpl, namisl
+		SiloTypes: gasilo
+		# Verteidigung: günstiger Tower zuerst, dann Upgrades, dann schwere Verteidigung
+		DefenseTypes: gactwr, gavulc, gacsam, garock, nalasr, nasam, naobel, napuls
+		SellRefineryNoResourceDistance: 18
+		BuildingLimits:
+			# Wirtschaft
+			gproc: 4
+			nproc: 4
+			gasilo: 4
+			# Strom - großzügig da viele Gebäude Strom brauchen
+			gapowr: 10
+			napowr: 10
+			# Produktion
+			gapile: 2
+			nahand: 2
+			gaweap: 2
+			naweap: 2
+			gadept: 1
+			gahpad: 3
+			nahpad: 3
+			# Radar/Tech - je 1 reicht
+			garadr: 1
+			naradr: 1
+			gatech: 1
+			natech: 1
+			nastlh: 1
+			# Superwaffen - je 1
+			gaplug: 1
+			gaplug2: 1
+			gaplug3: 1
+			gaplug4: 1
+			natmpl: 1
+			namisl: 1
+			# Verteidigung
+			gactwr: 6
+			gavulc: 4
+			garock: 2
+			gacsam: 3
+			nalasr: 4
+			nasam: 3
+			naobel: 2
+		BuildingFractions:
+			# Wirtschaft: höchste Priorität
+			gproc: 100
+			nproc: 100
+			# Strom: sofort wenn nötig
+			gapowr: 100
+			napowr: 100
+			# Grundproduktion: gleich nach Wirtschaft
+			gapile: 80
+			nahand: 80
+			gaweap: 70
+			naweap: 70
+			# Radar: wichtig für Tech-Unlock
+			garadr: 60
+			naradr: 60
+			# Helipad: mittlere Priorität
+			gahpad: 40
+			nahpad: 40
+			# Depot: niedrige Priorität
+			gadept: 20
+			# Tech-Center: erst wenn Basis steht
+			gatech: 30
+			natech: 30
+			nastlh: 20
+			# Silos: nur wenn Ressourcen voll laufen
+			gasilo: 10
+			# Superwaffen: sehr niedrige Priorität
+			gaplug: 15
+			gaplug2: 10
+			gaplug3: 10
+			gaplug4: 10
+			natmpl: 15
+			namisl: 10
+			# Verteidigung: Tower-Basis zuerst, dann Upgrades
+			gactwr: 50
+			gavulc: 40
+			gacsam: 30
+			garock: 20
+			nalasr: 50
+			nasam: 30
+			naobel: 20
+
+	BuildingRepairBotModule@test:
+		RequiresCondition: enable-test-ai
+
+	# Ein SquadManagerBotModule reicht - Trennung erfolgt intern über AirUnitsTypes/NavalUnitsTypes
+	# Boden → Assault/Rush/Protection Squads automatisch
+	# Luft  → Air Squad automatisch (via AirUnitsTypes)
+	SquadManagerBotModule@test:
+		RequiresCondition: enable-test-ai
+		SquadSize: 8
+		SquadSizeRandomBonus: 10
+		AssignRolesInterval: 50
+		RushInterval: 600
+		AttackForceInterval: 75
+		MinimumAttackForceDelay: 0
+		RushAttackScanRadius: 15
+		ProtectUnitScanRadius: 15
+		IdleScanRadius: 10
+		DangerScanRadius: 10
+		AttackScanRadius: 12
+		ProtectionScanRadius: 8
+		MaxBaseRadius: 20
+		# Lufteinheiten werden automatisch in Air-Squads gesteckt
+		AirUnitsTypes: orca, orcab, apache, scrin
+		# Transporter/Support nie in Squads
+		ExcludeFromSquadsTypes: gharv, nharv, gmcv, nmcv, dpod, dpod2, hunter, repair, medic, trnsport, dshp, orcatran
+		ConstructionYardTypes: gacnst, nacnst
+		# Gebäude die beim Verteidigen priorisiert werden
+		ProtectionTypes: gacnst, nacnst, gproc, nproc, gapowr, napowr, naapwr, gapile, nahand, gaweap, naweap, gahpad, nahpad, gadept, garadr, naradr, gatech, natech, nastlh, gaplug, natmpl, namisl, nawast, gagate_a, gagate_b, nagate_a, nagate_b, gactwr, nalasr, naobel, nasam, napuls, gasilo, gmcv, nmcv
+		# Lufteinheiten des Gegners nicht als Primärziel für Bodentruppen
+		IgnoredEnemyTargetTypes: Air
+
+	# --- Bodentruppen: Infanterie und Fahrzeuge ---
+	# Harvester werden hier mitgebaut aber aus Squads ausgeschlossen (ExcludeFromSquadsTypes)
+	UnitBuilderBotModule@Ground:
+		RequiresCondition: enable-test-ai
+		UnitQueues: Infantry, Vehicle
+		UnitsToBuild:
+			# Harvester - höchste Priorität damit Wirtschaft läuft
+			gharv: 100
+			nharv: 100
+			# GDI Infanterie
+			gasol: 80		# Minigunner - billig, gut für Masse
+			e2: 25			# Grenadier - Flächenschaden
+			medic: 10		# Sanitäter - hält Infanterie am Leben
+			jumpjet: 15		# Jumpjet - gut vs Gebäude, braucht garadr
+			ghost: 5		# Ghost - teuer, braucht gatech
+			# NOD Infanterie
+			nasol: 80		# Soldat - billig, gut für Masse
+			e3: 25			# Raketenwerfer - gut vs Fahrzeuge
+			cyborg: 20		# Cyborg - robust, braucht nahand+medium
+			cyc2: 3			# Kommando-Cyborg - teuer, braucht natmpl
+			# GDI Fahrzeuge
+			smech: 30		# Schütze Mech - billig, früh verfügbar
+			mmch: 20		# Medium Tank - Hauptkampfpanzer GDI
+			jugg: 15		# Juggernaut - Artillerie, braucht garadr
+			hvr: 15			# Hover MLRS - braucht garadr
+			sonic: 8		# Sonictank - braucht gatech
+			hmec: 3			# Mammut Mech - sehr teuer, braucht gatech
+			# NOD Fahrzeuge
+			bggy: 30		# Buggy - billig, schnell
+			bike: 25		# Raketenbike - gut vs Luft+Panzer
+			ttnk: 20		# Tick Tank - Hauptkampfpanzer NOD
+			art2: 10		# Artillerie - braucht naradr
+			subtank: 8		# Stealth Tank - braucht natech
+			stnk: 8			# Stealth Tank 2 - braucht natech
+			repair: 3		# Reparaturfahrzeug
+		UnitLimits:
+			gharv: 6
+			nharv: 6
+			medic: 3
+			repair: 3
+			ghost: 3
+			cyc2: 2
+			hmec: 2
+
+	# --- Lufteinheiten ---
+	# Orca/Apache brauchen nur Helipad, Orcab/Scrin brauchen zusätzlich Tech
+	UnitBuilderBotModule@Air:
+		RequiresCondition: enable-test-ai
+		UnitQueues: Air
+		UnitsToBuild:
+			# GDI Luft - Orca früh verfügbar (nur gahpad)
+			orca: 60		# Orca Fighter - früh verfügbar
+			orcab: 30		# Orca Bomber - braucht gatech
+			# NOD Luft - Apache früh verfügbar (nur nahpad)
+			apache: 50		# Apache - früh verfügbar
+			scrin: 25		# Banshee - braucht natech
+		UnitLimits:
+			orcab: 4
+			scrin: 4
+
+	# --- Rusheinheiten: schnelle billige Einheiten für Frühangriff ---
+	# Nur Einheiten die von Anfang an verfügbar sind (techlevel.low)
+	UnitBuilderBotModule@Rush:
+		RequiresCondition: enable-test-ai
+		UnitQueues: Infantry, Vehicle
+		UnitsToBuild:
+			gasol: 100		# Schnell produzierbar, billig
+			nasol: 100		# Schnell produzierbar, billig
+			smech: 50		# Billigstes GDI-Fahrzeug
+			bggy: 60		# Billigstes NOD-Fahrzeug, schnell
+			bike: 40		# Schnell, gut vs Infanterie
+		UnitLimits:
+			smech: 6
+			bggy: 6
+			bike: 4
+
+	McvExpansionManagerBotModule@test:
+		RequiresCondition: enable-test-ai
+		McvTypes: gmcv, nmcv
+		ConstructionYardTypes: gacnst, nacnst
+		McvFactoryTypes: gaweap, naweap
+		MinimumConstructionYardCount: 2
+
+	CaptureManagerBotModule@test:
+		RequiresCondition: enable-test-ai
+		CapturingActorTypes: engineer, nengineer
