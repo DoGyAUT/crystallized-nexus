@@ -165,18 +165,30 @@ pips:
 explosion:
 	Defaults:
 		Length: *
-		ZOffset: 511
-		Offset: 0, 0, 24
+		ZOffset: 1024 #511
+		Offset: 0, 0, 128
 		AlphaFade: True
 		IgnoreWorldTint: True
 	building:
-		Filename: twlt070.shp
+		Filename: twlt070.png
+		BlendMode: Additive
+		AlphaFade: False
 		Offset: 0, 0, 36
 	ionring:
 		Filename: ring1.shp
 		ZRamp: 1
 		Tick: 100
 		IgnoreWorldTint: False
+	ionring_mini:
+		Filename: ringmini.shp
+		ZRamp: 1
+		Tick: 100
+	sonic_impact:
+		Filename: sonic_impact.shp
+		Palette: sonic
+		ZOffset: -512
+		ZRamp: 1
+		Offset: 0, 0, 12
 	ionbeam:
 		Filename: ionbeam.shp
 		Offset: 0, -60, 60
@@ -236,79 +248,137 @@ explosion:
 		IgnoreWorldTint: False
 	piff:
 		Filename: piff.shp
-		IgnoreWorldTint: False
+		IgnoreWorldTint: True
 	piffs:
 		Filename: piffpiff.shp
-		IgnoreWorldTint: False
+		IgnoreWorldTint: True
 	small_explosion:
-		Filename: explosml.shp
+		Filename: explosml.png
+		BlendMode: Additive
+		AlphaFade: False
 	medium_explosion:
-		Filename: explomed.shp
+		Filename: explomed.png
+		BlendMode: Additive
+		AlphaFade: False
 		Offset: 0, 0, 27
 	large_explosion:
-		Filename: explolrg.shp
+		Filename: explolrg.png
+		BlendMode: Additive
+		AlphaFade: False
 		Offset: 0, 0, 31
 	tiny_bang:
-		Filename: s_bang16.shp
+		Filename: s_bang16.png
+		BlendMode: Additive
+		AlphaFade: False
 	small_bang:
-		Filename: s_bang24.shp
+		Filename: s_bang24.png
+		BlendMode: Additive
+		AlphaFade: False
 	medium_bang:
-		Filename: s_bang34.shp
+		Filename: s_bang36.png
+		BlendMode: Additive
+		AlphaFade: False
 	large_bang:
-		Filename: s_bang48.shp
+		Filename: s_bang48.png
+		BlendMode: Additive
+		AlphaFade: False
 	tiny_brnl:
-		Filename: s_brnl20.shp
+		Filename: s_brnl20.png
+		BlendMode: Additive
+		AlphaFade: False
 	small_brnl:
-		Filename: s_brnl30.shp
+		Filename: s_brnl30.png
+		BlendMode: Additive
+		AlphaFade: False
 	medium_brnl:
-		Filename: s_brnl40.shp
+		Filename: s_brnl40.png
+		BlendMode: Additive
+		AlphaFade: False
 	large_brnl:
-		Filename: s_brnl58.shp
+		Filename: s_brnl58.png
+		BlendMode: Additive
+		AlphaFade: False
 		Offset: 0, 0, 30
 	tiny_tumu:
-		Filename: s_tumu22.shp
+		Filename: s_tumu22.png
+		BlendMode: Additive
+		AlphaFade: False
 	small_tumu:
-		Filename: s_tumu30.shp
+		Filename: s_tumu30.png
+		BlendMode: Additive
+		AlphaFade: False
 	medium_tumu:
-		Filename: s_tumu42.shp
+		Filename: s_tumu42.png
+		BlendMode: Additive
+		AlphaFade: False
 	large_tumu:
-		Filename: s_tumu60.shp
+		Filename: s_tumu60.png
+		BlendMode: Additive
+		AlphaFade: False
 		Offset: 0, 0, 31
 	tiny_clsn:
-		Filename: s_clsn16.shp
+		Filename: s_clsn16.png
+		BlendMode: Additive
+		AlphaFade: False
 	small_clsn:
-		Filename: s_clsn22.shp
+		Filename: s_clsn22.png
+		BlendMode: Additive
+		AlphaFade: False
 	medium_clsn:
-		Filename: s_clsn30.shp
+		Filename: s_clsn30.png
+		BlendMode: Additive
+		AlphaFade: False
 	large_clsn:
-		Filename: s_clsn42.shp
+		Filename: s_clsn42.png
+		BlendMode: Additive
+		AlphaFade: False
 	verylarge_clsn:
-		Filename: s_clsn58.shp
+		Filename: s_clsn58.png
+		BlendMode: Additive
+		AlphaFade: False
 		Offset: 0, 0, 30
 	tiny_twlt:
-		Filename: twlt026.shp
+		Filename: twlt026.png
+		BlendMode: Additive
+		AlphaFade: False
 	small_twlt:
-		Filename: twlt036.shp
+		Filename: twlt036.png
+		BlendMode: Additive
+		AlphaFade: False
 	medium_twlt:
-		Filename: twlt050.shp
+		Filename: twlt050.png
+		BlendMode: Additive
+		AlphaFade: False
 		Offset: 0, 0, 26
 	large_twlt:
-		Filename: twlt070.shp
+		Filename: twlt070.png
+		BlendMode: Additive
+		AlphaFade: False
 		Offset: 0, 0, 36
 	verylarge_twlt:
-		Filename: twlt100.shp
+		Filename: twlt100.png
+		BlendMode: Additive
+		AlphaFade: False
 		Offset: 0, 0, 51
 	tiny_grey_explosion:
-		Filename: xgrysml1.shp
+		Filename: xgrysml1.png
+		BlendMode: Additive
+		AlphaFade: False
 		IgnoreWorldTint: False
 	small_grey_explosion:
-		Filename: xgrysml2.shp
+		Filename: xgrysml2.png
+		BlendMode: Additive
+		AlphaFade: False
 		IgnoreWorldTint: False
 	medium_grey_explosion:
-		Filename: xgrymed1.shp
+		Filename: xgrymed1.png
+		BlendMode: Additive
+		AlphaFade: False
 		IgnoreWorldTint: False
 	large_grey_explosion:
-		Filename: xgrymed2.shp
+		Filename: xgrymed2.png
+		BlendMode: Additive
+		AlphaFade: False
 		IgnoreWorldTint: False
 	droppod_explosion:
 		Filename: droppod.shp
@@ -330,6 +400,284 @@ explosion:
 		Length: 8
 		Tick: 360
 		IgnoreWorldTint: False
+	tiny_flash_w:
+		Filename: clight_tiny_w.png
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
+	small_flash_w:
+		Filename: clight_small_w.png
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
+	medium_flash_w:
+		Filename: clight_medium_w.png
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
+	large_flash_w:
+		Filename: clight_large_w.png
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
+	tiny_flash_y:
+		Filename: clight_tiny_y.png
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
+	small_flash_y:
+		Filename: clight_small_y.png
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
+	medium_flash_y:
+		Filename: clight_medium_y.png
+		Length: *
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
+	large_flash_y:
+		Filename: clight_large_y.png
+		Length: *
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
+	bolt1:
+		Filename: lightning1.shp
+		Length: *
+		Offset: 0, -125, 125
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	bolt2:
+		Filename: lightning2.shp
+		Length: *
+		Offset: 0, -125, 125
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	bolt3:
+		Filename: lightning1.shp
+		FlipX: true
+		Length: *
+		Offset: 0, -125, 125
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	bolt4:
+		Filename: lightning2.shp
+		FlipX: true
+		Length: *
+		Offset: 0, -125, 125
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	airexplo01:
+		Filename: airexplo01.png
+		BlendMode: Additive
+		AlphaFade: False
+	airexplo02:
+		Filename: airexplo02.png
+		BlendMode: Additive
+		AlphaFade: False
+	airexplo03:
+		Filename: airexplo03.png
+		BlendMode: Additive
+		AlphaFade: False
+	airexplo04:
+		Filename: airexplo04.png
+		BlendMode: Additive
+		AlphaFade: False
+	airexplo05:
+		Filename: airexplo05.png
+		BlendMode: Additive
+		AlphaFade: False
+	airexplo06:
+		Filename: airexplo06.png
+		BlendMode: Additive
+		AlphaFade: False
+	airexplo07:
+		Filename: airexplo07.png
+		BlendMode: Additive
+		AlphaFade: False
+	airexplo08:
+		Filename: airexplo08.png
+		BlendMode: Additive
+		AlphaFade: False
+	airexplo09:
+		Filename: airexplo09.png
+		BlendMode: Additive
+		AlphaFade: False
+	sparks1:
+		Filename: sparks1.png
+		BlendMode: Additive
+		AlphaFade: False
+	sparks2:
+		Filename: sparks2.png
+		BlendMode: Additive
+		AlphaFade: False
+	sparks3:
+		Filename: sparks3.png
+		BlendMode: Additive
+		AlphaFade: False
+	sparks4:
+		Filename: sparks4.png
+		BlendMode: Additive
+		AlphaFade: False
+	sparks5:
+		Filename: sparks5.png
+		BlendMode: Additive
+		AlphaFade: False
+	sparks6:
+		Filename: sparks6.png
+		BlendMode: Additive
+		AlphaFade: False
+	grenexplo1:
+		Filename: grenexplo01.png
+		BlendMode: Additive
+		AlphaFade: False
+	gatpiff_single:
+		Filename: gatpiff_single.shp
+		Length: *
+	gatpiff_small:
+		Filename: gatpiff_small.shp
+		Length: *
+	gatpiff_large:
+		Filename: gatpiff_large.shp
+		Length: *
+	artexplo01:
+		Filename: artexplo01.png
+		BlendMode: Additive
+		AlphaFade: False
+	artexplo02:
+		Filename: artexplo02.png
+		BlendMode: Additive
+		AlphaFade: False
+	artexplo03:
+		Filename: artexplo03.png
+		BlendMode: Additive
+		AlphaFade: False
+	artexplo04:
+		Filename: artexplo04.png
+		BlendMode: Additive
+		AlphaFade: False
+	apexplosion01:
+		Filename: apexplosion01.png
+		BlendMode: Additive
+		AlphaFade: False
+	heexplosion01:
+		Filename: heexplosion01.png
+		BlendMode: Additive
+		AlphaFade: False
+	heexplosion02:
+		Filename: heexplosion02.png
+		BlendMode: Additive
+		AlphaFade: False
+	unitexplode2_huge:
+		Filename: unitexplode2_huge.png
+		BlendMode: Additive
+		AlphaFade: False
+	unitexplode1_large:
+		Filename: unitexplode1_large.png
+		BlendMode: Additive
+		AlphaFade: False
+	unitexplode1_medium:
+		Filename: unitexplode1_medium.png
+		BlendMode: Additive
+		AlphaFade: False
+	unitexplode1_small:
+		Filename: unitexplode1_small.png
+		BlendMode: Additive
+		AlphaFade: False
+	pvzrvmst1:
+		Filename: pvzrvmst1.png
+		BlendMode: Additive
+		AlphaFade: False
+	pvzrvmst2:
+		Filename: pvzrvmst2.png
+		BlendMode: Additive
+		AlphaFade: False
+	pvzrvmst3:
+		Filename: pvzrvmst3.png
+		BlendMode: Additive
+		AlphaFade: False
+	pvzrvmst4:
+		Filename: pvzrvmst4.png
+		BlendMode: Additive
+		AlphaFade: False
+	pboom1:
+		Filename: pboom1.png
+		BlendMode: Additive
+		AlphaFade: False
+	fireexplosion:
+		Filename: fireexplosion.png
+		BlendMode: Additive
+		AlphaFade: False
+	tibbomb:
+		Filename: tibbomb.png
+		BlendMode: Alpha
+		AlphaFade: False
+	pboom2:
+		Filename: pboom2.png
+		BlendMode: Additive
+		AlphaFade: False
+	pboom3:
+		Filename: pboom2.png
+		BlendMode: Additive
+		AlphaFade: False
+	rchet00:
+		Filename: rchet00.shp
+		AlphaFade: False
+	rchet01:
+		Filename: rchet01.shp
+		AlphaFade: False
+	rchet02:
+		Filename: rchet02.shp
+		AlphaFade: False
+	plasmaexpl1:
+		Filename: plasmaexpl1.shp
+		AlphaFade: False
+	protexp_medium:
+		Filename: protexp1.shp
+		AlphaFade: False
+	protexp_large:
+		Filename: protexp2.shp
+		AlphaFade: False
+	protexp_small:
+		Filename: protexp3.shp
+		AlphaFade: False		
+
+shockwave_large:
+	idle:
+		Filename: shockwave_large.shp
+		Length: *
+		Palette: effect25
+		ZOffset: -512
+		ZRamp: 1
+		Offset: 0, 0, 12
+
+shockwave_small:
+	idle:
+		Filename: shockwave_small.shp
+		Length: *
+		Palette: effect25
+		ZOffset: -512
+		ZRamp: 1
+		Offset: 0, 0, 12
+
+sonic_impact:
+	idle:
+		Filename: sonic_impact.shp
+		Length: *
+		Palette: sonic
+		ZOffset: -512
+		ZRamp: 1
+		Offset: 0, 0, 12
+
+sonic_muzzle:
+	idle:
+		Filename: sonic_impact.shp
+		Length: *
+		Palette: sonic
+		ZOffset: -512
+		ZRamp: 1
+		Offset: 0, 0, 12
 
 discus:
 	idle:
@@ -370,12 +718,6 @@ crystal4:
 		ZOffset: 1023
 		Offset: 0, 0, 6
 
-120mm:
-	idle:
-		Filename: 120mm.shp
-		ZOffset: 1023
-		Offset: 0, 0, 4
-
 torpedo:
 	idle:
 		Filename: torpedo.shp
@@ -395,6 +737,25 @@ flameall:
 		IgnoreWorldTint: True
 		Alpha: 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1
 
+newflame:
+	idle:
+		Filename: newflame.png
+		Start: 0
+		Length: 40
+		Facings: -32
+		ZOffset: 1023
+		Offset: 0, 0, 24
+		BlendMode: Additive
+
+flametrailer:
+	idle:
+		Filename: flametrailer.png
+		Length: *
+		ZOffset: 1023
+		Offset: 0, 0, 24
+		AlphaFade: True
+		BlendMode: Additive
+
 largesmoke:
 	idle:
 		Filename: lgrysmk1.shp
@@ -402,6 +763,13 @@ largesmoke:
 		ZOffset: 1023
 		Offset: 0, 0, 24
 		AlphaFade: True
+	idle-overlay:
+		Filename: smoke_large.png
+		Start: 33
+		Length: 37
+		ZOffset: 1023
+		Offset: 4, -12, 512
+		BlendMode: Alpha
 
 smallsmoke:
 	idle:
@@ -426,6 +794,56 @@ small_smoke_trail:
 		ZOffset: 1023
 		Offset: 0, 0, 24
 		AlphaFade: True
+
+small_smoke_trail2:
+	idle:
+		Filename: smokey2.png
+		Length: *
+		ZOffset: 1023
+		Offset: 0, 0, 24
+
+durasmoke_large:
+	idle:
+		Filename: durasmoke_large.png
+		Length: *
+		ZOffset: 1023
+		Offset: 0, 0, 24
+		Tick: 150
+		BlendMode: Alpha
+	idle-overlay:
+		Filename: durasmoke_large.png
+		Length: *
+		ZOffset: 1023
+		Offset: 0, 0, 120
+		Tick: 60
+		BlendMode: Alpha
+
+durasmoke_medium:
+	idle:
+		Filename: durasmoke_medium.png
+		Length: *
+		ZOffset: 1023
+		Offset: 0, 0, 24
+		Tick: 60
+		BlendMode: Alpha
+
+durasmoke_small:
+	idle:
+		Filename: durasmoke_small.png
+		Length: *
+		ZOffset: 1023
+		Offset: 0, 0, 24
+		Tick: 60
+		BlendMode: Alpha
+
+htrail:
+	idle:
+		Filename: htrail.png
+		Length: *
+		ZOffset: 1023
+		Offset: 0, 0, 48
+		Tick: 10
+		BlendMode: Alpha
 
 largefire:
 	idle:
@@ -582,6 +1000,16 @@ veins:
 		ZOffset: 1023
 		Offset: 0, -12, 24
 
+veinsidle:
+	idle:
+		TilesetFilenames:
+			TEMPERATE: veinatac.tem
+			SNOW: veinatac.sno
+		Length: 12
+		Tick: 300
+		ZOffset: 1023
+		Offset: 0, -12, 24
+
 shroud:
 	Defaults:
 		Filename: shroud.shp
@@ -595,7 +1023,7 @@ shroud:
 
 smallscorches:
 	Defaults:
-		Offset: 0, -12, 1
+		Offset: 0, -12, 2
 		ZRamp: 1
 	sc1:
 		TilesetFilenames:
@@ -624,7 +1052,7 @@ smallscorches:
 
 mediumscorches:
 	Defaults:
-		Offset: 0, -18, 1
+		Offset: 0, -18, 2
 		ZRamp: 1
 	sc7:
 		TilesetFilenames:
@@ -645,7 +1073,7 @@ mediumscorches:
 
 largescorches:
 	Defaults:
-		Offset: 0, -24, 1
+		Offset: 0, -24, 2
 		ZRamp: 1
 	sc11:
 		TilesetFilenames:
@@ -658,7 +1086,7 @@ largescorches:
 
 smallcraters:
 	Defaults:
-		Offset: 0, -12, 1
+		Offset: 0, -12, 3
 		ZRamp: 1
 	cr1:
 		TilesetFilenames:
@@ -687,7 +1115,7 @@ smallcraters:
 
 mediumcraters:
 	Defaults:
-		Offset: 0, -12, 1
+		Offset: 0, -12, 3
 		ZRamp: 1
 	cr7:
 		TilesetFilenames:
@@ -708,7 +1136,7 @@ mediumcraters:
 
 largecraters:
 	Defaults:
-		Offset: 0, -24, 1
+		Offset: 0, -24, 3
 		ZRamp: 1
 	cr11:
 		TilesetFilenames:
@@ -1092,10 +1520,12 @@ tuntop04:
 
 dig:
 	idle:
-		Filename: dig.shp
+		Filename: dig.png
+		Palette: terrain
 		Length: *
 		ZOffset: 511
 		Offset: 0, 0, 24
+		BlendMode: Alpha
 
 typeglyphs:
 	Defaults:
@@ -1122,7 +1552,7 @@ fire1:
 		Filename: fire1.shp
 		Length: 17
 		BlendMode: Translucent
-		Offset: 0, -24, 24
+		Offset: 0, -24, 256
 		ZOffset: 1023
 
 fire2:
@@ -1130,8 +1560,35 @@ fire2:
 		Filename: fire2.shp
 		Length: 17
 		BlendMode: Translucent
-		Offset: 0, -18, 18
+		Offset: 0, -18, 256
 		ZOffset: 1023
+
+huskfire01a:
+	idle-overlay:
+		Filename: fire01a.png
+		Length: 32
+		BlendMode: Additive
+		Offset: 0,0,128
+		ZOffset: 1023
+		IgnoreWorldTint: True
+
+huskfire02a:
+	idle-overlay:
+		Filename: fire02a.png
+		Length: 32
+		BlendMode: Additive
+		Offset: 0,0,128
+		ZOffset: 1023
+		IgnoreWorldTint: True
+
+huskfire03a:
+	idle-overlay:
+		Filename: fire03a.png
+		Length: 32
+		BlendMode: Additive
+		Offset: 0,0,128
+		ZOffset: 1023
+		IgnoreWorldTint: True
 
 caryland:
 	idle:
@@ -1153,42 +1610,248 @@ dropland:
 		Offset: 0, 0, 1
 		BlendMode: Translucent
 
-cloud:
+clouds:
 	cloud1:
-		Filename: cloud1.png
-	cloud1f:
-		Filename: cloud1.png
-		FlipX: true
-		FlipY: true
+		Filename: cloud_small1.png
+		BlendMode: Multiply
+		Offset: 0, 0, 1024
 	cloud2:
-		Filename: cloud2.png
-	cloud2f:
-		Filename: cloud2.png
-		FlipX: true
-		FlipY: true
+		Filename: cloud_small2.png
+		BlendMode: Multiply
+		Offset: 0, 0, 1024
 	cloud3:
-		Filename: cloud3.png
-	cloud3f:
-		Filename: cloud3.png
-		FlipX: true
-		FlipY: true
+		Filename: cloud_large1.png
+		BlendMode: Multiply
+		Offset: 0, 0, 1024
+	cloud4:
+		Filename: cloud_cirrus1.png
+		BlendMode: Multiply
+		Offset: 0, 0, 1024
+	cloud5:
+		Filename: cloud_cluster1.png
+		BlendMode: Multiply
+		Offset: 0, 0, 1024
+	cloud6:
+		Filename: cloud_huge.png
+		BlendMode: Multiply
+		Offset: 0, 0, 1024
+
+godrays:
+	single:
+		Filename: godray_single.png
+		BlendMode: Additive
+	double:
+		Filename: godray_double.png
+		BlendMode: Additive
+	fan:
+		Filename: godray_fan.png
+		BlendMode: Additive
+	dappled:
+		Filename: godray_dappled.png
+		BlendMode: Additive
+
+water_waves:
+	glitter:
+		Filename: water_glitter.png
+		Length: 12
+		Tick: 200
 
 sparkle:
+	Defaults:
+		IgnoreWorldTint: True
 	twnk1:
 		Filename: twnk1.shp
 		Start: 0
 		Length: 3
 		Tick: 300
-		Scale: 2
 	twnk2:
 		Filename: twnk2.shp
 		Start: 0
 		Length: 5
 		Tick: 300
-		Scale: 2
 	twnk3:
 		Filename: twnk3.shp
 		Start: 0
 		Length: 5
 		Tick: 300
-		Scale: 2
+
+tibpoison:
+	idle:
+		Filename: tibpoison.png
+		Length: *
+		BlendMode: Translucent
+		ZOffset: 1024
+		Offset: 0, 0, 128
+
+lightning:
+	Defaults:
+		IgnoreWorldTint: True
+	bolt1:
+		Filename: lightning1.shp
+		Offset: 0, -125, 125
+		Length: *
+		IgnoreWorldTint: True
+	bolt2:
+		Filename: lightning2.shp
+		Length: *
+		Offset: 0, -125, 125
+		IgnoreWorldTint: True
+	bolt3:
+		Filename: lightning1.shp
+		FlipX: true
+		Offset: 0, -125, 125
+		Length: *
+		IgnoreWorldTint: True
+	bolt4:
+		Filename: lightning2.shp
+		FlipX: true
+		Length: *
+		Offset: 0, -125, 125
+		IgnoreWorldTint: True
+
+tibcloud:
+	cloud1:
+		Filename: cloud1.shp
+		Length: *
+		ZOffset: 1024
+		Offset: 0, -12, 128
+	cloud1-die:
+		Filename: cloud1d.shp
+		Length: *
+		ZOffset: 1024
+		Offset: 0, -12, 128
+	cloud2:
+		Filename: cloud2.shp
+		Length: *
+		ZOffset: 1024
+		Offset: 0, -12, 128
+	cloud2-die:
+		Filename: cloud2d.shp
+		Length: *
+		ZOffset: 1024
+		Offset: 0, -12, 128
+
+blood:
+	Defaults:
+		ZOffset: 1023
+		Length: *
+	1:
+		Filename: blood1.shp
+	2:
+		Filename: blood2.shp
+	3:
+		Filename: blood3.shp
+
+bloodsplatter:
+	Defaults:
+		Offset: 0, -24, 1
+		ZRamp: 1
+		IgnoreWorldTint: false
+	bs1l:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_large.tem
+			SNOW: bloodsplatter_large.sno
+		Start: 0
+		Length: 1
+	bs2l:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_large.tem
+			SNOW: bloodsplatter_large.sno
+		Start: 1
+		Length: 1
+	bs3l:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_large.tem
+			SNOW: bloodsplatter_large.sno
+		Start: 2
+		Length: 1
+	bs4l:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_large.tem
+			SNOW: bloodsplatter_large.sno
+		Start: 3
+		Length: 1
+	bs1m:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_medium.tem
+			SNOW: bloodsplatter_medium.sno
+		Start: 0
+		Length: 1
+	bs2m:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_medium.tem
+			SNOW: bloodsplatter_medium.sno
+		Start: 1
+		Length: 1
+	bs3m:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_medium.tem
+			SNOW: bloodsplatter_medium.sno
+		Start: 2
+		Length: 1
+	bs4m:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_medium.tem
+			SNOW: bloodsplatter_medium.sno
+		Start: 3
+		Length: 1
+	bs1s:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_small.tem
+			SNOW: bloodsplatter_small.sno
+		Start: 0
+		Length: 1
+	bs2s:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_small.tem
+			SNOW: bloodsplatter_small.sno
+		Start: 1
+		Length: 1
+	bs3s:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_small.tem
+			SNOW: bloodsplatter_small.sno
+		Start: 2
+		Length: 1
+	bs4s:
+		TilesetFilenames:
+			TEMPERATE: bloodsplatter_small.tem
+			SNOW: bloodsplatter_small.sno
+		Start: 3
+		Length: 1
+
+blooddecal1:
+	idle:
+		Filename: blood1.png
+		Length: 1
+		BlendMode: Alpha
+		Offset: 0, 0, 4
+		ZRamp: 1
+		IgnoreWorldTint: false
+ 
+blooddecal2:
+	idle:
+		Filename: blood2.png
+		Length: 1
+		BlendMode: Alpha
+		Offset: 0, 0, 4
+		ZRamp: 1
+		IgnoreWorldTint: false
+ 
+blooddecal3:
+	idle:
+		Filename: blood3.png
+		Length: 1
+		BlendMode: Alpha
+		Offset: 0, 0, 4
+		ZRamp: 1
+		IgnoreWorldTint: false
+ 
+blooddecal4:
+	idle:
+		Filename: blood4.png
+		Length: 1
+		BlendMode: Alpha
+		Offset: 0, 0, 4
+		ZRamp: 1
+		IgnoreWorldTint: false
