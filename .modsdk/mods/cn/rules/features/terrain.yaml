@@ -1,0 +1,169 @@
+^BlossomTree:
+	Inherits@1: ^SpriteActor
+	Interactable:
+	Tooltip:
+		Name: meta-blossomtree-name
+	RenderSprites:
+		Palette: player
+	WithSpriteBody:
+	Building:
+		Footprint: x
+		Dimensions: 1,1
+	AppearsOnRadar:
+	RadarColorFromTerrain:
+		Terrain: Tiberium
+	AppearsOnMapPreview:
+		Terrain: Tiberium
+	FrozenUnderFog:
+	SeedsResource:
+		ResourceType: Tiberium
+		Interval: 55
+	WithIdleAnimation:
+		Interval: 500, 1000
+	MapEditorData:
+		Categories: Resource spawn
+	AmbientSound:
+		SoundFiles: gasflow1.wav, gasflow2.wav
+		Delay: 150, 450
+		Interval: 300, 800
+
+^Tree:
+	Inherits@1: ^SpriteActor
+	Inherits@2: ^ExistsInWorld
+	Inherits@ARMORTYPE: ^FeatureArmortypeFlora
+	RandomTransformsNearResources@TIBGREEN:
+		Type: Tiberium
+		IntoActors: FONA06, FONA07, FONA08, FONA09, FONA10, FONA11, FONA12, FONA13, FONA14, FONA15 #, TIBTRE01, TIBTRE02, TIBTRE03
+		Adjacency: 1
+		Density: 2
+		Delay: 2000, 5000
+	RandomTransformsNearResources@TIBBLUE:
+		Type: BlueTiberium
+		IntoActors: FONA01, FONA02, FONA03, FONA04, FONA05 #, BIGBLUE
+		Adjacency: 1
+		Density: 2
+		Delay: 2000, 5000
+	Interactable:
+	FrozenUnderFog:
+	AppearsOnRadar:
+	RadarColorFromTerrain:
+		Terrain: Tree
+	AppearsOnMapPreview:
+		Terrain: Tree
+	RenderSprites:
+		Palette: terraindecoration
+	WithSpriteBody:
+	Building:
+		Footprint: x
+		Dimensions: 1, 1
+	Tooltip:
+		Name: meta-tree-name
+	MapEditorData:
+		Categories: Tree
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
+	HitShape:
+	CNHealth:
+		HP: 20
+	Armor:
+		Type: Light
+	Targetable:
+		TargetTypes: Trees, NoAutoTarget
+	GrantConditionOnDamageState@Small:
+		Condition: small-fire
+		ValidDamageStates: Medium
+	GrantConditionOnDamageState@Large:
+		Condition: large-fire
+		ValidDamageStates: Heavy, Critical
+	WithIdleOverlay@SmallFire:
+		Image: fire2
+		Palette: effect
+		RequiresCondition: small-fire
+	WithIdleOverlay@LargeFire:
+		Image: fire1
+		Palette: effect
+		RequiresCondition: large-fire
+	SpreadsCondition@Fire:
+		RequiresCondition: small-fire || large-fire
+		SpreadCondition: burning
+	ChangesHealth:
+		StartIfBelow: 101
+		Step: -5
+		RequiresCondition: small-fire || large-fire || burning
+	AmbientSound:
+		SoundFiles: wind1.wav, wind2.wav, wind3.wav, wind4.wav, wind1.wav
+		Delay: 150, 1000
+		Interval: 300, 2000
+
+^Rock:
+	Inherits@1: ^SpriteActor
+	Interactable:
+	HiddenUnderShroud:
+	AppearsOnRadar:
+	RadarColorFromTerrain:
+		Terrain: Rock
+	AppearsOnMapPreview:
+		Terrain: Rock
+	RenderSprites:
+		Palette: terraindecoration
+	WithSpriteBody:
+	Building:
+		Footprint: x
+		Dimensions: 1, 1
+	Tooltip:
+		Name: meta-rock-name
+	MapEditorData:
+		Categories: Decoration
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
+	AmbientSound:
+		SoundFiles: wind1.wav, wind2.wav, wind3.wav, wind4.wav, wind1.wav
+		Delay: 150, 1000
+		Interval: 300, 2000
+
+^Railway:
+	Inherits: ^TerrainOverlay
+	EditorOnlyTooltip:
+		Name: meta-railway-name
+	ChangesTerrain:
+		TerrainType: Rail
+	MapEditorData:
+		Categories: Railway
+	Interactable:
+
+^Tunnel:
+	RenderSprites:
+		Palette: terraindecoration
+	WithSpriteBody:
+	BodyOrientation:
+		UseClassicPerspectiveFudge: False
+		QuantizedFacings: 1
+	Building:
+		Dimensions: 3, 3
+		Footprint: ___ ___ ___
+	Targetable:
+	TunnelEntrance:
+	MapEditorData:
+		Categories: Tunnel
+	Interactable:
+		Bounds: 4344, 8688
+
+# Temperate
+^AutoPavement:
+	PlacesPavement:
+		PavementTemplates: 582, 583, 584, 585
+		TransitionTemplates: 596, 597, 598, 599, 600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611
+		Padding: 1
+		RemoveOnSelling: true
+		RemoveOnDeath: false
+		ForbiddenTerrainTypes: Water, Bridge, Cliff, Rock
+	
+# Snow (auskommentiert - aktivieren für Snow-Maps)
+# ^AutoPavementSnow:
+#     PlacesPavement:
+#         PavementTemplates: 1032, 1033, 1034, 1035
+#         TransitionTemplates: 1046, 1047, 1048, 1049, 1050, 1051, 1052, 1053, 1054, 1055, 1056, 1057, 1058, 1059, 1060, 1061
+#         Padding: 1
+#         RemoveOnSelling: true
+#         RemoveOnDeath: false
+#         ForbiddenTerrainTypes: Water, Bridge, Cliff, Rock      ForbiddenTerrainTypes: Water, Bridge, Cliff, Rock
