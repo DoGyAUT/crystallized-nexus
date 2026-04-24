@@ -1,5 +1,6 @@
 ^BaseWorld:
 	Inherits: ^Palettes
+	Inherits@LOCOMOTORS: ^Locomotors
 	ScreenMap:
 	ActorMap:
 	Selection:
@@ -8,203 +9,55 @@
 		VictoryMusic: score
 		DefeatMusic: fsmap
 	VoxelCache:
+		SheetSize: 4096
 	ModelRenderer:
 	TerrainRenderer:
 	TerrainLighting:
-	CloudSpawner:
-		Image: cloud
-		Sequences: cloud1, cloud1f, cloud2, cloud2f, cloud3, cloud3f
-		Palette: cloud
-		Speed: 10, 20
+		HeightStep: 0.028
+		RedTint: 0.71
+		GreenTint: 0.81
+		BlueTint: 1.19
+		Intensity: 0.9
+	TintPostProcessEffect:
+	CloudSpawner@Clouds:
+		Image: clouds
+		Sequences: cloud1, cloud2, cloud3, cloud4, cloud5, cloud6
+		Palette: effect
 		SpawnInterval: 50
+		Speed: 20, 40
+		WindDirection: 8
+		ShouldPrespawn: true
+	CloudSpawner@Godrays:
+		Image: godrays
+		Sequences: single, double, fan, dappled
+		Palette: effect
+		SpawnInterval: 100
+		Speed: 10, 20
+		WindDirection: 12
+		ShouldPrespawn: true
+	ResourceAnimationOverlay@TiberiumSparkle:
+		ResourceTypes: Tiberium, BlueTiberium, RedTiberium
+		Image: sparkle
+		Sequences: twnk1, twnk2, twnk3
+		Palette: sparkle
+		Interval: 1, 5
+		InitialDelay: 50
+#		AdditionalImage: tibpoison
+#		AdditionalSequences: idle
+#		AdditionalPalette: effect
+#		AdditionalChance: 50
+	ResourceAnimationOverlay@VeinIdle:
+		ResourceTypes: Veins
+		Image: veinsidle
+		Sequences: idle
+		Palette: player
+		Interval: 1, 5
+		InitialDelay: 50
 	ShroudRenderer:
 		Index: 255, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 20, 40, 56, 65, 97, 130, 148, 194, 24, 33, 66, 132, 28, 41, 67, 134, 1, 2, 4, 8, 3, 6, 12, 9, 7, 14, 13, 11, 5, 10, 15, 255
 		UseExtendedIndex: true
 		ShroudPalette: shroud
 		FogPalette: shroud
-	Locomotor@FOOT:
-		Name: foot
-		Crushes: crate
-		SharesCell: true
-		TerrainSpeeds:
-			Clear: 90
-			Road: 100
-			Bridge: 100
-			Rail: 90
-			DirtRoad: 100
-			Rough: 80
-			Tiberium: 90
-			BlueTiberium: 90
-			RedTiberium: 90
-			Veins: 50
-	Locomotor@FLAMEGUY:
-		Name: flameguy
-		SharesCell: true
-		TerrainSpeeds:
-			Clear: 90
-			Road: 100
-			Bridge: 100
-			Rail: 90
-			DirtRoad: 100
-			Rough: 80
-			Tiberium: 90
-			BlueTiberium: 90
-			RedTiberium: 90
-			Veins: 50
-	JumpjetLocomotor@JUMPJET:
-		Name: jumpjet
-		Crushes: crate
-		SharesCell: true
-		JumpjetTransitionCost: 100
-		TerrainSpeeds:
-			Clear: 90
-			Road: 100
-			Bridge: 100
-			Rail: 90
-			DirtRoad: 100
-			Rough: 80
-			Tiberium: 90
-			BlueTiberium: 90
-			RedTiberium: 90
-			Veins: 50
-			Jumpjet: 110
-	Locomotor@WHEELED:
-		Name: wheeled
-		Crushes: crate
-		TerrainSpeeds:
-			Clear: 70
-			Road: 100
-			Bridge: 100
-			Rail: 50
-			DirtRoad: 90
-			Rough: 40
-			Tiberium: 50
-			BlueTiberium: 50
-			RedTiberium: 50
-			Veins: 50
-				PathingCost: 90
-	Locomotor@HEAVYWHEELED:
-		Name: heavywheeled
-		Crushes: wall, crate, infantry
-		TerrainSpeeds:
-			Clear: 70
-			Road: 100
-			Bridge: 100
-			Rail: 50
-			DirtRoad: 90
-			Rough: 40
-			Tiberium: 50
-			BlueTiberium: 50
-			RedTiberium: 50
-			Veins: 50
-				PathingCost: 90
-	Locomotor@TRACKED:
-		Name: tracked
-		Crushes: wall, crate, infantry
-		TerrainSpeeds:
-			Clear: 70
-			Road: 100
-			Bridge: 100
-			Rail: 100
-			DirtRoad: 90
-			Rough: 60
-			Tiberium: 70
-			BlueTiberium: 70
-			RedTiberium: 70
-			Veins: 70
-	Locomotor@AMPHIBIOUS:
-		Name: amphibious
-		Crushes: wall, crate, infantry
-		TerrainSpeeds:
-			Clear: 70
-			Road: 100
-			Bridge: 100
-			Rail: 100
-			DirtRoad: 90
-			Rough: 60
-			Tiberium: 70
-			BlueTiberium: 70
-			RedTiberium: 70
-			Veins: 70
-			Water: 80
-	SubterraneanLocomotor@SUBTERRANEAN:
-		Name: subterranean
-		Crushes: wall, crate, infantry
-		TerrainSpeeds:
-			Clear: 70
-			Road: 100
-			Bridge: 100
-			Rail: 100
-			DirtRoad: 90
-			Rough: 60
-			Tiberium: 70
-			BlueTiberium: 70
-			RedTiberium: 70
-			Veins: 70
-			Subterranean: 120
-		SubterraneanTransitionTerrainTypes: Clear, Rough
-		SubterraneanTransitionCost: 120
-	Locomotor@HOVER:
-		Name: hover
-		Crushes: wall, crate, infantry
-		TerrainSpeeds:
-			Clear: 100
-			Road: 100
-			Bridge: 100
-			Rail: 100
-			DirtRoad: 100
-			Rough: 100
-			Water: 100
-			Tiberium: 100
-			BlueTiberium: 100
-			RedTiberium: 100
-			Veins: 100
-	Locomotor@SMALLVISC:
-		Name: smallvisc
-		Crushes: visceroid-fusing
-		TerrainSpeeds:
-			Clear: 90
-			Road: 100
-			Bridge: 100
-			Rail: 80
-			DirtRoad: 90
-			Rough: 70
-			Tiberium: 100
-			BlueTiberium: 100
-			RedTiberium: 100
-			Veins: 100
-	Locomotor@VISCEROID:
-		Name: visceroid
-		Crushes: infantry
-		TerrainSpeeds:
-			Clear: 90
-			Road: 100
-			Bridge: 100
-			Rail: 80
-			DirtRoad: 90
-			Rough: 70
-			Tiberium: 100
-			BlueTiberium: 100
-			RedTiberium: 100
-			Veins: 100
-	Locomotor@CRITTER:
-		Name: critter
-		TerrainSpeeds:
-			Clear: 90
-			Road: 100
-			Bridge: 100
-			Rail: 80
-			DirtRoad: 90
-			Rough: 70
-			Tiberium: 100
-			BlueTiberium: 100
-			RedTiberium: 100
-			Veins: 100
-	Locomotor@TRAIN:
-		Name: train
-		TerrainSpeeds:
-			Rail: 100
-		Crushes: wall, crate, infantry
 	Faction@Random:
 		Name: faction-random.name
 		InternalName: Random
@@ -269,7 +122,7 @@ World:
 	PlayerCommands:
 	HelpCommand:
 	BuildingInfluence:
-	ProductionQueueFromSelection:
+	CNProductionQueueFromSelection:
 		ProductionPaletteWidget: PRODUCTION_PALETTE
 	SmudgeLayer@SMALLSCORCH:
 		Type: SmallScorch
@@ -381,7 +234,7 @@ World:
 		ClassName: options-starting-units.medium
 		Factions: nod
 		BaseActor: nmcv
-		SupportActors: nasol,nasol,e3,e3,cyborg,bggy
+		SupportActors: nasol,nasol,e3,e3,nacad,bggy
 		InnerSupportRadius: 3
 		OuterSupportRadius: 5
 	StartingUnits@heavy.gdi:
@@ -389,7 +242,7 @@ World:
 		ClassName: options-starting-units.heavy
 		Factions: gdi
 		BaseActor: gmcv
-		SupportActors: gasol,gasol,e2,e2,jumpjet,smech,smech,mmch
+		SupportActors: gasol,gasol,e2,e2,jumpjet,smech,smech,gtmtnk
 		InnerSupportRadius: 3
 		OuterSupportRadius: 5
 	StartingUnits@heavy.nod:
@@ -397,7 +250,7 @@ World:
 		ClassName: options-starting-units.heavy
 		Factions: nod
 		BaseActor: nmcv
-		SupportActors: nasol,nasol,e3,e3,cyborg,bggy,bike,ttnk
+		SupportActors: nasol,nasol,e3,e3,nacad,bggy,bike,ttnk
 		InnerSupportRadius: 3
 		OuterSupportRadius: 5
 	MapStartingLocations:
@@ -427,10 +280,10 @@ World:
 	TimeLimitManager:
 		TimeLimitDisplayOrder: 2
 	ColorPickerManager:
-		PreviewActor: harv.colorpicker
+		PreviewActor: gharv.colorpicker
 		FactionPreviewActors:
-			gdi: hvr.colorpicker
-			nod: stnk.colorpicker
+			gdi: gtmtnk.colorpicker
+			nod: subtank.colorpicker
 		PresetColors: F21818, FF7A22, F2BC18, F8D3B3, CDF291, DAF218, 18F26F, 12B572, F279E6, 502048, 391D1D, BA18F2, F218BC, 1821F2, 328DFF, 78DBF8
 	OrderEffects:
 		TerrainFlashImage: moveflsh
@@ -440,19 +293,66 @@ World:
 #	WeatherOverlay@Snow:
 #		ParticleDensityFactor: 8
 #		UseSquares: True
-	WeatherOverlay:
-		ParticleDensityFactor: 1
+	ExternalCondition@IONSTORM:
+		Condition: ionstorm
+	WeatherController:
+		MinClearDuration: 4500
+		MaxClearDuration: 12000
+		WarningDuration: 375
+		MinStormDuration: 1500
+		MaxStormDuration: 4500
+		ClearingDuration: 375
+		StormMusic: ionstorm
+		Condition: ionstorm
+	AnnounceOnCondition@IONSTORM:
+		RequiresCondition: ionstorm
+		EnabledNotification: IonStormApproaching
+		EnabledTextNotification: Ion storm approaching.
+		DisabledNotification: IonStormAbating
+		DisabledTextNotification: Ion storm has cleared.
+	WeatherTintEffect:
+		StormAmbient: 0.45
+		StormRed: 0.5
+		StormGreen: 0.6
+		StormBlue: 0.9
+	IonStormDamage@STRIKES:
+		Weapon: IonStormStrike
+		StrikeInterval: 10
+		MaxStrikes: 3
+		IntensityThreshold: 0.8
+		ActorStrikeChance: 50
+	IonStormDamage@AMBIENT:
+		Weapon: IonStormAmbientBolt
+		StrikeInterval: 10
+		MaxStrikes: 3
+		IntensityThreshold: 0.5
+		ActorStrikeChance: 0	
+	WeatherOverlay@TIBPARTICLES:
+		RequiresCondition: !ionstorm
+		ParticleDensityFactor: 2
+		ChangingWindLevel: True
 		WindLevels: -1, 0, 1
 		WindTick: 150, 550
 		ParticleColors: 006400, 646464, 00FF00
 		ParticleSize: 0, 1
-	TiberiumSparkleOverlay:
-		ResourceTypes: Tiberium, BlueTiberium, RedTiberium
-		Image: sparkle
-		Sequences: twnk1, twnk2, twnk3
-		Palette: sparkle
-		Interval: 1, 5
-		InitialDelay: 50
+	WeatherOverlay@RAIN:
+		RequiresCondition: ionstorm
+		InitialParticlePercentage: 0
+		ParticleDensityFactor: 5
+		UseSquares: false
+		ParticleSize: 1, 1
+		Gravity: 8.0, 14.0
+		WindLevels: -15, -10, -5, 0, 5, 10, 15
+		WindTick: 50, 200
+		InstantWindChanges: true
+		ScatterDirection: -2, 2
+		SwingOffset: 0.05, 0.15
+		SwingSpeed: 0.001, 0.005
+		SwingAmplitude: 0.1, 0.3
+		ParticleColors: 8090AAC0, 7080A0C0, 607898C0
+		LineTailAlphaValue: 200
+		FadeInTicks: 500
+		FadeOutTicks: 750
 
 EditorWorld:
 	Inherits: ^BaseWorld
@@ -492,3 +392,4 @@ EditorWorld:
 		DefaultStart: Clear
 		DefaultInner: Beach
 		DefaultEnd: Clear
+	Inherits@MapGenerators: ^MapGenerators

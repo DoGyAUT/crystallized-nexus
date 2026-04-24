@@ -18,10 +18,12 @@ Terrain:
 		RestrictPlayerColor: true
 	TerrainType@Road:
 		Type: Road
+		AcceptsSmudgeType: SmallScorch, MediumScorch, LargeScorch
 		Color: 2D2B28
 		TargetTypes: Ground
 	TerrainType@Bridge:
 		Type: Bridge
+		AcceptsSmudgeType: SmallScorch, MediumScorch, LargeScorch
 		Color: 5A5C5A
 		TargetTypes: Ground
 	TerrainType@Rail:
@@ -39,10 +41,12 @@ Terrain:
 		RestrictPlayerColor: true
 	TerrainType@DirtRoad:
 		Type: DirtRoad
+		AcceptsSmudgeType: SmallCrater, MediumCrater, LargeCrater, SmallScorch, MediumScorch, LargeScorch
 		Color: 82838F
 		TargetTypes: Ground
 	TerrainType@Rough:
 		Type: Rough
+		AcceptsSmudgeType: SmallCrater, MediumCrater, LargeCrater, SmallScorch, MediumScorch, LargeScorch
 		Color: 7A7E8B
 		TargetTypes: Ground
 	TerrainType@Cliff:
@@ -69,6 +73,7 @@ Terrain:
 		RestrictPlayerColor: true
 	TerrainType@Veins:
 		Type: Veins
+		AcceptsSmudgeType: SmallCrater, MediumCrater, LargeCrater, SmallScorch, MediumScorch, LargeScorch
 		Color: CD6600
 		TargetTypes: Ground
 	TerrainType@Tree:
@@ -726,22 +731,26 @@ Templates:
 				Height: 4
 				MinColor: 6E808E
 				MaxColor: 8393A0
+				Riser: LD=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: 9CB7CD
 				MaxColor: 96ACBF
+				Riser: RU=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				Height: 4
 				MinColor: 5A6C7A
 				MaxColor: 7B8D9B
+				Riser: DL=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: B6CFE4
 				MaxColor: 9DB4C8
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@61:
@@ -754,11 +763,13 @@ Templates:
 				Height: 4
 				MinColor: 8090A0
 				MaxColor: 8B9FB2
+				Riser: DL=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 9EB6D1
 				MaxColor: 93ABC2
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@62:
@@ -771,22 +782,26 @@ Templates:
 				Height: 4
 				MinColor: 78899A
 				MaxColor: 879AA9
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: B3C8DF
 				MaxColor: 94A9C0
+				Riser: RU=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				Height: 4
 				MinColor: 798795
 				MaxColor: 7D8D9B
+				Riser: DL=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: C0DBF2
 				MaxColor: 98AEC4
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@63:
@@ -799,22 +814,26 @@ Templates:
 				Height: 4
 				MinColor: 8798A6
 				MaxColor: 8EA1B0
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: BBD3E6
 				MaxColor: A9BECE
+				Riser: RU=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				Height: 4
 				MinColor: 8B99A7
 				MaxColor: 8698A8
+				Riser: DL=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: C0DBF2
 				MaxColor: B3CBDF
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@64:
@@ -827,22 +846,26 @@ Templates:
 				Height: 4
 				MinColor: 7D8D9D
 				MaxColor: 8296A8
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 7D8C9E
 				MaxColor: 879CB1
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: BAD5F0
 				MaxColor: AAC0D5
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: B6D0E9
 				MaxColor: A9BED2
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@65:
@@ -855,22 +878,26 @@ Templates:
 				Height: 4
 				MinColor: 617487
 				MaxColor: 8494A5
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 647586
 				MaxColor: 7E91A3
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: BAD4ED
 				MaxColor: 9EB4C7
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: B4CDE6
 				MaxColor: 97AEC4
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@66:
@@ -883,22 +910,26 @@ Templates:
 				Height: 4
 				MinColor: 8295A7
 				MaxColor: 8D9EAF
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 889AAA
 				MaxColor: 8B9FB0
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: B9D4EF
 				MaxColor: 91A8BB
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: B3CDE4
 				MaxColor: A6BACB
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@67:
@@ -911,11 +942,13 @@ Templates:
 				Height: 4
 				MinColor: 728497
 				MaxColor: 8095A7
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: ACC4DB
 				MaxColor: 8BA4BA
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@68:
@@ -928,16 +961,19 @@ Templates:
 				Height: 4
 				MinColor: 90A4B6
 				MaxColor: 92A6B6
+				Riser: RD=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 9AAEBE
 				MaxColor: 99ADC0
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: A4B8CC
 				MaxColor: A4B9CE
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@69:
@@ -950,16 +986,19 @@ Templates:
 				Height: 4
 				MinColor: 889BAF
 				MaxColor: 889BAC
+				Riser: RD=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: A1BCD5
 				MaxColor: 9CB3CA
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: 83A0BC
 				MaxColor: 93ADCC
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@70:
@@ -972,16 +1011,19 @@ Templates:
 				Height: 4
 				MinColor: 8CA1B4
 				MaxColor: 8DA2B5
+				Riser: RD=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 98B0C3
 				MaxColor: 8FA9C4
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: 8FA8C0
 				MaxColor: A8C0D4
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@71:
@@ -993,6 +1035,7 @@ Templates:
 			0: Cliff
 				MinColor: B2C6DB
 				MaxColor: A3B9CE
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@72:
@@ -1004,6 +1047,7 @@ Templates:
 			0: Cliff
 				MinColor: 94ACC4
 				MaxColor: A6BDD2
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@73:
@@ -1015,6 +1059,7 @@ Templates:
 			0: Cliff
 				MinColor: A8BED1
 				MaxColor: 83A0B5
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@74:
@@ -1027,22 +1072,26 @@ Templates:
 				Height: 4
 				MinColor: 879BAE
 				MaxColor: 7B8D9D
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 86A3C1
 				MaxColor: 7997AE
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				Height: 4
 				MinColor: 899EB0
 				MaxColor: 7F909F
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: B0CAE5
 				MaxColor: 819EB5
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@75:
@@ -1055,22 +1104,26 @@ Templates:
 				Height: 4
 				MinColor: 778998
 				MaxColor: 758692
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 98B2C7
 				MaxColor: 7795AA
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				Height: 4
 				MinColor: 8296A9
 				MaxColor: 768898
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: AAC2DC
 				MaxColor: 83A1BA
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@76:
@@ -1083,22 +1136,26 @@ Templates:
 				Height: 4
 				MinColor: 7E92A4
 				MaxColor: 7D8FA0
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 93AAC0
 				MaxColor: 829CB4
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				Height: 4
 				MinColor: 8BA0B4
 				MaxColor: 708395
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: 9AB1C5
 				MaxColor: 7991A6
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@77:
@@ -1111,11 +1168,13 @@ Templates:
 				Height: 4
 				MinColor: 8395A7
 				MaxColor: 7B8D9E
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 97B2CB
 				MaxColor: 859EB1
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@78:
@@ -1128,22 +1187,26 @@ Templates:
 				Height: 4
 				MinColor: 8A9EAF
 				MaxColor: 8395A6
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 657E90
 				MaxColor: 7F9AAE
+				Riser: DL=4
 				ZOffset: -12
 				ZRamp: 0
 			4: Cliff
 				Height: 4
 				MinColor: 889BAD
 				MaxColor: 596C78
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: ADC6DE
 				MaxColor: 8EA9C3
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@79:
@@ -1156,22 +1219,26 @@ Templates:
 				Height: 4
 				MinColor: 8CA0B4
 				MaxColor: 8699AB
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 768E9F
 				MaxColor: 849EB0
+				Riser: DL=4
 				ZOffset: -12
 				ZRamp: 0
 			4: Cliff
 				Height: 4
 				MinColor: 8A9FB2
 				MaxColor: 5B6F7D
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: B4CEE5
 				MaxColor: 9CB7D0
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@80:
@@ -1184,22 +1251,26 @@ Templates:
 				Height: 4
 				MinColor: 8090A0
 				MaxColor: 7F8C98
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 8399AD
 				MaxColor: 94AABD
+				Riser: DL=4
 				ZOffset: -12
 				ZRamp: 0
 			4: Cliff
 				Height: 4
 				MinColor: 8DA0B2
 				MaxColor: 778594
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: AABFD2
 				MaxColor: A4BBD1
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@81:
@@ -1212,11 +1283,13 @@ Templates:
 				Height: 4
 				MinColor: 879BAC
 				MaxColor: 788794
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 90A8BC
 				MaxColor: 88A0B4
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@82:
@@ -1229,12 +1302,14 @@ Templates:
 				Height: 4
 				MinColor: 879BAE
 				MaxColor: 7C8E9F
+				Riser: U=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 8598A8
 				MaxColor: 738394
+				Riser: U=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@83:
@@ -1247,12 +1322,14 @@ Templates:
 				Height: 4
 				MinColor: 8999A8
 				MaxColor: 707F8F
+				Riser: U=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 8A9BAC
 				MaxColor: 8393A3
+				Riser: U=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@84:
@@ -1265,12 +1342,14 @@ Templates:
 				Height: 4
 				MinColor: 8A9EAF
 				MaxColor: 758896
+				Riser: U=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 647581
 				MaxColor: 5A7080
+				Riser: U=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@85:
@@ -1283,6 +1362,7 @@ Templates:
 				Height: 4
 				MinColor: 8393A6
 				MaxColor: 738295
+				Riser: U=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@86:
@@ -1295,18 +1375,21 @@ Templates:
 				Height: 4
 				MinColor: 7B8B9D
 				MaxColor: 78879B
+				Riser: UL=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 879CB0
 				MaxColor: 8295A9
+				Riser: U=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				Height: 4
 				MinColor: 78879D
 				MaxColor: 90A3B4
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@87:
@@ -1319,12 +1402,14 @@ Templates:
 				Height: 4
 				MinColor: 768A9C
 				MaxColor: 708495
+				Riser: UL=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				Height: 4
 				MinColor: 7E92A4
 				MaxColor: 798B9B
+				Riser: UL=0
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
@@ -1343,6 +1428,7 @@ Templates:
 				Height: 4
 				MinColor: 7D8C9E
 				MaxColor: 8597A9
+				Riser: UL=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@89:
@@ -1355,6 +1441,7 @@ Templates:
 				Height: 4
 				MinColor: 8495A4
 				MaxColor: 738293
+				Riser: UL=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@90:
@@ -1367,6 +1454,7 @@ Templates:
 				Height: 4
 				MinColor: 778696
 				MaxColor: 758596
+				Riser: UL=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
@@ -1391,12 +1479,14 @@ Templates:
 				Height: 4
 				MinColor: 879BB0
 				MaxColor: 788C9C
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				Height: 4
 				MinColor: 8EA2B3
 				MaxColor: 728492
+				Riser: U=0
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
@@ -1439,12 +1529,14 @@ Templates:
 				Height: 4
 				MinColor: 899AAA
 				MaxColor: 8596A6
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 788899
 				MaxColor: 8798A9
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@95:
@@ -1457,12 +1549,14 @@ Templates:
 				Height: 4
 				MinColor: 8293A3
 				MaxColor: 879AAE
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 798799
 				MaxColor: 8697A4
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@96:
@@ -1475,12 +1569,14 @@ Templates:
 				Height: 4
 				MinColor: 7F91A4
 				MaxColor: 8A9BAF
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 7F93A8
 				MaxColor: 8498A9
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@97:
@@ -1493,6 +1589,7 @@ Templates:
 				Height: 4
 				MinColor: 778799
 				MaxColor: 7C8C9E
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@98:
@@ -3241,22 +3338,26 @@ Templates:
 				Height: 4
 				MinColor: 798996
 				MaxColor: 8B9AA7
+				Riser: DL=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: A9BDD1
 				MaxColor: A2B6C6
+				Riser: RU=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				Height: 4
 				MinColor: 6A7B87
 				MaxColor: 768894
+				Riser: DL=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: 879CBF
 				MaxColor: 93A8BE
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@168:
@@ -3269,11 +3370,13 @@ Templates:
 				Height: 4
 				MinColor: 8091A1
 				MaxColor: 8B9FB2
+				Riser: DL=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 90A9C2
 				MaxColor: 8BA3BB
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@169:
@@ -3286,22 +3389,26 @@ Templates:
 				Height: 4
 				MinColor: 8393A1
 				MaxColor: 8C9FAE
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: 8DA4C8
 				MaxColor: 96AAC0
+				Riser: RU=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				Height: 4
 				MinColor: 788695
 				MaxColor: 8394A3
+				Riser: DL=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: 8095B6
 				MaxColor: 8DA1BF
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@170:
@@ -3314,22 +3421,26 @@ Templates:
 				Height: 4
 				MinColor: 8998A7
 				MaxColor: 8FA1B1
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: AAC1E2
 				MaxColor: A7BBCB
+				Riser: RU=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				Height: 4
 				MinColor: 8997A4
 				MaxColor: 8798A8
+				Riser: DL=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: 889FC4
 				MaxColor: A1B7CC
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@171:
@@ -3342,22 +3453,26 @@ Templates:
 				Height: 4
 				MinColor: 7D8D9D
 				MaxColor: 8296A8
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 7D8C9F
 				MaxColor: 879CB1
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: 8297BF
 				MaxColor: 8CA6B9
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: 8A9FBB
 				MaxColor: 93A8BE
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@172:
@@ -3370,22 +3485,26 @@ Templates:
 				Height: 4
 				MinColor: 798C9E
 				MaxColor: 8596A7
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 627384
 				MaxColor: 7E91A3
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: 7E95B7
 				MaxColor: A3B7C8
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: 96ACC7
 				MaxColor: A1B6CB
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@173:
@@ -3398,22 +3517,26 @@ Templates:
 				Height: 4
 				MinColor: 8295A7
 				MaxColor: 8D9EAF
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				Height: 4
 				MinColor: 8E9FAC
 				MaxColor: 8B9FB0
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: 879DC0
 				MaxColor: 95A8B7
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: B5C4D8
 				MaxColor: 96ABBE
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@174:
@@ -3426,11 +3549,13 @@ Templates:
 				Height: 4
 				MinColor: 728497
 				MaxColor: 8095A7
+				Riser: D=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 97ADC3
 				MaxColor: 859CB3
+				Riser: U=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@175:
@@ -3443,16 +3568,19 @@ Templates:
 				Height: 4
 				MinColor: 92A0AD
 				MaxColor: 8693A0
+				Riser: RD=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 8196B0
 				MaxColor: 92A8BC
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: A3B7CE
 				MaxColor: 9AAFC5
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@176:
@@ -3465,16 +3593,19 @@ Templates:
 				Height: 4
 				MinColor: 8C9EB1
 				MaxColor: 889BAC
+				Riser: RD=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 7287A0
 				MaxColor: 9EB7D0
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: 8CA6C1
 				MaxColor: 84A0BC
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
@@ -3492,16 +3623,19 @@ Templates:
 				Height: 4
 				MinColor: 92A1AD
 				MaxColor: 8A9AAA
+				Riser: RD=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 9FB4CD
 				MaxColor: 94AEC7
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				MinColor: 94ABC3
 				MaxColor: AEC4D9
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@178:
@@ -3513,6 +3647,7 @@ Templates:
 			0: Cliff
 				MinColor: ACC0D6
 				MaxColor: 9DB2C7
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@179:
@@ -3524,6 +3659,7 @@ Templates:
 			0: Cliff
 				MinColor: 9CB3CA
 				MaxColor: A4B9CF
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@180:
@@ -3535,6 +3671,7 @@ Templates:
 			0: Cliff
 				MinColor: ADC1D4
 				MaxColor: 8AA3B6
+				Riser: LU=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@181:
@@ -3547,22 +3684,26 @@ Templates:
 				Height: 4
 				MinColor: 879BAE
 				MaxColor: 7B8D9D
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 6A7F95
 				MaxColor: 7591AB
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				Height: 4
 				MinColor: 899EB0
 				MaxColor: 7F909F
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: 72869B
 				MaxColor: 708BA0
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@182:
@@ -3575,22 +3716,26 @@ Templates:
 				Height: 4
 				MinColor: 778998
 				MaxColor: 758692
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 94A9BF
 				MaxColor: 738FA5
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				Height: 4
 				MinColor: 8296A9
 				MaxColor: 7C8D9C
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: 8498BC
 				MaxColor: 859EB7
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@183:
@@ -3603,22 +3748,26 @@ Templates:
 				Height: 4
 				MinColor: 7E91A4
 				MaxColor: 8596A6
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 93A6BB
 				MaxColor: 7892AB
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 			2: Cliff
 				Height: 4
 				MinColor: 8BA0B4
 				MaxColor: 6C7F8F
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			3: Cliff
 				MinColor: 768A9E
 				MaxColor: 657E90
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@184:
@@ -3631,11 +3780,13 @@ Templates:
 				Height: 4
 				MinColor: 8395A7
 				MaxColor: 7B8D9E
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 7B90A9
 				MaxColor: 7F98AC
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@185:
@@ -3648,22 +3799,26 @@ Templates:
 				Height: 4
 				MinColor: 8EA0B1
 				MaxColor: 8898A9
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 647B8B
 				MaxColor: 7991A6
+				Riser: DL=4
 				ZOffset: -12
 				ZRamp: 0
 			4: Cliff
 				Height: 4
 				MinColor: 899CAF
 				MaxColor: 63747E
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: 889DBD
 				MaxColor: 889FBD
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@186:
@@ -3676,22 +3831,26 @@ Templates:
 				Height: 4
 				MinColor: 8CA1B4
 				MaxColor: 8D9FAF
+				Riser: R=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 8C9EAA
 				MaxColor: 7C95AB
+				Riser: DL=4
 				ZOffset: -12
 				ZRamp: 0
 			4: Cliff
 				Height: 4
 				MinColor: 8BA0B3
 				MaxColor: 677987
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: 788CAF
 				MaxColor: 7C94B4
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@187:
@@ -3704,22 +3863,26 @@ Templates:
 				Height: 4
 				MinColor: 7C8C9A
 				MaxColor: 7A8793
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 899FB4
 				MaxColor: 859BAE
+				Riser: DL=4
 				ZOffset: -12
 				ZRamp: 0
 			4: Cliff
 				Height: 4
 				MinColor: 8DA0B2
 				MaxColor: 6F7D8A
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			5: Cliff
 				MinColor: A0B4CF
 				MaxColor: 8EA4C4
+				Riser: L=0
 				ZOffset: -12
 				ZRamp: 0
 	Template@188:
@@ -3732,11 +3895,13 @@ Templates:
 				Height: 4
 				MinColor: 8A9EB0
 				MaxColor: 8091A2
+				Riser: RU=0
 				ZOffset: -12
 				ZRamp: 0
 			1: Cliff
 				MinColor: 8197AF
 				MaxColor: 8BA2B6
+				Riser: L=4
 				ZOffset: -12
 				ZRamp: 0
 	Template@189:
@@ -19933,3 +20098,16 @@ MultiBrushCollections:
 				Start: IceShore.U
 				End: IceShore.L
 				Points: 0,1
+
+	Trees:
+		FromActors: tree01,tree02,tree03,tree04,tree05,tree06,tree07,tree08,tree09,tree10,tree11,tree12,tree13,tree14,tree15,tree16,tree17,tree18,tree19,tree20,tree21,tree22,tree23,tree24,tree25
+	Water:
+		FromTemplates: 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345
+		MultiBrush@346:
+			Template: 346
+			Weight: 100
+	CivilianBuildings:
+		FromActors: ca0001,ca0002,ca0003,ca0004,ca0005,ca0006,ca0007,ca0008,ca0009,ca0010,ca0011,ca0012,ca0013,ca0014,ca0015,ca0016,ca0017,ca0018,ca0019,ca0020,ca0021
+	Obstructions:
+		FromActors: tree01,tree02,tree03,tree04,tree05,tree06,tree07,tree08,tree09,tree10,tree11,tree12,tree13,tree14,tree15,tree16,tree17,tree18,tree19,tree20,tree21,tree22,tree23,tree24,tree25
+		FromActors: srock01,srock02,srock03,srock04,srock05,trock01,trock02,trock03,trock04,trock05

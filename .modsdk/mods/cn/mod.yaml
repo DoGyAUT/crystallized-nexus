@@ -45,9 +45,11 @@ FileSystem: ContentInstallerFileSystem
 	# Crystallized Nexus
 		cn|bits
 		cn|bits\anims
-#		cn|bits\anims\explos
-#		cn|bits\anims\trails
-#		cn|bits\anims\weapons
+		cn|bits\anims\explosions
+		cn|bits\anims\muzzle
+		cn|bits\anims\particles
+		cn|bits\anims\trails
+		cn|bits\anims\weapons
 		cn|bits\art
 		cn|bits\art\gdi
 		cn|bits\art\gdi\aircraft
@@ -59,7 +61,8 @@ FileSystem: ContentInstallerFileSystem
 		cn|bits\art\nod\infantry
 		cn|bits\art\nod\structures
 		cn|bits\art\nod\vehicles
-		cn|bits\cameo
+		cn|bits\cameos
+		cn|bits\palletes
 		cn|bits\terrain
 		cn|audio\data
 		cn|audio\data\eva
@@ -67,7 +70,7 @@ FileSystem: ContentInstallerFileSystem
 		cn|audio\data\themes
 		cn|audio\data\voice
 		cn|audio\data\weapons
-	ContentInstallerMod: tn-content
+	ContentInstallerMod: cn-content
 
 MapFolders:
 	cn|maps: System
@@ -81,6 +84,22 @@ Rules:
 	cn|rules/world.yaml
 	cn|rules/palettes.yaml
 	cn|rules/defaults.yaml
+	cn|rules/features/armortypes.yaml
+	cn|rules/features/autotarget.yaml
+	cn|rules/features/baseactors.yaml
+	cn|rules/features/buildings.yaml
+	cn|rules/features/crates.yaml
+	cn|rules/features/crushabletypes.yaml
+	cn|rules/features/deathtypes.yaml
+	cn|rules/features/decorations.yaml
+	cn|rules/features/experience.yaml
+	cn|rules/features/handycap.yaml
+	cn|rules/features/locomotors.yaml
+	cn|rules/features/shapes.yaml
+	cn|rules/features/terrain.yaml
+	cn|rules/features/traits.yaml
+	cn|rules/features/unittypes.yaml
+	cn|rules/features/voxel-dynamics.yaml
 	cn|rules/husks.yaml
 	cn|rules/civilian-infantry.yaml
 	cn|rules/critters.yaml
@@ -88,12 +107,14 @@ Rules:
 	cn|rules/civilian-vehicles.yaml
 	cn|rules/gdi-aircraft.yaml
 	cn|rules/gdi-infantry.yaml
+	cn|rules/gdi-infantry-squads.yaml
 	cn|rules/gdi-structures.yaml
 	cn|rules/gdi-support.yaml
 	cn|rules/gdi-vehicles.yaml
 	cn|rules/gdi-tech.yaml
+	cn|rules/nod-aircraft.yaml
 	cn|rules/nod-infantry.yaml
-	cn|rules/nod-infantry.yaml
+	cn|rules/nod-infantry-squads.yaml
 	cn|rules/nod-structures.yaml
 	cn|rules/nod-support.yaml
 	cn|rules/nod-vehicles.yaml
@@ -105,8 +126,12 @@ Rules:
 	cn|rules/shared-vehicles.yaml
 	cn|rules/trees.yaml
 	cn|rules/bridges.yaml
+	cn|rules/map-generators.yaml
 
 Weapons:
+	cn|weapons/defaultwarheads.yaml
+	cn|weapons/weaponeffects.yaml
+	cn|weapons/baseweapons.yaml
 	cn|weapons/ballisticweapons.yaml
 	cn|weapons/energyweapons.yaml
 	cn|weapons/explosions.yaml
@@ -119,6 +144,7 @@ Weapons:
 Sequences:
 	cn|sequences/aircraft.yaml
 	cn|sequences/infantry.yaml
+	cn|sequences/projectiles.yaml
 	cn|sequences/misc.yaml
 	cn|sequences/civilian.yaml
 	cn|sequences/structures.yaml
@@ -291,7 +317,7 @@ DefaultOrderGenerator: UnitOrderGenerator
 
 SupportsMapsFrom: ts, cn
 
-SoundFormats: Aud, Wav
+SoundFormats: Aud, Wav, Ogg
 
 SpriteFormats: ShpTS, TmpTS, ShpTD, PngSheet
 
@@ -304,7 +330,7 @@ SpriteSequenceFormat: TilesetSpecificSpriteSequence
 AssetBrowser:
 	SpriteExtensions: .shp, .tem, .sno
 	ModelExtensions: .vxl
-	AudioExtensions: .aud, .wav
+	AudioExtensions: .aud, .wav, .ogg
 	VideoExtensions: .vqa
 
 GameSpeeds:
