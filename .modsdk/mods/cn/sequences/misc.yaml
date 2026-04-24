@@ -1613,27 +1613,27 @@ dropland:
 clouds:
 	cloud1:
 		Filename: cloud_small1.png
-		BlendMode: Multiply
+		BlendMode: Overlay
 		Offset: 0, 0, 1024
 	cloud2:
 		Filename: cloud_small2.png
-		BlendMode: Multiply
+		BlendMode: Overlay
 		Offset: 0, 0, 1024
 	cloud3:
 		Filename: cloud_large1.png
-		BlendMode: Multiply
+		BlendMode: Overlay
 		Offset: 0, 0, 1024
 	cloud4:
 		Filename: cloud_cirrus1.png
-		BlendMode: Multiply
+		BlendMode: Overlay
 		Offset: 0, 0, 1024
 	cloud5:
 		Filename: cloud_cluster1.png
-		BlendMode: Multiply
+		BlendMode: Overlay
 		Offset: 0, 0, 1024
 	cloud6:
 		Filename: cloud_huge.png
-		BlendMode: Multiply
+		BlendMode: Overlay
 		Offset: 0, 0, 1024
 
 godrays:
@@ -1679,7 +1679,7 @@ tibpoison:
 	idle:
 		Filename: tibpoison.png
 		Length: *
-		BlendMode: Translucent
+		BlendMode: Overlay
 		ZOffset: 1024
 		Offset: 0, 0, 128
 
