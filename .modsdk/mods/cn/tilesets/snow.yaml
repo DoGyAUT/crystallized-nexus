@@ -79,11 +79,11 @@ Terrain:
 	TerrainType@Tree:
 		Type: Tree
 		TargetTypes: Ground
-		Color: 1C2024
+		Color: 3C5E28
 	TerrainType@Rock:
 		Type: Rock
 		TargetTypes: Ground
-		Color: 44443C
+		Color: 787060
 	TerrainType@Subterranean:
 		Type: Subterranean
 		Color: C7C9FA
