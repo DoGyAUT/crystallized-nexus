@@ -416,3 +416,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Engine - managed separately via crystallized-nexus-engine repo
+engine/
