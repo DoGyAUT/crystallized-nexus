@@ -43,13 +43,15 @@ Ghost:
 
 Medic:
 	Voices:
-		Select: 20-i000, 20-i004, 20-i006
-		Move: 20-i008, 20-i010, 20-i012
-		Action: 20-i016, 20-i018, 20-i020
-		Die: dedman1, dedman3, dedman4, dedman5, dedman6
+		Select: medic_s1, medic_s2, medic_s3, medic_s4, medic_s5, medic_s6, medic_s7, medic_s8, medic_s9, medic_s10
+		Move: medic_m1, medic_m2, medic_m3, medic_m4, medic_m5, medic_m6, medic_m7, medic_m8, medic_m9, medic_m10
+		Action: medic_a1, medic_a2, medic_a3, medic_a4, medic_a5, medic_a6, medic_a7, medic_a8, medic_a9, medic_a10
+		Attack: medic_a1, medic_a2, medic_a3, medic_a4, medic_a5, medic_a6, medic_a7, medic_a8, medic_a9, medic_a10
+		Feedback: medic_f1, medic_f2, medic_f3, medic_f4
+		Die: medic_d1, medic_d2, medic_d3, medic_d4, medic_d5, dedman1, dedman3, dedman4, dedman5, dedman6
 		Burned: dedman2
-		Zapped: electro1
 		Explode: expnew10
+		Zapped: electro1
 
 Engineer:
 	Voices:
@@ -110,6 +112,7 @@ Cyborg:
 		Move: 22-i008, 22-i010, 22-i014, 22-i016, 22-i020
 		Attack: 22-i008, 22-i010, 22-i012, 22-i018
 		Die: 22-n104, 22-n106, 22-n108
+		Explode: expnew10
 
 CyborgCommando:
 	Voices:
@@ -117,6 +120,7 @@ CyborgCommando:
 		Move: 23-i008, 23-i010, 23-i012, 23-i016
 		Attack: 23-i014, 23-i018, 23-i020, 23-i022
 		Die: 22-n104, 22-n106, 22-n108
+		Explode: expnew10
 
 Mutant:
 	Voices:
@@ -257,6 +261,7 @@ Discthrower:
 		Select: gdi2_s1, gdi2_s2, gdi2_s3, gdi2_s4, gdi2_s5, gdi2_s6, gdi2_s7, gdi2_s8
 		Move: gdi2_m1, gdi2_m2, gdi2_m3, gdi2_m4, gdi2_m5
 		Attack: gdi2_a1, gdi2_a2, gdi2_a3, gdi2_a4, gdi2_a5, gdi2_a6, gdi2_a7, gdi2_a8, gdi2_a9, gdi2_a10, gdi2_a11
+		Action: gdi2_a1, gdi2_a2, gdi2_a3, gdi2_a4, gdi2_a5, gdi2_a6, gdi2_a7, gdi2_a8, gdi2_a9, gdi2_a10, gdi2_a11
 		Feedback: gdi2_f1, gdi2_f2, gdi2_f3, gdi2_f4, gdi2_f5, gdi2_f6, gdi2_f7, gdi2_f8
 		Die: gdi2_d1, gdi2_d2, gdi2_d3, gdi2_d4, gdi2_d5, dedman1, dedman3, dedman4, dedman5, dedman6
 		Burned: dedman2
@@ -268,6 +273,7 @@ Rookie:
 		Select: nod1_s1, nod1_s2, nod1_s3, nod1_s4, nod1_s5, nod1_s6, nod1_s7, nod1_s8
 		Move: nod1_m1, nod1_m2, nod1_m3, nod1_m4, nod1_m5, nod1_m6, nod1_m7, nod1_m8, nod1_m9, nod1_m10, nod1_m11, nod1_m12
 		Attack: nod1_a1, nod1_a2, nod1_a3, nod1_a4, nod1_a5, nod1_a6, nod1_a7, nod1_a8, nod1_a9, nod1_a10, nod1_a11, nod1_a12
+		Action: nod1_a1, nod1_a2, nod1_a3, nod1_a4, nod1_a5, nod1_a6, nod1_a7, nod1_a8, nod1_a9, nod1_a10, nod1_a11, nod1_a12
 		Feedback: nod1_f1, nod1_f2, nod1_f3, nod1_f4, nod1_f5, nod1_f6, nod1_f7
 		Die: nod1_d1, nod1_d2, nod1_d3, nod1_d4, nod1_d5, dedman1, dedman3, dedman4, dedman5, dedman6
 		Burned: nod1_d1, nod1_d2, nod1_d3, nod1_d4, nod1_d5
@@ -279,6 +285,7 @@ Rocketeer:
 		Select: nod2_s1, nod2_s2, nod2_s3, nod2_s4, nod2_s5, nod2_s6, nod2_s7, nod2_s8, nod2_s8
 		Move: nod2_m1, nod2_m2, nod2_m3, nod2_m4, nod2_m5, nod2_m6, nod2_m7, nod2_m8, nod2_m9
 		Attack: nod2_a1, nod2_a2, nod2_a3, nod2_a4, nod2_a5, nod2_a6, nod2_a7
+		Action: nod2_a1, nod2_a2, nod2_a3, nod2_a4, nod2_a5, nod2_a6, nod2_a7
 		Feedback: nod2_f1, nod2_f2, nod2_f3, nod2_f4, nod2_f5, nod2_f6, nod2_f7
 		Die: nod2_d1, nod2_d2, nod2_d3, nod2_d4, nod2_d5, dedman1, dedman3, dedman4, dedman5, dedman6
 		Burned: nod2_d1, nod2_d2, nod2_d3, nod2_d4, nod2_d5
@@ -295,3 +302,159 @@ Saboteur:
 		Burned: nodeng_d1, nodeng_d2, nodeng_d3, nodeng_d4, nodeng_d5, nodeng_d6
 		Zapped: electro1
 		Explode: expnew10
+
+Wolverine:
+	Voices:
+		Select: smech_s1, smech_s2, smech_s3, smech_s4, smech_s5, smech_s6, smech_s7, smech_s8, smech_s9, smech_s10, smech_s11
+		Move: smech_m1, smech_m2, smech_m3, smech_m4, smech_m5, smech_m6, smech_m7, smech_m8, smech_m9
+		Attack: smech_a1, smech_a2, smech_a3, smech_a4, smech_a5, smech_a6, smech_a7
+
+Titan:
+	Voices:
+		Select: titan_s1, titan_s2, titan_s3, titan_s4, titan_s5, titan_s6, titan_s7, titan_s8, titan_t1, titan_t2
+		Move: titan_m1, titan_m2, titan_m3, titan_m4, titan_m5, titan_m6, titan_m7
+		Attack: titan_a1, titan_a2, titan_a3, titan_a4, titan_a5, titan_a6, titan_a7, titan_a8, titan_a9, titan_a10
+
+Slingshot:
+	Voices:
+		Select: slingshot_s1, slingshot_s2, slingshot_s3, slingshot_s4, slingshot_s5, slingshot_s6, slingshot_s7, slingshot_s8, slingshot_s9, slingshot_s10
+		Move: slingshot_m1, slingshot_m2, slingshot_m3, slingshot_m4, slingshot_m5, slingshot_m6, slingshot_m7
+		Attack: slingshot_a1, slingshot_a2, slingshot_a3, slingshot_a4, slingshot_a5, slingshot_a6, slingshot_a7, slingshot_a8, slingshot_a9, slingshot_a10, slingshot_a11, slingshot_a12
+
+Archon:
+	Voices:
+		Select: archon_s1, archon_s2, archon_s3, archon_s4, archon_s5, archon_s6, archon_s7, archon_s8, archon_s9, archon_s10
+		Move: archon_m1, archon_m2, archon_m3, archon_m4, archon_m5, archon_m6, archon_m7, archon_m8, archon_m9, archon_m10
+		Attack: archon_a1, archon_a2, archon_a3, archon_a4, archon_a5, archon_a6, archon_a7, archon_a8, archon_a9, archon_a10
+
+Gmcv:
+	Voices:
+		Select: surveyor_s1, surveyor_s2, surveyor_s3, surveyor_s4, surveyor_s5, surveyor_s6, surveyor_s7, surveyor_s8
+		Move: surveyor_m1, surveyor_m2, surveyor_m3, surveyor_m4, surveyor_m5, surveyor_m6, surveyor_m7, surveyor_m8, surveyor_m9
+
+Nmcv:
+	Voices:
+		Select: nmcv_s1, nmcv_s2, nmcv_s3, nmcv_s4, nmcv_s5, nmcv_s6, nmcv_s7, nmcv_s8
+		Move: nmcv_m1, nmcv_m2, nmcv_m3, nmcv_m4, nmcv_m5, nmcv_m6
+
+Gharv:
+	Voices:
+		Select: gharv_s1, gharv_s2, gharv_s3, gharv_s4, gharv_s5, gharv_s6, gharv_s7, gharv_s8, gharv_s9, gharv_s10, gharv_s11, gharv_s12, gharv_s13
+		Attack: gharv_m1, gharv_m2, gharv_m3, gharv_m4, gharv_m5, gharv_m6, gharv_m7, gharv_m8, gharv_m9, gharv_m10, gharv_m11, gharv_m12, gharv_m13, gharv_m14, gharv_m15, gharv_m16, gharv_m17, gharv_m18, gharv_m9
+		Move: gharv_m1, gharv_m2, gharv_m3, gharv_m4, gharv_m5, gharv_m6, gharv_m7, gharv_m8, gharv_m9, gharv_m10, gharv_m11, gharv_m12, gharv_m13, gharv_m14, gharv_m15, gharv_m16, gharv_m17, gharv_m18, gharv_m9
+
+Predator:
+	Voices:
+		Select: predator_s1, predator_s2, predator_s3, predator_s4, predator_s5
+		Move: predator_m1, predator_m2, predator_m3, predator_m4, predator_m5, predator_m6, predator_m7
+		Action: predator_a1, predator_a2, predator_a3, predator_a4, predator_a5, predator_a6, predator_a7, predator_a8, predator_a9, predator_a10, predator_a11, predator_a12, predator_a13
+		Attack: predator_a1, predator_a2, predator_a3, predator_a4, predator_a5, predator_a6, predator_a7, predator_a8, predator_a9, predator_a10, predator_a11, predator_a12, predator_a13
+
+Nharv:
+	Voices:
+		Select: nharv_s1, nharv_s2, nharv_s3, nharv_s4, nharv_s5, nharv_s6, nharv_s7, nharv_s8, nharv_s9, nharv_s10, nharv_s11, nharv_s12, nharv_s13, nharv_s14, nharv_s15
+		Attack: nharv_m1, nharv_m2, nharv_m3, nharv_m4, nharv_m5, nharv_m6, nharv_m7, nharv_m8, nharv_m9, nharv_m10, nharv_m11
+		Move: nharv_m1, nharv_m2, nharv_m3, nharv_m4, nharv_m5, nharv_m6, nharv_m7, nharv_m8, nharv_m9, nharv_m10, nharv_m11
+
+Buggy:
+	Voices:
+		Select: bggy_s1, bggy_s2, bggy_s3, bggy_s4, bggy_s5, bggy_s6, bggy_s7, bggy_s8, bggy_s9, bggy_s10
+		Move: bggy_m1, bggy_m2, bggy_m3, bggy_m4, bggy_m5, bggy_m6, bggy_m7, bggy_m8, bggy_m9
+		Attack: bggy_a1, bggy_a2, bggy_a3, bggy_a4, bggy_a5, bggy_a6, bggy_a7, bggy_a8, bggy_a9, bggy_a10, bggy_a11, bggy_a12
+
+SAPC:
+	Voices:
+		Select: sapc_s1, sapc_s2, sapc_s3, sapc_s4, sapc_s5, sapc_s6, sapc_s7, sapc_s8, sapc_s9, sapc_s10
+		Move: sapc_m1, sapc_m2, sapc_m3, sapc_m4, sapc_m5, sapc_m6, sapc_m7, sapc_m8, sapc_m9, sapc_m10
+		Action: sapc_a1, sapc_a2, sapc_a3, sapc_a4, sapc_a5, sapc_a6
+
+Devil:
+	Voices:
+		Select: ftnk_s1, ftnk_s2, ftnk_s3, ftnk_s4, ftnk_s5, ftnk_s6, ftnk_s7, ftnk_s8, ftnk_s9, ftnk_s10, ftnk_s11, ftnk_s12, ftnk_s13, ftnk_s14, ftnk_s15
+		Move: ftnk_m1, ftnk_m2, ftnk_m3, ftnk_m4, ftnk_m5, ftnk_m6, ftnk_m7, ftnk_m8
+		Attack: ftnk_a1, ftnk_a2, ftnk_a3, ftnk_a4, ftnk_a5, ftnk_a6, ftnk_a7, ftnk_a8, ftnk_a9, ftnk_a10, ftnk_a11, ftnk_a12
+
+Scoprion:
+	Voices:
+		Select: scorpion_s1, scorpion_s2, scorpion_s3, scorpion_s4, scorpion_s5, scorpion_s6, scorpion_T1, scorpion_T2, scorpion_T3
+		Move: scorpion_m1, scorpion_m2, scorpion_m3, scorpion_m4, scorpion_m5, scorpion_m6, scorpion_m7, scorpion_m8, scorpion_m9
+		Attack: scorpion_a1, scorpion_a2, scorpion_a3, scorpion_a4, scorpion_a5, scorpion_a6, scorpion_a7, scorpion_a8, scorpion_a9, scorpion_a10, scorpion_aT1
+
+Stealthtank:
+	Voices:
+		Select: stnk_s1, stnk_s2, stnk_s3, stnk_s4, stnk_s5, stnk_s6, stnk_s7, stnk_s8, stnk_s9
+		Move: stnk_m1, stnk_m2, stnk_m3, stnk_m4, stnk_m5, stnk_m6, stnk_m7
+		Attack: stnk_a1, stnk_a2, stnk_a3, stnk_a4, stnk_a5, stnk_a6, stnk_a7, stnk_at1, stnk_at2, stnk_at3
+
+Specter:
+	Voices:
+		Select: specter_s1, specter_s2, specter_s3, specter_st1, specter_st2, specter_st3, specter_st4, specter_st5, specter_st6, specter_st7
+		Move: specter_m1, specter_m2, specter_m3, specter_m4, specter_m5, specter_mt1, specter_mt2, specter_mt3, specter_mt4, specter_mt5, specter_mt6, specter_mt7
+		Attack: specter_a1, specter_a2, specter_a3, specter_a4, specter_a5, specter_a6, specter_a7, specter_a8, specter_a9, specter_a10, specter_a11, specter_a12, specter_a13, specter_a14, specter_at1
+
+Mammoth:
+	Voices:
+		Select: mammoth_s1, mammoth_s2, mammoth_s3, mammoth_s4, mammoth_s5, mammoth_s6, mammoth_s7, mammoth_st1, mammoth_st2, mammoth_st3, mammoth_st4
+		Move: mammoth_m1, mammoth_m2, mammoth_m3, mammoth_m4, mammoth_m5, mammoth_m6, mammoth_m7, mammoth_m8, mammoth_m9, mammoth_mt1
+		Attack: mammoth_a1, mammoth_a2, mammoth_a3, mammoth_a4, mammoth_a5, mammoth_a6, mammoth_a7
+
+Marv:
+	Voices:
+		Select: marv_s1, marv_s2, marv_s3, marv_s4, marv_s5, marv_s6, marv_s7, marv_s8, marv_s9, marv_s10, marv_s11, marv_s12
+		Move: marv_m1, marv_m2, marv_m3, marv_m4, marv_m5, marv_m6, marv_m7, marv_mt1
+		Attack: marv_a1, marv_a2, arv_a3, marv_a4, marv_a5, marv_a6, marv_a7, marv_a8, marv_a9, marv_a10, marv_a11
+
+Spotter:
+	Voices:
+		Select: spotter_s1, spotter_s2, spotter_s3, spotter_s4, spotter_s5, spotter_s6, spotter_s7, spotter_s8, spotter_s9, spotter_s10
+		Move: spotter_m1, spotter_m2, spotter_m3, spotter_m4, spotter_m5, spotter_m6, spotter_m7, spotter_m8
+		Action: spotter_a1, spotter_a2, spotter_a3, spotter_a4, spotter_a5, spotter_a6, spotter_a7, spotter_a8
+		Attack: spotter_a1, spotter_a2, spotter_a3, spotter_a4, spotter_a5, spotter_a6, spotter_a7, spotter_a8
+		Feedback: spotter_f1, spotter_f2, spotter_f3
+		Die: spotter_d1, spotter_d2, spotter_d3, spotter_d4, spotter_d5, spotter_d6, spotter_d7, dedman1, dedman3, dedman4, dedman5, dedman6
+		Burned: spotter_d1, spotter_d2, spotter_d3, spotter_d4, spotter_d5, spotter_d6, spotter_d7
+		Zapped: electro1
+		Explode: expnew10
+
+EliteCadre:
+	Voices:
+		Select: bhand_s1, bhand_s2, bhand_s3, bhand_s4, bhand_s5, bhand_s6, bhand_s7, bhand_s8, bhand_s9, bhand_t1, bhand_t2, bhand_t3
+		Move: bhand_m1, bhand_m2, bhand_m3, bhand_mt1
+		Action: bhand_a1, bhand_a2, bhand_a3, bhand_a4, bhand_a5, bhand_a6, bhand_a7, bhand_a8, bhand_a9, bhand_a10, bhand_at1
+		Attack: bhand_a1, bhand_a2, bhand_a3, bhand_a4, bhand_a5, bhand_a6, bhand_a7, bhand_a8, bhand_a9, bhand_a10, bhand_at1
+		Die: bhand_d1, bhand_d2, bhand_d3, bhand_d4, bhand_d5, dedman1, dedman3, dedman4, dedman5, dedman6
+		Burned: bhand_d1, bhand_d2, bhand_d3, bhand_d4, bhand_d5
+		Zapped: electro1
+		Explode: expnew10
+#		Feedback: bhand_f1, bhand_f2, bhand_f3, bhand_f4
+
+Shadow:
+	Voices:
+		Select: shadow_s1, shadow_s2, shadow_s3, shadow_s4, shadow_s5, shadow_s6, shadow_s7, shadow_s8, shadow_s9, shadow_s10
+		Move: shadow_m1, shadow_m2, shadow_m3, shadow_m4, shadow_m5, shadow_m6, shadow_m7, shadow_m8, shadow_m9, shadow_m10
+		Action: shadow_a1, shadow_a2, shadow_a3, shadow_a4, shadow_a5, shadow_a6, shadow_a7, shadow_a8, shadow_a9
+		Attack: shadow_a1, shadow_a2, shadow_a3, shadow_a4, shadow_a5, shadow_a6, shadow_a7, shadow_a8, shadow_a9
+#		Feedback: shadow_f1, shadow_f2, shadow_f3, shadow_f4, shadow_f5
+		Die: shadow_d1, shadow_d2, shadow_d3, shadow_d4, shadow_d5, shadow_d6, dedman1, dedman3, dedman4, dedman5, dedman6
+		Burned: shadow_d1, shadow_d2, shadow_d3, shadow_d4, shadow_d5, shadow_d6
+		Zapped: electro1
+		Explode: expnew10
+
+Acolyte:
+	Voices:
+		Select: medusa_s1, medusa_s2, medusa_s3, medusa_s4, medusa_s5, medusa_s6, medusa_s7, medusa_s8, medusa_s9, medusa_s10, medusa_s11, medusa_s12
+		Move: medusa_m1, medusa_m2, medusa_m3, medusa_m4, medusa_m5, medusa_m6, medusa_m7, medusa_m8, medusa_m9, medusa_m10, medusa_m11, medusa_m12, medusa_m13, medusa_m14, medusa_m15
+		Action: medusa_a1, medusa_a2, medusa_a3, medusa_a4, medusa_a5, medusa_a6, medusa_a7, medusa_a8, medusa_a9, medusa_a10
+		Attack: medusa_a1, medusa_a2, medusa_a3, medusa_a4, medusa_a5, medusa_a6, medusa_a7, medusa_a8, medusa_a9, medusa_a10
+#		Feedback: medusa_f1, medusa_f2, medusa_f3, medusa_f4
+		Die: dedgirl1, dedgirl2, dedgirl4
+		Burned: dedgirl3
+		Zapped: electro1
+		Explode: expnew10
+
+Orca:
+	Voices:
+		Select: orca_s1, orca_s2, orca_s3, orca_s4, orca_s5, orca_s6, orca_s7, orca_s8, orca_s9, orca_s10, orca_s11, orca_s12, orca_s13, orca_s14, orca_s15, orca_s16, orca_s17, orca_s18, orca_s19
+		Move: orca_m1, orca_m2, orca_m3, orca_m4, orca_m5, orca_m6, orca_m7, orca_m8, orca_m9, orca_m10, orca_m11, orca_m12, orca_m13
+		Action: orca_a1, orca_a2, orca_a3, orca_a4, orca_a5, orca_a6, orca_a7, orca_a8, orca_a9, orca_at1, orca_at2
+		Attack: orca_a1, orca_a2, orca_a3, orca_a4, orca_a5, orca_a6, orca_a7, orca_a8, orca_a9, orca_at1, orca_at2

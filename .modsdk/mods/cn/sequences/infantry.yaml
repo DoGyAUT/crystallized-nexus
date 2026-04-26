@@ -37,7 +37,7 @@
 		Length: 15
 		ShadowStart: 441
 	die-exploding:
-		Filename: s_bang34.shp
+		Filename: death_explode.shp
 		Length: *
 	die-crushed:
 		Start: 159
@@ -91,6 +91,168 @@ gasol.member:
 	Defaults:
 		Filename: gasol.shp
 
+gasniper:
+	Defaults:
+		Filename: gasniper.shp
+	Defaults:
+		Tick: 80
+		Offset: 0, 0, 16
+	stand:
+		Facings: 8
+		ShadowStart: 468
+	run:
+		Start: 8
+		Length: 10
+		Facings: 8
+		ShadowStart: 476
+	idle1:
+		Start: 88
+		Length: 20
+		ShadowStart: 556
+	idle2:
+		Start: 108
+		Length: 20
+		ShadowStart: 576
+	attack:
+		Start: 128
+		Length: 10
+		Facings: 8
+		ShadowStart: 596
+	attack-muzzle:
+		Start: 128
+		Length: 10
+		Facings: 8
+		ShadowStart: 596
+		IgnoreWorldTint: True
+	prone-attack:
+		Start: 388
+		Length: 10
+		Facings: 8
+		ShadowStart: 856
+	prone-attack-muzzle:
+		Start: 388
+		Length: 10
+		Facings: 8
+		ShadowStart: 856
+		IgnoreWorldTint: True
+	prone-run:
+		Start: 308
+		Length: 10
+		Facings: 8
+		ShadowStart: 776
+	prone-stand:
+		Start: 268
+		Facings: 8
+		Stride: 6
+		ShadowStart: 736
+	die-twirling:
+		Start: 208
+		Length: 20
+		ShadowStart: 676
+	die-flying:
+		Start: 228
+		Length: 20
+		ShadowStart: 696
+	die-exploding:
+		Filename: death_explode.shp
+		Length: *
+	die-crushed:
+		Start: 217
+		Length: 5
+		ShadowStart: 685
+		Tick: 800
+		ZOffset: -511
+	standup:
+		Start: 277
+		Length: 2
+		Facings: 8
+		ShadowStart: 744
+	die-melting:
+		Filename: electro.shp
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+		Length: *
+	icon:
+		Filename: scouticon.shp
+
+gaspotter:
+	Inherits: ^BasicInfantry
+	Inherits@attack: ^BasicInfantryAttack
+	Defaults:
+		Filename: gaspotter.shp
+	Defaults:
+		Tick: 80
+		Offset: 0, 0, 16
+	stand:
+		Facings: 8
+		ShadowStart: 468
+	run:
+		Start: 8
+		Length: 10
+		Facings: 8
+		ShadowStart: 476
+	idle1:
+		Start: 88
+		Length: 20
+		ShadowStart: 556
+	idle2:
+		Start: 108
+		Length: 20
+		ShadowStart: 576
+	attack:
+		Start: 128
+		Length: 10
+		Facings: 8
+		ShadowStart: 596
+	prone-attack:
+		Start: 388
+		Length: 10
+		Facings: 8
+		ShadowStart: 856
+	prone-run:
+		Start: 308
+		Length: 10
+		Facings: 8
+		ShadowStart: 776
+	prone-stand:
+		Start: 268
+		Facings: 8
+		Stride: 6
+		ShadowStart: 736
+	die-twirling:
+		Start: 208
+		Length: 20
+		ShadowStart: 676
+	die-flying:
+		Start: 228
+		Length: 20
+		ShadowStart: 696
+	die-exploding:
+		Filename: death_explode.shp
+		Length: *
+	die-crushed:
+		Start: 217
+		Length: 5
+		ShadowStart: 685
+		Tick: 800
+		ZOffset: -511
+	standup:
+		Start: 277
+		Length: 2
+		Facings: 8
+		ShadowStart: 744
+	die-melting:
+		Filename: electro.shp
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+		Length: *
+	icon:
+		Filename: scouticon.shp
+
+gaspotter.member:
+	Inherits: ^BasicInfantry
+	Inherits@attack: ^BasicInfantryAttack
+	Defaults:
+		Filename: gaspotter.shp
+
 nasol:
 	Inherits: ^BasicInfantry
 	Inherits@attack: ^BasicInfantryAttack
@@ -128,6 +290,38 @@ nengineer:
 		Filename: nengineer.shp
 	icon:
 		Filename: nengnicon.shp
+
+nacad:
+	Inherits: ^BasicInfantry
+	Inherits@attack: ^BasicInfantryAttack
+	Defaults:
+		Filename: nacad.shp
+	icon:
+		Filename: nacadicon.shp
+
+nasol2:
+	Inherits: ^BasicInfantry
+	Inherits@attack: ^BasicInfantryAttack
+	Defaults:
+		Filename: nasol2.shp
+	icon:
+		Filename: nasolicon.shp
+
+shadow:
+	Inherits: ^BasicInfantry
+	Inherits@attack: ^BasicInfantryAttack
+	Defaults:
+		Filename: shadow.shp
+	icon:
+		Filename: shadowicon.shp
+
+acolyte:
+	Inherits: ^BasicInfantry
+	Inherits@attack: ^BasicInfantryAttack
+	Defaults:
+		Filename: acolyte.shp
+	icon:
+		Filename: acolyteicon.shp
 
 umagon:
 	Inherits: ^BasicInfantry
@@ -406,7 +600,7 @@ medic:
 		Length: 15
 		ShadowStart: 455
 	die-exploding:
-		Filename: s_bang34.shp
+		Filename: death_explode.shp
 		Length: *
 	die-crushed:
 		Start: 159
@@ -484,7 +678,7 @@ jumpjet:
 		Filename: h2o_exp2.shp
 		Length: *
 	die-exploding:
-		Filename: s_bang34.shp
+		Filename: death_explode.shp
 		Length: *
 	die-crushed:
 		Start: 450
@@ -622,3 +816,79 @@ flameguy:
 		Length: 104
 		ShadowStart: 192
 		AlphaFade: True
+
+
+# Infantry Husk Decay Sequences (death_a – death_f, 4 decay frames each)
+# The decay animation should cover the full 60s husk lifetime:
+# 4 frames * 15000 ms = 60000 ms total, while ChangesHealth Delay is 1500 ticks.
+death_a:
+	Defaults:
+		Filename: death_a.shp
+		Palette: effect
+		Offset: 0, 0, 10
+	decay:
+		Length: 4
+		Tick: 15000
+	idle:
+		Start: 3
+		Length: 1
+
+death_b:
+	Defaults:
+		Filename: death_b.shp
+		Palette: effect
+		Offset: 0, 0, 10
+	decay:
+		Length: 4
+		Tick: 15000
+	idle:
+		Start: 3
+		Length: 1
+
+death_c:
+	Defaults:
+		Filename: death_c.shp
+		Palette: effect
+		Offset: 0, 0, 10
+	decay:
+		Length: 4
+		Tick: 15000
+	idle:
+		Start: 3
+		Length: 1
+
+death_d:
+	Defaults:
+		Filename: death_d.shp
+		Palette: effect
+		Offset: 0, 0, 10
+	decay:
+		Length: 4
+		Tick: 15000
+	idle:
+		Start: 3
+		Length: 1
+
+death_e:
+	Defaults:
+		Filename: death_e.shp
+		Palette: effect
+		Offset: 0, 0, 10
+	decay:
+		Length: 4
+		Tick: 15000
+	idle:
+		Start: 3
+		Length: 1
+
+death_f:
+	Defaults:
+		Filename: death_f.shp
+		Palette: effect
+		Offset: 0, 0, 10
+	decay:
+		Length: 4
+		Tick: 15000
+	idle:
+		Start: 3
+		Length: 1

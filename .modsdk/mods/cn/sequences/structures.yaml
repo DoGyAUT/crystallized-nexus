@@ -45,7 +45,7 @@ gacnst:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: facticon.shp
+		Filename: gacnsticon.shp
 		TilesetFilenames:
 		Offset: 0,0
 		DepthSprite:
@@ -58,13 +58,10 @@ nacnst:
 		Offset: 0, -36, 50
 		DepthSprite: isodepth.shp
 	idle:
-		ShadowStart: 0
 	damaged-idle:
 		Start: 0
-		ShadowStart: 0
 	dead:
 		Start: 0
-		ShadowStart: 0
 		Tick: 400
 	make:
 		TilesetFilenames:
@@ -74,37 +71,45 @@ nacnst:
 		ShadowStart: 0
 	idle-smoke1:
 		TilesetFilenames:
-			TEMPERATE: smoke_small.shp
-			SNOW: smoke_small.shp
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 100
-		Offset: 28, -85, 50
+		Offset: 28, -85, 256
+		BlendMode: Alpha
+		ZOffset: 512
 	idle-smoke2:
 		TilesetFilenames:
-			TEMPERATE: smoke_small.shp
-			SNOW: smoke_small.shp
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 110
-		Offset: 50, -75, 50
+		Offset: 50, -75, 256
+		BlendMode: Alpha
+		ZOffset: 512
 	make-smoke1:
 		TilesetFilenames:
-			TEMPERATE: smoke_small.shp
-			SNOW: smoke_small.shp
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
 		Start: 0
 		Length: 30
 		Tick: 100
-		Offset: 28, -85, 50
+		Offset: 28, -85, 256
+		BlendMode: Alpha
+		ZOffset: 512
 		AlphaFade: True
 	make-smoke2:
 		TilesetFilenames:
-			TEMPERATE: smoke_small.shp
-			SNOW: smoke_small.shp
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
 		Start: 0
 		Length: 30
 		Tick: 100
-		Offset: 50, -75, 50
+		Offset: 50, -75, 256
+		BlendMode: Alpha
+		ZOffset: 512
 		AlphaFade: True
 	emp-overlay:
 		Filename: emp_fx01.shp
@@ -205,6 +210,16 @@ gapowr:
 		Length: 12
 		Tick: 200
 		Offset: -24, -12, 40
+	idle-smoke:
+		TilesetFilenames:
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
+		Start: 30
+		Length: 60
+		Tick: 100
+		Offset: 0, -55, 256
+		BlendMode: Alpha
+		ZOffset: 512
 	make:
 		TilesetFilenames:
 			TEMPERATE: gtpowrmk.shp
@@ -228,12 +243,22 @@ gapowr:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: powricon.shp
+		Filename: gapowricon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
 
-gapowrup:
+gapowrup1:
+	place:
+		Filename: gtpowr_b.shp
+		Offset: -24, -24, 24
+		Start: 0
+		Length: 11
+		Tick: 200
+	icon:
+		Filename: turbicon.shp
+
+gapowrup2:
 	place:
 		Filename: gtpowr_b.shp
 		Offset: -24, -24, 24
@@ -310,14 +335,14 @@ gapile:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: brrkicon.shp
+		Filename: gapileicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
 
 gaweap:
 	Defaults:
-		Offset: -12, -42, 22
+		Offset: -12, -42, 32
 		DepthSpriteOffset: 32, 0
 		DepthSprite: isodepth.shp
 	idle:
@@ -405,12 +430,14 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_d.shp
 			SNOW: gaweap_d.shp
+		ZOffset: 512
 		Length: 9
 		ShadowStart: 9
 	damaged-build-door:
 		TilesetFilenames:
 			TEMPERATE: gtweap_d.shp
 			SNOW: gaweap_d.shp
+		ZOffset: 512
 		Length: 9
 		ShadowStart: 9
 	make:
@@ -418,7 +445,7 @@ gaweap:
 			TEMPERATE: gtweapmk.shp
 			SNOW: gaweapmk.shp
 		Length: 20
-		Tick: 80
+		Tick: 60
 		ShadowStart: 20
 		Offset: -12, -42, 43
 		DepthSpriteOffset: -12, 0
@@ -440,7 +467,7 @@ gaweap:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: weapicon.shp
+		Filename: gaweapicon.shp
 		Offset: 0, 0
 		DepthSprite:
 
@@ -453,30 +480,31 @@ napowr:
 		DepthSprite: isodepth.shp
 	idle:
 		Start: 0
-		ShadowStart: 0
 	damaged-idle:
 		Start: 1
-		ShadowStart: 1
 	dead:
 		Start: 2
-		ShadowStart: 2
 		Tick: 400
 	idle-smoke:
 		TilesetFilenames:
-			TEMPERATE: smoke_large.shp
-			SNOW: smoke_large.shp
+			TEMPERATE: smoke_large.png
+			SNOW: smoke_large.png
 		Start: 33
 		Length: 37
+		BlendMode: Alpha
+		ZOffset: 512
 		Tick: 100
 		Offset: 13, -69, 50
 	make-smoke:
 		TilesetFilenames:
-			TEMPERATE: smoke_large.shp
-			SNOW: smoke_large.shp
+			TEMPERATE: smoke_large.png
+			SNOW: smoke_large.png
 		Start: 0
 		Length: 33
+		BlendMode: Alpha
+		ZOffset: 512
 		Tick: 100
-		Offset: 13, -69, 50
+		Offset: 13, -69, 256
 		AlphaFade: True
 	idle-lights-bright:
 		TilesetFilenames:
@@ -518,26 +546,23 @@ naapwr:
 		DepthSpriteOffset: 12, 0
 	idle:
 		Start: 0
-		ShadowStart: 0
 	damaged-idle:
 		Start: 1
-		ShadowStart: 1
 	dead:
 		Start: 2
-		ShadowStart: 2
 		Tick: 400
 	idle-smoke1:
 		TilesetFilenames:
-			TEMPERATE: smoke_large.shp
-			SNOW: smoke_large.shp
+			TEMPERATE: smoke_large.png
+			SNOW: smoke_large.png
 		Start: 33
 		Length: 37
 		Tick: 100
 		Offset: -4, -62, 50
 	make-smoke1:
 		TilesetFilenames:
-			TEMPERATE: smoke_large.shp
-			SNOW: smoke_large.shp
+			TEMPERATE: smoke_large.png
+			SNOW: smoke_large.png
 		Start: 0
 		Length: 33
 		Tick: 100
@@ -545,41 +570,46 @@ naapwr:
 		AlphaFade: True
 	make-smoke2:
 		TilesetFilenames:
-			TEMPERATE: smoke_small.shp
-			SNOW: smoke_small.shp
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
 		Start: 0
 		Length: 30
 		Tick: 100
-		Offset: 10, -50, 40
-		UseTilesetCode: false
+		Offset: 10, -50, 256
+		BlendMode: Alpha
+		ZOffset: 512
 		AlphaFade: True
 	make-smoke3:
 		TilesetFilenames:
-			TEMPERATE: smoke_small.shp
-			SNOW: smoke_small.shp
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
 		Start: 0
 		Length: 30
 		Tick: 100
-		Offset: 28, -36, 40
-		UseTilesetCode: false
+		Offset: 28, -36, 256
+		BlendMode: Alpha
+		ZOffset: 512
 		AlphaFade: True
 	idle-smoke2:
 		TilesetFilenames:
-			TEMPERATE: smoke_small.shp
-			SNOW: smoke_small.shp
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 100
-		Offset: 10, -50, 40
-		UseTilesetCode: false
+		Offset: 10, -50, 256
+		BlendMode: Alpha
+		ZOffset: 512
 	idle-smoke3:
 		TilesetFilenames:
-			TEMPERATE: smoke_small.shp
-			SNOW: smoke_small.shp
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 110
-		Offset: 28, -36, 40
+		Offset: 28, -36, 256
+		BlendMode: Alpha
+		ZOffset: 512
 		UseTilesetCode: false
 	idle-lights-bright:
 		TilesetFilenames:
@@ -620,11 +650,8 @@ nahand:
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -12, 0
 	idle:
-		ShadowStart: 0
 	damaged-idle:
-		ShadowStart: 0
 	dead:
-		ShadowStart: 0
 		Tick: 400
 	make:
 		TilesetFilenames:
@@ -666,104 +693,52 @@ nahand:
 
 naweap:
 	Defaults:
-		Offset: -12, -42, 25
-		DepthSpriteOffset: 24, 0
+		Offset: -12, -42, 60
+		DepthSpriteOffset: 32, 0
 		DepthSprite: isodepth.shp
 	idle:
 		TilesetFilenames:
-			TEMPERATE: ntweap_1.shp
+			TEMPERATE: naweap_1.shp
 			SNOW: naweap_1.shp
-		ShadowStart: 2
-		ZOffset: -1024
-		Offset: -12, -42, 1
-		ZRamp: 1
-		DepthSprite:
-	damaged-idle:
-		TilesetFilenames:
-			TEMPERATE: ntweap_1.shp
-			SNOW: naweap_1.shp
-		Start: 1
-		ShadowStart: 3
-		ZOffset: -1024
-		Offset: -12, -42, 1
-		ZRamp: 1
-		DepthSprite:
+		ShadowStart: -1
+		Offset: -12, -42, 10
+		ZOffset: 0
 	idle-roof:
 		TilesetFilenames:
-			TEMPERATE: ntweap_2.shp
+			TEMPERATE: naweap_2.shp
 			SNOW: naweap_2.shp
-		ShadowStart: 2
-		ZOffset: 512
-	damaged-idle-roof:
-		TilesetFilenames:
-			TEMPERATE: ntweap_2.shp
-			SNOW: naweap_2.shp
-		Start: 1
-		ShadowStart: 3
+		ShadowStart: -1
 		ZOffset: 512
 	dead:
 		TilesetFilenames:
-			TEMPERATE: ntweap.shp
-			SNOW: naweap.shp
-		Start: 2
-		ShadowStart: 5
+			TEMPERATE: naweap_2.shp
+			SNOW: naweap_2.shp
+		ShadowStart: -1
 		Tick: 400
-	idle-lights:
-		TilesetFilenames:
-			TEMPERATE: ntweap_a.shp
-			SNOW: naweap_a.shp
-		Length: 16
-		Tick: 100
-		ZOffset: 2048
-	idle-lights-bright:
-		TilesetFilenames:
-			TEMPERATE: ntweap_a.shp
-			SNOW: naweap_a.shp
-		Length: 16
-		Tick: 100
-		ZOffset: 2048
-		IgnoreWorldTint: True
-	damaged-idle-lights:
-		TilesetFilenames:
-			TEMPERATE: ntweap_a.shp
-			SNOW: naweap_a.shp
-		Start: 16
-		Length: 16
-		Tick: 100
-		ZOffset: 2048
-	damaged-idle-lights-bright:
-		TilesetFilenames:
-			TEMPERATE: ntweap_a.shp
-			SNOW: naweap_a.shp
-		Start: 16
-		Length: 16
-		Tick: 100
-		ZOffset: 2048
-		IgnoreWorldTint: True
 	build-door:
 		TilesetFilenames:
-			TEMPERATE: ntweap_b.shp
+			TEMPERATE: naweap_b.shp
 			SNOW: naweap_b.shp
-		Length: 10
-		ShadowStart: 10
-		ZOffset: 512
-	damaged-build-door:
-		TilesetFilenames:
-			TEMPERATE: ntweap_b.shp
-			SNOW: naweap_b.shp
-		Start: 10
-		Length: 10
-		ShadowStart: 20
-		ZOffset: 512
+		ZOffset: 1000
+		Length: *
+		ShadowStart: -1
 	make:
 		TilesetFilenames:
-			TEMPERATE: ntweapmk.shp
+			TEMPERATE: naweapmk.shp
 			SNOW: naweapmk.shp
-		Length: 22
-		Tick: 80
-		ShadowStart: 22
+		Length: *
+		Tick: 60
+		ShadowStart: -1
 		Offset: -12, -42, 43
 		DepthSpriteOffset: -12, 0
+	bib:
+		TilesetFilenames:
+			TEMPERATE: naweapbb.shp
+			SNOW: naweapbb.shp
+		Offset: -12, -42, 2
+		ZOffset: -512
+		ZRamp: 1
+		DepthSprite:
 	emp-overlay:
 		Filename: emp_fx01.shp
 		Length: *
@@ -772,8 +747,30 @@ naweap:
 		BlendMode: Additive
 		IgnoreWorldTint: True
 		DepthSprite:
+	idle-smoke1:
+		TilesetFilenames:
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
+		Start: 30
+		Length: 60
+		Tick: 100
+		Offset: -47, -100, 256
+		BlendMode: Alpha
+		ZOffset: 512
+		UseTilesetCode: false
+	idle-smoke2:
+		TilesetFilenames:
+			TEMPERATE: smoke_small.png
+			SNOW: smoke_small.png
+		Start: 30
+		Length: 60
+		Tick: 110
+		Offset: -17, -115, 256
+		BlendMode: Alpha
+		ZOffset: 512
+		UseTilesetCode: false
 	icon:
-		Filename: nwepicon.shp
+		Filename: naweapicon.shp
 		Offset: 0, 0
 		DepthSprite:
 
@@ -785,22 +782,21 @@ naradr:
 		Offset: 0, -24, 30
 		DepthSprite: isodepth.shp
 	idle:
-		ShadowStart: 0
 	damaged-idle:
-		ShadowStart: 0
 	dead:
-		ShadowStart: 0
 		Tick: 400
 	idle-dish:
 		TilesetFilenames:
 			TEMPERATE: naradr_a.shp
 			SNOW: naradr_a.shp
+		Offset: 0, -24, 35
 		Length: 64
 		Tick: 120
 	damaged-idle-dish:
 		TilesetFilenames:
 			TEMPERATE: naradr_a.shp
 			SNOW: naradr_a.shp
+		Offset: 0, -24, 35
 		Start: 0
 		Length: 64
 		Tick: 180
@@ -988,7 +984,7 @@ garadr:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: radricon.shp
+		Filename: garadricon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
@@ -1054,7 +1050,7 @@ gatech:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: techicon.shp
+		Filename: gatechicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
@@ -1146,7 +1142,7 @@ gagate_a:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: gateicon.shp
+		Filename: gateaicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
@@ -1194,7 +1190,7 @@ gagate_b:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: gat2icon.shp
+		Filename: gatebicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
@@ -1247,7 +1243,7 @@ nagate_a:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: ngaticon.shp
+		Filename: nagateaicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
@@ -1296,7 +1292,7 @@ nagate_b:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: nga2icon.shp
+		Filename: nagatebicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
@@ -1497,38 +1493,38 @@ gaicbm:
 naobel:
 	Defaults:
 		TilesetFilenames:
-			TEMPERATE: ntobel.shp
+			TEMPERATE: naobel.shp
 			SNOW: naobel.shp
-		Offset: 0, -24, 24
+		Offset: 0, -24, 430
 		DepthSprite: isodepth.shp
 	idle:
-		ShadowStart: 3
+		ShadowStart: -1
 	damaged-idle:
 		Start: 1
-		ShadowStart: 4
+		ShadowStart: -1
 	dead:
 		Start: 2
-		ShadowStart: 5
+		ShadowStart: -1
 		Tick: 400
 	active:
 		TilesetFilenames:
-			TEMPERATE: ntobel_b.shp
-			SNOW: naobel_b.shp
-		Length: 12
+			TEMPERATE: naobel_a.shp
+			SNOW: naobel_a.shp
+		Length: 6
 		Tick: 200
 		ZOffset: 2
 	idle-lights:
 		TilesetFilenames:
-			TEMPERATE: ntobel_a.shp
-			SNOW: naobel_a.shp
-		Length: 12
-		Tick: 80
+			TEMPERATE: naobel_b.shp
+			SNOW: naobel_b.shp
+		Length: 7
+		Tick: 400
 	make:
 		TilesetFilenames:
-			TEMPERATE: ntobelmk.shp
+			TEMPERATE: naobelmk.shp
 			SNOW: naobelmk.shp
-		Length: 19
-		ShadowStart: 19
+		Length: 25
+		ShadowStart: -1
 	emp-overlay:
 		Filename: emp_fx01.shp
 		TilesetFilenames:
@@ -1544,74 +1540,43 @@ naobel:
 		Offset: 0, 0
 		DepthSprite:
 
-nalasr:
+nasam:
 	Defaults:
 		TilesetFilenames:
-			TEMPERATE: ntlasr.shp
-			SNOW: nalasr.shp
+			TEMPERATE: nasam.shp
+			SNOW: nasam.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
 		ShadowStart: 3
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
 	damaged-idle:
 		Start: 1
 		ShadowStart: 4
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
 	dead:
 		Start: 2
 		ShadowStart: 5
 		Tick: 400
-	make:
-		TilesetFilenames:
-			TEMPERATE: ntlasrmk.shp
-			SNOW: nalasrmk.shp
-		Length: 21
-		ShadowStart: 21
-	emp-overlay:
-		Filename: emp_fx01.shp
-		TilesetFilenames:
-		Length: *
-		Offset: 0, 0, 13
-		ZOffset: 512
-		BlendMode: Additive
-		IgnoreWorldTint: True
-		DepthSprite:
-	icon:
-		Filename: plticon.shp
-		TilesetFilenames:
-		Offset: 0, 0
-		DepthSprite:
-
-nasam:
-	Defaults:
-		TilesetFilenames:
-			TEMPERATE: ntsam.shp
-			SNOW: nasam.shp
-		Offset: 0, -12, 1
-	idle:
-		ShadowStart: 3
+		ZOffset: -1024
 		ZRamp: 1
-	damaged-idle:
-		Start: 1
-		ShadowStart: 4
-		ZRamp: 1
-	dead:
-		Start: 2
-		ShadowStart: 5
-		Tick: 400
-		DepthSprite: isodepth.shp
+		DepthSprite:
 	turret:
 		TilesetFilenames:
-			TEMPERATE: gtctwr_d.shp
-			SNOW: gactwr_d.shp
+			TEMPERATE: nasam_a.shp
+			SNOW: nasam_a.shp
 		Facings: 32
-		DepthSprite: isodepth.shp
-		Offset: 0, 0, 12
+		ShadowStart: 32
 	make:
 		TilesetFilenames:
-			TEMPERATE: ntsammk.shp
+			TEMPERATE: nasammk.shp
 			SNOW: nasammk.shp
-		Length: 8
-		ShadowStart: 8
+		Length: 16
+		ShadowStart: -1
 		DepthSprite: isodepth.shp
 		Offset: 0, -12, 12
 	emp-overlay:
@@ -1624,6 +1589,208 @@ nasam:
 		IgnoreWorldTint: True
 	icon:
 		Filename: samicon.shp
+		TilesetFilenames:
+		Offset: 0, 0
+
+nagat:
+	Defaults:
+		TilesetFilenames:
+			TEMPERATE: nasam.shp
+			SNOW: nasam.shp
+		Offset: 0, -12, 12
+		DepthSprite: isodepth.shp
+	idle:
+		ShadowStart: 3
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
+	damaged-idle:
+		Start: 1
+		ShadowStart: 4
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
+	dead:
+		Start: 2
+		ShadowStart: 5
+		Tick: 400
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
+	turret:
+		TilesetFilenames:
+			TEMPERATE: nagat_a.shp
+			SNOW: nagat_a.shp
+		Facings: 32
+		ShadowStart: 32
+	make:
+		TilesetFilenames:
+			TEMPERATE: nasammk.shp
+			SNOW: nasammk.shp
+		Length: 16
+		ShadowStart: -1
+		DepthSprite: isodepth.shp
+		Offset: 0, -12, 12
+	muzzle:
+		Offset: 0, 0, 24
+		Combine:
+			0:
+				TilesetFilenames:
+					TEMPERATE: mgun-n.shp
+					SNOW: mgun-n.shp
+				Length: 6
+			1:
+				TilesetFilenames:
+					TEMPERATE: mgun-nw.shp
+					SNOW: mgun-n.shp
+				Length: 6
+			2:
+				TilesetFilenames:
+					TEMPERATE: mgun-w.shp
+					SNOW: mgun-n.shp
+				Length: 6
+			3:
+				TilesetFilenames:
+					TEMPERATE: mgun-sw.shp
+					SNOW: mgun-n.shp
+				Length: 6
+			4:
+				TilesetFilenames:
+					TEMPERATE: mgun-s.shp
+					SNOW: mgun-n.shp
+				Length: 6
+			5:
+				TilesetFilenames:
+					TEMPERATE: mgun-se.shp
+					SNOW: mgun-n.shp
+				Length: 6
+			6:
+				TilesetFilenames:
+					TEMPERATE: mgun-e.shp
+					SNOW: mgun-n.shp
+				Length: 6
+			7:
+				TilesetFilenames:
+					TEMPERATE: mgun-ne.shp
+					SNOW: mgun-n.shp
+				Length: 6
+		Facings: 8
+		Length: 6
+		IgnoreWorldTint: True
+	emp-overlay:
+		Filename: emp_fx01.shp
+		TilesetFilenames:
+		Length: *
+		Offset: 0, 0, 2
+		ZOffset: 512
+		BlendMode: Additive
+		IgnoreWorldTint: True
+	icon:
+		Filename: nagaticon.shp
+		TilesetFilenames:
+		Offset: 0, 0
+
+naflamer:
+	Defaults:
+		TilesetFilenames:
+			TEMPERATE: nasam.shp
+			SNOW: nasam.shp
+		Offset: 0, -12, 12
+		DepthSprite: isodepth.shp
+	idle:
+		ShadowStart: 3
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
+	damaged-idle:
+		Start: 1
+		ShadowStart: 4
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
+	dead:
+		Start: 2
+		ShadowStart: 5
+		Tick: 400
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
+	turret:
+		TilesetFilenames:
+			TEMPERATE: naflamer_a.shp
+			SNOW: naflamer_a.shp
+		Facings: 32
+		ShadowStart: -1
+	make:
+		TilesetFilenames:
+			TEMPERATE: nasammk.shp
+			SNOW: nasammk.shp
+		Length: 16
+		ShadowStart: -1
+		DepthSprite: isodepth.shp
+		Offset: 0, -12, 12
+	emp-overlay:
+		Filename: emp_fx01.shp
+		TilesetFilenames:
+		Length: *
+		Offset: 0, 0, 2
+		ZOffset: 512
+		BlendMode: Additive
+		IgnoreWorldTint: True
+	icon:
+		Filename: naflamericon.shp
+		TilesetFilenames:
+		Offset: 0, 0
+
+nalasr:
+	Defaults:
+		TilesetFilenames:
+			TEMPERATE: nasam.shp
+			SNOW: nasam.shp
+		Offset: 0, -12, 12
+		DepthSprite: isodepth.shp
+	idle:
+		ShadowStart: 3
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
+	damaged-idle:
+		Start: 1
+		ShadowStart: 4
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
+	dead:
+		Start: 2
+		ShadowStart: 5
+		Tick: 400
+		ZOffset: -1024
+		ZRamp: 1
+		DepthSprite:
+	turret:
+		TilesetFilenames:
+			TEMPERATE: nalasr_a.shp
+			SNOW: nalasr_a.shp
+		Facings: 32
+		ShadowStart: -1
+	make:
+		TilesetFilenames:
+			TEMPERATE: nasammk.shp
+			SNOW: nasammk.shp
+		Length: 16
+		ShadowStart: -1
+		DepthSprite: isodepth.shp
+		Offset: 0, -12, 12
+	emp-overlay:
+		Filename: emp_fx01.shp
+		TilesetFilenames:
+		Length: *
+		Offset: 0, 0, 2
+		ZOffset: 512
+		BlendMode: Additive
+		IgnoreWorldTint: True
+	icon:
+		Filename: plticon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 
@@ -1713,59 +1880,104 @@ napuls.nod:
 nastlh:
 	Defaults:
 		TilesetFilenames:
-			TEMPERATE: ntstlh.shp
+			TEMPERATE: nastlh.shp
 			SNOW: nastlh.shp
-		Offset: -12, -30, 30
+		Offset: -32, -42, 50
 		DepthSprite: isodepth.shp
-		DepthSpriteOffset: -12, 0
+		DepthSpriteOffset: -48, -12
 	idle:
-		ShadowStart: 3
 	damaged-idle:
-		Start: 1
-		ShadowStart: 4
 	dead:
-		Start: 2
-		ShadowStart: 5
 		Tick: 400
 	pulse:
 		TilesetFilenames:
-			TEMPERATE: ntstlh_a.shp
-			SNOW: nastlh_a.shp
-		Length: 4
-		Tick: 480
-	damaged-pulse:
+			TEMPERATE: nastlh_a.shp
+			SNOW: nastlh_a.shp 
+		Length: 20
+		Tick: 100
+	pulse-bright:
 		TilesetFilenames:
-			TEMPERATE: ntstlh_a.shp
-			SNOW: nastlh_a.shp
-		Start: 4
-		Length: 4
-		Tick: 480
+			TEMPERATE: nastlh_a.shp
+			SNOW: nastlh_a.shp 
+		Length: 20
+		Tick: 100
+		IgnoreWorldTint: true
 	make:
 		TilesetFilenames:
-			TEMPERATE: ntstlhmk.shp
+			TEMPERATE: nastlhmk.shp
 			SNOW: nastlhmk.shp
-		Length: 18
-		ShadowStart: 20
-	emp-overlay:
-		Filename: emp_fx01.shp
-		TilesetFilenames:
+		Length: 26
+	emp-overlay: emp_fx01
 		Length: *
-		Offset: 0, 0, 31
+		Offset: 0, 0, 25
+		UseTilesetCode: false
 		ZOffset: 512
 		BlendMode: Additive
-		IgnoreWorldTint: True
-		DepthSprite:
 	icon:
 		Filename: clckicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
-		DepthSprite:
+		UseTilesetCode: false
+
+napyra:
+	Defaults:
+		TilesetFilenames:
+			TEMPERATE: napyra.shp
+			SNOW: napyra.shp
+		Offset: 0, -48, 48
+		DepthSprite: isodepth.shp
+	idle:
+	damaged-idle:
+	dead:
+		Tick: 400
+	make:
+		TilesetFilenames:
+			TEMPERATE: napyramk.shp
+			SNOW: napyramk.shp
+		Length: 26
+	idle-lights:
+		TilesetFilenames:
+			TEMPERATE: napyra_a.shp
+			SNOW: napyra_a.shp
+		Length: 7
+		Tick: 300
+	damaged-idle-lights:
+		TilesetFilenames:
+			TEMPERATE: napyra_a.shp
+			SNOW: napyra_a.shp
+		Length: 7
+		Tick: 300
+	idle-lights-bright:
+		TilesetFilenames:
+			TEMPERATE: napyra_a.shp
+			SNOW: napyra_a.shp
+		Length: 7
+		Tick: 300
+		IgnoreWorldTint: true
+	damaged-idle-lights-bright:
+		TilesetFilenames:
+			TEMPERATE: napyra_a.shp
+			SNOW: napyra_a.shp
+		Length: 7
+		Tick: 300
+		IgnoreWorldTint: true
+	emp-overlay: emp_fx01
+		Length: *
+		Offset: 0, 0, 25
+		UseTilesetCode: false
+		ZOffset: 512
+		BlendMode: Additive
+	icon:
+		Filename: napyraicon.shp
+		TilesetFilenames:
+		Offset: 0, 0
+		UseTilesetCode: false
 
 gactwr:
 	Defaults:
 		TilesetFilenames:
-			TEMPERATE: gtctwr.shp
-			SNOW: gactwr.shp
+			TEMPERATE: gatwr.shp
+			SNOW: gatwr.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1786,6 +1998,7 @@ gactwr:
 			SNOW: gactwr_a.shp
 		Length: 6
 		Tick: 200
+		Offset: 0, -17, 20
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: gtctwr_a.shp
@@ -1793,64 +2006,89 @@ gactwr:
 		Length: 6
 		Tick: 200
 		IgnoreWorldTint: True
+		Offset: 0, -17, 20
 	make:
 		TilesetFilenames:
-			TEMPERATE: gtctwrmk.shp
-			SNOW: gactwrmk.shp
-		Length: 11
-		ShadowStart: 11
-	make-bright:
-		TilesetFilenames:
-			TEMPERATE: gtctwrmk.shp
-			SNOW: gactwrmk.shp
-		Length: 11
-		ZOffset: 1
-		IgnoreWorldTint: True
-	turret-vulcan:
-		TilesetFilenames:
-			TEMPERATE: gtctwr_b.shp
-			SNOW: gactwr_b.shp
-		Facings: 32
-	turret-rocket:
-		Filename: gtctwr_c.shp
-		TilesetFilenames:
-		Facings: 32
-	turret-sam:
-		TilesetFilenames:
-			TEMPERATE: gtctwr_d.shp
-			SNOW: gactwr_d.shp
-		Facings: 32
-	muzzle:
-		TilesetFilenames:
+			TEMPERATE: gatwrmk.shp
+			SNOW: gatwrmk.shp
+		Length: 26
+		ShadowStart: 26
+	muzzle_mg:
+		Offset: 0, 0, 24
 		Combine:
 			0:
-				Filename: mgun-n.shp
+				TilesetFilenames:
+					TEMPERATE: mgun-n.shp
+					SNOW: mgun-n.shp
 				Length: 6
 			1:
-				Filename: mgun-nw.shp
+				TilesetFilenames:
+					TEMPERATE: mgun-nw.shp
+					SNOW: mgun-n.shp
 				Length: 6
 			2:
-				Filename: mgun-w.shp
+				TilesetFilenames:
+					TEMPERATE: mgun-w.shp
+					SNOW: mgun-n.shp
 				Length: 6
 			3:
-				Filename: mgun-sw.shp
+				TilesetFilenames:
+					TEMPERATE: mgun-sw.shp
+					SNOW: mgun-n.shp
 				Length: 6
 			4:
-				Filename: mgun-s.shp
+				TilesetFilenames:
+					TEMPERATE: mgun-s.shp
+					SNOW: mgun-n.shp
 				Length: 6
 			5:
-				Filename: mgun-se.shp
+				TilesetFilenames:
+					TEMPERATE: mgun-se.shp
+					SNOW: mgun-n.shp
 				Length: 6
 			6:
-				Filename: mgun-e.shp
+				TilesetFilenames:
+					TEMPERATE: mgun-e.shp
+					SNOW: mgun-n.shp
 				Length: 6
 			7:
-				Filename: mgun-ne.shp
+				TilesetFilenames:
+					TEMPERATE: mgun-ne.shp
+					SNOW: mgun-n.shp
 				Length: 6
 		Facings: 8
 		Length: 6
-		Offset: 0, 0, 12
 		IgnoreWorldTint: True
+	muzzle_cannon:
+		TilesetFilenames:
+			TEMPERATE: tankmuzzle_medium.png
+			SNOW: tankmuzzle_medium.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 5
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	muzzle_missile:
+		TilesetFilenames:
+			TEMPERATE: tankmuzzle_small.png
+			SNOW: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, -12, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	muzzle_mortar:
+		TilesetFilenames:
+			TEMPERATE: tankmuzzle_small.png
+			SNOW: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, -12, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
 	emp-overlay:
 		Filename: emp_fx01.shp
 		TilesetFilenames:
@@ -1866,35 +2104,89 @@ gactwr:
 		Offset: 0, 0
 		DepthSprite:
 
-gavulc:
-	place:
+gamg:
+	Inherits: gactwr
+	turret-vulcan:
 		TilesetFilenames:
-			TEMPERATE: gtctwr_b.shp
-			SNOW: gactwr_b.shp
-		Offset: 0, -12, 12
-		Start: 28
+			TEMPERATE: gamg_tur.shp
+			SNOW: gamg_tur.shp
+		Facings: 32
+		ShadowStart: 32
+		Offset: 0, -15, 25
 	icon:
-		Filename: twr1icon.shp
+		Filename: gamgicon.shp
 
-garock:
-	place:
+gagat:
+	Inherits: gactwr
+	turret-gagat:
 		TilesetFilenames:
-			TEMPERATE: gtctwr_c.shp
-			SNOW: gactwr_c.shp
-		Offset: 0, -12, 12
-		Start: 28
+			TEMPERATE: gagat_tur.shp
+			SNOW: gagat_tur.shp
+		Facings: 32
+		ShadowStart: 32
+		Offset: 0, -15, 25
 	icon:
-		Filename: twr2icon.shp
+		Filename: gagaticon.shp
 
-gacsam:
-	place:
+gacan:
+	Inherits: gactwr
+	turret-cannon:
 		TilesetFilenames:
-			TEMPERATE: gtctwr_d.shp
-			SNOW: gactwr_d.shp
-		Offset: 0, -12, 12
-		Start: 28
+			TEMPERATE: gacan_tur.shp
+			SNOW: gacan_tur.shp
+		Facings: 32
+		ShadowStart: -1
+		Offset: 0, -15, 25
 	icon:
-		Filename: twr3icon.shp
+		Filename: gacanicon.shp
+
+gasam:
+	Inherits: gactwr
+	turret-sam:
+		TilesetFilenames:
+			TEMPERATE: gasam_tur.shp
+			SNOW: gasam_tur.shp
+		Facings: 32
+		ShadowStart: -1
+		Offset: 0, -15, 25
+	icon:
+		Filename: gasamicon.shp
+
+gasen:
+	Inherits: gactwr
+	turret-sensor:
+		TilesetFilenames:
+			TEMPERATE: gasensor_tur.shp
+			SNOW: gasensor_tur.shp
+		Facings: 32
+		ShadowStart: -1
+		Offset: 0, -15, 25
+	icon:
+		Filename: gasenicon.shp
+
+gamortar:
+	Inherits: gactwr
+	turret-mortar:
+		TilesetFilenames:
+			TEMPERATE: gamortar_tur.shp
+			SNOW: gamortar_tur.shp
+		Facings: 32
+		ShadowStart: 32
+		Offset: 0, -15, 25
+	icon:
+		Filename: gamortaricon.shp
+
+gamgsam:
+	Inherits: gactwr
+	turret-gamgsam:
+		TilesetFilenames:
+			TEMPERATE: gamg_samtur.shp
+			SNOW: gamg_samtur.shp
+		Facings: 32
+		ShadowStart: 32
+		Offset: 0, -15, 25
+	icon:
+		Filename: gamgicon.shp
 
 gahpad:
 	Defaults:
@@ -1951,7 +2243,7 @@ gahpad:
 			SNOW: gahpad_a.shp
 		Length: 8
 		Tick: 100
-		Offset: 0, -36
+		Offset: 0, -36, 1
 		ZOffset: -1c511
 		ZRamp: 1
 	idle-lights-bright:
@@ -1960,7 +2252,7 @@ gahpad:
 			SNOW: gahpad_a.shp
 		Length: 8
 		Tick: 100
-		Offset: 0, -36
+		Offset: 0, -36, 1
 		ZOffset: -1c511
 		ZRamp: 1
 		IgnoreWorldTint: True
@@ -1971,7 +2263,7 @@ gahpad:
 		Start: 8
 		Length: 8
 		Tick: 100
-		Offset: 0, -36
+		Offset: 0, -36, 1
 		ZOffset: -1c511
 		ZRamp: 1
 	damaged-idle-lights-bright:
@@ -1981,7 +2273,7 @@ gahpad:
 		Start: 8
 		Length: 8
 		Tick: 100
-		Offset: 0, -36
+		Offset: 0, -36, 1
 		ZOffset: -1c511
 		ZRamp: 1
 		IgnoreWorldTint: True
@@ -2004,7 +2296,7 @@ gahpad:
 		BlendMode: Additive
 		IgnoreWorldTint: True
 	icon:
-		Filename: heliicon.shp
+		Filename: gahpadicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 
@@ -2216,11 +2508,8 @@ nproc:
 		DepthSpriteOffset: 22, 0
 		DepthSprite: isodepth.shp
 	idle:
-		ShadowStart: 0
 	damaged-idle:
-		ShadowStart: 0
 	dead:
-		ShadowStart: 0
 		Tick: 400
 	make:
 		TilesetFilenames:
@@ -2265,8 +2554,8 @@ nproc:
 		IgnoreWorldTint: True
 	bib:
 		TilesetFilenames:
-			TEMPERATE: naref_bib.shp
-			SNOW: naref_bib.shp
+			TEMPERATE: ntrefnbb.shp
+			SNOW: narefnbb.shp
 		Length: 1
 		ZOffset: -1024
 		Offset: -12, -42, 1
@@ -2274,16 +2563,18 @@ nproc:
 		DepthSprite:
 	damaged-bib:
 		TilesetFilenames:
-			TEMPERATE: naref_bib.shp
-			SNOW: naref_bib.shp
+			TEMPERATE: ntrefnbb.shp
+			SNOW: narefnbb.shp
+		Start: 1
 		ZOffset: -1024
 		Offset: -12, -42, 1
 		ZRamp: 1
 		DepthSprite:
 	dead-bib:
 		TilesetFilenames:
-			TEMPERATE: naref_bib.shp
-			SNOW: naref_bib.shp
+			TEMPERATE: ntrefnbb.shp
+			SNOW: narefnbb.shp
+		Start: 2
 		ZOffset: -1024
 		Offset: -12, -42, 1
 		ZRamp: 1
@@ -2469,7 +2760,7 @@ gasilo.gdi:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: sidebar-gdi|siloicon.shp
+		Filename: gasiloicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
@@ -2544,7 +2835,7 @@ gasilo.nod:
 		IgnoreWorldTint: True
 		DepthSprite:
 	icon:
-		Filename: sidebar-nod|siloicon.shp
+		Filename: nsilicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 		DepthSprite:
@@ -2717,7 +3008,43 @@ gadept.gdi:
 		BlendMode: Additive
 		IgnoreWorldTint: True
 	icon:
-		Filename: sidebar-gdi|fixicon.shp
+		Filename: gadepticon.shp
+		TilesetFilenames:
+		Offset: 0, 0
+
+gaarmory:
+	Defaults:
+		TilesetFilenames:
+			TEMPERATE: gaarmory.shp
+			SNOW: gaarmory.shp
+		Offset: 6, -30, 50
+		DepthSpriteOffset: 22, 0
+		DepthSprite: isodepth.shp
+	idle:
+		ShadowStart: 3
+	damaged-idle:
+		Start: 1
+		ShadowStart: 4
+	dead:
+		Start: 2
+		ShadowStart: 5
+		Tick: 400
+	make:
+		TilesetFilenames:
+			TEMPERATE: gaarmorymk.shp
+			SNOW: gaarmorymk.shp
+		Length: 31
+		ShadowStart: 31
+	emp-overlay:
+		Filename: emp_fx01.shp
+		TilesetFilenames:
+		Length: *
+		Offset: 0, 0, 8
+		ZOffset: 512
+		BlendMode: Additive
+		IgnoreWorldTint: True
+	icon:
+		Filename: gaarmoryicon.shp
 		TilesetFilenames:
 		Offset: 0, 0
 

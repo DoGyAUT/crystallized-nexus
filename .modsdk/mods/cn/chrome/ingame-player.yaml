@@ -33,6 +33,53 @@ Container@PLAYER_WIDGETS:
 					ClockPalette: iconclock
 					HotkeyPrefix: SupportPower
 					HotkeyCount: 6
+		Container@SELECTION_SUBGROUPS:
+			Logic: SelectionSubgroupLogic
+				MaxButtonsPerRow: 7
+			X: 5
+			Y: WINDOW_HEIGHT - 114
+			Width: 449
+			Height: 56
+			Children:
+				LogicTicker@SUBGROUP_TICKER:
+				Container@SUBGROUP_CONTAINER:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Children:
+						LogicKeyListener@SUBGROUP_KEY_HANDLER:
+						Button@SELECT_ALL_BUTTON:
+							Width: 40
+							Height: 52
+							VisualHeight: 0
+							Background: button-toggle
+							TooltipText: Select all unit types
+							TooltipContainer: TOOLTIP_CONTAINER
+							Font: TinyBold
+							Text: ALL
+						Container@SUBGROUP_BUTTONS:
+							X: 44
+							Width: PARENT_WIDTH - 44
+							Height: PARENT_HEIGHT
+							Children:
+								SubgroupButton@SUBGROUP_BUTTON_TEMPLATE:
+									Width: 56
+									Height: 52
+									VisualHeight: 0
+									Background: button-toggle
+									Visible: false
+									Children:
+										SubgroupIcon@SPRITE_ICON:
+											X: 4
+											Y: 2
+											Width: 48
+											Height: 48
+										Label@COUNT:
+											X: 38
+											Y: 36
+											Width: 16
+											Height: 14
+											Font: Tiny
+											Align: Right
 		Image@COMMAND_BAR_BACKGROUND:
 			Logic: AddFactionSuffixLogic
 			X: 5
@@ -466,7 +513,7 @@ Container@PLAYER_WIDGETS:
 							ImageCollection: power-icons
 							ImageName: power-normal
 		Container@SIDEBAR_PRODUCTION:
-			Logic: ClassicProductionLogic
+			Logic: CNProductionSelectionLogic
 			X: WINDOW_WIDTH - 235
 			Y: 260
 			Width: 235
@@ -489,7 +536,7 @@ Container@PLAYER_WIDGETS:
 							ImageCollection: sidebar
 							ImageName: background-bottom
 				LogicTicker@PRODUCTION_TICKER:
-				ProductionPalette@PRODUCTION_PALETTE:
+				CNProductionPalette@PRODUCTION_PALETTE:
 					X: 24
 					Y: 1
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -514,7 +561,7 @@ Container@PLAYER_WIDGETS:
 					Children:
 						ProductionTypeButton@BUILDING:
 							Logic: AddFactionSuffixLogic
-							X: 41
+							X: 10
 							Y: 1
 							Width: 30
 							Height: 31
@@ -531,7 +578,7 @@ Container@PLAYER_WIDGETS:
 									ImageCollection: production-icons
 						ProductionTypeButton@SUPPORT:
 							Logic: AddFactionSuffixLogic
-							X: 72
+							X: 41
 							Y: 1
 							Width: 30
 							Height: 31
@@ -548,7 +595,7 @@ Container@PLAYER_WIDGETS:
 									ImageCollection: production-icons
 						ProductionTypeButton@INFANTRY:
 							Logic: AddFactionSuffixLogic
-							X: 103
+							X: 72
 							Y: 1
 							Width: 30
 							Height: 31
@@ -565,7 +612,7 @@ Container@PLAYER_WIDGETS:
 									ImageCollection: production-icons
 						ProductionTypeButton@VEHICLE:
 							Logic: AddFactionSuffixLogic
-							X: 134
+							X: 103
 							Y: 1
 							Width: 30
 							Height: 31
@@ -582,7 +629,7 @@ Container@PLAYER_WIDGETS:
 									ImageCollection: production-icons
 						ProductionTypeButton@AIRCRAFT:
 							Logic: AddFactionSuffixLogic
-							X: 165
+							X: 134
 							Y: 1
 							Width: 30
 							Height: 31
@@ -597,26 +644,42 @@ Container@PLAYER_WIDGETS:
 									X: 7
 									Y: 7
 									ImageCollection: production-icons
-						Button@SCROLL_UP_BUTTON:
+						ProductionTypeButton@NAVAL:
 							Logic: AddFactionSuffixLogic
-							X: 74
-							Y: PARENT_HEIGHT + 36
-							Width: 34
-							Height: 27
+							X: 165
+							Y: 1
+							Width: 30
+							Height: 31
 							VisualHeight: 0
-							Background: scrollup-buttons
-							TooltipText: button-production-types-scroll-up-tooltip
+							Background: sidebar-button
+							TooltipText: button-production-types-naval-tooltip
 							TooltipContainer: TOOLTIP_CONTAINER
-						Button@SCROLL_DOWN_BUTTON:
+							ProductionGroup: Naval
+							Key: ProductionTypeNaval
+							Children:
+								Image@ICON:
+									X: 7
+									Y: 7
+									ImageCollection: production-icons
+									ImageName: naval
+						ProductionTypeButton@TECH:
 							Logic: AddFactionSuffixLogic
-							X: 141
-							Y: PARENT_HEIGHT + 36
-							Width: 34
-							Height: 27
+							X: 196
+							Y: 1
+							Width: 30
+							Height: 31
 							VisualHeight: 0
-							Background: scrolldown-buttons
-							TooltipText: button-production-types-scroll-down-tooltip
+							Background: sidebar-button
+							TooltipText: button-production-types-tech-tooltip
 							TooltipContainer: TOOLTIP_CONTAINER
+							ProductionGroup: Tech
+							Key: ProductionTypeTech
+							Children:
+								Image@ICON:
+									X: 7
+									Y: 7
+									ImageCollection: production-icons
+									ImageName: tech
 		Container@HPF_ROOT:
 			Logic: LoadIngameHierarchicalPathFinderOverlayLogic
 			X: WINDOW_WIDTH - WIDTH - 245

@@ -24,6 +24,15 @@ art2:
 	turret: art2tur
 	barrel: art2barl
 
+nhwtz:
+	idle:
+	deployed: nhwtz_deployed
+	deployed_turret: nhwtz_deployedtur
+	deployed_barrel: nhwtz_deployedbarl
+
+nhwtz_deployed_husk:
+	idle: nhwtz_deployed
+
 jugg:
 	barrel: djuggbar
 
@@ -33,9 +42,6 @@ subtank:
 bggy:
 	idle:
 	turret: bggytur
-
-nalasr:
-	turret: laser
 
 sapc:
 	idle:
@@ -47,6 +53,8 @@ ttnk:
 	idle:
 	turret: ttnktur
 	barrel: ttnkbarl
+	barrel1: ttnkbarl
+	barrel2: ttnkbarl2
 
 hmec:
 	idle:
@@ -55,16 +63,27 @@ hvr:
 	idle:
 	turret: hvrtur
 
+gtmtnk:
+	idle:
+	turret: gtmtnktur
+	barrel: gtmtnkbarl
+
+ltnk:
+	idle:
+	turret: ltnktur
+#	barrel: ltnkbarl
+
 stnk:
 	idle:
+	turret: stnktur
 
-orca:
+orca_tran:
 	idle:
 
-orcab:
+orca_f1:
 	idle:
 
-orcatran:
+orca_b:
 	idle:
 
 trnsport:
@@ -73,7 +92,7 @@ trnsport:
 scrin:
 	idle:
 
-apache:
+hydra:
 	idle:
 
 dshp:
@@ -83,6 +102,8 @@ dshp:
 	idle:
 	turret: 4tnktur
 	barrel: 4tnkbarl
+	barrel1: 4tnkbarl1
+	barrel2: 4tnkbarl2
 
 trucka:
 	idle:

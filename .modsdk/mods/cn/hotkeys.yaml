@@ -23,6 +23,16 @@ ProductionTypeAircraft: U
 	Types: Production
 	Contexts: player
 
+ProductionTypeNaval: I
+	Description: hotkey-description-productiontypenaval
+	Types: Production
+	Contexts: player
+
+ProductionTypeTech: O
+	Description: hotkey-description-productiontypetech
+	Types: Production
+	Contexts: player
+
 PowerDown: X
 	Description: hotkey-description-powerdown
 	Types: OrderGenerator
@@ -51,4 +61,17 @@ IncreaseDepthPreviewOffset: QUOTE SHIFT
 ToggleDepthPreview: BACKSLASH SHIFT
 	Description: hotkey-description-toggledepthpreview
 	Types: DepthDebug
+	Contexts: player
+
+# Override the engine default (TAB = SelectProductionBuilding) so our subgroup cycling takes priority
+SelectProductionBuilding: UNKNOWN
+
+CycleSelectionSubgroup: TAB
+	Description: hotkey-description-cycleselectionsubgroup
+	Types: Unit
+	Contexts: player
+
+CycleSelectionSubgroupReverse: TAB SHIFT
+	Description: hotkey-description-cycleselectionsubgroupreverse
+	Types: Unit
 	Contexts: player

@@ -1,12 +1,12 @@
-orca:
+orca_f1:
 	Inherits: ^VehicleOverlays
 	icon:
-		Filename: orcaicon.shp
+		Filename: orca_f1icon.shp
 
-orcab:
+orca_b:
 	Inherits: ^VehicleOverlays
 	icon:
-		Filename: obmbicon.shp
+		Filename: orca_bicon.shp
 
 trnsport:
 	Inherits: ^VehicleOverlays
@@ -16,30 +16,28 @@ trnsport:
 scrin:
 	Inherits: ^VehicleOverlays
 	icon:
-		Filename: proicon.shp
+		Filename: banshee_ficon.shp
 
-apache:
+hydra:
 	Inherits: ^VehicleOverlays
 	icon:
-		Filename: apchicon.shp
+		Filename: hydraicon.shp
 	rotor:
-		Filename: harpyrotor.shp
-		Start: 32
-		Length: 31
-		Offset: 0, 0, 32
-		ZRamp: 1
-		Tick: 25
+		ZOffset: 1024
+		Offset: 0, -15, 128
+		Filename: lrotor.shp
+		Length: 4
 	slow-rotor:
-		Filename: harpyrotor.shp
-		Length: 31
-		Offset: 0, 0, 32
-		ZRamp: 1
-		Tick: 50
+		ZOffset: 1024
+		Offset: 0, -15, 128
+		Filename: lrotor.shp
+		Start: 4
+		Length: 8
 
-orcatran:
+orca_tran:
 	Inherits: ^VehicleOverlays
 	icon:
-		Filename: crryicon.shp
+		Filename: orca_tranicon.shp
 
 pod:
 	Inherits: ^VehicleOverlays

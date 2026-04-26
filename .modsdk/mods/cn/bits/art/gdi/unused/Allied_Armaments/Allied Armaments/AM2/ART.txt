@@ -1,0 +1,13 @@
+[M2]
+TurretOffset=-25
+Weapon1FLH=350,0,100
+Weapon2FLH=
+Weapon3FLH=85,100,115;;the right side
+Weapon4FLH=
+Weapon5FLH=10,-100,110;;the left side
+Weapon6FLH=
+Weapon7FLH=-90,50,160;;behind
+Weapon8FLH=
+
+
+PS：made by lmss22

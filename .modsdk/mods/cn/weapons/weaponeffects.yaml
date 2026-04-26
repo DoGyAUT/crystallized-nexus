@@ -1,0 +1,62 @@
+^FlashTinyW:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: tiny_flash_w
+		ExplosionPalette: effect
+
+^FlashSmallW:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: small_flash_w
+		ExplosionPalette: effect
+
+^FlashMediumW:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: medium_flash_w
+		ExplosionPalette: effect
+
+^FlashLargeW:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: large_flash_w
+		ExplosionPalette: effect
+
+^FlashTinyY:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: tiny_flash_y
+		ExplosionPalette: effect
+
+^FlashSmallY:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: small_flash_y
+		ExplosionPalette: effect
+
+^FlashMediumY:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: medium_flash_y
+		ExplosionPalette: effect
+
+^FlashLargeY:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: large_flash_y
+		ExplosionPalette: effect
+
+^FlashLargeY:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: large_flash_y
+		ExplosionPalette: effect

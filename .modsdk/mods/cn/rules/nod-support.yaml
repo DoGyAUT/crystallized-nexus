@@ -1,19 +1,18 @@
 NAWALL:
 	Inherits: ^Wall
+	Inherits@CRUSHABLETYPE: ^CrushableHeavyWall
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 20
-		Prerequisites: ~structures.nod, ~techlevel.low
+		Prerequisites: nahand, ~structures.nod, ~techlevel.low
 		Description: actor-nawall.description
 	-SoundOnDamageTransition:
 	Tooltip:
 		Name: actor-nawall.name
-	Health:
-		HP: 22500
+	CNHealth:
+		HP: 225
 	Armor:
-		Type: Concrete
-	Crushable:
-		CrushClasses: heavywall
+		Type: Heavy
 	LineBuild:
 		NodeTypes: wall, turret
 	Replaceable:
@@ -53,10 +52,10 @@ NAPOST:
 		Cost: 200
 	Tooltip:
 		Name: actor-napost.name
-	Health:
-		HP: 30000
+	CNHealth:
+		HP: 300
 	Armor:
-		Type: Concrete
+		Type: Heavy
 	-Capturable:
 	LineBuild:
 		Range: 10
@@ -167,45 +166,6 @@ NAFNCE:
 	Interactable:
 		Bounds: 1448, 1448
 
-NALASR:
-	Inherits: ^Support
-	Inherits@IDISABLE: ^DisableOnPowerDown
-	Inherits@AUTOTARGET: ^AutoTargetGround
-	Valued:
-		Cost: 300
-	Tooltip:
-		Name: actor-nalasr.name
-	Buildable:
-		Queue: Support
-		Prerequisites: nahand, ~structures.nod, ~techlevel.low
-		BuildPaletteOrder: 90
-		Description: actor-nalasr.description
-	Health:
-		HP: 50000
-	Armor:
-		Type: Wood
-	RevealsShroud:
-		Range: 7c0
-	DetectCloaked:
-		Range: 3c0
-	Turreted:
-		TurnSpeed: 40
-		InitialFacing: 896
-		Offset: 298,-171,288
-		RealignDelay: -1
-	AttackTurreted:
-		PauseOnCondition: empdisable || disabled || build-incomplete
-	Armament:
-		Weapon: TurretLaserFire
-		LocalOffset: 498,0,317
-	RenderVoxels:
-	WithVoxelTurret:
-		RequiresCondition: !build-incomplete
-	Power:
-		Amount: -40
-	BodyOrientation:
-		QuantizedFacings: 0
-
 NAOBEL:
 	Inherits: ^Support
 	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
@@ -223,15 +183,15 @@ NAOBEL:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 72500
+	CNHealth:
+		HP: 725
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 8c0
 	Armament:
 		Weapon: ObeliskLaserFire
-		LocalOffset: 1980,297,1131
+		LocalOffset: 4500,-636,1131
 	AttackCharges:
 		PauseOnCondition: empdisable || disabled || build-incomplete
 		ChargeLevel: 65
@@ -241,14 +201,56 @@ NAOBEL:
 		SoundFiles: obelpowr.aud
 		Interval: 30, 40
 	WithChargeOverlay:
-		RequiresCondition: !build-incomplete
+		RequiresCondition: !build-incomplete && charging
 		Palette: player
 		IsPlayerPalette: true
 	WithIdleOverlay@LIGHTS:
-		RequiresCondition: !build-incomplete && !disabled
+		RequiresCondition: !build-incomplete && !disabled && !charging
+		Palette: player
+		IsPlayerPalette: true
 		Sequence: idle-lights
 	Power:
 		Amount: -150
+	BotCapabilities:
+		Capabilities: Defense, InfantryDefense, ArmorDefense, Special
+
+NALASR:
+	Inherits: ^Support
+	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
+	Inherits@AUTOTARGET: ^AutoTargetGround
+	Valued:
+		Cost: 500
+	Tooltip:
+		Name: actor-nagat.name
+	Buildable:
+		Queue: Support
+		Prerequisites: naweap, ~structures.nod, ~techlevel.medium
+		BuildPaletteOrder: 100
+		Description: actor-nagat.description
+	CNHealth:
+		HP: 600
+	Armor:
+		Type: Light
+	BodyOrientation:
+		QuantizedFacings: 32
+	RenderRangeCircle:
+		RangeCircleType: aa
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 896
+		RealignDelay: -1
+	AttackTurreted:
+		PauseOnCondition: empdisable || disabled || build-incomplete
+	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
+		Recoils: false
+	Armament:
+		Weapon: TurretLaserFire
+		LocalOffset: 1273,0,884
+	Power:
+		Amount: -30
+	BotCapabilities:
+		Capabilities: Defense, ArmorDefense
 
 NASAM:
 	Inherits: ^Support
@@ -263,10 +265,10 @@ NASAM:
 		Prerequisites: naradr, ~structures.nod, ~techlevel.medium
 		BuildPaletteOrder: 100
 		Description: actor-nasam.description
-	Health:
-		HP: 60000
+	CNHealth:
+		HP: 600
 	Armor:
-		Type: Wood
+		Type: Light
 	BodyOrientation:
 		QuantizedFacings: 32
 	RenderRangeCircle:
@@ -282,6 +284,92 @@ NASAM:
 		Recoils: false
 	Armament:
 		Weapon: RedEye2
-		LocalOffset: 543,0,815
+		LocalOffset: 566,0,1273
 	Power:
 		Amount: -30
+	BotCapabilities:
+		Capabilities: Defense, AADefense
+
+NAGAT:
+	Inherits: ^Support
+	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
+	Inherits@AUTOTARGET: ^AutoTargetGround
+	Valued:
+		Cost: 500
+	Tooltip:
+		Name: actor-nagat.name
+	Buildable:
+		Queue: Support
+		Prerequisites: nahand, ~structures.nod, ~techlevel.medium
+		BuildPaletteOrder: 100
+		Description: actor-nagat.description
+	CNHealth:
+		HP: 600
+	Armor:
+		Type: Light
+	BodyOrientation:
+		QuantizedFacings: 32
+	RenderRangeCircle:
+		RangeCircleType: aa
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 896
+		RealignDelay: -1
+	AttackTurreted:
+		PauseOnCondition: empdisable || disabled || build-incomplete
+	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
+		Recoils: true
+	Armament:
+		Weapon: GattlingCannon
+		LocalOffset: 990,255,919, 990,-255,919
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		Recoil: 64
+		RecoilRecovery: 32
+	WithMuzzleOverlay:
+	Power:
+		Amount: -30
+	BotCapabilities:
+		Capabilities: Defense, InfantryDefense
+
+NAFLAMER:
+	Inherits: ^Support
+	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
+	Inherits@AUTOTARGET: ^AutoTargetGround
+	Valued:
+		Cost: 500
+	Tooltip:
+		Name: actor-naflamer.name
+	Buildable:
+		Queue: Support
+		Prerequisites: nahand, ~structures.nod, ~techlevel.low
+		BuildPaletteOrder: 100
+		Description: actor-naflamer.description
+	CNHealth:
+		HP: 600
+	Armor:
+		Type: Light
+	BodyOrientation:
+		QuantizedFacings: 32
+	RenderRangeCircle:
+		RangeCircleType: aa
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 896
+		RealignDelay: -1
+	AttackTurreted:
+		PauseOnCondition: empdisable || disabled || build-incomplete
+	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
+		Recoils: false
+	Armament@1:
+		Weapon: FireballLauncher
+		LocalOffset: 990,255,919
+	Armament@2:
+		Weapon: FireballLauncher
+		LocalOffset: 990,-255,919
+	Power:
+		Amount: -30
+	BotCapabilities:
+		Capabilities: Defense, InfantryDefense

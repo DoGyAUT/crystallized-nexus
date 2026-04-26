@@ -1,60 +1,71 @@
 #Special case
+intro: Intro
+	Hidden: true
 bleaktwilight: Bleak Twilight
 	Hidden: true
 guiltypleasure: Guilty Pleasure
 	Hidden: true
-#CD Tracks
-cd_gditheme: GDI - Theme
+score: Score
+	Hidden: true
 	Extension: wav
-cd_prosperity: Broken Prosperity
+maps: Map Selection
+	Hidden: true
 	Extension: wav
-cd_megastructure: Megastructure
+fsmap: Firestorm Map Selection
+	Hidden: true
 	Extension: wav
-cd_aoi: Act on Instinct (CD Remix)
+ionstorm: ionstorm
+	Hidden: true
 	Extension: wav
-cd_warfare: Warfare (CD Remix)
+#Crystallized Nexus
+cn_menu: Menu Theme
+	Extension: ogg
+cd_gditheme: GDI Theme
 	Extension: wav
-cd_drumwar: Signs of War
+cd_nodtheme: Nod Theme
 	Extension: wav
-cd_pfb: Prepare for Battle (CD Remix)
+cd_cabtheme: Cabal Theme
 	Extension: wav
-cd_nodtheme: Nod - Theme
+cn_forg: Forgotten Theme
+	Extension: ogg
+cd_sertheme: Seraph Theme
 	Extension: wav
-cd_elysium: Road to Elysium
+cn_htb: Hightech Battle
+	Extension: ogg
+cn_stealth: Stealth Ops
+	Extension: ogg
+cn_mutation: Mutation
+	Extension: ogg
+cn_ascension: Ascension
+	Extension: ogg
+cn_heroic: Heroic March
+	Extension: ogg
+cn_versus: Versus
+	Extension: ogg
+cn_cg: Conveyor Gunmetal
+	Extension: ogg
+cn_ts1: Throwback 1
+	Extension: ogg
+cn_ts2: Throwback 2
+	Extension: ogg
+cd_aoi: Act on Instinct Remix
 	Extension: wav
-cd_cabtheme: Cabal - Theme
-	Extension: wav
-cd_uop: Usurpation Of Peace
-	Extension: wav
-cd_bdawn: Blue Dawn
-	Extension: wav
-cd_xeno: Xenophobia
-	Extension: wav
-cd_forgtheme: Forgotten - Theme
-	Extension: wav
-cd_skeet: Skeet
-	Extension: wav
-cd_mutania: Mutania
-	Extension: wav
-cd_tibnight: Tiberian Night
-	Extension: wav
-cd_nomand: Nomands Land
-	Extension: wav
-cd_sertheme: Seraph - Theme
+cd_darkness: Darkness
 	Extension: wav
 cd_dominance: Dominance
 	Extension: wav
-cd_darkness: Arrival of Darkness
+cd_pfb: Prepare for Battle
 	Extension: wav
-cd_sychocisis: Sychocisis
+cd_elysium: Elysium
 	Extension: wav
-cd_aots: Augurs of the Serpent
+cd_elysium: Elysium
 	Extension: wav
-cd_kidney: Kidney
+cd_uop: Usurpation of Peace
 	Extension: wav
-cd_pdoom: Project Doom
+cd_prosperity: Prosperity
 	Extension: wav
-
+cd_warfare: Warfare Remix
+	Extension: wav
 
 
 

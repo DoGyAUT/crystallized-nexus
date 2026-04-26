@@ -12,8 +12,8 @@ DPOD:
 		Roll: 0
 		TurnSpeed: 20
 		Speed: 149
-	Health:
-		HP: 6000
+	CNHealth:
+		HP: 60
 	Armor:
 		Type: Light
 	Cargo:
@@ -42,8 +42,8 @@ DPOD2:
 		Cost: 10
 	Tooltip:
 		Name: actor-dpod2-name
-	Health:
-		HP: 6000
+	CNHealth:
+		HP: 60
 	Armor:
 		Type: Light
 	Aircraft:
@@ -105,13 +105,10 @@ DSHP:
 		CruiseAltitude: 12c512
 		AltitudeVelocity: 256
 		MoveIntoShroud: true
-	Health:
-		HP: 20000
+	CNHealth:
+		HP: 200
 	Armor:
 		Type: Heavy
-	RevealsShroud:
-		Range: 3c0
-		Type: CenterPosition
 	Cargo:
 		Types: Infantry
 		MaxWeight: 5
@@ -120,7 +117,7 @@ DSHP:
 	SpawnActorOnDeath:
 		Actor: DSHP.Husk
 
-ORCA:
+ORCA_F1:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
@@ -128,6 +125,8 @@ ORCA:
 		Cost: 1000
 	Tooltip:
 		Name: actor-orca.name
+	Voiced:
+		VoiceSet: Orca
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
@@ -145,13 +144,10 @@ ORCA:
 		AltitudeVelocity: 128
 		CanSlide: false
 		TakeOffOnResupply: true
-	Health:
-		HP: 20000
+	CNHealth:
+		HP: 200
 	Armor:
 		Type: Light
-	RevealsShroud:
-		Range: 2c0
-		Type: CenterPosition
 	Armament:
 		Weapon: Hellfire
 		PauseOnCondition: !ammo
@@ -166,10 +162,10 @@ ORCA:
 		AmmoCondition: ammo
 	RenderSprites:
 	SpawnActorOnDeath:
-		Actor: ORCA.Husk
+		Actor: ORCA_F1.Husk
 		RequiresCondition: !empdisable
 	SpawnActorOnDeath@EMP:
-		Actor: ORCA.Husk.EMP
+		Actor: ORCA.Husk_F1.EMP
 		RequiresCondition: empdisable
 	Rearmable:
 		RearmActors: gahpad, nahpad
@@ -180,8 +176,10 @@ ORCA:
 		FullSequence: pip-ammo
 		EmptySequence: pip-ammoempty
 		Palette: pips
+	BotCapabilities:
+		Capabilities: Aircraft, AntiArmor
 
-ORCAB:
+ORCA_B:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
@@ -189,6 +187,8 @@ ORCAB:
 		Cost: 1600
 	Tooltip:
 		Name: actor-orcab.name
+	Voiced:
+		VoiceSet: Orca
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
@@ -209,13 +209,10 @@ ORCAB:
 		LandingSounds: orcadwn1.aud
 		CanHover: false
 		CanSlide: false
-	Health:
-		HP: 26000
+	CNHealth:
+		HP: 260
 	Armor:
-		Type: Light
-	RevealsShroud:
-		Range: 2c0
-		Type: CenterPosition
+		Type: Medium
 	Armament:
 		Weapon: Bomb
 		PauseOnCondition: !ammo
@@ -233,10 +230,10 @@ ORCAB:
 	Hovers@CRUISING:
 		RequiresCondition: cruising
 	SpawnActorOnDeath:
-		Actor: ORCAB.Husk
+		Actor: ORCA_B.Husk
 		RequiresCondition: !empdisable
 	SpawnActorOnDeath@EMP:
-		Actor: ORCAB.Husk.EMP
+		Actor: ORCA_B.Husk.EMP
 		RequiresCondition: empdisable
 	Rearmable:
 		RearmActors: gahpad, nahpad
@@ -254,14 +251,18 @@ ORCAB:
 		UseLocation: true
 		ValidRelationships: Neutral, Enemy
 		RequiresCondition: !rank-elite
+	BotCapabilities:
+		Capabilities: Aircraft, AntiArmor, Bomber
 
-ORCATRAN:
+ORCA_TRAN:
 	Inherits: ^EMPableAircraft
 	Inherits@CARGOPIPS: ^CargoPips
 	Valued:
 		Cost: 1200
 	Tooltip:
 		Name: actor-orcatran-name
+	Voiced:
+		VoiceSet: Orca
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
@@ -277,13 +278,10 @@ ORCATRAN:
 		TakeoffSounds: orcaup1.aud
 		LandingSounds: orcadwn1.aud
 		IdealSeparation: 1275
-	Health:
-		HP: 20000
+	CNHealth:
+		HP: 200
 	Armor:
 		Type: Light
-	RevealsShroud:
-		Range: 2c0
-		Type: CenterPosition
 	Cargo:
 		Types: Infantry
 		MaxWeight: 5
@@ -291,13 +289,15 @@ ORCATRAN:
 		EjectOnDeath: true
 		AfterUnloadDelay: 40
 	SpawnActorOnDeath:
-		Actor: ORCATRAN.Husk
+		Actor: ORCA_TRAN.Husk
 		RequiresCondition: !empdisable
 	SpawnActorOnDeath@EMP:
-		Actor: ORCATRAN.Husk.EMP
+		Actor: ORCA_TRAN.Husk.EMP
 		RequiresCondition: empdisable
 	WithAircraftLandingEffect:
 		Image: dropland
+	BotCapabilities:
+		Capabilities: Aircraft, Transport
 
 TRNSPORT:
 	Inherits: ^EMPableAircraft
@@ -305,6 +305,8 @@ TRNSPORT:
 		Cost: 750
 	Tooltip:
 		Name: actor-trnsport.name
+	Voiced:
+		VoiceSet: Orca
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
@@ -324,13 +326,10 @@ TRNSPORT:
 		LocalOffset: 0,0,-317
 		BeforeLoadDelay: 10
 		BeforeUnloadDelay: 10
-	Health:
-		HP: 17500
+	CNHealth:
+		HP: 175
 	Armor:
 		Type: Light
-	RevealsShroud:
-		Range: 2c0
-		Type: CenterPosition
 	RenderSprites:
 	Selectable:
 		Bounds: 1327, 1930, 0, -482
@@ -342,3 +341,5 @@ TRNSPORT:
 		RequiresCondition: empdisable
 	WithAircraftLandingEffect:
 		Image: caryland
+	BotCapabilities:
+		Capabilities: Aircraft, VehicleTransport

@@ -7,8 +7,8 @@ DOGGIE:
 		Categories: Critter
 	Tooltip:
 		Name: actor-doggie-name
-	Health:
-		HP: 25000
+	CNHealth:
+		HP: 250
 	Selectable:
 		Bounds: 724, 1448
 	Valued:
@@ -56,13 +56,18 @@ DOGGIE:
 		Sequence: hide
 	WithInfantryBody:
 		RequiresCondition: !hidingplace || moving || attacking
+	AmbientSound:
+		SoundFiles: fiendscream01.aud, fiendscream02.aud, fiendscream03.aud, fiendscream04.aud, fiendscream05.aud, fiendscream06.aud, fiendscream07.aud
+		Delay: 150, 450
+		Interval: 300, 800
 
 VISC_SML:
 	Inherits: ^Visceroid
+	Inherits@CRUSHABLETYPE: ^CrushableVisceroidFusingFriendly
 	Tooltip:
 		Name: actor-visc-sml-name
-	Health:
-		HP: 20000
+	CNHealth:
+		HP: 200
 	AttackWander:
 		WanderMoveRadius: 2
 		MinMoveDelay: 30
@@ -71,15 +76,15 @@ VISC_SML:
 		Image: vissml
 	Mobile:
 		Locomotor: smallvisc
-	Crushable:
-		CrushClasses: visceroid-fusing
-		WarnProbability: 0
-		CrushedByFriendlies: True
 	AutoCrusher:
 		CrushClasses: visceroid-fusing
 	TransformCrusherOnCrush:
 		IntoActor: visc_lrg
 		CrushClasses: visceroid-fusing
+	AmbientSound:
+		SoundFiles: visscream01.aud, visscream02.aud, visscream03.aud, visscream04.aud
+		Delay: 150, 450
+		Interval: 300, 800
 
 VISC_LRG:
 	Inherits: ^Visceroid
@@ -87,8 +92,8 @@ VISC_LRG:
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Tooltip:
 		Name: actor-visc-lrg-name
-	Health:
-		HP: 50000
+	CNHealth:
+		HP: 500
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -109,6 +114,10 @@ VISC_LRG:
 		Sequence: attack
 	RenderSprites:
 		Image: vislrg
+	AmbientSound:
+		SoundFiles: visscream01.aud, visscream02.aud, visscream03.aud, visscream04.aud
+		Delay: 150, 450
+		Interval: 300, 800
 
 JFISH:
 	Inherits: ^Visceroid
@@ -116,8 +125,8 @@ JFISH:
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Tooltip:
 		Name: actor-jfish-name
-	Health:
-		HP: 50000
+	CNHealth:
+		HP: 1000
 	RevealsShroud:
 		Range: 5c0
 	Mobile:
@@ -134,6 +143,24 @@ JFISH:
 		WanderMoveRadius: 6
 		MinMoveDelay: 250
 		MaxMoveDelay: 600
+	SpawnActorOnTimer@OFFSPRING:
+		Actors: jfishs
+		InitialDelay: 1200, 2400
+		Interval: 2400, 4200
+		SpawnRadius: 2
+		MaxNearbyActors: 6
+		NearbyActorTypes: jfish, jfishm, jfishs
+		NearbyScanRadius: 10
+		MaxGlobalActors: 10
+		GlobalActorTypes: jfish, jfishm, jfishs
+		RequiresLobbyCreeps: true
+	SpawnActorOnDamage@TIBCLOUD:
+		Actors: TIBCLOUD1, TIBCLOUD2
+		Probability: 55
+		Cooldown: 175
+		SpawnRadius: 1
+		OwnerType: InternalName
+		InternalOwner: Neutral
 	WithAttackAnimation:
 		Sequence: attack
 	WithAttackOverlay@muzzle:
@@ -152,3 +179,149 @@ JFISH:
 		Type: Circle
 			Radius: 363
 			VerticalTopOffset: 768
+	LeavesTrails:
+		RequiresCondition: !inside-tunnel
+		Image: wake
+		Palette: effect
+		TerrainTypes: Water
+		TrailWhileStationary: True
+		StationaryInterval: 18
+		MovingInterval: 6
+
+JFISHM:
+	Inherits: ^Visceroid
+	Inherits@CRATESTATS: ^CrateStatModifiers
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Tooltip:
+		Name: actor-jfish-name
+	CNHealth:
+		HP: 500
+	RevealsShroud:
+		Range: 5c0
+	Mobile:
+		Speed: 72
+		Locomotor: hover
+	Armament:
+		Weapon: Tentacle_medium
+		FireDelay: 10
+	AutoTarget:
+		ScanRadius: 5
+	AttackFrontal:
+		FacingTolerance: 0
+	AttackWander:
+		WanderMoveRadius: 6
+		MinMoveDelay: 250
+		MaxMoveDelay: 600
+	KillsSelf@EVOLVE:
+		Delay: 2400, 4200
+		DamageTypes: JFishEvolution
+	SpawnActorOnDeath@EVOLVE:
+		Actor: jfish
+		OwnerType: Victim
+		DeathType: JFishEvolution
+	SpawnActorOnDamage@TIBCLOUD:
+		Actors: TIBCLOUD1, TIBCLOUD2
+		Probability: 40
+		Cooldown: 200
+		SpawnRadius: 1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	WithAttackAnimation:
+		Sequence: attack
+	WithAttackOverlay@muzzle:
+		Sequence: attack-shock
+		Palette: bright
+	RenderSprites:
+		Image: floater_medium
+		Palette: player-nobright
+	Selectable:
+		Bounds: 965, 1930, 0, -301
+	AmbientSound:
+		SoundFiles: floatmov.aud, flotmov2.aud, flotmov3.aud, flotmov4.aud
+		Delay: 150, 450
+		Interval: 300, 800
+	HitShape:
+		Type: Circle
+			Radius: 363
+			VerticalTopOffset: 768
+	LeavesTrails:
+		RequiresCondition: !inside-tunnel
+		Image: wake
+		Palette: effect
+		TerrainTypes: Water
+		TrailWhileStationary: True
+		StationaryInterval: 18
+		MovingInterval: 6
+
+JFISHS:
+	Inherits: ^Visceroid
+	Inherits@CRATESTATS: ^CrateStatModifiers
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Tooltip:
+		Name: actor-jfish-name
+	CNHealth:
+		HP: 250
+	RevealsShroud:
+		Range: 5c0
+	Mobile:
+		Speed: 72
+		Locomotor: hover
+	Armament:
+		Weapon: Tentacle_small
+		FireDelay: 10
+	AutoTarget:
+		ScanRadius: 5
+	AttackFrontal:
+		FacingTolerance: 0
+	KeepNearActors:
+		ActorTypes: jfishm, jfish
+		SearchRadius: 14
+		LeashRadius: 4
+		FollowRange: 2
+		AttackMove: true
+	CallProtectorsOnDamage:
+		ProtectorActorTypes: jfishm, jfish
+		SearchRadius: 10
+		MaxProtectors: 3
+		Cooldown: 125
+		AttackRange: 1
+	KillsSelf@EVOLVE:
+		Delay: 1800, 3000
+		DamageTypes: JFishEvolution
+	SpawnActorOnDeath@EVOLVE:
+		Actor: jfishm
+		OwnerType: Victim
+		DeathType: JFishEvolution
+	SpawnActorOnDamage@TIBCLOUD:
+		Actors: TIBCLOUD1, TIBCLOUD2
+		Probability: 25
+		Cooldown: 250
+		SpawnRadius: 1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	WithAttackAnimation:
+		Sequence: attack
+	WithAttackOverlay@muzzle:
+		Sequence: attack-shock
+		Palette: bright
+	RenderSprites:
+		Image: floater_small
+		Palette: player-nobright
+	Selectable:
+		Bounds: 965, 1930, 0, -301
+	AmbientSound:
+		SoundFiles: floatmov.aud, flotmov2.aud, flotmov3.aud, flotmov4.aud
+		Delay: 150, 450
+		Interval: 300, 800
+	HitShape:
+		Type: Circle
+			Radius: 363
+			VerticalTopOffset: 768
+	LeavesTrails:
+		RequiresCondition: !inside-tunnel
+		Image: wake
+		Palette: effect
+		TerrainTypes: Water
+		TrailWhileStationary: True
+		StationaryInterval: 18
+		MovingInterval: 6

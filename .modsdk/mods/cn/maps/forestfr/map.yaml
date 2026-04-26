@@ -124,7 +124,7 @@ Actors:
 	Actor13: ca0001
 		Location: 156,109
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor14: ingrnlmp
 		Location: 224,-24
@@ -1544,15 +1544,15 @@ Actors:
 	Actor476: lobrdg_a
 		Location: 149,-3
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 	Actor477: lobrdg_a
 		Location: 149,-2
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 	Actor478: lobrdg_a
 		Location: 149,-1
 		Owner: Neutral
-		Health: 25
+		CNHealth: 25
 	Actor479: lobrdg_a_d
 		Location: 149,0
 		Owner: Neutral
@@ -1589,18 +1589,18 @@ Actors:
 	Actor490: lobrdg_a
 		Location: 149,11
 		Owner: Neutral
-		Health: 25
+		CNHealth: 25
 	Actor491: lobrdg_a
 		Location: 149,12
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 	Actor492: trock01
 		Location: 96,66
 		Owner: Neutral
 	Actor493: lobrdg_a
 		Location: 149,13
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 	Actor494: lobrdg_a
 		Location: 149,14
 		Owner: Neutral

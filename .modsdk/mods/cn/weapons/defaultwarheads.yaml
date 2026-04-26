@@ -1,0 +1,330 @@
+^DefaultWahead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 256
+		Falloff: 100, 50, 25, 12, 6, 3, 0
+		Damage: 500
+		Versus:
+			Building: 100
+			Infantry: 100
+			Cyborg: 100
+			Vehicle: 100
+			Aircraft: 100
+			Flora: 100
+			None: 100
+			Light: 100
+			Medium: 100
+			Heavy: 100
+			Superheavy: 100
+			Shield: 100
+			Stability: 100
+		DamageTypes: ExplosionDeath, SmallExplosionDeath, FireDeath, EnergyDeath, BulletDeath, TriggerProne, Prone100Percent
+
+^BulletWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Falloff: 100, 50, 25, 12, 6, 3, 0
+		Damage: 100
+		Versus:
+			Building: 10
+			Infantry: 100
+			Cyborg: 60
+			Vehicle: 15
+			Aircraft: 40
+			Flora: 30
+			None: 100
+			Light: 60
+			Medium: 30
+			Heavy: 10
+			Superheavy: 5
+			Shield: 15
+			Stability: 50
+		DamageTypes: BulletDeath, TriggerProne, Prone50Percent
+
+^SniperBulletWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Damage: 100
+		Versus:
+			Building: 50
+			Infantry: 400
+			Cyborg: 350
+			Vehicle: 15
+			Aircraft: 20
+			Flora: 5
+			None: 100
+			Light: 50
+			Medium: 10
+			Heavy: 5
+			Superheavy: 2
+			Shield: 20
+			Stability: 80
+		DamageTypes: BulletDeath, TriggerProne, Prone50Percent, PierceArmor
+
+^FireWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Damage: 100
+		Versus:
+			Building: 120
+			Infantry: 200
+			Cyborg: 110
+			Vehicle: 40
+			Aircraft: 150
+			Flora: 400
+			None: 100
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Superheavy: 15
+			Shield: 60
+			Stability: 300
+		DamageTypes: FireDeath, TriggerProne, Prone350Percent
+
+^EnergyWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Damage: 100
+		Versus:
+			Building: 80
+			Infantry: 100
+			Cyborg: 125
+			Vehicle: 80
+			Aircraft: 90
+			Flora: 60
+			None: 100
+			Light: 100
+			Medium: 85
+			Heavy: 65
+			Superheavy: 45
+			Shield: 250
+			Stability: 120
+		DamageTypes: EnergyDeath, TriggerProne, Prone100Percent, PierceArmor
+
+^LaserWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 42
+		Damage: 100
+		Versus:
+			Building: 60
+			Infantry: 180
+			Cyborg: 110
+			Vehicle: 70
+			Aircraft: 150
+			Flora: 100
+			None: 100
+			Light: 120
+			Medium: 80
+			Heavy: 50
+			Superheavy: 30
+			Shield: 200
+			Stability: 50
+		DamageTypes: EnergyDeath, TriggerProne, Prone60Percent, PierceArmor
+
+^PlasmaWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Damage: 100
+		Versus:
+			Building: 130
+			Infantry: 120
+			Cyborg: 140
+			Vehicle: 100
+			Aircraft: 100
+			Flora: 300
+			None: 100
+			Light: 110
+			Medium: 100
+			Heavy: 90
+			Superheavy: 75
+			Shield: 350
+			Stability: 200
+		DamageTypes: EnergyDeath, TriggerProne, Prone350Percent, PierceArmor
+
+^ExplosionWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 256
+		Falloff: 100, 50, 25, 12, 6, 3, 0
+		Damage: 100
+		Versus:
+			Building: 150
+			Infantry: 110
+			Cyborg: 90
+			Vehicle: 80
+			Aircraft: 150
+			Flora: 500
+			None: 100
+			Light: 120
+			Medium: 90
+			Heavy: 60
+			Superheavy: 40
+			Shield: 40
+			Stability: 600
+		DamageTypes: ExplosionDeath, TriggerProne, Prone100Percent
+
+^SmallExplosionWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Damage: 100
+		Versus:
+			Building: 50
+			Infantry: 110
+			Cyborg: 80
+			Vehicle: 40
+			Aircraft: 80
+			Flora: 200
+			None: 100
+			Light: 100
+			Medium: 50
+			Heavy: 20
+			Superheavy: 10
+			Shield: 30
+			Stability: 250
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone70Percent
+
+^CannonWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Falloff: 100, 50, 25, 12, 6, 3, 0
+		Damage: 100
+		Versus:
+			Building: 80
+			Infantry: 80
+			Cyborg: 100
+			Vehicle: 100
+			Aircraft: 120
+			Flora: 50
+			None: 100
+			Light: 110
+			Medium: 100
+			Heavy: 85
+			Superheavy: 60
+			Shield: 40
+			Stability: 150
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone70Percent
+
+^MissileWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Falloff: 100, 50, 25, 12, 6, 3, 0
+		Damage: 100
+		Versus:
+			Building: 60
+			Infantry: 60
+			Cyborg: 80
+			Vehicle: 120
+			Aircraft: 150
+			Flora: 40
+			None: 100
+			Light: 130
+			Medium: 100
+			Heavy: 90
+			Superheavy: 70
+			Shield: 50
+			Stability: 200
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone70Percent
+
+^RailgunWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Falloff: 100, 100
+		Damage: 100
+		AffectsParent: false
+		Versus:
+			Building: 70
+			Infantry: 70
+			Cyborg: 130
+			Vehicle: 140
+			Aircraft: 60
+			Flora: 10
+			None: 100
+			Light: 150
+			Medium: 130
+			Heavy: 110
+			Superheavy: 90
+			Shield: 80
+			Stability: 100
+		DamageTypes: ExplosionDeath, TriggerProne, Prone100Percent, BypassArmor
+
+^SonicWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Falloff: 100, 50, 25, 12, 6, 3, 0
+		Damage: 100
+		Versus:
+			Building: 200
+			Infantry: 150
+			Cyborg: 120
+			Vehicle: 70
+			Aircraft: 50
+			Flora: 80
+			None: 100
+			Light: 100
+			Medium: 70
+			Heavy: 50
+			Superheavy: 30
+			Shield: 400
+			Stability: 500
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone100Percent
+
+^TiberiumWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Falloff: 100, 50, 25, 12, 6, 3, 0
+		Damage: 100
+		Versus:
+			Building: 40
+			Infantry: 250
+			Cyborg: 180
+			Vehicle: 30
+			Aircraft: 20
+			Flora: 500
+			None: 100
+			Light: 60
+			Medium: 40
+			Heavy: 20
+			Superheavy: 10
+			Shield: 110
+			Stability: 400
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone350Percent
+
+^VeinWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 108
+		Falloff: 100, 50, 25, 12, 6, 3, 0
+		Damage: 100
+		Versus:
+			Building: 20
+			Infantry: 150
+			Cyborg: 110
+			Vehicle: 130
+			Aircraft: 20
+			Flora: 100
+			None: 100
+			Light: 140
+			Medium: 90
+			Heavy: 60
+			Superheavy: 30
+			Shield: 20
+			Stability: 500
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone100Percent
+
+^IonStormWarhead:
+	Warhead@1Dam: SpreadDamage
+		Spread: 0c512
+		Falloff: 100, 50, 0
+		Damage: 100
+		Versus:
+			Building: 90
+			Infantry: 110
+			Cyborg: 250
+			Vehicle: 100
+			Aircraft: 400
+			Flora: 150
+			None: 100
+			Light: 140
+			Medium: 100
+			Heavy: 80
+			Superheavy: 60
+			Shield: 500
+			Stability: 800
+		DamageTypes: EnergyDeath, TriggerProne, Prone350Percent

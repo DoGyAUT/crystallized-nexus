@@ -7,9 +7,9 @@ ABAN01:
 		Footprint: xx xx xx xx xx XX
 		Dimensions: 2, 6
 	Armor:
-		Type: wood
-	Health:
-		HP: 60000
+		Type: Light
+	CNHealth:
+		HP: 600
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -28,9 +28,9 @@ ABAN02:
 		Footprint: xxxxx xxxxx XXXxX
 		Dimensions: 5, 3
 	Armor:
-		Type: heavy
-	Health:
-		HP: 60000
+		Type: Heavy
+	CNHealth:
+		HP: 600
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -49,9 +49,9 @@ ABAN03:
 		Footprint: xx xx xx xx XX
 		Dimensions: 2, 5
 	Armor:
-		Type: wood
-	Health:
-		HP: 50000
+		Type: Light
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -70,9 +70,9 @@ ABAN04:
 		Footprint: xxxX xxxX
 		Dimensions: 4, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -93,9 +93,9 @@ ABAN05:
 		Footprint: xxX xxX
 		Dimensions: 3, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 50000
+		Type: Light
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -108,9 +108,9 @@ ABAN06:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 50000
+		Type: Light
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -123,9 +123,9 @@ ABAN07:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 35000
+		Type: Heavy
+	CNHealth:
+		HP: 350
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -138,9 +138,9 @@ ABAN08:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 50000
+		Type: Heavy
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -153,9 +153,9 @@ ABAN09:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 35000
+		Type: Heavy
+	CNHealth:
+		HP: 350
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -168,9 +168,9 @@ ABAN10:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 50000
+		Type: Light
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -183,9 +183,9 @@ ABAN11:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -198,9 +198,9 @@ ABAN12:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -212,9 +212,9 @@ ABAN13:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -226,9 +226,9 @@ ABAN14:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: heavy
-	Health:
-		HP: 30000
+		Type: Heavy
+	CNHealth:
+		HP: 300
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -240,9 +240,9 @@ ABAN15:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: heavy
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -255,9 +255,9 @@ ABAN16:
 		Footprint: xx xX
 		Dimensions: 2, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -269,9 +269,9 @@ ABAN17:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -283,9 +283,9 @@ ABAN18:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: TEMPERATE
 
@@ -298,7 +298,7 @@ AMMOCRAT:
 		Dimensions: 1, 1
 	Armor:
 		Type: none
-	Health:
+	CNHealth:
 		HP: 1
 	RenderSprites:
 		Palette: player
@@ -434,9 +434,9 @@ CA0001:
 		Footprint: xxX xxX XXX
 		Dimensions: 3, 3
 	Armor:
-		Type: heavy
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -451,9 +451,9 @@ CA0002:
 		Footprint: xxX xxx Xxx
 		Dimensions: 3, 3
 	Armor:
-		Type: heavy
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -468,9 +468,9 @@ CA0003:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: light
-	Health:
-		HP: 30000
+		Type: Light
+	CNHealth:
+		HP: 300
 
 CA0004:
 	Inherits: ^CivBuilding
@@ -481,9 +481,9 @@ CA0004:
 		Footprint: xx xX
 		Dimensions: 2, 2
 	Armor:
-		Type: light
-	Health:
-		HP: 30000
+		Type: Light
+	CNHealth:
+		HP: 300
 
 CA0005:
 	Inherits: ^CivBuilding
@@ -494,9 +494,9 @@ CA0005:
 		Footprint: x x
 		Dimensions: 1, 2
 	Armor:
-		Type: light
-	Health:
-		HP: 30000
+		Type: Light
+	CNHealth:
+		HP: 300
 
 CA0006:
 	Inherits: ^CivBuilding
@@ -507,9 +507,9 @@ CA0006:
 		Footprint: x x
 		Dimensions: 1, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 30000
+		Type: Heavy
+	CNHealth:
+		HP: 300
 
 CA0007:
 	Inherits: ^CivBuilding
@@ -520,9 +520,9 @@ CA0007:
 		Footprint: x x
 		Dimensions: 1, 2
 	Armor:
-		Type: light
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 
 CA0008:
 	Inherits: ^CivBuilding
@@ -533,9 +533,9 @@ CA0008:
 		Footprint: xX xX xx
 		Dimensions: 2, 3
 	Armor:
-		Type: heavy
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 
 CA0009:
 	Inherits: ^CivBuilding
@@ -546,9 +546,9 @@ CA0009:
 		Footprint: xX xx xX
 		Dimensions: 2, 3
 	Armor:
-		Type: heavy
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 
 CA0010:
 	Inherits: ^CivBuilding
@@ -559,9 +559,9 @@ CA0010:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 30000
+		Type: Heavy
+	CNHealth:
+		HP: 300
 
 CA0011:
 	Inherits: ^CivBuilding
@@ -572,9 +572,9 @@ CA0011:
 		Footprint: x x
 		Dimensions: 1, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 20000
+		Type: Heavy
+	CNHealth:
+		HP: 200
 
 CA0012:
 	Inherits: ^CivBuilding
@@ -585,9 +585,9 @@ CA0012:
 		Footprint: x x
 		Dimensions: 1, 2
 	Armor:
-		Type: light
-	Health:
-		HP: 10000
+		Type: Light
+	CNHealth:
+		HP: 100
 	IsometricSelectable:
 		Height: 36
 
@@ -600,9 +600,9 @@ CA0013:
 		Footprint: xx
 		Dimensions: 2, 1
 	Armor:
-		Type: heavy
-	Health:
-		HP: 30000
+		Type: Heavy
+	CNHealth:
+		HP: 300
 	IsometricSelectable:
 		Height: 48
 
@@ -614,9 +614,9 @@ CA0014:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: heavy
-	Health:
-		HP: 30000
+		Type: Heavy
+	CNHealth:
+		HP: 300
 	IsometricSelectable:
 		Height: 48
 
@@ -628,9 +628,9 @@ CA0015:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: light
-	Health:
-		HP: 30000
+		Type: Light
+	CNHealth:
+		HP: 300
 
 CA0016:
 	Inherits: ^CivBuilding
@@ -640,9 +640,9 @@ CA0016:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: light
-	Health:
-		HP: 30000
+		Type: Light
+	CNHealth:
+		HP: 300
 	IsometricSelectable:
 		Height: 48
 
@@ -654,9 +654,9 @@ CA0017:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: heavy
-	Health:
-		HP: 30000
+		Type: Heavy
+	CNHealth:
+		HP: 300
 	IsometricSelectable:
 		Height: 48
 
@@ -672,9 +672,9 @@ CA0018:
 		Footprint: x x
 		Dimensions: 1, 2
 	Armor:
-		Type: light
-	Health:
-		HP: 20000
+		Type: Light
+	CNHealth:
+		HP: 200
 	IsometricSelectable:
 		Height: 48
 
@@ -690,9 +690,9 @@ CA0019:
 		Footprint: x x
 		Dimensions: 1, 2
 	Armor:
-		Type: light
-	Health:
-		HP: 20000
+		Type: Light
+	CNHealth:
+		HP: 200
 	IsometricSelectable:
 		Height: 48
 
@@ -708,9 +708,9 @@ CA0020:
 		Footprint: x x
 		Dimensions: 1, 2
 	Armor:
-		Type: light
-	Health:
-		HP: 20000
+		Type: Light
+	CNHealth:
+		HP: 200
 	IsometricSelectable:
 		Height: 48
 
@@ -726,9 +726,9 @@ CA0021:
 		Footprint: x x
 		Dimensions: 1, 2
 	Armor:
-		Type: light
-	Health:
-		HP: 20000
+		Type: Light
+	CNHealth:
+		HP: 200
 	IsometricSelectable:
 		Height: 48
 
@@ -741,9 +741,9 @@ CAARAY:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: concrete
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 	RenderSprites:
 		Palette: player
 	WithIdleOverlay@SATELLITE:
@@ -771,9 +771,9 @@ CAARMR:
 		Footprint: xxxx xxxx xxxx xxxx
 		Dimensions: 4, 4
 	Armor:
-		Type: concrete
-	Health:
-		HP: 80000
+		Type: Heavy
+	CNHealth:
+		HP: 800
 	RenderSprites:
 		Palette: player
 	ProvidesPrerequisite:
@@ -818,9 +818,9 @@ CAHOSP:
 		Footprint: XxX xxx xxx xxx
 		Dimensions: 3, 4
 	Armor:
-		Type: concrete
-	Health:
-		HP: 80000
+		Type: Heavy
+	CNHealth:
+		HP: 800
 	RenderSprites:
 		Palette: player
 	CaptureManager:
@@ -847,9 +847,9 @@ CAPYR01:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: concrete
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: SNOW
 	IsometricSelectable:
@@ -864,9 +864,9 @@ CAPYR02:
 		Footprint: xxxx xxxx xxxx xxxx
 		Dimensions: 4, 4
 	Armor:
-		Type: concrete
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: SNOW
 	FireProjectilesOnDeath@SMALL:
@@ -885,9 +885,9 @@ CAPYR03:
 		Footprint: xxxx xxxx xxxx xxxx
 		Dimensions: 4, 4
 	Armor:
-		Type: concrete
-	Health:
-		HP: 40000
+		Type: Heavy
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		ExcludeTilesets: SNOW
 	FireProjectilesOnDeath@SMALL:
@@ -906,9 +906,9 @@ CITY01:
 		Footprint: xxxX XxxX
 		Dimensions: 4, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -927,9 +927,9 @@ CITY02:
 		Footprint: xx xx xx
 		Dimensions: 2, 3
 	Armor:
-		Type: heavy
-	Health:
-		HP: 70000
+		Type: Heavy
+	CNHealth:
+		HP: 700
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -948,9 +948,9 @@ CITY03:
 		Footprint: xxx xxx
 		Dimensions: 3, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 50000
+		Type: Heavy
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -969,9 +969,9 @@ CITY04:
 		Footprint: xxx xxx
 		Dimensions: 3, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 60000
+		Type: Heavy
+	CNHealth:
+		HP: 600
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -990,9 +990,9 @@ CITY05:
 		Footprint: xxx xxx
 		Dimensions: 3, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 60000
+		Type: Heavy
+	CNHealth:
+		HP: 600
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -1011,9 +1011,9 @@ CITY06:
 		Footprint: xxxx XxxX
 		Dimensions: 4, 2
 	Armor:
-		Type: concrete
-	Health:
-		HP: 50000
+		Type: Heavy
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -1032,9 +1032,9 @@ CITY07:
 		Footprint: xxxx xxxx
 		Dimensions: 4, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -1053,9 +1053,9 @@ CITY08:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 30000
+		Type: Heavy
+	CNHealth:
+		HP: 300
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 
@@ -1068,9 +1068,9 @@ CITY09:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	IsometricSelectable:
@@ -1085,9 +1085,9 @@ CITY10:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 30000
+		Type: Heavy
+	CNHealth:
+		HP: 300
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	IsometricSelectable:
@@ -1102,9 +1102,9 @@ CITY11:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 50000
+		Type: Heavy
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	IsometricSelectable:
@@ -1119,9 +1119,9 @@ CITY12:
 		Footprint: xX xx
 		Dimensions: 2, 2
 	Armor:
-		Type: concrete
-	Health:
-		HP: 60000
+		Type: Heavy
+	CNHealth:
+		HP: 600
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	IsometricSelectable:
@@ -1136,9 +1136,9 @@ CITY13:
 		Footprint: xX Xx
 		Dimensions: 2, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 50000
+		Type: Light
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	IsometricSelectable:
@@ -1152,9 +1152,9 @@ CITY14:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: heavy
-	Health:
-		HP: 60000
+		Type: Heavy
+	CNHealth:
+		HP: 600
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	IsometricSelectable:
@@ -1169,9 +1169,9 @@ CITY15:
 		Footprint: xxxX xxxX
 		Dimensions: 4, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 50000
+		Type: Heavy
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -1188,9 +1188,9 @@ CITY16:
 		Footprint: xxxx xxxx
 		Dimensions: 4, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 50000
+		Type: Light
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -1209,9 +1209,9 @@ CITY17:
 		Footprint: XxxX xxxx xxxX
 		Dimensions: 4, 3
 	Armor:
-		Type: wood
-	Health:
-		HP: 30000
+		Type: Light
+	CNHealth:
+		HP: 300
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -1230,9 +1230,9 @@ CITY18:
 		Footprint: xxx xxx xxx xxx xxX
 		Dimensions: 3, 5
 	Armor:
-		Type: concrete
-	Health:
-		HP: 60000
+		Type: Heavy
+	CNHealth:
+		HP: 600
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	FireProjectilesOnDeath@SMALL:
@@ -1251,9 +1251,9 @@ CITY19:
 		Footprint: xx xX
 		Dimensions: 2, 2
 	Armor:
-		Type: wood
-	Health:
-		HP: 50000
+		Type: Light
+	CNHealth:
+		HP: 500
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 
@@ -1265,9 +1265,9 @@ CITY20:
 		Footprint: x
 		Dimensions: 1, 1
 	Armor:
-		Type: wood
-	Health:
-		HP: 25000
+		Type: Light
+	CNHealth:
+		HP: 250
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 
@@ -1280,8 +1280,8 @@ CITY21:
 		Dimensions: 1, 1
 	Armor:
 		Type: none
-	Health:
-		HP: 10000
+	CNHealth:
+		HP: 100
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 
@@ -1295,8 +1295,8 @@ CITY22:
 		Dimensions: 2, 2
 	Armor:
 		Type: none
-	Health:
-		HP: 10000
+	CNHealth:
+		HP: 100
 	MapEditorData:
 		RequireTilesets: TEMPERATE
 	IsometricSelectable:
@@ -1314,9 +1314,9 @@ CTDAM:
 		Amount: 200
 	PowerTooltip:
 	Armor:
-		Type: heavy
-	Health:
-		HP: 100000
+		Type: Heavy
+	CNHealth:
+		HP: 1000
 	ProvidesPrerequisite:
 		Prerequisite: anypower
 	MapEditorData:
@@ -1343,8 +1343,8 @@ CTVEGA:
 		Dimensions: 4, 4
 	Armor:
 		Type: none
-	Health:
-		HP: 10000
+	CNHealth:
+		HP: 100
 	MapEditorData:
 		ExcludeTilesets: SNOW
 	FireProjectilesOnDeath@SMALL:
@@ -1365,9 +1365,9 @@ GAKODK:
 		Footprint: xxXX xxXX
 		Dimensions: 4, 2
 	Armor:
-		Type: heavy
-	Health:
-		HP: 150000
+		Type: Heavy
+	CNHealth:
+		HP: 1500
 	RenderSprites:
 		Palette: player
 	WithIdleOverlay@LARGELIGHTS:
@@ -1446,8 +1446,8 @@ GASAND:
 		Cost: 25
 	Tooltip:
 		Name: actor-gasand.name
-	Health:
-		HP: 25000
+	CNHealth:
+		HP: 250
 	Armor:
 		Type: Light
 	LineBuild:
@@ -1470,9 +1470,9 @@ GASPOT:
 	Power:
 		Amount: -10
 	Armor:
-		Type: wood
-	Health:
-		HP: 40000
+		Type: Light
+	CNHealth:
+		HP: 400
 	RevealsShroud:
 		Range: 6c0
 		MaxHeightDelta: 3
@@ -1497,10 +1497,10 @@ GALITE:
 	-WithDeathAnimation:
 	Sellable:
 		RequiresCondition: !being-demolished
-	Health:
-		HP: 60000
+	CNHealth:
+		HP: 600
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 2c0
 		MaxHeightDelta: 3
@@ -1700,10 +1700,10 @@ GAICBM:
 	Tooltip:
 		Name: actor-gaicbm-name
 	-GivesBuildableArea:
-	Health:
-		HP: 40000
+	CNHealth:
+		HP: 400
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -1728,9 +1728,9 @@ NAMNTK:
 		Footprint: x x x
 		Dimensions: 1, 3
 	Armor:
-		Type: heavy
-	Health:
-		HP: 150000
+		Type: Heavy
+	CNHealth:
+		HP: 1500
 	RenderSprites:
 		Palette: player
 	WithIdleOverlay@LIGHTS:
@@ -1754,9 +1754,9 @@ NTPYRA:
 	Power:
 		Amount: -40
 	Armor:
-		Type: heavy
-	Health:
-		HP: 150000
+		Type: Heavy
+	CNHealth:
+		HP: 1500
 	RenderSprites:
 		Palette: player
 	WithIdleOverlay@LIGHTS:
@@ -1778,8 +1778,8 @@ UFO:
 		Palette: terraindecoration
 	Tooltip:
 		Name: actor-ufo-name
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	Armor:
 		Type: Heavy
 	MapEditorData:

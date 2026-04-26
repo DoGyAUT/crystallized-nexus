@@ -53,15 +53,50 @@ nharv:
 
 hvr:
 	Inherits: ^VehicleOverlays
+	muzzle:
+		Filename: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
 	icon:
 		Filename: hovricon.shp
+
+gtmtnk:
+	Inherits: ^VehicleOverlays
+	muzzle:
+		Filename: tankmuzzle_medium.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 5
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	icon:
+		Filename: archonicon.shp
 
 4tnk:
 	Inherits: ^VehicleOverlays
 	muzzle:
-		Filename: gunfire.shp
-		Length: *
+		Filename: tankmuzzle_medium.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 5
+		ShadowStart: -1
 		IgnoreWorldTint: True
+		BlendMode: Additive
+	muzzle_rockets:
+		Filename: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, -12, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	icon:
+		Filename: 4tnkicon.shp
 
 lpst.gdi:
 	Inherits: ^VehicleOverlays
@@ -142,10 +177,47 @@ art2:
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	muzzle:
-		Filename: gunfire.shp
-		Length: *
-		Offset: 0, 0, 24
+		Combine:
+			0:
+				Filename: muzzlearty_n.shp
+				Length: 26
+			1:
+				Filename: muzzlearty_nw.shp
+				Length: 26
+			2:
+				Filename: muzzlearty_w.shp
+				Length: 26
+			3:
+				Filename: muzzlearty_sw.shp
+				Length: 26
+			4:
+				Filename: muzzlearty_s.shp
+				Length: 26
+			5:
+				Filename: muzzlearty_se.shp
+				Length: 26
+			6:
+				Filename: muzzlearty_e.shp
+				Length: 26
+			7:
+				Filename: muzzlearty_ne.shp
+				Length: 26
+		Facings: 8
+		Length: 26
 		IgnoreWorldTint: True
+
+nhwtz:
+	Inherits: ^VehicleOverlays
+	muzzle:
+		Filename: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, -12, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	icon:
+		Filename: artyicon.shp
 
 weed:
 	Inherits: ^VehicleOverlays
@@ -154,6 +226,51 @@ weed:
 
 hmec:
 	Inherits: ^VehicleOverlays
+	muzzle_gun:
+		Filename: tankmuzzle_medium.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 5
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	muzzle_missile:
+		Filename: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, -12, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	muzzle_mg:
+		Combine:
+			0:
+				Filename: mgun-n.shp
+				Length: 6
+			1:
+				Filename: mgun-nw.shp
+				Length: 6
+			2:
+				Filename: mgun-w.shp
+				Length: 6
+			3:
+				Filename: mgun-sw.shp
+				Length: 6
+			4:
+				Filename: mgun-s.shp
+				Length: 6
+			5:
+				Filename: mgun-se.shp
+				Length: 6
+			6:
+				Filename: mgun-e.shp
+				Length: 6
+			7:
+				Filename: mgun-ne.shp
+				Length: 6
+		Facings: 8
+		Length: 6
+		IgnoreWorldTint: True
 	icon:
 		Filename: hmecicon.shp
 
@@ -211,35 +328,175 @@ subtank:
 
 sonic:
 	Inherits: ^VehicleOverlays
+	Defaults:
+		Offset: 0, 5, 64
+	muzzle:
+		Combine:
+			0:
+				Filename: trnd_0.shp
+				Length: 30
+			1:
+				Filename: trnd_31.shp
+				Length: 30
+			2:
+				Filename: trnd_30.shp
+				Length: 30
+			3:
+				Filename: trnd_29.shp
+				Length: 30
+			4:
+				Filename: trnd_28.shp
+				Length: 30
+			5:
+				Filename: trnd_27.shp
+				Length: 30
+			6:
+				Filename: trnd_26.shp
+				Length: 30
+			7:
+				Filename: trnd_25.shp
+				Length: 30
+			8:
+				Filename: trnd_24.shp
+				Length: 30
+			9:
+				Filename: trnd_23.shp
+				Length: 30
+			10:
+				Filename: trnd_22.shp
+				Length: 30
+			11:
+				Filename: trnd_21.shp
+				Length: 30
+			12:
+				Filename: trnd_20.shp
+				Length: 30
+			13:
+				Filename: trnd_19.shp
+				Length: 30
+			14:
+				Filename: trnd_18.shp
+				Length: 30
+			15:
+				Filename: trnd_17.shp
+				Length: 30
+			16:
+				Filename: trnd_16.shp
+				Length: 30
+			17:
+				Filename: trnd_15.shp
+				Length: 30
+			18:
+				Filename: trnd_14.shp
+				Length: 30
+			19:
+				Filename: trnd_13.shp
+				Length: 30
+			20:
+				Filename: trnd_12.shp
+				Length: 30
+			21:
+				Filename: trnd_11.shp
+				Length: 30
+			22:
+				Filename: trnd_10.shp
+				Length: 30
+			23:
+				Filename: trnd_9.shp
+				Length: 30
+			24:
+				Filename: trnd_8.shp
+				Length: 30
+			25:
+				Filename: trnd_7.shp
+				Length: 30
+			26:
+				Filename: trnd_6.shp
+				Length: 30
+			27:
+				Filename: trnd_5.shp
+				Length: 30
+			28:
+				Filename: trnd_4.shp
+				Length: 30
+			29:
+				Filename: trnd_3.shp
+				Length: 30
+			30:
+				Filename: trnd_2.shp
+				Length: 30
+			31:
+				Filename: trnd_1.shp
+				Length: 30
+		Facings: 32
+		Length: 30
+		Tick: 100
+		Palette: apolcyan
+		IgnoreWorldTint: True
 	icon:
 		Filename: soniicon.shp
+
+ltnk:
+	Inherits: ^VehicleOverlays
+	muzzle:
+		Filename: tankmuzzle_medium.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 5
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	icon:
+		Filename: tickicon.shp
 
 ttnk:
 	Inherits: ^VehicleOverlays
 	idle:
 		Filename: gatick.shp
 		ShadowStart: 3
-		Offset: 0, -14, 14
+		Offset: 0, -14, 7
+		Scale: 1.2
 	damaged-idle:
 		Filename: gatick.shp
 		Start: 1
 		ShadowStart: 4
-		Offset: 0, -14, 14
+		Offset: 0, -14, 7
+		Scale: 1.2
 	make:
 		Filename: gatickmk.shp
 		Length: 24
 		ShadowStart: 24
-		Offset: 0, -14, 14
+		Offset: 0, -14, 7
+		Scale: 1.2
 	muzzle:
-		Filename: gunfire.shp
-		Length: *
-		Offset: 0, 0, 24
+		Filename: tankmuzzle_medium.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 5
+		ShadowStart: -1
 		IgnoreWorldTint: True
+		BlendMode: Additive
 	icon:
 		Filename: tickicon.shp
 
+ttnk_deployed_husk:
+	Defaults:
+		Filename: gatick.shp
+	idle:
+		ShadowStart: 3
+		Offset: 0, -14, 7
+		Scale: 1.2
+
 stnk:
 	Inherits: ^VehicleOverlays
+	muzzle:
+		Filename: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
 	icon:
 		Filename: stnkicon.shp
 
@@ -261,53 +518,55 @@ mmch:
 		Facings: -32
 		Offset: 0, 0, 12
 	muzzle:
-		Filename: gunfire.shp
-		Length: *
-		Offset: 0, 0, 12
+		Filename: tankmuzzle_medium.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 5
+		ShadowStart: -1
 		IgnoreWorldTint: True
+		BlendMode: Additive
 	icon:
 		Filename: mmchicon.shp
 
 jugg:
+	Defaults:
+		Filename: jugg.shp
 	Inherits: ^VehicleOverlays
-	icon:
-		Filename: juggicon.shp
 	stand:
-		Filename: jugger.shp
 		Facings: -8
-		Stride: 15
-		ShadowStart: 120
+		Stride: 14
+		ShadowStart: -1
 		Offset: 0, 0, 12
 	walk:
-		Filename: jugger.shp
-		Length: 15
+		Length: 14
 		Facings: -8
-		ShadowStart: 120
+		ShadowStart: -1
 		Offset: 0, 0, 12
 		Tick: 60
 	turret:
 		Filename: djugg_a.shp
 		Facings: 32
-		Offset: -4, 0, 12
+		Offset: 0, -4, 12
 	idle:
 		Filename: djugg.shp
-		ShadowStart: 3
-		Offset: 0, -12, 12
-	damaged-idle:
-		Filename: djugg.shp
-		Start: 1
-		ShadowStart: 4
-		Offset: 0, -12, 12
+		ShadowStart: -1
+		Offset: 0, 0, 12
 	make:
 		Filename: djuggmk.shp
-		Length: 18
-		ShadowStart: 18
-		Offset: 0, -12, 12
+		Length: 34
+		Tick: 80
+		ShadowStart: -1
+		Offset: 0, -16, 12
 	muzzle:
-		Filename: gunfire.shp
-		Length: *
-		Offset: 0, 0, 24
+		Filename: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, -12, 128
+		Length: 3
+		ShadowStart: -1
 		IgnoreWorldTint: True
+		BlendMode: Additive
+	icon:
+		Filename: juggicon.shp
 
 gghunt:
 	Inherits: ^VehicleOverlays
@@ -322,29 +581,55 @@ smech:
 	Defaults:
 		Filename: smech.shp
 		Offset: 0,0,8
+		Scale: 0.8
 	stand:
-		Start: 96
+		Start: 168
 		Facings: -8
-		ShadowStart: 232
+		Tick: 50
 	run:
 		Facings: -8
-		Length: 12
-		ShadowStart: 136
-		Tick: 48
+		Length: 14
+		Tick: 60
 	shoot:
-		Start: 104
-		Length: 4
+		Start: 112
+		Length: 7
 		Facings: -8
-		ShadowStart: 240
-		Tick: 80
-	shoot-muzzle:
-		Start: 104
-		Length: 4
-		Facings: -8
-		Tick: 80
-		IgnoreWorldTint: True
+		Tick: 100
 	icon:
 		Filename: smchicon.shp
+
+smech.husk:
+	Defaults:
+		Filename: smech.shp
+		Offset: 0,0,8
+		Scale: 0.8
+	stand:
+		Start: 168
+		Facings: -8
+
+mmch.husk:
+	Defaults:
+		Filename: mmch.shp
+	stand:
+		Facings: -8
+		Stride: 22
+		Offset: 0, 0, 12
+
+jugg.husk:
+	Defaults:
+		Filename: jugg.shp
+	stand:
+		Facings: -8
+		Stride: 14
+		ShadowStart: -1
+		Offset: 0, 0, 12
+
+jugg_deployed_husk:
+	Defaults:
+		Filename: djugg.shp
+	idle:
+		ShadowStart: -1
+		Offset: 0, 0, 12
 
 mobilemp:
 	Inherits: ^VehicleOverlays

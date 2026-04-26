@@ -14,8 +14,8 @@ NAPULS:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 50000
+	CNHealth:
+		HP: 500
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -56,3 +56,5 @@ NAPULS:
 		SelectTargetSpeechNotification: SelectTarget
 		EndChargeTextNotification: notification-emp-cannon-ready
 		SelectTargetTextNotification: notification-select-target
+	BotCapabilities:
+		Capabilities: Defense, ArmorDefense, EMP

@@ -202,12 +202,12 @@ Actors:
 	Actor35: city11
 		Location: 125,16
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor36: city18
 		Location: 132,17
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor37: city08
 		Location: 125,8
@@ -352,42 +352,42 @@ Actors:
 	Actor72: city02
 		Location: 171,-36
 		Owner: Neutral
-		Health: 25
+		CNHealth: 25
 		Facing: 896
 	Actor73: city05
 		Location: 150,-36
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor74: city08
 		Location: 158,-24
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor75: city10
 		Location: 170,-56
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor76: city11
 		Location: 165,-56
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor77: city14
 		Location: 165,-52
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor78: city18
 		Location: 146,-56
 		Owner: Neutral
-		Health: 25
+		CNHealth: 25
 		Facing: 896
 	Actor79: city02
 		Location: 147,-49
 		Owner: Neutral
-		Health: 25
+		CNHealth: 25
 		Facing: 896
 	Actor80: city03
 		Location: 147,-62
@@ -396,7 +396,7 @@ Actors:
 	Actor81: city04
 		Location: 155,-62
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor82: city06
 		Location: 154,-71
@@ -405,7 +405,7 @@ Actors:
 	Actor83: city07
 		Location: 177,-43
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor84: city09
 		Location: 185,-43
@@ -450,7 +450,7 @@ Actors:
 	Actor94: city10
 		Location: 169,-17
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor95: city15
 		Location: 162,-78
@@ -527,7 +527,7 @@ Actors:
 	Actor113: ca0008
 		Location: 190,-18
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor114: bboard09
 		Location: 208,-90
@@ -556,7 +556,7 @@ Actors:
 	Actor120: bboard04
 		Location: 171,-43
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor121: bboard09
 		Location: 191,-37
@@ -777,7 +777,7 @@ Actors:
 	Actor175: car
 		Location: 158,-39
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 512
 	Actor176: trucka
 		Location: 152,31
@@ -2104,21 +2104,21 @@ Actors:
 	Actor558: lobrdg_b
 		Location: 134,-60
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 	Actor559: lobrdg_a
 		Location: 102,-27
 		Owner: Neutral
 	Actor560: lobrdg_b
 		Location: 135,-60
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 	Actor561: lobrdg_a
 		Location: 102,-26
 		Owner: Neutral
 	Actor562: lobrdg_b
 		Location: 136,-60
 		Owner: Neutral
-		Health: 25
+		CNHealth: 25
 	Actor563: lobrdg_a
 		Location: 102,-25
 		Owner: Neutral
@@ -2137,14 +2137,14 @@ Actors:
 	Actor568: lobrdg_b
 		Location: 139,-60
 		Owner: Neutral
-		Health: 25
+		CNHealth: 25
 	Actor569: lobrdg_a
 		Location: 102,-22
 		Owner: Neutral
 	Actor570: lobrdg_b
 		Location: 140,-60
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 	Actor571: lobrdg_r_sw
 		Location: 102,-21
 		Owner: Neutral

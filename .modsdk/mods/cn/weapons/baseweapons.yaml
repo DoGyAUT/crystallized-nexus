@@ -1,0 +1,288 @@
+^MG:
+	Inherits@DefaultWahead: ^BulletWarhead
+	ReloadDelay: 20
+	Range: 4c0
+	Projectile: InstantHit
+	Warhead@1Dam: SpreadDamage
+		Damage: 15
+	Warhead@2Eff: CreateEffect
+		Explosions: piffs
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3EffWater: CreateEffect
+		Explosions: water_piffs
+		ExplosionPalette: ra
+		ValidTargets: Water
+		InvalidTargets: Vehicle
+	Warhead@3Eff: CreateEffect
+		Explosions: rchet00, rchet01, rchet02
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
+
+^Sniper:
+	Inherits@DefaultWahead: ^SniperBulletWarhead
+	ReloadDelay: 20
+	Range: 4c0
+	Projectile: InstantHit
+	Warhead@1Dam: SpreadDamage
+		Damage: 15
+	Warhead@2Eff: CreateEffect
+		Explosions: piffs
+		ValidTargets: Ground, Air, DeadInfantry
+	Warhead@3EffWater: CreateEffect
+		Explosions: water_piffs
+		ExplosionPalette: ra
+		ValidTargets: Water
+		InvalidTargets: Vehicle
+
+^MGBullet:
+	Inherits@DefaultWahead: ^BulletWarhead
+	ReloadDelay: 400
+	Burst: 5
+	BurstDelays: 3
+	Range: 5c0
+	Projectile: Bullet
+		Speed: 682
+		Inaccuracy: 1c0
+		Image: shell_small
+		Palette: effect
+		ContrailLength: 3
+		ContrailStartWidth: 0c32
+	Warhead@1Dam: SpreadDamage
+		Damage: 15
+	Warhead@2Eff: CreateEffect
+		Explosions: piffs
+		ValidTargets: Ground, Air, DeadInfantry
+	Warhead@3EffWater: CreateEffect
+		Explosions: water_piffs
+		ExplosionPalette: ra
+		ValidTargets: Water
+		InvalidTargets: Vehicle
+
+^Cannon:
+	Inherits@DefaultWahead: ^CannonWarhead
+	Inherits@FLASH: ^FlashSmallY
+	ReloadDelay: 50
+	Range: 6c768
+	Report: 120mmf.aud
+	Projectile: Bullet
+		Speed: 682
+		Image: shell_small
+		Shadow: true
+		LaunchAngle: 75
+		Palette: ra
+	Warhead@1Dam: SpreadDamage
+		Damage: 36
+	Warhead@2Eff: CreateEffect
+		Explosions: apexplosion01
+		ExplosionPalette: effect
+		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3EffWater: CreateEffect
+		Explosions: small_watersplash
+		ExplosionPalette: player
+		ImpactSounds: ssplash3.aud
+		ValidTargets: Water
+		InvalidTargets: Vehicle
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: MediumCrater
+		InvalidTargets: Vehicle, Building, Wall
+	Warhead@5Eff: CreateEffect
+		Explosions: pboom1, pboom2, pboom3
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
+#	Warhead@5Eff: CreateEffect
+#		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5, sparks6
+#		ExplosionPalette: effect
+#		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav #expnew13.aud
+#		ValidTargets: Vehicle, Cyborg
+#		InvalidTargets: Infantry, Structure
+
+^ArtilleryWeapon:
+	Inherits: ^Cannon
+	Inherits@DefaultWahead: ^ExplosionWarhead
+	-Warhead@FLASH:
+	Inherits@FLASH: ^FlashSmallY
+	Projectile: Bullet
+		Image: shell_large
+		Blockable: false
+		ContrailLength: 20
+		ContrailStartWidth: 0c64
+		ContrailEndWidth: 0c16
+
+^DefaultMissile:
+	Inherits@DefaultWahead: ^MissileWarhead
+	Inherits@FLASH: ^FlashSmallY
+	ReloadDelay: 60
+	Range: 6c0
+	MinRange: 0c512
+	ValidTargets: Ground, Air, DeadInfantry
+	Projectile: Missile
+		MinimumLaunchAngle: 200
+		MaximumLaunchAngle: 200
+		MaximumLaunchSpeed: 50
+		MinimumLaunchSpeed: 50
+		Speed: 0c256
+		Blockable: false
+		Shadow: true
+		Inaccuracy: 0c256
+		Image: missile
+		HorizontalRateOfTurn: 15
+		VerticalRateOfTurn: 17
+		TrailImage: durasmoke_large
+		TrailPalette: effect
+		Trail2Image: htrail
+		Trail2Palette: effect
+		RangeLimit: 28c291
+		Palette: ra
+		Acceleration: 96
+		AllowSnapping: true
+		CloseEnough: 0c384
+		CruiseAltitude: 4c0
+		TerrainHeightAware: true
+#		ContrailLength: 25
+#		ContrailStartWidth: 0c16
+#		ContrailEndWidth: 0c64
+	Warhead@1Dam: SpreadDamage
+		Damage: 25
+		ValidTargets: Ground, Air
+		DamageTypes: Prone70Percent, TriggerProne, ExplosionDeath
+	Warhead@2Eff: CreateEffect
+		Explosions: pvzrvmst1, pvzrvmst2, pvzrvmst3, pvzrvmst4
+		ExplosionPalette: effect
+		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
+		ValidTargets: Ground
+	Warhead@3EffWater: CreateEffect
+		Explosions: small_watersplash
+		ExplosionPalette: player
+		ImpactSounds: ssplash3.aud
+		ValidTargets: Water
+		InvalidTargets: Vehicle
+	Warhead@4Eff: CreateEffect
+		Explosions: pboom1, pboom2, pboom3
+		ExplosionPalette: effect
+		InvalidTargets: Ground, Structure
+		ImpactSounds: expnew12.aud
+		ValidTargets: Air
+	Warhead@Smu: LeaveSmudge
+		SmudgeType: SmallCrater
+		InvalidTargets: Vehicle, Building, Wall
+
+^Railgun:
+	Inherits@DefaultWahead: ^RailgunWarhead
+	ReloadDelay: 60
+	Range: 6c0
+	Report: railshot01.aud, railshot02.aud, railshot03.aud, railshot04.aud, railshot05.aud
+	Projectile: Railgun
+		Duration: 15
+		Blockable: true
+		DamageActorsInLine: true
+		BeamColor: 0080FFC8
+	Warhead@1Dam: SpreadDamage
+		Range: 0, 32
+		Damage: 150
+
+^RailgunCannon:
+	Inherits@DefaultWahead: ^RailgunWarhead
+	Inherits@FLASH: ^FlashSmallY
+	ReloadDelay: 50
+	Range: 6c768
+	Report: railshot01.aud, railshot02.aud, railshot03.aud, railshot04.aud, railshot05.aud
+	Projectile: Bullet
+		Speed: 1c0
+		Image: railgun_small
+		Shadow: true
+		LaunchAngle: 75
+		Palette: effect
+		ContrailLength: 10
+		ContrailStartWidth: 0c64
+		ContrailEndWidth: 0c16
+		ContrailStartColor: 00FFFFC8
+	Warhead@1Dam: SpreadDamage
+		Damage: 36
+	Warhead@2Eff: CreateEffect
+		Explosions: apexplosion01
+		ExplosionPalette: effect
+		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3EffWater: CreateEffect
+		Explosions: small_watersplash
+		ExplosionPalette: player
+		ImpactSounds: ssplash3.aud
+		ValidTargets: Water
+		InvalidTargets: Vehicle
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: MediumCrater
+		InvalidTargets: Vehicle, Building, Wall
+	Warhead@5Eff: CreateEffect
+		Explosions: pboom1, pboom2, pboom3
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
+	Warhead@5Eff: CreateEffect
+		Explosions: plasmaexpl1
+		ExplosionPalette: effect
+		ValidTargets: Vehicle, Cyborg, Structure, Infantry
+
+^EnergyBlast:
+	Inherits@DefaultWahead: ^PlasmaWarhead
+	ReloadDelay: 50
+	Range: 7c0
+	Report: scrin5b.aud
+	ValidTargets: Ground
+	Warhead@1Dam: SpreadDamage
+		ValidTargets: Ground
+	Warhead@2Eff: CreateEffect
+		Explosions: large_explosion
+		ExplosionPalette: apolra2
+		ImpactSounds: expnew12.aud
+		ValidTargets: Ground, Air
+	Warhead@3EffWater: CreateEffect
+		Explosions: small_watersplash
+		ExplosionPalette: player
+		ImpactSounds: ssplash3.aud
+		ValidTargets: Water
+		InvalidTargets: Vehicle
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: SmallScorch
+		InvalidTargets: Vehicle, Building, Wall
+
+^Laser:
+	Inherits@DefaultWahead: ^LaserWarhead
+	Projectile: LaserZap
+		Width: 72
+		Duration: 30
+		ZOffset: 2047
+		Color: FF000080
+		SecondaryBeam: true
+		SecondaryBeamWidth: 180
+		SecondaryBeamZOffset: 2047
+		SecondaryBeamColor: FF000040
+	Warhead@1Dam: SpreadDamage
+		Damage: 250
+	Warhead@2Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+
+^DamagingExplosion:
+	Inherits@DefaultWahead: ^SmallExplosionWarhead
+	Warhead@1Dam: SpreadDamage
+		Damage: 500
+	Warhead@2Eff: CreateEffect
+		Explosions: unitexplode1_small, unitexplode1_medium, unitexplode1_large
+		ExplosionPalette: effect
+		ImpactSounds: expnew09.aud, expnew10.aud, expnew12.aud
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: MediumCrater
+		InvalidTargets: Building, Wall
+	Warhead@Shake: ShakeScreen
+		Duration: 10
+		Intensity: 1
+		Multiplier: 1,1

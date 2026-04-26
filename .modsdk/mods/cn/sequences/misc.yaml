@@ -541,6 +541,9 @@ explosion:
 	gatpiff_large:
 		Filename: gatpiff_large.shp
 		Length: *
+	tpiff:
+		Filename: tpiff.shp
+		Length: *
 	artexplo01:
 		Filename: artexplo01.png
 		BlendMode: Additive

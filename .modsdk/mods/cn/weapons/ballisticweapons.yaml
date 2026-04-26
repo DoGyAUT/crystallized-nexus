@@ -1,47 +1,39 @@
-^Cannon:
-	ReloadDelay: 50
-	Range: 6c768
-	Report: 120mmf.aud
-	Projectile: Bullet
-		Speed: 682
-		Image: 120mm
-		Shadow: true
-		LaunchAngle: 75
-		Palette: ra
-	Warhead@1Dam: SpreadDamage
-		Spread: 108
-		Falloff: 100, 50, 25, 12, 6, 3, 0
-		Damage: 3600
-		Versus:
-			None: 25
-			Wood: 65
-			Light: 75
-			Heavy: 100
-			Concrete: 60
-		DamageTypes: Prone50Percent, TriggerProne, SmallExplosionDeath
+57mm:
+	Inherits: ^Cannon
+	ReloadDelay: 100
+	Report: 57mm_v1.wav, 57mm_v2.wav, 57mm_v3.wav
 	Warhead@2Eff: CreateEffect
-		Explosions: medium_clsn
-		ImpactSounds: expnew14.aud
-		ValidTargets: Ground, Air
-	Warhead@3EffWater: CreateEffect
-		Explosions: small_watersplash
-		ExplosionPalette: player
-		ImpactSounds: ssplash3.aud
-		ValidTargets: Water
-		InvalidTargets: Vehicle
+		Explosions: apexplosion01
+		ExplosionPalette: effect
+	Warhead@1Dam: SpreadDamage
+		Damage: 20
 	Warhead@4Smu: LeaveSmudge
-		SmudgeType: MediumCrater
-		InvalidTargets: Vehicle, Building, Wall
+		SmudgeType: SmallCrater
+
+57mm_deployed:
+	Inherits: ^Cannon
+	ReloadDelay: 60
+	Report: 57mm_v1.wav, 57mm_v2.wav, 57mm_v3.wav
+	Warhead@2Eff: CreateEffect
+		Explosions: apexplosion01
+		ExplosionPalette: effect
+	Warhead@1Dam: SpreadDamage
+		Damage: 20
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: SmallCrater
 
 90mm:
 	Inherits: ^Cannon
+	Report: 90mm_v1.wav, 90mm_v2.wav, 90mm_v3.wav #tankcannon1.aud, tankcannon2.aud, tankcannon3.aud, tankcannon4.aud, tankcannon5.aud, tankcannon6.aud
 	Warhead@2Eff: CreateEffect
-		Explosions: small_clsn
+		Explosions: apexplosion01
+		ExplosionPalette: effect
 	Warhead@4Smu: LeaveSmudge
 		SmudgeType: SmallCrater
 
 120mm:
 	Inherits: ^Cannon
+	Report: 122mm_v1.wav, 122mm_v2.wav, 122mm_v3.wav #105mm.aud, 122mm.aud, 128mm.aud
 	ReloadDelay: 80
 	Projectile: Bullet
 		-Image:
@@ -49,18 +41,22 @@
 		Blockable: false
 		LaunchAngle: 0
 	Warhead@1Dam: SpreadDamage
-		Damage: 7000
+		Damage: 70
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone70Percent, PierceArmor, BypassArmorLight
 
 120mmx:
 	Inherits: ^Cannon
+	Report: 122mm_v1.wav, 122mm_v2.wav, 122mm_v3.wav
 	ReloadDelay: 80
-	Burst: 2
-	BurstDelays: 5
+	#Burst: 2
+	#BurstDelays: 5
 	Warhead@1Dam: SpreadDamage
-		Damage: 5000
+		Damage: 50
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone70Percent, PierceArmor, BypassArmorLight
 
 RPGTower:
 	Inherits: ^Cannon
+	Report: 105mm_v1.wav, 105mm_v2.wav, 105mm_v3.wav
 	ReloadDelay: 80
 	Range: 8c0
 	Report: glnch4.aud
@@ -70,67 +66,72 @@ RPGTower:
 		Image: canister
 		Palette: player
 	Warhead@1Dam: SpreadDamage
-		Damage: 11000
-		Versus:
-			None: 30
-			Wood: 75
-			Light: 90
-			Heavy: 100
-			Concrete: 70
-		DamageTypes: Prone100Percent, TriggerProne, SmallExplosionDeath
+		Damage: 150
 	Warhead@2Eff: CreateEffect
-		Explosions: large_clsn
-
-^ArtilleryWeapon:
-	Inherits: ^Cannon
-	Projectile: Bullet
-		Blockable: false
-	Warhead@1Dam: SpreadDamage
-		Spread: 216
-		Versus:
-			None: 100
-			Wood: 85
-			Light: 68
-			Heavy: 35
-			Concrete: 35
-		DamageTypes: Prone100Percent, TriggerProne, ExplosionDeath
+		Explosions: heexplosion01
+		ExplosionPalette: effect
 
 155mm:
 	Inherits: ^ArtilleryWeapon
+	Report: 150mm_v1.wav, 150mm_v2.wav, 150mm_v3.wav
 	ReloadDelay: 110
 	Range: 18c0
+	MinRange: 5c0
 	TargetActorCenter: true
 	Projectile: Bullet
 		Speed: 384
 		LaunchAngle: 165
+		Inaccuracy: 0c512
 	MinRange: 5c0
 	Warhead@1Dam: SpreadDamage
-		Damage: 15000
+		Damage: 250
 	Warhead@2Eff: CreateEffect
-		Explosions: large_explosion
-		ImpactSounds: expnew06.aud
+		Explosions: fireexplosion #artexplo01, artexplo02, artexplo03, artexplo04 #apexplosion01
+		ExplosionPalette: effect
+		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
+		ValidTargets: Ground, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@5Eff: CreateEffect
+		Explosions: pboom1, pboom2, pboom3
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav #expnew13.aud
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
 
 Jugg90mm:
 	Inherits: ^ArtilleryWeapon
+	Report: mortar_shoot_v1.wav, mortar_shoot_v2.wav, mortar_shoot_v3.wav
 	ReloadDelay: 150
 	Range: 18c0
 	MinRange: 5c0
 	Burst: 3
-	BurstDelays: 3, 5
-	Report: jugger1-single.aud
+	BurstDelays: 6, 10
 	TargetActorCenter: true
 	Projectile: Bullet
 		Speed: 384
-		LaunchAngle: 165
+		LaunchAngle: 120
 		Inaccuracy: 2c0
 	Warhead@1Dam: SpreadDamage
-		Damage: 7500
+		Damage: 100
 	Warhead@2Eff: CreateEffect
-		Explosions: small_explosion
-		ImpactSounds: expnew13.aud
+		Explosions: fireexplosion #artexplo01, artexplo02, artexplo03, artexplo04
+		ExplosionPalette: effect
+		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav #expnew14.aud
+		ValidTargets: Ground, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@5Eff: CreateEffect
+		Explosions: pboom1, pboom2, pboom3
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav #expnew13.aud
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
 
 Grenade:
 	Inherits: ^ArtilleryWeapon
+	-Warhead@1Dam:
+	Inherits@DefaultWahead: ^SmallExplosionWarhead
+	-Warhead@FLASH:
+	Inherits@FLASH: ^FlashSmallY
 	ReloadDelay: 60
 	Range: 4c512
 	-Report:
@@ -140,19 +141,60 @@ Grenade:
 		Blockable: true
 		Shadow: true
 		LaunchAngle: 60
-		Inaccuracy: 0
+		Inaccuracy: 0c256
 		Image: DISCUS
 		Palette: effect
 		BounceCount: 2
+		ContrailLength: 0
 	Warhead@1Dam: SpreadDamage
 		Spread: 154
-		Damage: 4000
-		Versus:
-			Light: 70
-			Concrete: 28
-		DamageTypes: Prone70Percent, TriggerProne, ExplosionDeath
+		Damage: 50
 		ValidTargets: Ground, Trees
 	Warhead@2Eff: CreateEffect
-		Explosions: small_grey_explosion
+		Explosions: heexplosion01
+		ExplosionPalette: effect
+		ImpactSounds: explosion01.wav, explosion02.wav
+		ValidTargets: Ground, Trees, DeadInfantry
+	Warhead@5Eff: CreateEffect
+		Explosions: grenexplo1
+		ExplosionPalette: effect
 		ImpactSounds: expnew13.aud
+		ValidTargets: Vehicle, Cyborg, Structure
+		InvalidTargets: Infantry
+
+EliteCadreGrenade:
+	Inherits: ^ArtilleryWeapon
+	Report: gp25.aud
+	-Warhead@1Dam:
+	Inherits@DefaultWahead: ^SmallExplosionWarhead
+	-Warhead@FLASH:
+	Inherits@FLASH: ^FlashSmallY
+	ReloadDelay: 200
+	Range: 7c0
+	ValidTargets: Ground, Trees
+	Projectile: Bullet
+		Speed: 256
+		Blockable: true
+		Shadow: true
+		LaunchAngle: 45
+		Inaccuracy: 1c0
+		Image: shell_small
+		BounceCount: 1
+		ContrailLength: 10
+		ContrailStartWidth: 0c32
+		ContrailEndWidth: 0c8
+	Warhead@1Dam: SpreadDamage
+		Spread: 154
+		Damage: 60
 		ValidTargets: Ground, Trees
+	Warhead@2Eff: CreateEffect
+		Explosions: heexplosion01
+		ExplosionPalette: effect
+		ImpactSounds: explosion01.wav, explosion02.wav
+		ValidTargets: Ground, Trees, DeadInfantry
+	Warhead@5Eff: CreateEffect
+		Explosions: grenexplo1
+		ExplosionPalette: effect
+		ImpactSounds: expnew13.aud
+		ValidTargets: Vehicle, Cyborg, Structure
+		InvalidTargets: Infantry

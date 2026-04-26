@@ -105,3 +105,45 @@ floater:
 		Tick: 100
 		Offset: 0, 0, 16
 		IgnoreWorldTint: True
+
+floater_medium:
+	Defaults:
+		Filename: floater_medium.shp
+	idle:
+		Length: 16
+		ShadowStart: 32
+		Tick: 100
+		Offset: 0, 0, 16
+	attack:
+		Length: 16
+		Start: 16
+		ShadowStart: 48
+		Tick: 100
+		Offset: 0, 0, 16
+	attack-shock:
+		Length: 16
+		Start: 16
+		Tick: 100
+		Offset: 0, 0, 16
+		IgnoreWorldTint: True
+
+floater_small:
+	Defaults:
+		Filename: floater_small.shp
+	idle:
+		Length: 16
+		ShadowStart: 32
+		Tick: 100
+		Offset: 0, 0, 16
+	attack:
+		Length: 16
+		Start: 16
+		ShadowStart: 48
+		Tick: 100
+		Offset: 0, 0, 16
+	attack-shock:
+		Length: 16
+		Start: 16
+		Tick: 100
+		Offset: 0, 0, 16
+		IgnoreWorldTint: True

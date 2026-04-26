@@ -1,31 +1,30 @@
 FireballLauncher:
+	Inherits@DefaultWahead: ^FireWarhead
+	Inherits@FLASH: ^FlashSmallY
 	ValidTargets: Ground, Trees
 	ReloadDelay: 50
-	Range: 4c256
+	Range: 5c256
 	Report: flamtnk1.aud
 	Projectile: Bullet
-		Speed: 64
-		Image: FLAMEALL
-		Inaccuracy: 384
+		Speed: 128
+		Image: flametrailer
+		Inaccuracy: 1c512
+		TrailImage: flametrailer
+		TrailPalette: effect
+		TrailInterval: 2
 	Burst: 5
 	BurstDelays: 5
 	Warhead@1Dam: SpreadDamage
 		Spread: 288
 		Falloff: 100, 50, 25, 12, 6, 3, 0
 		ValidTargets: Ground, Trees
-		Damage: 2500
-		Versus:
-			None: 600
-			Wood: 148
-			Light: 59
-			Heavy: 6
-			Concrete: 2
-		DamageTypes: Prone100Percent, TriggerProne, FireDeath
+		Damage: 25
 	Warhead@2Smu: LeaveSmudge
 		SmudgeType: SmallScorch
 		InvalidTargets: Vehicle, Building, Wall
 
 Bomb:
+	Inherits@DefaultWahead: ^ExplosionWarhead
 	ReloadDelay: 60
 	Burst: 5
 	BurstDelays: 6
@@ -35,24 +34,18 @@ Bomb:
 	Projectile: GravityBomb
 		Velocity: 72, 0, -90
 		Acceleration: 0, 0, -8
-		Image: 120mm
+		Image: shell_large
 		Shadow: true
-		Palette: ra
+		Palette: player
 	Warhead@1Dam: SpreadDamage
 		Spread: 512
 		Falloff: 100, 50, 25, 12, 6, 3, 0
-		Damage: 16000
-		Versus:
-			None: 200
-			Wood: 90
-			Light: 75
-			Heavy: 32
-			Concrete: 100
-		DamageTypes: Prone100Percent, TriggerProne, ExplosionDeath
+		Damage: 300
 		ValidTargets: Ground, Trees
 	Warhead@2Eff: CreateEffect
-		Explosions: large_explosion
-		ImpactSounds: expnew09.aud
+		Explosions: artexplo01, artexplo02, artexplo03, artexplo04
+		ExplosionPalette: effect
+		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
 		ValidTargets: Ground, Trees, Air
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
@@ -67,6 +60,7 @@ Bomb:
 		Size: 1
 
 FiendShard:
+	Inherits@DefaultWahead: ^TiberiumWarhead
 	ReloadDelay: 30
 	Burst: 3
 	Range: 5c0
@@ -79,11 +73,7 @@ FiendShard:
 		LaunchAngle: 60
 		Palette: greentiberium
 	Warhead@1Dam: SpreadDamage
-		Damage: 3500
-		Versus:
-			Light: 60
-			Heavy: 40
-			Concrete: 20
+		Damage: 50
 		DamageTypes: Prone100Percent, TriggerProne, BulletDeath
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
@@ -93,47 +83,103 @@ FiendShard:
 		InvalidTargets: Vehicle
 
 SlimeAttack:
+	Inherits@DefaultWahead: ^TiberiumWarhead
 	ReloadDelay: 80
 	Range: 1c384
 	Report: vicer1.aud
 	Projectile: InstantHit
 	InvalidTargets: Wall, Bridge
 	Warhead@1Dam: SpreadDamage
-		Damage: 10000
+		Damage: 100
 		InvalidTargets: Wall, Bridge
-		Versus:
-			Light: 60
-			Heavy: 40
-			Concrete: 20
 		DamageTypes: Prone100Percent, TriggerProne, SmallExplosionDeath
 
 Tentacle:
+	Inherits@DefaultWahead: ^EnergyWarhead
 	ReloadDelay: 80
 	Range: 1c384
 	Report: floatk1.aud
 	Projectile: InstantHit
 	InvalidTargets: Wall, Bridge
 	Warhead@1Dam: SpreadDamage
-		Damage: 16000
+		Damage: 160
 		InvalidTargets: Wall, Bridge
-		Versus:
-			None: 60
-			Wood: 45
-			Light: 90
-			Heavy: 55
-			Concrete: 10
-		DamageTypes: Prone50Percent, TriggerProne, SmallExplosionDeath
+	Warhead@emp: GrantExternalCondition
+		Range: 1c384
+		Duration: 50
+		Condition: empdisable
+		ValidTargets: Ground, Water
+
+Tentacle_medium:
+	Inherits@DefaultWahead: ^EnergyWarhead
+	ReloadDelay: 80
+	Range: 1c384
+	Report: floatk1.aud
+	Projectile: InstantHit
+	InvalidTargets: Wall, Bridge
+	Warhead@1Dam: SpreadDamage
+		Damage: 100
+		InvalidTargets: Wall, Bridge
+	Warhead@emp: GrantExternalCondition
+		Range: 1c384
+		Duration: 50
+		Condition: empdisable
+		ValidTargets: Ground, Water
+		
+Tentacle_small:
+	Inherits@DefaultWahead: ^EnergyWarhead
+	ReloadDelay: 80
+	Range: 1c384
+	Report: floatk1.aud
+	Projectile: InstantHit
+	InvalidTargets: Wall, Bridge
+	Warhead@1Dam: SpreadDamage
+		Damage: 25
+		InvalidTargets: Wall, Bridge
+	Warhead@emp: GrantExternalCondition
+		Range: 1c384
+		Duration: 50
+		Condition: empdisable
+		ValidTargets: Ground, Water
 
 Veins:
+	Inherits@DefaultWahead: ^VeinWarhead
 	ReloadDelay: 16
 	Warhead@Damage: TargetDamage
-		Damage: 500
-		DamageTypes: BulletDeath
+		Damage: 5
+		DamageTypes: BulletDeath, BypassArmor
 	Warhead@Effect: CreateEffect
 		Explosions: veins
 		ExplosionPalette: player
 
+TibCloudDamage:
+	Inherits@DefaultWahead: ^TiberiumWarhead
+	ReloadDelay: 25
+	Projectile: InstantHit
+	Warhead@1Dam: SpreadDamage
+		Spread: 512
+		Falloff: 100, 75, 50, 25, 0
+		Damage: 35
+		ValidRelationships: Enemy, Neutral
+		ValidTargets: Ground, Infantry, Cyborg, Vehicle, Building
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone350Percent, TriggerVisceroid, BypassArmor
+		Versus:
+			Building: 20
+			Infantry: 100
+			Cyborg: 80
+			Vehicle: 45
+			Aircraft: 0
+			Flora: 0
+			None: 100
+			Light: 80
+			Medium: 50
+			Heavy: 25
+			Superheavy: 10
+			Shield: 60
+			Stability: 40
+
 ^Debris:
+	Inherits@DefaultWahead: ^SmallExplosionWarhead
 	Range: 5c0
 	Projectile: Bullet
 		Speed: 64, 128
@@ -142,19 +188,16 @@ Veins:
 		Sequences: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 		Shadow: true
 		Blockable: false
+		TrailImage: durasmoke_medium
+		TrailPalette: effect
 	Warhead@1Dam: SpreadDamage
 		Spread: 200
 		Falloff: 100, 100, 0
-		Damage: 1000
-		Versus:
-			None: 100
-			Wood: 85
-			Light: 70
-			Heavy: 35
-			Concrete: 28
-		DamageTypes: Prone100Percent, TriggerProne, ExplosionDeath
+		Damage: 25
 	Warhead@2Eff: CreateEffect
-		Explosions: tiny_twlt
+		ImpactSounds: expnew06.aud
+		Explosions: pvzrvmst1, pvzrvmst2, pvzrvmst3, pvzrvmst4
+		ExplosionPalette: pvzrvmst
 		ValidTargets: Ground, Air
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
@@ -168,24 +211,96 @@ Veins:
 
 SmallDebris:
 	Inherits: ^Debris
+	Inherits@FLASH: ^FlashSmallY
 
 LargeDebris:
 	Inherits: ^Debris
+	Inherits@FLASH: ^FlashMediumY
 	Projectile: Bullet
 		Image: dbrislg
 		Sequences: 2, 3, 4, 6, 7, 9, 10
 	Warhead@1Dam: SpreadDamage
 		Spread: 320
-		Damage: 2000
+		Damage: 50
 	Warhead@2Eff: CreateEffect
-		Explosions: small_twlt
+		Explosions: pvzrvmst1, pvzrvmst2, pvzrvmst3, pvzrvmst4
+		ExplosionPalette: pvzrvmst
 		ImpactSounds: expnew06.aud
 	Warhead@4Smu: LeaveSmudge
 		SmudgeType: MediumCrater
 
 LargeDebrisWithTrail:
 	Inherits: LargeDebris
+	Inherits@FLASH: ^FlashLargeY
 	Projectile: Bullet
 		Sequences: 1, 5, 8
-		TrailImage: small_smoke_trail
+		TrailImage: durasmoke_medium
+		TrailPalette: effect
 		TrailInterval: 1
+
+IonStormStrike:
+	Inherits@DefaultWahead: ^SmallExplosionWarhead
+	Inherits@FLASH: ^FlashLargeW
+	ValidTargets: Ground, Water, Air
+	Warhead@1Dam: SpreadDamage
+		Spread: 0c512
+		Damage: 100
+		Falloff: 100, 50, 0
+		ValidTargets: Ground, Water, Air
+		InvalidTargets: Structure, Wall
+	Warhead@2Smu: LeaveSmudge
+		SmudgeType: LargeScorch
+		InvalidTargets: Vehicle, Building, Wall
+		ImpactActors: false
+	Warhead@3Efx: CreateEffect
+		ImpactActors: false
+		Explosions: sonic_impact
+		ImpactSounds: thunderhit1.wav
+	Warhead@4Thunder: CreateEffect
+		ImpactActors: false
+		Explosions: bolt1, bolt2, bolt3, bolt4
+		ExplosionPalette: effect
+
+IonStormAmbientBolt:
+	Inherits@DefaultWahead: ^SmallExplosionWarhead
+	Inherits@FLASH: ^FlashLargeW
+	ValidTargets: Ground, Water, Air
+	Warhead@1Dam: SpreadDamage
+		Spread: 0c512
+		Damage: 50
+		Falloff: 100, 50, 0
+		ValidTargets: Ground, Water, Air
+		InvalidTargets: Structure, Wall
+	Warhead@2Smu: LeaveSmudge
+		SmudgeType: MediumScorch
+		InvalidTargets: Vehicle, Building, Wall
+		ImpactActors: false
+	Warhead@3Efx: CreateEffect
+		ImpactActors: false
+		Explosions: sonic_impact
+		ImpactSounds: thunder1.wav, thunder2.wav, thunder3.wav, thunder4.wav
+	Warhead@4Thunder: CreateEffect
+		ImpactActors: false
+		Explosions: bolt1, bolt2, bolt3, bolt4
+		ExplosionPalette: effect
+
+Blood:
+	Range: 1c0
+	Projectile: Bullet
+		Speed: 91, 181
+		Image: blood
+		Sequences: 1, 2, 3
+		Palette: player
+		IsPlayerPalette: true
+		LaunchAngle: 45, 200
+		Inaccuracy: 1c424
+		ContrailLength: 10
+		ContrailStartColor: 8B1A1A
+		ContrailStartColorAlpha: 200
+		ContrailEndColorAlpha: 0
+		ContrailStartWidth: 0c64
+		ContrailEndWidth: 0c16
+		Shadow: false
+		Blockable: false
+	Warhead@DUMMY: TargetDamage
+		Damage: 0

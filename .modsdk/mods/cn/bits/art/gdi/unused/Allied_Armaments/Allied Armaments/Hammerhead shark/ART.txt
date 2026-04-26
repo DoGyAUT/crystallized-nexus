@@ -1,0 +1,7 @@
+[MPTS]
+CameoPCX=MPST.pcx
+AltCameoPCX=.pcx
+PrimaryFireFLH=310,0,25
+SecondaryFireFLH=215,67,15
+
+PS：made by lmss22

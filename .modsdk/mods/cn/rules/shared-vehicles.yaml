@@ -1,6 +1,7 @@
 LPST:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@selection: ^SelectableSupportUnit
 	-AppearsOnRadar:
 	Buildable:
@@ -16,10 +17,10 @@ LPST:
 	Tooltip@DEPLOYED:
 		Name: actor-lpst.deployed-name
 		RequiresCondition: deployed
-	Health:
-		HP: 60000
+	CNHealth:
+		HP: 600
 	Armor:
-		Type: Wood
+		Type: Light
 	Mobile:
 		Speed: 85
 		TurnSpeed: 20
@@ -59,6 +60,10 @@ LPST:
 		RequireForceMoveCondition: !undeployed
 	Passenger:
 		RequireForceMoveCondition: !undeployed
+	SpawnActorOnDeath@HUSK:
+		Actor: LPST.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
 	WithVoxelBody:
 		RequiresCondition: undeployed
 	WithSpriteBody@deployed:
@@ -79,3 +84,5 @@ LPST:
 		TrailCount: 3
 	RenderVoxels:
 		Scale: 11.5
+	BotCapabilities:
+		Capabilities: Vehicle

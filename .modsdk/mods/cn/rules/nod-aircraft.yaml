@@ -27,13 +27,10 @@ SCRIN:
 		LandingSounds: dropdwn1.aud
 		CanHover: false
 		CanSlide: false
-	Health:
-		HP: 28000
+	CNHealth:
+		HP: 280
 	Armor:
 		Type: Light
-	RevealsShroud:
-		Range: 2c0
-		Type: CenterPosition
 	Armament:
 		Weapon: Proton
 		PauseOnCondition: !ammo
@@ -70,8 +67,10 @@ SCRIN:
 		UseLocation: true
 		ValidRelationships: Neutral, Enemy
 		RequiresCondition: !rank-elite
+	BotCapabilities:
+		Capabilities: Aircraft, AntiArmor
 
-APACHE:
+HYDRA:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
@@ -97,13 +96,10 @@ APACHE:
 		Speed: 130
 		CanSlide: false
 		TakeOffOnResupply: true
-	Health:
-		HP: 22500
+	CNHealth:
+		HP: 225
 	Armor:
 		Type: Light
-	RevealsShroud:
-		Range: 2c0
-		Type: CenterPosition
 	Armament:
 		Weapon: HarpyClaw
 		PauseOnCondition: !ammo
@@ -126,10 +122,10 @@ APACHE:
 		RequiresCondition: !airborne
 	RenderSprites:
 	SpawnActorOnDeath:
-		Actor: APACHE.Husk
+		Actor: HYDRA.Husk
 		RequiresCondition: !empdisable
 	SpawnActorOnDeath@EMP:
-		Actor: APACHE.Husk.EMP
+		Actor: HYDRA.Husk.EMP
 		RequiresCondition: empdisable
 	Rearmable:
 		RearmActors: gahpad, nahpad
@@ -142,5 +138,7 @@ APACHE:
 		EmptySequence: pip-ammoempty
 		Palette: pips
 	WithShadow:
-	WithVoxelBody:
+	CNWithVoxelBody:
 		ShowShadow: False
+	BotCapabilities:
+		Capabilities: Aircraft, AntiInfantry

@@ -1,0 +1,45 @@
+^Crate:
+	HiddenUnderFog:
+	Tooltip:
+		Name: meta-crate-name
+	Crate:
+		Duration: 4500
+		TerrainTypes: Clear, Rough, Sand, Road, DirtRoad, Tiberium, BlueTiberium, RedTiberium, Veins, Green, Pavement
+	RenderSprites:
+		Palette: terraindecoration
+	WithCrateBody:
+	MapEditorData:
+		Categories: System
+	Interactable:
+		Bounds: 724, 1448
+
+^CrateStatModifiers:
+	FirepowerMultiplier@CRATES:
+		RequiresCondition: crate-firepower
+		Modifier: 200
+	DamageMultiplier@CRATES:
+		RequiresCondition: crate-damage
+		Modifier: 50
+	SpeedMultiplier@CRATES:
+		RequiresCondition: crate-speed
+		Modifier: 170
+	ExternalCondition@CRATE-FIREPOWER:
+		Condition: crate-firepower
+	ExternalCondition@CRATE-DAMAGE:
+		Condition: crate-damage
+	ExternalCondition@CRATE-SPEED:
+		Condition: crate-speed
+
+ ^IonStormVulnerable:
+	ExternalCondition@IONSTORM:
+		Condition: ionstorm
+	RevealsShroudMultiplier@IONSTORM:
+		Modifier: 50
+		RequiresCondition: ionstorm
+
+ ^IonStormBuilding:
+	ExternalCondition@IONSTORM:
+		Condition: ionstorm
+	RevealsShroudMultiplier@IONSTORM:
+		Modifier: 75
+		RequiresCondition: ionstorm

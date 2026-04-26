@@ -13,6 +13,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.CN.Traits;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
@@ -756,14 +757,25 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Pre-compute defense counts once for DefenseRoleLimits checks below.
 			var totalDefenseCount = 0;
+			Dictionary<string, int> tagDefenseCounts = null;
 			Dictionary<DefenseRole, int> roleDefenseCounts = null;
 			if (baseBuilder.Info.DefenseRoleLimits != null && baseBuilder.Info.DefenseRoleLimits.Count > 0
 				&& baseBuilder.Info.DefenseTypes.Count > 0)
 			{
-				totalDefenseCount = playerBuildings.Count(a => baseBuilder.Info.DefenseTypes.Contains(a.Info.Name));
+				tagDefenseCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 				roleDefenseCounts = [];
-				foreach (var kv in baseBuilder.Info.DefenseRoles)
-					roleDefenseCounts[kv.Key] = playerBuildings.Count(a => kv.Value.Contains(a.Info.Name));
+				foreach (var a in playerBuildings.Where(b => baseBuilder.Info.DefenseTypes.Contains(b.Info.Name)))
+				{
+					totalDefenseCount++;
+					var caps = a.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+					if (caps != null)
+						foreach (var tag in caps)
+							tagDefenseCounts[tag] = (tagDefenseCounts.TryGetValue(tag, out var tc) ? tc : 0) + 1;
+
+					var dr = GetDefenseRoleFromActor(a.Info);
+					if (dr != DefenseRole.Default)
+						roleDefenseCounts[dr] = (roleDefenseCounts.TryGetValue(dr, out var rc) ? rc : 0) + 1;
+				}
 			}
 
 			// Reactive defense: prefer the role that matches the current hotspot,
@@ -823,19 +835,36 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				// DefenseRoleLimits: scale-based cap relative to base size (replaces hard limits for defenses)
-				if (roleDefenseCounts != null && baseBuilder.Info.DefenseTypes.Contains(name))
+				if (tagDefenseCounts != null && baseBuilder.Info.DefenseTypes.Contains(name))
 				{
 					if (baseBuilder.Info.DefenseRoleLimits.TryGetValue("Total", out var totalLimit) &&
 						totalDefenseCount * 100 >= totalLimit * playerBuildings.Length)
 						continue;
 
-					var role = baseBuilder.Info.DefenseRoles
-						.FirstOrDefault(kv => kv.Value.Contains(name)).Key;
-					if (role != DefenseRole.Default &&
-						baseBuilder.Info.DefenseRoleLimits.TryGetValue(role.ToString(), out var roleLimit) &&
-						roleDefenseCounts.TryGetValue(role, out var roleCnt) &&
-						roleCnt * 100 >= roleLimit * playerBuildings.Length)
-						continue;
+					// Check every BotCapabilities tag of this actor against DefenseRoleLimits.
+					var actorCaps = actor.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+					if (actorCaps != null)
+					{
+						var hitLimit = false;
+						foreach (var tag in actorCaps)
+						{
+							if (baseBuilder.Info.DefenseRoleLimits.TryGetValue(tag, out var tagLimit) &&
+								tagDefenseCounts.TryGetValue(tag, out var tagCnt) &&
+								tagCnt * 100 >= tagLimit * playerBuildings.Length)
+							{ hitLimit = true; break; }
+						}
+						if (hitLimit) continue;
+					}
+					else
+					{
+						// Fallback: DefenseRoles-based check for actors without BotCapabilities.
+						var role = GetDefenseRoleFromActor(actor);
+						if (role != DefenseRole.Default &&
+							baseBuilder.Info.DefenseRoleLimits.TryGetValue(role.ToString(), out var roleLimit) &&
+							roleDefenseCounts != null && roleDefenseCounts.TryGetValue(role, out var roleCnt) &&
+							roleCnt * 100 >= roleLimit * playerBuildings.Length)
+							continue;
+					}
 				}
 
 				// If we're considering to build a naval structure, check whether there is enough water inside the base perimeter
@@ -907,7 +936,20 @@ namespace OpenRA.Mods.Common.Traits
 			if (role == DefenseRole.Default)
 				return null;
 
-			if (!baseBuilder.Info.DefenseRoles.TryGetValue(role, out var roleTypes))
+			// Find candidates by BotCapabilities tag matching the role enum name,
+			// with fallback to the DefenseRoles dictionary.
+			var roleStr = role.ToString();
+			var candidates = buildableThings
+				.Where(b =>
+				{
+					var caps = b.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+					if (caps != null)
+						return caps.Contains(roleStr);
+					return baseBuilder.Info.DefenseRoles.TryGetValue(role, out var types) && types.Contains(b.Name);
+				})
+				.ToList();
+
+			if (candidates.Count == 0)
 				return null;
 
 			// Check total defense limit first
@@ -918,23 +960,19 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Check role limit
 			if (baseBuilder.Info.DefenseRoleLimits != null &&
-				baseBuilder.Info.DefenseRoleLimits.TryGetValue(role.ToString(), out var roleLimit) &&
+				baseBuilder.Info.DefenseRoleLimits.TryGetValue(roleStr, out var roleLimit) &&
 				roleDefenseCounts != null &&
 				roleDefenseCounts.TryGetValue(role, out var roleCnt) &&
 				roleCnt * 100 >= roleLimit * playerBuildings.Length)
 				return null;
 
-			foreach (var name in roleTypes)
+			foreach (var actorInfo in candidates)
 			{
-				if (!buildableThings.Any(b => b.Name == name))
-					continue;
-
-				var actorInfo = world.Map.Rules.Actors[name];
-				var count = CountExistingAndQueuedBuilding(name);
+				var count = CountExistingAndQueuedBuilding(actorInfo.Name);
 
 				// Don't exceed the building's desired fraction even when reacting
 				if (baseBuilder.Info.BuildingFractions != null &&
-					baseBuilder.Info.BuildingFractions.TryGetValue(name, out var frac) &&
+					baseBuilder.Info.BuildingFractions.TryGetValue(actorInfo.Name, out var frac) &&
 					count * 100 > frac * playerBuildings.Length)
 					continue;
 
@@ -945,6 +983,18 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return null;
+		}
+
+		DefenseRole GetDefenseRoleFromActor(ActorInfo actorInfo)
+		{
+			var caps = actorInfo.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			if (caps != null)
+				foreach (var tag in caps)
+					if (Enum.TryParse<DefenseRole>(tag, true, out var r) && r != DefenseRole.Default)
+						return r;
+
+			return baseBuilder.Info.DefenseRoles
+				.FirstOrDefault(kv => kv.Value.Contains(actorInfo.Name)).Key;
 		}
 
 		(CPos? Location, CPos? BaseCenter, int Variant) ChooseBuildLocation(string actorType, bool distanceToBaseIsImportant, BuildingType type)
@@ -1173,8 +1223,7 @@ namespace OpenRA.Mods.Common.Traits
 						.Select(a => a.Location).ToList();
 
 					// Determine role-specific search area and sort order
-					var role = baseBuilder.Info.DefenseRoles
-						.FirstOrDefault(kv => kv.Value.Contains(actorType)).Key;
+					var role = GetDefenseRoleFromActor(actorInfo);
 					if (role != DefenseRole.Default)
 					{
 						var roleHotspot = baseBuilder.GetBestDefenseHotspot(defenseCenter, role);
@@ -1293,7 +1342,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					switch (role)
 					{
-						case DefenseRole.AntiInf:
+						case DefenseRole.InfantryDefense:
 						{
 							// Mid-radius spread, sorted by spacing from existing same-type buildings
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
@@ -1308,7 +1357,7 @@ namespace OpenRA.Mods.Common.Traits
 							break;
 						}
 
-						case DefenseRole.AntiVehicle:
+						case DefenseRole.ArmorDefense:
 						{
 							// Outer radius, sorted toward the most relevant attack direction.
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
@@ -1319,7 +1368,7 @@ namespace OpenRA.Mods.Common.Traits
 							break;
 						}
 
-						case DefenseRole.AA:
+						case DefenseRole.AADefense:
 						{
 							// Coverage-based: pick cell that covers the most uncovered base buildings.
 							// Use the actor's weapon range to determine coverage radius.
@@ -1363,7 +1412,7 @@ namespace OpenRA.Mods.Common.Traits
 							break;
 						}
 
-						case DefenseRole.Artillery:
+						case DefenseRole.ArtilleryDefense:
 						{
 							// Inner-to-mid radius behind the front, Richtung Feind
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
@@ -1422,7 +1471,7 @@ namespace OpenRA.Mods.Common.Traits
 					}
 
 					// Role-specific spacing: AA and AntiInf use outer spacing, others use their own
-					var defMinSpacing = role == DefenseRole.AA || role == DefenseRole.AntiInf
+					var defMinSpacing = role == DefenseRole.AADefense || role == DefenseRole.InfantryDefense
 						? baseBuilder.Info.DefenseOuterMinSpacing
 						: baseBuilder.Info.DefenseInnerMinSpacing;
 					var defMinSpacingSq = defMinSpacing * defMinSpacing;

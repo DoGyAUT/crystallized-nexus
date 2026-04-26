@@ -1,0 +1,419 @@
+#region Copyright & License Information
+/*
+ * Crystallized Nexus - DeployBotModule
+ * Unified bot module for all deployable unit types.
+ */
+#endregion
+
+using System.Collections.Generic;
+using System.Linq;
+using OpenRA.Mods.Common.Traits;
+using OpenRA.Traits;
+
+namespace OpenRA.Mods.CN.Traits
+{
+	public enum DeployBotMode
+	{
+		// Must deploy to attack. Moves into range, deploys, undeploys when enemy too close.
+		Artillery,
+
+		// Deploys for better stats when idle and enemy in range. Undeploys to flee.
+		Stats,
+
+		// Deploys near friendly forces. Undeploys when alone or threatened.
+		Support,
+
+		// Deploys to fire a one-shot ability. Undeploys after ability duration.
+		Ability
+	}
+
+	public class DeployBotGroup
+	{
+		[Desc("Actor type names this group applies to.")]
+		public readonly HashSet<string> ActorTypes = [];
+
+		[Desc("Deploy behavior mode.")]
+		public readonly DeployBotMode Mode = DeployBotMode.Artillery;
+
+		[Desc("Cell radius to scan for enemies.")]
+		public readonly int ScanRadius = 20;
+
+		[Desc("Artillery/Stats/Ability: deploy when enemy within this range.")]
+		public readonly int DeployRange = 15;
+
+		[Desc("Artillery/Stats/Ability: undeploy when enemy within this range.")]
+		public readonly int SafeRange = 5;
+
+		[Desc("Support: cell radius to count friendly units.")]
+		public readonly int AllyScanRadius = 8;
+
+		[Desc("Support: minimum allies nearby before deploying.")]
+		public readonly int MinAlliesNearby = 3;
+
+		[Desc("Support: undeploy if an enemy gets within this range.")]
+		public readonly int ThreatRange = 6;
+
+		[Desc("Ability: how many ticks after deploying before undeploying.")]
+		public readonly int AbilityDuration = 100;
+
+		[Desc("Ticks to wait after deploying or undeploying before doing it again. Prevents oscillation.")]
+		public readonly int DeployCooldown = 150;
+	}
+
+	[TraitLocation(SystemActors.Player)]
+	[Desc("Unified bot module for all deployable unit types. " +
+		"Configure groups with different deploy modes per actor type.")]
+	public class DeployBotModuleInfo : ConditionalTraitInfo
+	{
+		[Desc("How often (in ticks) the bot re-evaluates all groups.")]
+		public readonly int ScanInterval = 25;
+
+		[FieldLoader.LoadUsing(nameof(LoadGroups))]
+		[Desc("Deploy behavior groups, keyed by an arbitrary group name.")]
+		public readonly Dictionary<string, DeployBotGroup> Groups = [];
+
+		static object LoadGroups(MiniYaml yaml)
+		{
+			var groups = new Dictionary<string, DeployBotGroup>();
+			var groupsNode = yaml.NodeWithKeyOrDefault("Groups");
+			if (groupsNode == null)
+				return groups;
+
+			foreach (var node in groupsNode.Value.Nodes)
+			{
+				var group = new DeployBotGroup();
+				FieldLoader.Load(group, node.Value);
+				groups[node.Key] = group;
+			}
+
+			return groups;
+		}
+
+		public override object Create(ActorInitializer init) { return new DeployBotModule(init.Self, this); }
+	}
+
+	public class DeployBotModule : ConditionalTrait<DeployBotModuleInfo>, IBotTick
+	{
+		readonly World world;
+		readonly Player player;
+		int scanTicks;
+
+		// Tracks when Ability-mode units deployed, for undeploy timing
+		readonly Dictionary<Actor, int> abilityDeployedAt = [];
+
+		// Cooldown after deploy/undeploy to prevent oscillation
+		readonly Dictionary<Actor, int> deployCooldown = [];
+
+		public DeployBotModule(Actor self, DeployBotModuleInfo info)
+			: base(info)
+		{
+			world = self.World;
+			player = self.Owner;
+			scanTicks = world.LocalRandom.Next(ScanInterval);
+		}
+
+		void IBotTick.BotTick(IBot bot)
+		{
+			if (--scanTicks > 0)
+				return;
+
+			scanTicks = ScanInterval;
+
+			// Clean up dead actors from ability tracking
+			foreach (var dead in abilityDeployedAt.Keys
+				.Where(a => a.IsDead || !a.IsInWorld).ToList())
+				abilityDeployedAt.Remove(dead);
+
+			foreach (var dead in deployCooldown.Keys
+				.Where(a => a.IsDead || !a.IsInWorld).ToList())
+				deployCooldown.Remove(dead);
+
+			// Single scan per tick — shared across all groups
+			var playerDeployables = world.ActorsHavingTrait<GrantConditionOnDeploy>()
+				.Where(a => !a.IsDead && a.IsInWorld && a.Owner == player)
+				.ToList();
+
+			foreach (var group in Info.Groups.Values)
+			{
+				var units = group.ActorTypes.Count == 0
+					? (IEnumerable<Actor>)playerDeployables
+					: playerDeployables.Where(a => group.ActorTypes.Contains(a.Info.Name));
+
+				foreach (var unit in units)
+				{
+					switch (group.Mode)
+					{
+						case DeployBotMode.Artillery:
+							TickArtillery(bot, unit, group);
+							break;
+						case DeployBotMode.Stats:
+							TickStats(bot, unit, group);
+							break;
+						case DeployBotMode.Support:
+							TickSupport(bot, unit, group);
+							break;
+						case DeployBotMode.Ability:
+							TickAbility(bot, unit, group);
+							break;
+					}
+				}
+			}
+		}
+
+		int ScanInterval => Info.ScanInterval > 0 ? Info.ScanInterval : 1;
+
+		// Artillery: Move into range → deploy → undeploy if enemy within SafeRange
+		void TickArtillery(IBot bot, Actor unit, DeployBotGroup group)
+		{
+			var isDeployed = GetDeployState(unit) == DeployState.Deployed;
+			var nearestEnemy = FindNearestEnemy(unit, group.ScanRadius);
+
+			if (nearestEnemy == null)
+			{
+				if (isDeployed)
+					TryUndeploy(bot, unit, group);
+				return;
+			}
+
+			var distSq = DistSq(unit, nearestEnemy);
+
+			if (isDeployed)
+			{
+				if (distSq <= group.SafeRange * group.SafeRange)
+					TryUndeploy(bot, unit, group);
+			}
+			else
+			{
+				if (distSq <= group.DeployRange * group.DeployRange)
+					TryDeploy(bot, unit, group);
+				else if (distSq <= group.ScanRadius * group.ScanRadius)
+					MoveIntoRange(bot, unit, nearestEnemy, group.DeployRange);
+			}
+		}
+
+		// Stats: Deploy when idle + enemy in range → undeploy to flee if too close
+		void TickStats(IBot bot, Actor unit, DeployBotGroup group)
+		{
+			var deployState = GetDeployState(unit);
+
+			// Don't interrupt ongoing deploy/undeploy animation
+			if (deployState == DeployState.Deploying || deployState == DeployState.Undeploying)
+				return;
+
+			var isDeployed = deployState == DeployState.Deployed;
+			var nearestEnemy = FindNearestEnemy(unit, group.DeployRange);
+
+			if (nearestEnemy == null)
+			{
+				if (isDeployed)
+					TryUndeploy(bot, unit, group);
+				return;
+			}
+
+			var distSq = DistSq(unit, nearestEnemy);
+
+			if (isDeployed)
+			{
+				if (distSq <= group.SafeRange * group.SafeRange)
+					TryUndeploy(bot, unit, group);
+			}
+			else
+			{
+				if (distSq <= group.DeployRange * group.DeployRange)
+					TryDeploy(bot, unit, group);
+			}
+		}
+
+		// Support: Deploy near enough allies → undeploy when alone or threatened
+		void TickSupport(IBot bot, Actor unit, DeployBotGroup group)
+		{
+			var deployState = GetDeployState(unit);
+			if (deployState == DeployState.Deploying || deployState == DeployState.Undeploying)
+				return;
+
+			var isDeployed = deployState == DeployState.Deployed;
+
+			var threatened = world.FindActorsInCircle(unit.CenterPosition, WDist.FromCells(group.ThreatRange))
+				.Any(a =>
+					!a.IsDead && a.IsInWorld && a != unit
+					&& !player.IsAlliedWith(a.Owner)
+					&& a.Info.HasTraitInfo<ITargetableInfo>());
+
+			if (threatened)
+			{
+				if (isDeployed)
+					TryUndeploy(bot, unit, group);
+				return;
+			}
+
+			var nearbyAllies = world.FindActorsInCircle(unit.CenterPosition, WDist.FromCells(group.AllyScanRadius))
+				.Count(a =>
+					!a.IsDead && a.IsInWorld && a != unit
+					&& player.IsAlliedWith(a.Owner)
+					&& a.Info.HasTraitInfo<IMoveInfo>());
+
+			if (isDeployed)
+			{
+				if (nearbyAllies < group.MinAlliesNearby)
+					TryUndeploy(bot, unit, group);
+			}
+			else
+			{
+				if (nearbyAllies >= group.MinAlliesNearby && unit.IsIdle)
+					TryDeploy(bot, unit, group);
+			}
+		}
+
+		// Ability: Move into range → deploy → undeploy after AbilityDuration ticks
+		void TickAbility(IBot bot, Actor unit, DeployBotGroup group)
+		{
+			var deployState = GetDeployState(unit);
+			if (deployState == DeployState.Deploying || deployState == DeployState.Undeploying)
+				return;
+
+			var isDeployed = deployState == DeployState.Deployed;
+
+			if (isDeployed)
+			{
+				if (abilityDeployedAt.TryGetValue(unit, out var deployTick)
+					&& world.WorldTick - deployTick >= group.AbilityDuration)
+				{
+					TryUndeploy(bot, unit, group);
+					abilityDeployedAt.Remove(unit);
+				}
+
+				return;
+			}
+
+			var target = FindNearestEnemy(unit, group.ScanRadius);
+			if (target == null)
+				return;
+
+			var distSq = DistSq(unit, target);
+
+			if (distSq <= group.DeployRange * group.DeployRange)
+			{
+				TryDeploy(bot, unit, group);
+				abilityDeployedAt[unit] = world.WorldTick;
+			}
+			else if (distSq <= group.ScanRadius * group.ScanRadius)
+				MoveIntoRange(bot, unit, target, group.DeployRange);
+		}
+
+		// --- Deploy/Undeploy via IIssueDeployOrder (correct API) ---
+		void TryDeploy(IBot bot, Actor unit, DeployBotGroup group)
+		{
+			if (deployCooldown.TryGetValue(unit, out var lastAction)
+				&& world.WorldTick - lastAction < group.DeployCooldown)
+				return;
+
+			var deploy = unit.TraitsImplementing<GrantConditionOnDeploy>()
+				.FirstOrDefault(d => !d.IsTraitDisabled && !d.IsTraitPaused);
+
+			if (deploy == null)
+				return;
+
+			if (!deploy.IsValidTerrain(unit.Location))
+			{
+				var validCell = FindNearestValidDeployCell(unit, deploy);
+				if (validCell.HasValue)
+					bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, validCell.Value), false));
+				return;
+			}
+
+			var deployTraits = unit.TraitsImplementing<IIssueDeployOrder>()
+				.Where(d => d.CanIssueDeployOrder(unit, false));
+
+			foreach (var d in deployTraits)
+				bot.QueueOrder(d.IssueDeployOrder(unit, false));
+
+			deployCooldown[unit] = world.WorldTick;
+		}
+
+		void TryUndeploy(IBot bot, Actor unit, DeployBotGroup group)
+		{
+			if (deployCooldown.TryGetValue(unit, out var lastAction)
+				&& world.WorldTick - lastAction < group.DeployCooldown)
+				return;
+
+			var deployTraits = unit.TraitsImplementing<IIssueDeployOrder>()
+				.Where(d => d.CanIssueDeployOrder(unit, false));
+
+			foreach (var d in deployTraits)
+				bot.QueueOrder(d.IssueDeployOrder(unit, false));
+
+			deployCooldown[unit] = world.WorldTick;
+		}
+
+		CPos? FindNearestValidDeployCell(Actor unit, GrantConditionOnDeploy deploy)
+		{
+			var mobile = unit.TraitOrDefault<Mobile>();
+			if (mobile == null)
+				return null;
+
+			// Search in expanding rings around the unit
+			for (var radius = 1; radius <= 6; radius++)
+			{
+				var best = world.Map.FindTilesInAnnulus(unit.Location, radius, radius)
+					.Where(c =>
+						world.Map.Contains(c)
+						&& deploy.IsValidTerrain(c)
+						&& mobile.CanEnterCell(c))
+					.MinByOrDefault(c => (c - unit.Location).LengthSquared);
+
+				if (best != default)
+					return best;
+			}
+
+			return null;
+		}
+
+		// --- Helpers ---
+		static DeployState GetDeployState(Actor unit)
+		{
+			var deploy = unit.TraitsImplementing<GrantConditionOnDeploy>()
+				.FirstOrDefault(d => !d.IsTraitDisabled);
+
+			return deploy?.DeployState ?? DeployState.Undeployed;
+		}
+
+		void MoveIntoRange(IBot bot, Actor unit, Actor target, int range)
+		{
+			var toTarget = target.Location - unit.Location;
+			var dist = toTarget.Length;
+			if (dist == 0)
+				return;
+
+			var ratio = (float)(dist - range + 2) / dist;
+			if (ratio < 0) ratio = 0;
+			if (ratio > 1) ratio = 1;
+
+			var cell = new CPos(
+				unit.Location.X + (int)(toTarget.X * ratio),
+				unit.Location.Y + (int)(toTarget.Y * ratio));
+
+			if (cell != unit.Location)
+				bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, cell), false));
+		}
+
+		Actor FindNearestEnemy(Actor unit, int radius)
+		{
+			var shroud = unit.Owner.Shroud;
+			return world.FindActorsInCircle(unit.CenterPosition, WDist.FromCells(radius))
+				.Where(a =>
+					!a.IsDead && a.IsInWorld && a != unit
+					&& !player.IsAlliedWith(a.Owner)
+					&& !a.Owner.NonCombatant
+					&& a.Owner != world.WorldActor.Owner
+					&& a.Info.HasTraitInfo<ITargetableInfo>()
+					&& !a.Info.HasTraitInfo<LineBuildInfo>()
+					&& shroud.IsVisible(a.Location))
+				.MinByOrDefault(a => (a.Location - unit.Location).LengthSquared);
+		}
+
+		static int DistSq(Actor a, Actor b)
+		{
+			return (a.Location - b.Location).LengthSquared;
+		}
+	}
+}

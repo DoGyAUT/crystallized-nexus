@@ -10,7 +10,7 @@
 		ValidRelationships: Ally
 	Warhead@2Dam: TargetDamage
 		DebugOverlayColor: 00FF00
-		Damage: -5000
+		Damage: -50
 		ValidTargets: Heal
 		ValidRelationships: Ally
 
@@ -19,6 +19,7 @@ Heal:
 
 Repair:
 	Inherits: ^HealWeapon
+	Inherits@FLASH: ^FlashSmallW
 	Range: 1c819
 	Report: repair11.aud
 	ValidTargets: Repair
@@ -26,3 +27,6 @@ Repair:
 		ValidTargets: Repair
 	Warhead@2Dam: TargetDamage
 		ValidTargets: Repair
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect

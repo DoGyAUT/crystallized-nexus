@@ -1,70 +1,38 @@
-^Railgun:
-	ReloadDelay: 60
-	Range: 6c0
-	Report: bigggun1.aud
-	Projectile: Railgun
-		Duration: 15
-		Blockable: true
-		DamageActorsInLine: true
-		BeamColor: 0080FFC8
-	Warhead@1Dam: SpreadDamage
-		Range: 0, 32
-		Falloff: 100, 100
-		Damage: 15000
-		AffectsParent: false
-		Versus:
-			None: 100
-			Wood: 130
-			Light: 150
-			Heavy: 110
-			Concrete: 5
-		DamageTypes: Prone100Percent, TriggerProne, ExplosionDeath
-
 LtRail:
 	Inherits: ^Railgun
+	Inherits@FLASH: ^FlashSmallW
 	Warhead@1Dam: SpreadDamage
 		ValidRelationships: Neutral, Enemy
 	Warhead@2Dam: SpreadDamage
 		Range: 0, 32
 		Falloff: 50, 50 # Only does half damage to friendly units
-		Damage: 15000
+		Damage: 150
 		AffectsParent: false
 		ValidRelationships: Ally
-		Versus:
-			None: 100
-			Wood: 130
-			Light: 150
-			Heavy: 110
-			Concrete: 5
-		DamageTypes: Prone100Percent, TriggerProne, ExplosionDeath
 
 MechRailgun:
-	Inherits: ^Railgun
-	Range: 8c0
-	Report: railuse5.aud
-	Projectile: Railgun
-		BeamColor: 00FFFFC8
+	Inherits: ^RailgunCannon
+	Inherits@FLASH: ^FlashMediumW
+	ReloadDelay: 200
+	Range: 10c0
+	Burst: 4
+	BurstDelays: 40
 	Warhead@1Dam: SpreadDamage
-		Damage: 20000
-		Versus:
-			None: 200
-			Wood: 175
-			Light: 160
-			Heavy: 100
-			Concrete: 25
+		Damage: 100
 
 SonicZap:
 	ReloadDelay: 180
-	Range: 6c0
+	Range: 5c0
 	Report: sonic4.aud
 	ValidTargets: Ground, Trees
 	Projectile: AreaBeam
 		Speed: 0c128
-		Duration: 90
-		DamageInterval: 5 # Roughly 18 impacts.
-		Width: 384
+		Duration: 50
+		DamageInterval: 5
+		Width: 512
 		Shape: Flat
 		ZOffset: 2047
+		MinDistance: 5c0
 		BeyondTargetRange: 0c256
 		Blockable: true
 		TrackTarget: true
@@ -72,50 +40,52 @@ SonicZap:
 	Warhead@1Dam: SpreadDamage
 		Range: 0, 32
 		Falloff: 100, 100
-		Damage: 800
+		Damage: 15
 		AffectsParent: false
 		ValidRelationships: Neutral, Enemy
 		ValidTargets: Ground, Trees
 		Versus:
-			Heavy: 80
-			Concrete: 60
-		DamageTypes: Prone50Percent, TriggerProne, SmallExplosionDeath
+			Building: 200
+			Infantry: 150
+			Cyborg: 120
+			Vehicle: 70
+			Aircraft: 50
+			Flora: 80
+			None: 100
+			Light: 100
+			Medium: 70
+			Heavy: 50
+			Superheavy: 30
+			Shield: 400
+			Stability: 500
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone100Percent
 	Warhead@2Dam: SpreadDamage
 		Range: 0, 32
 		Falloff: 50, 50
-		Damage: 800
-		InvalidTargets: Disruptor # Does not affect friendly disruptors at all
+		Damage: 15
+		InvalidTargets: Disruptor
 		AffectsParent: false
 		ValidRelationships: Ally
 		ValidTargets: Ground, Trees
 		Versus:
-			Heavy: 80
-			Concrete: 60
-		DamageTypes: Prone50Percent, TriggerProne, SmallExplosionDeath
-
-^EnergyBlast:
-	ReloadDelay: 50
-	Range: 7c0
-	Report: scrin5b.aud
-	ValidTargets: Ground
-	Warhead@1Dam: SpreadDamage
-		ValidTargets: Ground
-	Warhead@2Eff: CreateEffect
-		Explosions: large_explosion
-		ImpactSounds: expnew12.aud
-		ValidTargets: Ground, Air
-	Warhead@3EffWater: CreateEffect
-		Explosions: small_watersplash
-		ExplosionPalette: player
-		ImpactSounds: ssplash3.aud
-		ValidTargets: Water
-		InvalidTargets: Vehicle
-	Warhead@4Smu: LeaveSmudge
-		SmudgeType: SmallScorch
-		InvalidTargets: Vehicle, Building, Wall
+			Building: 200
+			Infantry: 150
+			Cyborg: 120
+			Vehicle: 70
+			Aircraft: 50
+			Flora: 80
+			None: 100
+			Light: 100
+			Medium: 70
+			Heavy: 50
+			Superheavy: 30
+			Shield: 400
+			Stability: 500
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone100Percent
 
 CyCannon:
 	Inherits: ^EnergyBlast
+	Inherits@FLASH: ^FlashLargeW
 	ValidTargets: Ground, Trees
 	Projectile: Missile
 		MaximumLaunchSpeed: 192
@@ -130,19 +100,13 @@ CyCannon:
 	Warhead@1Dam: SpreadDamage
 		ValidTargets: Ground, Trees
 		Spread: 43
-		Damage: 12000
-		Versus:
-			None: 350
-			Wood: 260
-			Light: 205
-			Heavy: 150
-			Concrete: 80
-		DamageTypes: Prone350Percent, TriggerProne, EnergyDeath
+		Damage: 120
 	Warhead@2Eff: CreateEffect
 		ValidTargets: Ground, Trees
 
 Proton:
 	Inherits: ^EnergyBlast
+	Inherits@FLASH: ^FlashSmallW
 	Range: 5c0
 	Burst: 5
 	BurstDelays: 3
@@ -151,60 +115,68 @@ Proton:
 		Blockable: false
 		Shadow: true
 		Inaccuracy: 128
-		Image: TORPEDO
+		Image: dualproton
 	Warhead@1Dam: SpreadDamage
 		Spread: 128
-		Damage: 2000
-		Versus:
-			None: 25
-			Wood: 65
-			Light: 75
-			Heavy: 100
-			Concrete: 60
-		DamageTypes: Prone50Percent, TriggerProne, ExplosionDeath
+		Damage: 50
 	Warhead@2Eff: CreateEffect
-		Explosions: small_bang
-
-^Laser:
-	Projectile: LaserZap
-		Width: 72
-		Duration: 15
-		ZOffset: 2047
-		Color: FF000080
-		SecondaryBeam: true
-		SecondaryBeamWidth: 180
-		SecondaryBeamZOffset: 2047
-		SecondaryBeamColor: FF000040
-	Warhead@1Dam: SpreadDamage
-		Spread: 42
-		Damage: 25000
-		DamageTypes: Prone60Percent, TriggerProne, EnergyDeath
+		Explosions: protexp_medium
+		ExplosionPalette: effect
 
 ObeliskLaserFire:
 	Inherits: ^Laser
+	Inherits@FLASH: ^FlashLargeW
 	ReloadDelay: 120
 	Range: 10c512
 	Report: obelray1.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 25000
+		Damage: 500
 
 TurretLaserFire:
 	Inherits: ^Laser
+	Inherits@FLASH: ^FlashSmallW
 	ReloadDelay: 40
-	Range: 5c512
-	Report: lastur1.aud
+	Range: 7c512
+	Report: laser01.aud, laser02.aud, laser03.aud, laser04.aud, laser05.aud #lastur1.aud
 	Projectile: LaserZap
 		Width: 36
 		Duration: 8
 		SecondaryBeamWidth: 144
 		SecondaryBeamColor: FF000030
 	Warhead@1Dam: SpreadDamage
-		Damage: 3000
+		Damage: 100
 
 LaserFence:
 	TargetActorCenter: true
 	Projectile: InstantHit
 	Warhead@1Dam: TargetDamage
 		DebugOverlayColor: FF0000
-		Damage: 10000000
+		Damage: 100000
 		DamageTypes: FireDeath
+
+AcolyteGun:
+	Inherits: ^MGBullet
+	Inherits@wh: ^TiberiumWarhead
+	ReloadDelay: 100
+	Range: 6c497
+	Report: tibrifle01.aud, tibrifle02.aud, tibrifle03.aud
+	Burst: 4
+	Projectile: Bullet
+		Image: tiberiumBullet
+		Palette: effect
+		Inaccuracy: 1c0
+		ContrailLength: 3
+		ContrailStartColor: 00FF64
+		ContrailStartWidth: 14
+		ContrailEndWidth: 0c10
+	Warhead@1Dam: SpreadDamage
+		Damage: 60
+	Warhead@2Eff: CreateEffect
+		AffectsParent: True
+		Explosions: tpiff
+		InvalidTargets: Water
+	Warhead@3EffWater: CreateEffect
+		AffectsParent: True
+		Explosions: water_piff
+		ExplosionPalette: ra
+		ValidTargets: Water

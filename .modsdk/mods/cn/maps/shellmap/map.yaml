@@ -1493,6 +1493,8 @@ Actors:
 
 Rules:
 	^BaseWorld:
+		MusicPlaylist:
+			StartingMusic: cn_menu
 		TerrainLighting:
 			RedTint: 0.71
 			GreenTint: 0.81

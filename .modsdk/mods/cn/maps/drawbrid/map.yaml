@@ -112,7 +112,7 @@ Actors:
 	Actor10: city15
 		Location: 58,43
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor11: bboard02
 		Location: 55,49
@@ -121,12 +121,12 @@ Actors:
 	Actor12: ca0009
 		Location: 64,41
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor13: ca0010
 		Location: 68,48
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor14: ca0011
 		Location: 63,49
@@ -135,22 +135,22 @@ Actors:
 	Actor15: ca0011
 		Location: 65,49
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor16: ca0014
 		Location: 69,42
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor17: ca0015
 		Location: 68,44
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor18: city19
 		Location: 93,40
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor19: city20
 		Location: 93,43
@@ -171,32 +171,32 @@ Actors:
 	Actor23: city21
 		Location: 95,42
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor24: ca0014
 		Location: 189,-75
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor25: ca0015
 		Location: 190,-72
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor26: ca0016
 		Location: 193,-75
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor27: caaray
 		Location: 193,-72
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor28: bboard07
 		Location: 187,-76
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor29: cabhut
 		Location: 53,29

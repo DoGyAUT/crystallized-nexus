@@ -76,7 +76,7 @@ Actors:
 	Actor1: aban05
 		Location: 126,23
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor2: aban06
 		Location: 128,27
@@ -93,7 +93,7 @@ Actors:
 	Actor5: aban11
 		Location: 134,25
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor6: aban12
 		Location: 128,31
@@ -102,7 +102,7 @@ Actors:
 	Actor7: aban13
 		Location: 131,32
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor8: aban14
 		Location: 133,31
@@ -127,12 +127,12 @@ Actors:
 	Actor13: aban05
 		Location: 214,-105
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor14: aban09
 		Location: 215,-108
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor15: aban12
 		Location: 272,-43
@@ -238,7 +238,7 @@ Actors:
 		Location: 159,-54
 		Owner: Neutral
 		Facing: 896
-		Health: 50
+		CNHealth: 50
 	Actor41: aban13
 		Location: 165,-48
 		Owner: Neutral
@@ -246,77 +246,77 @@ Actors:
 	Actor42: aban09
 		Location: 164,-53
 		Owner: Neutral
-		Health: 50
+		CNHealth: 50
 		Facing: 896
 	Actor43: ingrnlmp
 		Location: 36,7
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor44: ingrnlmp
 		Location: 128,-83
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor45: ingrnlmp
 		Location: 181,-115
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor46: ingrnlmp
 		Location: 195,-85
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor47: ingrnlmp
 		Location: 231,-29
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor48: ingrnlmp
 		Location: 191,23
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor49: ingrnlmp
 		Location: 123,77
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor50: ingrnlmp
 		Location: 62,45
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor51: ingrnlmp
 		Location: 120,42
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor52: ingrnlmp
 		Location: 112,25
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor53: ingrnlmp
 		Location: 168,-3
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor54: ingrnlmp
 		Location: 173,-43
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor55: ingrnlmp
 		Location: 174,-54
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor56: ingrnlmp
 		Location: 123,-13
 		Owner: Neutral
-		Health: 99
+		CNHealth: 99
 		Facing: 896
 	Actor57: inblulmp
 		Location: 194,-135
@@ -365,7 +365,7 @@ Actors:
 	Actor68: car
 		Location: 213,-107
 		Owner: Neutral
-		Health: 25
+		CNHealth: 25
 		Facing: 768
 	Actor69: car
 		Location: 274,-43

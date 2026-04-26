@@ -1,0 +1,17 @@
+[HXTKS]   ; Rhino heavy tank
+Voxel=yes
+Remapable=yes
+Cameo=HXTKICON
+;HTNKUICO
+PrimaryFireFLH=300,0,180
+SecondaryFireFLH=45,0,220
+TurretOffset=80
+[HXTK]   ; Rhino heavy tank
+Voxel=yes
+Remapable=yes
+Cameo=HXTKICON
+;HTNKUICO
+PrimaryFireFLH=300,0,180
+SecondaryFireFLH=45,0,220
+TurretOffset=80
+ShadowIndex=1

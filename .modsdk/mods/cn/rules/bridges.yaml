@@ -45,10 +45,10 @@ CABHUT:
 	Targetable:
 		TargetTypes: Ground, Building, Bridge
 		RequiresForceFire: true
-	Health:
-		HP: 50000
+	CNHealth:
+		HP: 500
 	Armor:
-		Type: Concrete
+		Type: Heavy
 	HitShape:
 
 LOBRDG_A:

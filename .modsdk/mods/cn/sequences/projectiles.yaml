@@ -1,0 +1,85 @@
+120mm:
+	idle:
+		Filename: 120mm.shp
+		ZOffset: 1023
+		Offset: 0, 0, 4
+
+shell_large:
+	idle:
+		Filename: shell_large.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+
+shell_small:
+	idle:
+		Filename: shell_small.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+
+bullet:
+	idle:
+		Filename: bullet.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+
+burstbullet:
+	idle:
+		Filename: burstbullet.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+
+tiberiumbullet:
+	idle:
+		Filename: tiberiumbullet.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+
+missile:
+	idle:
+		Filename: missile01.shp
+		Length: 1
+		Facings: 64
+		ZOffset: 1023
+		Offset: 0, 0, 64
+
+zodiacbomb:
+	idle:
+		Filename: zodiacbomb.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+
+dualproton:
+	idle:
+		Filename: dualproton.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+
+railgun_small:
+	idle:
+		Filename: railgun_small.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+
+railgun_large:
+	idle:
+		Filename: railgun_large.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4

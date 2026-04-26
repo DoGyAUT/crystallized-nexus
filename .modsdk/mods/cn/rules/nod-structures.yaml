@@ -10,10 +10,10 @@ NACNST:
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
 		Description: actor-gacnst.description
-	Health:
-		HP: 150000
+	CNHealth:
+		HP: 1500
 	Armor:
-		Type: Wood
+		Type: Heavy
 	RevealsShroud:
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -78,6 +78,8 @@ NACNST:
 		RequiresCondition: !build-incomplete
 		Sequence: make-smoke2
 		Palette: player25alpha
+	ActorLostNotification:
+		Notification: CriticalStructureLost
 	Power:
 		Amount: 0
 	ProvidesPrerequisite@nod:
@@ -103,10 +105,10 @@ NAPOWR:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 75000
+	CNHealth:
+		HP: 750
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 4c0
 		MaxHeightDelta: 3
@@ -145,8 +147,10 @@ NPROC:
 	Building:
 		Footprint: xxX+ xx++ xxX+
 		Dimensions: 4,3
-	Health:
-		HP: 90000
+	CNHealth:
+		HP: 900
+	Armor:
+		Type: Medium
 	RevealsShroud:
 		Range: 6c0
 		MaxHeightDelta: 3
@@ -196,6 +200,26 @@ NPROC:
 	FireWarheadsOnDeath:
 		RequiresCondition: contains-tiberium
 		Weapon: TiberiumExplosion
+	SpawnActorOnDeath@TIBCLOUD1:
+		Actor: TIBCLOUD1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		RequiresCondition: contains-tiberium
+	SpawnActorOnDeath@TIBCLOUD2:
+		Actor: TIBCLOUD2
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		RequiresCondition: contains-tiberium
+	SpawnActorOnDeath@TIBCLOUD3:
+		Actor: TIBCLOUD1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		RequiresCondition: contains-tiberium
+	SpawnActorOnDeath@TIBCLOUD4:
+		Actor: TIBCLOUD2
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		RequiresCondition: contains-tiberium
 	WithResourceStoragePipsDecoration:
 		Position: BottomLeft
 		RequiresSelection: true
@@ -223,10 +247,10 @@ NAAPWR:
 	Building:
 		Footprint: xxx xxx
 		Dimensions: 2,3
-	Health:
-		HP: 75000
+	CNHealth:
+		HP: 750
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 4c0
 		MaxHeightDelta: 3
@@ -265,8 +289,8 @@ NAAPWR:
 
 NAHAND:
 	Inherits: ^Building
-	Inherits@SHAPE: ^2x4Shape
-	Inherits@PRIMARY: ^PrimaryBuilding
+	Inherits@SHAPE: ^4x2Shape
+	Inherits@QUEUE: ^ProductionInfantry
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 20
@@ -281,10 +305,10 @@ NAHAND:
 	Building:
 		Footprint: xxxx xxxx
 		Dimensions: 4,2
-	Health:
-		HP: 80000
+	CNHealth:
+		HP: 800
 	Armor:
-		Type: Wood
+		Type: Medium
 	RevealsShroud:
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -296,6 +320,33 @@ NAHAND:
 		SpawnOffset: 543,1086,0
 		ExitCell: 5,2
 		Priority: 2
+	Exit@fallback1:
+		SpawnOffset: 0,724,0
+		ExitCell: 4,2
+	Exit@fallback2:
+		SpawnOffset: 0,724,0
+		ExitCell: 3,2
+	Exit@fallback3:
+		SpawnOffset: 0,724,0
+		ExitCell: 2,2
+	Exit@fallback4:
+		SpawnOffset: 0,-724,0
+		ExitCell: 2,-1
+	Exit@fallback5:
+		SpawnOffset: 0,-724,0
+		ExitCell: 1,-1
+	Exit@fallback6:
+		SpawnOffset: 0,-724,0
+		ExitCell: 0,-1
+	Exit@fallback7:
+		SpawnOffset: -724,0,0
+		ExitCell: -1,0
+	Exit@fallback8:
+		SpawnOffset: -724,0,0
+		ExitCell: -1,1
+	Exit@fallback9:
+		SpawnOffset: -724,0,0
+		ExitCell: -1,2
 	ExitsDebugOverlay:
 	RallyPoint:
 		Palette: mouse
@@ -305,18 +356,6 @@ NAHAND:
 		CirclesSequence:
 	CommandBarBlacklist:
 		DisableStop: false
-	ProductionQueue:
-		Type: Infantry
-		Group: Infantry
-		BuildDurationModifier: 120
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: notification-unit-ready
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: notification-unable-to-comply-building-in-progress
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
 	Production:
 		Produces: Infantry
 		PauseOnCondition: empdisable
@@ -335,11 +374,13 @@ NAHAND:
 	ProvidesPrerequisite@buildingname:
 	IsometricSelectable:
 		Height: 64
+	ActorLostNotification:
+		Notification: ProductionFacilityDestroyed
 
 NAWEAP:
 	Inherits: ^Building
 	Inherits@SHAPE: ^4x3FactoryWithBibShape
-	Inherits@PRIMARY: ^PrimaryBuilding
+	Inherits@QUEUE: ^ProductionVehicle
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -354,8 +395,8 @@ NAWEAP:
 	Building:
 		Footprint: xxX+ xxX+ xxX+
 		Dimensions: 4,3
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -374,18 +415,6 @@ NAWEAP:
 		ExitCell: 3,1
 		ExitDelay: 5
 	ExitsDebugOverlay:
-	ProductionQueue:
-		Type: Vehicle
-		Group: Vehicle
-		BuildDurationModifier: 120
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: notification-unit-ready
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: notification-unable-to-comply-building-in-progress
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
 	Production:
 		Produces: Vehicle
 		PauseOnCondition: empdisable
@@ -396,25 +425,29 @@ NAWEAP:
 		Sequence: idle-roof
 	WithProductionDoorOverlay@DOOR:
 		RequiresCondition: !build-incomplete
-	WithIdleOverlay@LIGHTS:
+	WithIdleOverlay@BIB:
 		RequiresCondition: !build-incomplete
-		Sequence: idle-lights
-		Palette: player-nobright
-		IsPlayerPalette: True
-	WithIdleOverlay@LIGHTS-BRIGHT:
+		Sequence: bib
+	WithIdleOverlay@SMOKE1:
 		RequiresCondition: !build-incomplete && !empdisable
-		Sequence: idle-lights-bright
-		Palette: bright
+		Sequence: idle-smoke1
+		Palette: player25alpha
+	WithIdleOverlay@SMOKE2:
+		RequiresCondition: !build-incomplete && !empdisable
+		Sequence: idle-smoke2
+		Palette: player25alpha
 	Power:
 		Amount: -30
 	ProvidesPrerequisite@buildingname:
 	IsometricSelectable:
 		Height: 48
+	ActorLostNotification:
+		Notification: ProductionFacilityDestroyed
 
 NAHPAD:
 	Inherits: ^Building
 	Inherits@SHAPE: ^2x2Shape
-	Inherits@PRIMARY: ^PrimaryBuilding
+	Inherits@QUEUE: ^ProductionAir
 	Valued:
 		Cost: 500
 	Tooltip:
@@ -427,8 +460,10 @@ NAHPAD:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 60000
+	CNHealth:
+		HP: 600
+	Armor:
+		Type: Light
 	RevealsShroud:
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -444,18 +479,6 @@ NAHPAD:
 		CirclesSequence:
 	CommandBarBlacklist:
 		DisableStop: false
-	ProductionQueue:
-		Type: Air
-		Group: Air
-		BuildDurationModifier: 120
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: notification-unit-ready
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: notification-unable-to-comply-building-in-progress
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
 	Production:
 		Produces: Air
 		PauseOnCondition: empdisable
@@ -490,6 +513,8 @@ NAHPAD:
 	ProvidesPrerequisite@buildingname:
 	IsometricSelectable:
 		Height: 36
+	ActorLostNotification:
+		Notification: ProductionFacilityDestroyed
 
 NARADR:
 	Inherits: ^Building
@@ -498,7 +523,7 @@ NARADR:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 40
-		Prerequisites: nproc, ~structures.nod, ~techlevel.low
+		Prerequisites: nproc, nahand, ~structures.nod, ~techlevel.low
 		Description: actor-naradr.description
 	Valued:
 		Cost: 1000
@@ -509,12 +534,12 @@ NARADR:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	Armor:
-		Type: Wood
+		Type: Light
 	ProvidesRadar:
-		RequiresCondition: !disabled && !empdisable
+		RequiresCondition: !disabled && !empdisable && !ionstorm
 	InfiltrateForExploration:
 		PlayerExperience: 10
 	DetectCloaked:
@@ -553,10 +578,10 @@ NATECH:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 50000
+	CNHealth:
+		HP: 500
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 4c0
 		MaxHeightDelta: 3
@@ -576,9 +601,7 @@ NATECH:
 NASTLH:
 	Inherits: ^Building
 	Inherits@IDISABLED: ^DisableOnLowPowerOrPowerDown
-	Inherits@SHAPE: ^3x2Shape
-	HitShape:
-		TargetableOffsets: 250,0,0, 600,-864,0
+	Inherits@SHAPE: ^5x2Shape
 	Valued:
 		Cost: 2500
 	Tooltip:
@@ -590,30 +613,83 @@ NASTLH:
 		Description: actor-nastlh.description
 	ProvidesPrerequisite@buildingname:
 	Building:
-		Footprint: xxx XXX
-		Dimensions: 3,2
-	Health:
-		HP: 60000
+		Footprint: xxxxx xxxxx
+		Dimensions: 5,2
+	CNHealth:
+		HP: 600
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 6c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@pulse:
 		RequiresCondition: !build-incomplete && !empdisable && !disabled
 		Sequence: pulse
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@pulse-bright:
+		RequiresCondition: !build-incomplete && !empdisable && !disabled
+		Sequence: pulse-bright
+		Palette: bright
 	WithRangeCircle:
-		Range: 12c0
+		Range: 17c0
 		Type: cloakgenerator
 	Power:
 		Amount: -350
 	ProximityExternalCondition:
 		RequiresCondition: !empdisable && !disabled
 		Condition: cloakgenerator
-		Range: 12c0
+		Range: 17c0
 		EnableSound: cloak5.aud
 		DisableSound: cloak5.aud
 		AffectsParent: true
+
+NAPYRA:
+	Inherits: ^Building
+	Inherits@IDISABLED: ^DisableOnLowPowerOrPowerDown
+	Inherits@SHAPE: ^4x4Shape
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 100
+		Prerequisites: nproc, natech, ~structures.nod, ~techlevel.high
+		Description: actor-nastlh.description
+	ProvidesPrerequisite@buildingname:
+	Valued:
+		Cost: 4000
+	Tooltip:
+		Name: Nod Pyramid
+	Building:
+		Footprint: xxxx xxxx xxxx xxxx
+		Dimensions: 4,4
+	CNHealth:
+		HP: 1000
+	Armor:
+		Type: Heavy
+	RevealsShroud:
+		Range: 7c73
+	Production@Tech:
+		Produces: Tech
+		MoveIntoWorld: False
+	Exit:
+	ExitsDebugOverlay:
+	ProductionBar:
+		ProductionType: Tech
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights-bright
+		Palette: bright
+	Power:
+		Amount: -150
+	ProvidesPrerequisite@buildingname:
+	RequiresBuildableArea:
+		AreaTypes: building
+	IsometricSelectable:
+		Height: 72
 
 NATMPL:
 	Inherits: ^Building
@@ -636,10 +712,10 @@ NATMPL:
 		Dimensions: 4,3
 	RequiresBuildableArea:
 		Adjacent: 3
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	Armor:
-		Type: Wood
+		Type: Medium
 	RevealsShroud:
 		Range: 6c0
 		MaxHeightDelta: 3
@@ -670,6 +746,8 @@ NATMPL:
 	ExitsDebugOverlay:
 	IsometricSelectable:
 		Height: 60
+	ActorLostNotification:
+		Notification: CriticalStructureLost
 
 NAMISL:
 	Inherits: ^Building
@@ -690,10 +768,10 @@ NAMISL:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	Armor:
-		Type: Wood
+		Type: Medium
 	RevealsShroud:
 		Range: 4c0
 	WithIdleOverlay@LIGHTS:
@@ -735,6 +813,7 @@ NAMISL:
 		CameraRange: 10c0
 		FlightVelocity: 1c0
 		TrailImage: small_smoke_trail
+		TrailPalette: apolra2
 		TrailInterval: 0
 		TrailSequences: idle
 	WithSupportPowerActivationOverlay:
@@ -744,6 +823,8 @@ NAMISL:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights-bright
 		Palette: bright
+	ActorLostNotification:
+		Notification: CriticalStructureLost
 
 NAWAST:
 	Inherits: ^Building
@@ -764,8 +845,10 @@ NAWAST:
 	Building:
 		Footprint: Xx+ xx+ Xx+
 		Dimensions: 3,3
-	Health:
-		HP: 40000
+	CNHealth:
+		HP: 400
+	Armor:
+		Type: Medium
 	RevealsShroud:
 		Range: 6c0
 		MaxHeightDelta: 3
@@ -802,3 +885,5 @@ NAWAST:
 		PipStride: 4, 2
 		PipCount: 15
 		Palette: pips
+	ActorLostNotification:
+		Notification: CriticalStructureLost

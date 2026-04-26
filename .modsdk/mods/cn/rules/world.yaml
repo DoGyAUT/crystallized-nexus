@@ -35,6 +35,19 @@
 		Speed: 10, 20
 		WindDirection: 12
 		ShouldPrespawn: true
+	RandomMapAmbientSound@ForestWind:
+		SoundFiles: wind1.wav, wind2.wav, wind3.wav, wind4.wav
+		Delay: 150, 450
+		Interval: 100, 500
+		VolumeModifier: 1.0
+		MaxActiveSounds: 20
+	RandomMapAmbientSound@WaterWaves:
+		SoundFiles: waterwave1.wav, waterwave2.wav, waterwave3.wav, waterwave4.wav, waterwave5.wav, waterwave6.wav, waterwave7.wav, waterwave8.wav
+		TerrainTypes: Water
+		Delay: 150, 450
+		Interval: 100, 500
+		VolumeModifier: 1.0
+		MaxActiveSounds: 10
 	ResourceAnimationOverlay@TiberiumSparkle:
 		ResourceTypes: Tiberium, BlueTiberium, RedTiberium
 		Image: sparkle

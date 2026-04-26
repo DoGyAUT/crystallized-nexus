@@ -1,240 +1,953 @@
 Player:
-	ModularBot@bot-test-ai:
-		Name: bot-test-ai.name
-		Type: test
-	GrantConditionOnBotOwner@test:
-		Condition: enable-test-ai
-		Bots: test
-
-	HarvesterBotModule:
-		RequiresCondition: enable-test-ai
-		HarvesterTypes: gharv, nharv
-		RefineryTypes: gproc, nproc
+	ModularBot@bot-cn-ai:
+		Name: bot-cn-ai.name
+		Type: cn
+	GrantConditionOnBotOwner@cn:
+		Condition: enable-cn-ai
+		Bots: cn
 
 	PowerDownBotModule:
-		RequiresCondition: enable-test-ai
-		PowerDownTypes: garadr, naradr, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam
+		RequiresCondition: enable-test-ai || enable-cn-ai
+		PowerDownTypes: garadr, naradr, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, nagat
 
-	ResourceMapBotModule:
-		RequiresCondition: enable-test-ai
+	CNResourceMapBotModule@cn:
+		RequiresCondition: enable-cn-ai
 		ResourceCreatorTypes: tibtre01, tibtre02, tibtre03, bigblue, bigblue3
 		ValuableResourceTypes: Tiberium, BlueTiberium, RedTiberium
 		HarvesterTypes: gharv, nharv
 		RefineryTypes: gproc, nproc
-		EnemyBaseBuildingTypes: gacnst, nacnst, gapowr, gapowrup, napowr, naapwr, gapile, nahand, gaweap, gadept, naweap, garadr, naradr, gahpad, nahpad, gatech, natech, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, gaplug, natmpl
+		EnemyBaseBuildingTypes: gacnst, nacnst, gapowr, napowr, naapwr, gaarmory, gapile, nahand, gaweap, gadept, naweap, garadr, naradr, gahpad, nahpad, gatech, natech, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, nagat, naflamer, gaplug, natmpl
 
-	BaseBuilderBotModule@test:
-		RequiresCondition: enable-test-ai
+	CNHarvesterBotModule@cn:
+		RequiresCondition: enable-cn-ai
+		HarvesterTypes: gharv, nharv
+		RefineryTypes: gproc, nproc
+		InitialHarvesters: 1
+		ResourceCellsPerHarvester: 6
+		MaxHarvestersPerRefinery: 1
+		MaxHarvestersPerFiniteIndice: 1
+		MaxHarvestersPerRespawningIndice: 2
+
+	CNBaseBuilderBotModule@cn:
+		RequiresCondition: enable-cn-ai
 		DefenseQueues: Support
-		# Stromüberschuss: mind. 30, max 200, +30 pro 4 Gebäude
 		MinimumExcessPower: 30
 		MaximumExcessPower: 200
 		ExcessPowerIncrement: 30
 		ExcessPowerIncreaseThreshold: 4
-		# Gebäudetypen für KI-Logik
 		ConstructionYardTypes: gacnst, nacnst
 		RefineryTypes: gproc, nproc
-		PowerTypes: gapowr, gapowrup, napowr, naapwr
+		PowerTypes: gapowr, napowr, naapwr
 		ProductionTypes: gapile, nahand, gaweap, naweap, gahpad, nahpad
-		# Tech: Radar zuerst (ermöglicht natech/gatech), dann Tech-Center, dann Superwaffen
-		TechTypes: garadr, naradr, gatech, natech, gadept, gaplug, gaplug2, gaplug3, gaplug4, natmpl, namisl
+		TechTypes: garadr, naradr, gaarmory, gatech, natech, gadept, gaplug, gaplug2, gaplug3, gaplug4, natmpl, namisl, napyra
 		SiloTypes: gasilo
-		# Verteidigung: günstiger Tower zuerst, dann Upgrades, dann schwere Verteidigung
-		DefenseTypes: gactwr, gavulc, gacsam, garock, nalasr, nasam, naobel, napuls
+		DefenseTypes: gamg, gagat, gasam, gacan, gasen, gamortar, nalasr, nasam, naflamer, nagat, naobel, napuls
+		MaxRefineriesPerCluster: 2
+		RefineryClusterRadius: 10
+		MaxResourceCellsToCheck: 10
 		SellRefineryNoResourceDistance: 18
+		ExpansionTolerate: 3, 4
+		ForceExpansionTolerate: 5, 6
+		PerExpansionTolerateOnCash: 18000
+		InititalMinimumRefineryCount: 1
+		AdditionalMinimumRefineryCount: 0
+		NewProductionCashThreshold: 4000
+		NewProductionChance: 65
+		MaximumFailedPlacementAttempts: 6
+		StructureProductionResumeDelay: 3000
+		WallTypes: gawall, nawall
+		ProtectedByWalls: gaarmory, gatech, natech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls
+
+		HarvesterLocomotors: tracked
+		VeinsOnlyBuildingTypes: nawast
+		VeinsOnlyResourceTypes: Veins
+
+		MinimumDefenseRadius: 3
+		DefenseInnerRadius: 8
+		DefenseInnerRatio: 40
+		DefenseInnerLayout: Random
+		DefenseInnerMinSpacing: 2
+		DefenseOuterLayout: Clustered
+		DefenseOuterMinSpacing: 3
+		EnableDefenseDangerMemory: true
+		DefenseDangerMemoryAttackWeight: 120
+		DefenseDangerMemoryBuildingAttackWeight: 160
+		DefenseDangerMemoryRecordInterval: 50
+		DefenseCenterUpdateInterval: 150
+		DefenseDangerMemoryMergeRadius: 5
+		DefenseDangerMemoryMaxEntries: 6
+		DefensePlacementMaxHotspots: 2
+		DefensePlacementCandidateLimit: 12
+		DefenseDangerMemoryMinimumWeight: 80
+		DefenseDangerMemoryDecayInterval: 250
+		DefenseDangerMemoryDecayAmount: 20
+		DefensePlacementDangerWeight: 50
+		DefensePlacementEnemyDirectionWeight: 70
+		MaximumDefenseRadius: 15
+		DynamicBaseRadius: true
+		RadiusPerBuilding: 0.4
+		MaxDynamicBaseRadius: 25
+		DefaultLayout: Compact
+		DefaultMinSpacing: 1
+		GlobalMinSpacing: 1
+		GridSpacingX: 2
+		GridSpacingY: 2
+
+		BuildingLayouts:
+			gapowr:
+				Layout: Grid
+				MinSpacing: 0
+				NearBuilding: gapowr
+			napowr:
+				Layout: Grid
+				MinSpacing: 0
+				NearBuilding: napowr
+			naapwr:
+				Layout: Grid
+				MinSpacing: 0
+				NearBuilding: naapwr
+
+			gahpad:
+				Layout: Grid
+				MinSpacing: 0
+				NearBuilding: gahpad
+			nahpad:
+				Layout: Grid
+				MinSpacing: 0
+				NearBuilding: nahpad
+
+			gasilo:
+				Layout: Grid
+				MinSpacing: 0
+				NearBuilding: gasilo
+
+			gatech:
+				NearBuilding: gaarmory
+			natech:
+				NearBuilding: nahand
+			gaarmory:
+				NearBuilding: gapile
+			gadept:
+				NearBuilding: gaweap
+			garadr:
+				NearBuilding: gaarmory
+			naradr:
+				NearBuilding: nahand
+			nastlh:
+				Layout: Coverage
+				NearBuilding: nacnst
 		BuildingLimits:
-			# Wirtschaft
-			gproc: 4
-			nproc: 4
-			gasilo: 4
-			# Strom - großzügig da viele Gebäude Strom brauchen
-			gapowr: 10
-			napowr: 10
-			# Produktion
-			gapile: 2
-			nahand: 2
-			gaweap: 2
-			naweap: 2
-			gadept: 1
-			gahpad: 3
-			nahpad: 3
-			# Radar/Tech - je 1 reicht
+			gapile: 6
+			nahand: 6
+			gaweap: 6
+			naweap: 6
+			gadept: 2
+			gahpad: 10
+			nahpad: 10
 			garadr: 1
+			gaarmory: 1
 			naradr: 1
 			gatech: 1
 			natech: 1
-			nastlh: 1
-			# Superwaffen - je 1
+			napyra: 1
 			gaplug: 1
 			gaplug2: 1
 			gaplug3: 1
 			gaplug4: 1
 			natmpl: 1
 			namisl: 1
-			# Verteidigung
-			gactwr: 6
-			gavulc: 4
-			garock: 2
-			gacsam: 3
-			nalasr: 4
-			nasam: 3
-			naobel: 2
+			nawast: 2
+		DefenseRoleLimits:
+			Total: 25
+			InfantryDefense: 10
+			ArmorDefense: 8
+			AADefense: 6
+			ArtilleryDefense: 5
+			Special: 5
 		BuildingFractions:
-			# Wirtschaft: höchste Priorität
-			gproc: 100
-			nproc: 100
-			# Strom: sofort wenn nötig
-			gapowr: 100
-			napowr: 100
-			# Grundproduktion: gleich nach Wirtschaft
-			gapile: 80
-			nahand: 80
-			gaweap: 70
-			naweap: 70
-			# Radar: wichtig für Tech-Unlock
-			garadr: 60
-			naradr: 60
-			# Helipad: mittlere Priorität
-			gahpad: 40
-			nahpad: 40
-			# Depot: niedrige Priorität
-			gadept: 20
-			# Tech-Center: erst wenn Basis steht
-			gatech: 30
-			natech: 30
-			nastlh: 20
-			# Silos: nur wenn Ressourcen voll laufen
-			gasilo: 10
-			# Superwaffen: sehr niedrige Priorität
-			gaplug: 15
-			gaplug2: 10
-			gaplug3: 10
-			gaplug4: 10
-			natmpl: 15
-			namisl: 10
-			# Verteidigung: Tower-Basis zuerst, dann Upgrades
-			gactwr: 50
-			gavulc: 40
-			gacsam: 30
-			garock: 20
+			gapowr: 20
+			napowr: 20
+			gapile: 10
+			nahand: 10
+			gaweap: 10
+			naweap: 10
+			garadr: 4
+			gaarmory: 6
+			naradr: 4
+			gahpad: 10
+			nahpad: 10
+			gadept: 6
+			gatech: 4
+			natech: 4
+			napyra: 4
+			nastlh: 6
+			gaplug: 4
+			gaplug2: 4
+			gaplug3: 4
+			gaplug4: 4
+			natmpl: 4
+			namisl: 4
+			nawast: 4
+			gamg: 60
+			gagat: 40
+			gacan: 30
+			gasam: 40
+			gasen: 30
+			gamortar: 30
 			nalasr: 50
-			nasam: 30
+			nagat: 40
+			naflamer: 40
+			nasam: 40
 			naobel: 20
 
+	CombatAnalysisBotModule:
+		RequiresCondition: enable-cn-ai
+		WeightPerHit: 10
+		ThreatRecordInterval: 25
+		ReactThreshold: 20
+		DecayRate: 0.1
+		DecayInterval: 1000
+		NemesisWeightPerHit: 5
+		NemesisRecordInterval: 25
+		NemesisAllyWeightPerHit: 2
+		NemesisThreshold: 15
+
 	BuildingRepairBotModule@test:
-		RequiresCondition: enable-test-ai
+		RequiresCondition: enable-cn-ai
 
-	# Ein SquadManagerBotModule reicht - Trennung erfolgt intern über AirUnitsTypes/NavalUnitsTypes
-	# Boden → Assault/Rush/Protection Squads automatisch
-	# Luft  → Air Squad automatisch (via AirUnitsTypes)
-	SquadManagerBotModule@test:
-		RequiresCondition: enable-test-ai
-		SquadSize: 8
-		SquadSizeRandomBonus: 10
-		AssignRolesInterval: 50
-		RushInterval: 600
-		AttackForceInterval: 75
-		MinimumAttackForceDelay: 0
-		RushAttackScanRadius: 15
-		ProtectUnitScanRadius: 15
-		IdleScanRadius: 10
-		DangerScanRadius: 10
-		AttackScanRadius: 12
-		ProtectionScanRadius: 8
-		MaxBaseRadius: 20
-		# Lufteinheiten werden automatisch in Air-Squads gesteckt
-		AirUnitsTypes: orca, orcab, apache, scrin
-		# Transporter/Support nie in Squads
-		ExcludeFromSquadsTypes: gharv, nharv, gmcv, nmcv, dpod, dpod2, hunter, repair, medic, trnsport, dshp, orcatran
-		ConstructionYardTypes: gacnst, nacnst
-		# Gebäude die beim Verteidigen priorisiert werden
-		ProtectionTypes: gacnst, nacnst, gproc, nproc, gapowr, napowr, naapwr, gapile, nahand, gaweap, naweap, gahpad, nahpad, gadept, garadr, naradr, gatech, natech, nastlh, gaplug, natmpl, namisl, nawast, gagate_a, gagate_b, nagate_a, nagate_b, gactwr, nalasr, naobel, nasam, napuls, gasilo, gmcv, nmcv
-		# Lufteinheiten des Gegners nicht als Primärziel für Bodentruppen
-		IgnoredEnemyTargetTypes: Air
+	CNRepairManagerBotModule@cn:
+		RequiresCondition: enable-cn-ai
+		RepairScanInterval: 75
+		MinimumDamageState: Light
+		MaxAssignmentsPerScan: 3
+		MobileRepairActorTypes: repair
+		MobileRepairSearchRadius: 10
 
-	# --- Bodentruppen: Infanterie und Fahrzeuge ---
-	# Harvester werden hier mitgebaut aber aus Squads ausgeschlossen (ExcludeFromSquadsTypes)
-	UnitBuilderBotModule@Ground:
-		RequiresCondition: enable-test-ai
-		UnitQueues: Infantry, Vehicle
-		UnitsToBuild:
-			# Harvester - höchste Priorität damit Wirtschaft läuft
-			gharv: 100
-			nharv: 100
-			# GDI Infanterie
-			gasol: 80		# Minigunner - billig, gut für Masse
-			e2: 25			# Grenadier - Flächenschaden
-			medic: 10		# Sanitäter - hält Infanterie am Leben
-			jumpjet: 15		# Jumpjet - gut vs Gebäude, braucht garadr
-			ghost: 5		# Ghost - teuer, braucht gatech
-			# NOD Infanterie
-			nasol: 80		# Soldat - billig, gut für Masse
-			e3: 25			# Raketenwerfer - gut vs Fahrzeuge
-			cyborg: 20		# Cyborg - robust, braucht nahand+medium
-			cyc2: 3			# Kommando-Cyborg - teuer, braucht natmpl
-			# GDI Fahrzeuge
-			smech: 30		# Schütze Mech - billig, früh verfügbar
-			mmch: 20		# Medium Tank - Hauptkampfpanzer GDI
-			jugg: 15		# Juggernaut - Artillerie, braucht garadr
-			hvr: 15			# Hover MLRS - braucht garadr
-			sonic: 8		# Sonictank - braucht gatech
-			hmec: 3			# Mammut Mech - sehr teuer, braucht gatech
-			# NOD Fahrzeuge
-			bggy: 30		# Buggy - billig, schnell
-			bike: 25		# Raketenbike - gut vs Luft+Panzer
-			ttnk: 20		# Tick Tank - Hauptkampfpanzer NOD
-			art2: 10		# Artillerie - braucht naradr
-			subtank: 8		# Stealth Tank - braucht natech
-			stnk: 8			# Stealth Tank 2 - braucht natech
-			repair: 3		# Reparaturfahrzeug
+	CNUnitBuilderBotModule@Combat:
+		RequiresCondition: enable-cn-ai
+		UnitQueues: Infantry, Vehicle, Air
+		ProductionMinCashRequirement: 300
+		DesiredCashReserve: 500
+		AdditionalCashReservePerQueue: 75
 		UnitLimits:
-			gharv: 6
-			nharv: 6
-			medic: 3
-			repair: 3
-			ghost: 3
-			cyc2: 2
-			hmec: 2
+			medic: 2
+			repair: 2
+			weed: 6
+		ExtraUnitsToBuild:
+			repair: 2
+			weed: 4
 
-	# --- Lufteinheiten ---
-	# Orca/Apache brauchen nur Helipad, Orcab/Scrin brauchen zusätzlich Tech
-	UnitBuilderBotModule@Air:
-		RequiresCondition: enable-test-ai
-		UnitQueues: Air
+	UnitBuilderBotModule@Capture:
+		RequiresCondition: enable-cn-ai
+		UnitQueues: Infantry
 		UnitsToBuild:
-			# GDI Luft - Orca früh verfügbar (nur gahpad)
-			orca: 60		# Orca Fighter - früh verfügbar
-			orcab: 30		# Orca Bomber - braucht gatech
-			# NOD Luft - Apache früh verfügbar (nur nahpad)
-			apache: 50		# Apache - früh verfügbar
-			scrin: 25		# Banshee - braucht natech
+			engineer: 5
+			nengineer: 5
 		UnitLimits:
-			orcab: 4
-			scrin: 4
+			engineer: 2
+			nengineer: 2
+		UnitDelays:
+			engineer: 37500
+			nengineer: 37500
 
-	# --- Rusheinheiten: schnelle billige Einheiten für Frühangriff ---
-	# Nur Einheiten die von Anfang an verfügbar sind (techlevel.low)
-	UnitBuilderBotModule@Rush:
-		RequiresCondition: enable-test-ai
-		UnitQueues: Infantry, Vehicle
+	UnitBuilderBotModule@Tech:
+		RequiresCondition: enable-cn-ai
+		UnitQueues: Tech
 		UnitsToBuild:
-			gasol: 100		# Schnell produzierbar, billig
-			nasol: 100		# Schnell produzierbar, billig
-			smech: 50		# Billigstes GDI-Fahrzeug
-			bggy: 60		# Billigstes NOD-Fahrzeug, schnell
-			bike: 40		# Schnell, gut vs Infanterie
-		UnitLimits:
-			smech: 6
-			bggy: 6
-			bike: 4
+			upgrade.gapowerup1: 100
+			upgrade.gapowerup2: 100
 
-	McvExpansionManagerBotModule@test:
-		RequiresCondition: enable-test-ai
+	SupportPowerBotModule:
+		RequiresCondition: enable-cn-ai
+		Decisions:
+			IonCannon:
+				OrderName: IonCannonPowerInfoOrder
+				MinimumAttractiveness: 20
+				CoarseScanRadius: 20
+				FineScanRadius: 2
+				Consideration:
+					Against: Enemy
+					Types: Ground, Building
+					Attractiveness: 100
+					CheckRadius: 3c0
+			Nuke:
+				OrderName: NukePowerInfoOrder
+				MinimumAttractiveness: 20
+				CoarseScanRadius: 20
+				FineScanRadius: 2
+				Consideration:
+					Against: Enemy
+					Types: Ground, Building
+					Attractiveness: 100
+					CheckRadius: 4c0
+			DropPods:
+				OrderName: DropPodsPowerInfoOrder
+				MinimumAttractiveness: 20
+				CoarseScanRadius: 20
+				FineScanRadius: 2
+				Consideration:
+					Against: Enemy
+					Types: Ground, Infantry, Vehicle
+					Attractiveness: 100
+					CheckRadius: 2c0
+			EMP:
+				OrderName: AttackOrderPowerInfoOrder
+				MinimumAttractiveness: 20
+				CoarseScanRadius: 20
+				FineScanRadius: 2
+				Consideration:
+					Against: Enemy
+					Types: Ground, Vehicle, Infantry
+					Attractiveness: 100
+					CheckRadius: 2c0
+			HunterSeeker:
+				OrderName: ProduceActorPowerInfoOrder
+				MinimumAttractiveness: 20
+				CoarseScanRadius: 20
+				FineScanRadius: 2
+				Consideration:
+					Against: Enemy
+					Types: Ground, Building, Vehicle, Infantry
+					Attractiveness: 100
+					CheckRadius: 4c0
+
+	DeployBotModule:
+		RequiresCondition: enable-cn-ai
+		ScanInterval: 25
+		Groups:
+			Artillery:
+				ActorTypes: nhwtz, jugg
+				Mode: Artillery
+				ScanRadius: 20
+				DeployRange: 18
+				SafeRange: 5
+				DeployCooldown: 200
+			TickTank:
+				ActorTypes: ttnk
+				Mode: Stats
+				DeployRange: 6
+				SafeRange: 0
+				DeployCooldown: 150
+			EMP:
+				ActorTypes: mobilemp
+				Mode: Ability
+				ScanRadius: 15
+				DeployRange: 8
+				AbilityDuration: 100
+
+	CNMcvExpansionManagerBotModule@cn:
+		RequiresCondition: enable-cn-ai
 		McvTypes: gmcv, nmcv
 		ConstructionYardTypes: gacnst, nacnst
 		McvFactoryTypes: gaweap, naweap
-		MinimumConstructionYardCount: 2
+		MinimumConstructionYardCount: 1
+		AdditionalConstructionYardCount: 1
+		BuildAdditionalMCVCashAmount: 9000
+		EnableStrategicOutposts: true
+		McvEnemyBaseAvoidanceRadius: 10
+		McvEnemyBaseHardAvoidanceRadius: 4
+		McvEnemyBaseRoutePenalty: 2048
+		McvSafeMoveWaypointPathCells: 12
+		CBmodeFrontlineOutpostBonus: 384
+		CBmodeOutpostPreferredProgress: 58
+		CBmodeOutpostProgressTolerance: 22
+		CBmodeOutpostCorridorWidth: 12
+		CBmodeOutpostEnemyMinRange: 18
+		CBmodeOutpostFriendlyMinRange: 12
 
 	CaptureManagerBotModule@test:
-		RequiresCondition: enable-test-ai
+		RequiresCondition: enable-cn-ai
 		CapturingActorTypes: engineer, nengineer
+
+	CNSquadManagerBotModule:
+		RequiresCondition: enable-cn-ai
+		IdleScanRadius: 10
+		DangerScanRadius: 10
+		AttackScanRadius: 12
+		AssignRolesInterval: 50
+		AttackForceInterval: 75
+		ArtilleryHangBackCells: 8
+		SupportFollowRangeCells: 5
+		Teams:
+			# GDI ground reaction core
+			GDI_BaseGuard_AntiInfantry:
+				Role: Defense
+				Priority: 126
+				MaxInstances: 1
+				MinSlotsToActivate: 2
+				Factions: gdi
+				ThreatBonuses:
+					Infantry: 35
+					AntiInfantry: 10
+				ThreatBonusesPerUnit:
+					Infantry: 3
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -6
+					ArmorDefense: -3
+				Slots:
+					Walkers:
+						Count: 3
+						AllowedTypes: smech
+					Riflemen:
+						Count: 2
+						AllowedTypes: gasol
+						Optional: true
+			GDI_BaseGuard_AntiArmor:
+				Role: Defense
+				Priority: 128
+				MaxInstances: 1
+				MinSlotsToActivate: 2
+				Factions: gdi
+				ThreatBonuses:
+					Vehicle: 35
+					AntiArmor: 10
+				ThreatBonusesPerUnit:
+					Vehicle: 4
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -3
+					ArmorDefense: -4
+				Slots:
+					Tanks:
+						Count: 2
+						AllowedTypes: gtmtnk, mmch
+					Missiles:
+						Count: 3
+						AllowedTypes: e2
+			GDI_BaseGuard_AirCover:
+				Role: Defense
+				Priority: 123
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Aircraft: 45
+					Jumpjet: 25
+				ThreatBonusesPerUnit:
+					Aircraft: 5
+				Slots:
+					AA:
+						Count: 3
+						AllowedTypes: hvr, 4tnk, e2
+			GDI_Rush_ScoutMechs:
+				Role: Rush
+				Priority: 102
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Infantry: 20
+					Harvester: 15
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -7
+					ArmorDefense: -6
+				Slots:
+					Walkers:
+						Count: 4
+						AllowedTypes: smech
+			GDI_Infantry_Line:
+				Role: Assault
+				Priority: 98
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Infantry: 25
+					Cloaked: 10
+				ThreatBonusesPerUnit:
+					Infantry: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -12
+					ArtilleryDefense: -6
+				Slots:
+					Riflemen:
+						Count: 4
+						AllowedTypes: gasol
+					Grenadiers:
+						Count: 3
+						AllowedTypes: e2
+						Optional: true
+					Medic:
+						Count: 1
+						AllowedTypes: medic
+						Optional: true
+					Sniper:
+						Count: 1
+						AllowedTypes: gasniper
+						Optional: true
+			GDI_Mixed_Armor:
+				Role: Assault
+				Priority: 115
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Vehicle: 22
+					AntiInfantry: 8
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: -7
+					Special: -4
+				Slots:
+					Tanks:
+						Count: 3
+						AllowedTypes: gtmtnk, mmch
+					Screen:
+						Count: 2
+						AllowedTypes: smech
+						Optional: true
+			GDI_Heavy_Armor:
+				Role: Assault
+				Priority: 118
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Vehicle: 25
+					Aircraft: 18
+					AntiAir: 10
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+					Aircraft: 3
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: -8
+					Special: -6
+					AADefense: 2
+				Slots:
+					HeavyTanks:
+						Count: 3
+						AllowedTypes: 4tnk
+					Walker:
+						Count: 1
+						AllowedTypes: hmec
+						Optional: true
+			GDI_Hover_Hunters:
+				Role: Hover
+				Priority: 112
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Aircraft: 30
+					Vehicle: 18
+					Harvester: 10
+				ThreatBonusesPerUnit:
+					Aircraft: 4
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: -5
+					AADefense: 2
+				Slots:
+					Hover:
+						Count: 5
+						AllowedTypes: hvr
+			GDI_Sonic_Breaker:
+				Role: Assault
+				Priority: 110
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Infantry: 20
+					Vehicle: 16
+				ThreatBonusesPerUnit:
+					Infantry: 3
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 3
+					ArmorDefense: -5
+				Slots:
+					Sonic:
+						Count: 3
+						AllowedTypes: sonic
+			GDI_Juggernaut_Siege:
+				Role: ArtilleryAssault
+				Priority: 113
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Vehicle: 10
+				ThreatBonusesGlobal:
+					Special: 20
+				ThreatBonusesGlobalPerUnit:
+					Defense: 5
+					ArmorDefense: 12
+					InfantryDefense: 8
+					ArtilleryDefense: 10
+					Special: 18
+					AADefense: 4
+				Slots:
+					Artillery:
+						Count: 3
+						AllowedTypes: jugg
+			GDI_APC_Raid:
+				Role: Transport
+				Priority: 106
+				MaxInstances: 1
+				MinSlotsToActivate: 2
+				Factions: gdi
+				PriorityTargetTypes: gharv, nharv, gproc, nproc, gapowr, napowr, naradr, garadr, engineer, nengineer
+				ThreatBonuses:
+					Harvester: 25
+					Artillery: 15
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -8
+					ArmorDefense: -8
+					AADefense: 1
+				Slots:
+					Carrier:
+						Count: 1
+						AllowedTypes: apc
+						IsCarrier: true
+					Passengers:
+						Count: 4
+						AllowedTypes: gasol, e2
+						IsPassenger: true
+			GDI_Jumpjet_Raid:
+				Role: JumpJet
+				Priority: 107
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: gdi
+				PriorityTargetTypes: gharv, nharv, nproc, naweap, nahand, naradr, nasam, naobel
+				ThreatBonuses:
+					Infantry: 18
+					Harvester: 20
+				ThreatBonusesPerUnit:
+					Infantry: 2
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -14
+					InfantryDefense: -8
+				Slots:
+					Jumpjets:
+						Count: 6
+						AllowedTypes: jumpjet
+			GDI_Orca_Fighters:
+				Role: AircraftSupport
+				Priority: 104
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Vehicle: 25
+					Artillery: 20
+					Harvester: 15
+					AntiAir: -15
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+					AntiAir: -4
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -18
+				Slots:
+					Orca:
+						Count: 3
+						AllowedTypes: orca_f1
+			GDI_Orca_Bombers:
+				Role: AircraftAttack
+				Priority: 103
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: gdi
+				PriorityTargetTypes: naobel, napuls, nalasr, nagat, naflamer, nproc, naweap, natech, natmpl, namisl
+				ThreatBonuses:
+					Vehicle: 14
+					AntiAir: -20
+				ThreatBonusesGlobal:
+					Special: 18
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: 8
+					Special: 18
+					AADefense: -24
+				Slots:
+					Bombers:
+						Count: 2
+						AllowedTypes: orca_b
+
+			# Nod ground reaction core
+			NOD_BaseGuard_AntiInfantry:
+				Role: Defense
+				Priority: 126
+				MaxInstances: 1
+				MinSlotsToActivate: 2
+				Factions: nod
+				ThreatBonuses:
+					Infantry: 35
+					AntiInfantry: 10
+				ThreatBonusesPerUnit:
+					Infantry: 3
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -6
+					ArmorDefense: -3
+				Slots:
+					Buggies:
+						Count: 3
+						AllowedTypes: bggy
+					Infantry:
+						Count: 2
+						AllowedTypes: nasol
+						Optional: true
+			NOD_BaseGuard_AntiArmor:
+				Role: Defense
+				Priority: 128
+				MaxInstances: 1
+				MinSlotsToActivate: 2
+				Factions: nod
+				ThreatBonuses:
+					Vehicle: 35
+					AntiArmor: 10
+				ThreatBonusesPerUnit:
+					Vehicle: 4
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: -4
+					InfantryDefense: -3
+				Slots:
+					Tanks:
+						Count: 2
+						AllowedTypes: ttnk
+					Rockets:
+						Count: 3
+						AllowedTypes: e3
+			NOD_BaseGuard_AirCover:
+				Role: Defense
+				Priority: 123
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: nod
+				ThreatBonuses:
+					Aircraft: 45
+					Jumpjet: 25
+				ThreatBonusesPerUnit:
+					Aircraft: 5
+				Slots:
+					AA:
+						Count: 4
+						AllowedTypes: bike, e3, stnk
+			NOD_Rush_Buggies:
+				Role: Rush
+				Priority: 103
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: nod
+				ThreatBonuses:
+					Infantry: 20
+					Harvester: 15
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -7
+					ArmorDefense: -6
+				Slots:
+					FastAttack:
+						Count: 5
+						AllowedTypes: bggy, bike
+			NOD_Infantry_Mob:
+				Role: Assault
+				Priority: 98
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: nod
+				ThreatBonuses:
+					Infantry: 18
+					Vehicle: 12
+				ThreatBonusesPerUnit:
+					Infantry: 2
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -12
+					ArtilleryDefense: -6
+				Slots:
+					Soldiers:
+						Count: 4
+						AllowedTypes: nasol
+					Rockets:
+						Count: 3
+						AllowedTypes: e3
+						Optional: true
+			NOD_Bike_Hunters:
+				Role: Raider
+				Priority: 111
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: nod
+				PriorityTargetTypes: gharv, nharv, jugg, nhwtz, sonic, hvr, engineer, nengineer, orca_b, orca_f1
+				ThreatBonuses:
+					Vehicle: 22
+					Aircraft: 22
+					Harvester: 18
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+					Aircraft: 4
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: -6
+					InfantryDefense: -3
+				Slots:
+					Raiders:
+						Count: 4
+						AllowedTypes: bike
+			NOD_TickTank_Line:
+				Role: Assault
+				Priority: 114
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: nod
+				ThreatBonuses:
+					Vehicle: 24
+					AntiInfantry: 8
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: -7
+					Special: -5
+				Slots:
+					Tanks:
+						Count: 4
+						AllowedTypes: ttnk
+					Screen:
+						Count: 2
+						AllowedTypes: bggy, e3
+						Optional: true
+			NOD_Elite_Cadre:
+				Role: Assault
+				Priority: 106
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: nod
+				ThreatBonuses:
+					Infantry: 20
+					Vehicle: 15
+					Cloaked: 10
+				ThreatBonusesPerUnit:
+					Infantry: 2
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -8
+					ArmorDefense: -5
+				Slots:
+					Elites:
+						Count: 5
+						AllowedTypes: nacad, shadow, acolyte
+			NOD_Subtank_Ambush:
+				Role: SubterraneanAssault
+				Priority: 112
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: nod
+				PriorityTargetTypes: gharv, nharv, gproc, nproc, gapile, nahand, gaweap, naweap
+				ThreatBonuses:
+					Infantry: 25
+					Harvester: 20
+				ThreatBonusesPerUnit:
+					Infantry: 3
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 5
+					ArmorDefense: 5
+					AADefense: 2
+				Slots:
+					Subterranean:
+						Count: 5
+						AllowedTypes: subtank
+			NOD_SAPC_Ambush:
+				Role: SubterraneanTransport
+				Priority: 108
+				MaxInstances: 1
+				MinSlotsToActivate: 2
+				Factions: nod
+				PriorityTargetTypes: gacnst, gproc, gaweap, gapile, gatech, gaarmory, gharv, nharv
+				ThreatBonuses:
+					Harvester: 20
+					Artillery: 15
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 5
+					ArmorDefense: 5
+					Special: 8
+					AADefense: 2
+				Slots:
+					Carrier:
+						Count: 1
+						AllowedTypes: sapc
+						IsCarrier: true
+					Passengers:
+						Count: 3
+						AllowedTypes: nacad, e3, acolyte
+						IsPassenger: true
+			NOD_Howitzer_Siege:
+				Role: ArtilleryAssault
+				Priority: 113
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: nod
+				ThreatBonuses:
+					Vehicle: 10
+				ThreatBonusesGlobal:
+					Special: 20
+				ThreatBonusesGlobalPerUnit:
+					Defense: 5
+					ArmorDefense: 12
+					InfantryDefense: 8
+					ArtilleryDefense: 10
+					Special: 18
+					AADefense: 4
+				Slots:
+					Artillery:
+						Count: 3
+						AllowedTypes: nhwtz
+			NOD_StealthTank_Picks:
+				Role: Stealth
+				Priority: 111
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: nod
+				PriorityTargetTypes: gharv, nharv, hvr, jugg, sonic, gatech, gaarmory, gproc, gapowr, gacnst
+				ThreatBonuses:
+					Vehicle: 24
+					Aircraft: 18
+					Harvester: 18
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+					Aircraft: 3
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: 4
+					AADefense: 4
+					InfantryDefense: -4
+				Slots:
+					Stealth:
+						Count: 4
+						AllowedTypes: stnk
+			NOD_Hydra_Gunships:
+				Role: AircraftSupport
+				Priority: 104
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: nod
+				ThreatBonuses:
+					Infantry: 25
+					Harvester: 12
+					AntiAir: -15
+				ThreatBonusesPerUnit:
+					Infantry: 3
+					AntiAir: -4
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -18
+				Slots:
+					Hydra:
+						Count: 3
+						AllowedTypes: hydra
+			NOD_Banshee_Strike:
+				Role: AircraftAttack
+				Priority: 103
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: nod
+				PriorityTargetTypes: gamortar, gacan, gasam, gproc, gaweap, gatech, gaplug, gaplug2, gaplug3, gaplug4
+				ThreatBonuses:
+					Vehicle: 24
+					AntiAir: -20
+				ThreatBonusesGlobal:
+					Special: 18
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: 8
+					Special: 18
+					AADefense: -24
+				Slots:
+					Banshee:
+						Count: 2
+						AllowedTypes: scrin

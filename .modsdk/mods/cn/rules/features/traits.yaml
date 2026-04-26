@@ -1,0 +1,189 @@
+^EmpVisualEffects:
+	WithColoredOverlay@EMPDISABLE:
+		Color: 000000B4
+	WithIdleOverlay@EMPDISABLE:
+		Sequence: emp-overlay
+		Palette: effect
+
+^EmpDisable:
+	Inherits: ^EmpVisualEffects
+	WithColoredOverlay@EMPDISABLE:
+		RequiresCondition: empdisable
+	TimedConditionBar@EMPDISABLE:
+		Condition: empdisable
+		Color: FFFFFF
+	WithIdleOverlay@EMPDISABLE:
+		RequiresCondition: empdisable
+	PowerMultiplier@EMPDISABLE:
+		RequiresCondition: empdisable
+		Modifier: 0
+	ExternalCondition@EMPDISABLE:
+		Condition: empdisable
+
+^Cloakable:
+	Cloak@EXTERNALCLOAK:
+		RequiresCondition: cloakgenerator || crate-cloak
+		InitialDelay: 0
+		CloakDelay: 90
+		CloakSound: stealth01.aud
+		UncloakSound: unstealth01.aud
+		UncloakOn: Attack, Unload, Infiltrate, Demolish, Damage, Heal, SupportPower
+		CloakType: nod-stealth
+	ExternalCondition@CLOAKGENERATOR:
+		Condition: cloakgenerator
+	ExternalCondition@CRATE-CLOAK:
+		Condition: crate-cloak
+
+^EMPableAircraft:
+	Inherits: ^Aircraft
+	Inherits@EMP: ^EmpDisable
+	Aircraft:
+		PauseOnCondition: empdisable
+	KillsSelf:
+		RequiresCondition: airborne && empdisable
+
+^HealsOnTiberium:
+	DamagedByTerrain:
+		Damage: -5
+		DamageInterval: 16
+		Terrain: Tiberium, BlueTiberium, RedTiberium
+		RequiresCondition: !inside-tunnel
+
+^DamagedByVeins:
+	DamagedByTerrain@VEINS:
+		Damage: 5
+		DamageInterval: 16
+		DamageTypes: BulletDeath
+		Terrain: Veins
+		RequiresCondition: !inside-tunnel
+	LeavesTrails@VEINS:
+		Image: veins
+		Palette: player
+		TerrainTypes: Veins
+		TrailWhileStationary: true
+		StationaryInterval: 16
+		MovingInterval: 16
+		StartDelay: -1
+		SpawnAtLastPosition: false
+		RequiresCondition: !inside-tunnel
+
+^DisableOnLowPower:
+	WithColoredOverlay@IDISABLE:
+		RequiresCondition: disabled
+		Color: 000000B4
+	GrantConditionOnPowerState@LOWPOWER:
+		Condition: lowpower
+		ValidPowerStates: Low, Critical
+	GrantCondition@IDISABLE:
+		RequiresCondition: lowpower
+		Condition: disabled
+
+^DisableOnPowerDown:
+	WithColoredOverlay@IDISABLE:
+		RequiresCondition: disabled
+		Color: 000000B4
+	GrantCondition@IDISABLE:
+		RequiresCondition: powerdown
+		Condition: disabled
+	ToggleConditionOnOrder:
+		DisabledSpeech: EnablePower
+		EnabledSpeech: DisablePower
+		Condition: powerdown
+		OrderName: PowerDown
+	WithDecoration@POWERDOWN:
+		Image: poweroff
+		Sequence: offline
+		Palette: mouse
+		RequiresCondition: powerdown
+		Position: Center
+		Offsets:
+			repairing: 12, 0
+	PowerMultiplier@POWERDOWN:
+		RequiresCondition: powerdown
+		Modifier: 0
+	RepairableBuilding:
+		RepairCondition: repairing
+	WithBuildingRepairDecoration:
+		Offsets:
+			powerdown: -12, 0
+
+^DisableOnLowPowerOrPowerDown:
+	Inherits@LOWPOWER: ^DisableOnLowPower
+	Inherits@POWERDOWN: ^DisableOnPowerDown
+	GrantCondition@IDISABLE:
+		RequiresCondition: lowpower || powerdown
+		Condition: disabled
+
+^MobSquadMaster:
+	MobSpawnerMaster:
+		NoRegeneration: true
+		ExitByBudding: true
+		AggregateHealth: true
+		IncludeMasterInAggregate: true
+		SlavesHaveFreeWill: false
+		SlaveDisposalOnKill: KillSlaves
+		SlaveDisposalOnOwnerChange: GiveSlavesToAttacker
+	Selectable:
+		Bounds: 1365, 1365
+	HiddenUnderFog:
+		Type: CenterPosition
+
+^MobSquadMember:
+	MobSpawnerSlave:
+	RejectsOrders:
+	MobSquadSelectionDecoration:
+		UsePlayerColor: true
+
+^Tech:
+	Interactable:
+
+^BackwardsMovement:
+	Mobile:
+		CanMoveBackward: True
+		BackwardDuration: 100
+		MaxBackwardCells: 5
+
+^ProductionVehicle:
+	ProductionQueue@Vehicle:
+		Type: Vehicle
+		Group: Vehicle
+		DisplayOrder: 3
+		BuildDurationModifier: 120
+		LowPowerModifier: 300
+		ReadyAudio: UnitReady
+		ReadyTextNotification: notification-unit-ready
+		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: notification-unable-to-comply-building-in-progress
+		QueuedAudio: Training
+		OnHoldAudio: OnHold
+		CancelledAudio: Cancelled
+
+^ProductionInfantry:
+	ProductionQueue@Infantry:
+		Type: Infantry
+		Group: Infantry
+		DisplayOrder: 2
+		BuildDurationModifier: 120
+		LowPowerModifier: 300
+		ReadyAudio: UnitReady
+		ReadyTextNotification: notification-unit-ready
+		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: notification-unable-to-comply-building-in-progress
+		QueuedAudio: Training
+		OnHoldAudio: OnHold
+		CancelledAudio: Cancelled
+
+^ProductionAir:
+	ProductionQueue@Air:
+		Type: Air
+		Group: Air
+		DisplayOrder: 4
+		BuildDurationModifier: 120
+		LowPowerModifier: 300
+		ReadyAudio: UnitReady
+		ReadyTextNotification: notification-unit-ready
+		LimitedAudio: BuildingInProgress
+		LimitedTextNotification: notification-unable-to-comply-building-in-progress
+		QueuedAudio: Training
+		OnHoldAudio: OnHold
+		CancelledAudio: Cancelled

@@ -1,0 +1,357 @@
+^BasicBuilding:
+	Inherits@1: ^ExistsInWorld
+	Inherits@2: ^SpriteActor
+	Inherits@3: ^Cloakable
+	Inherits@IONSTORM: ^IonStormVulnerable
+	Inherits@selection: ^SelectableBuilding
+	Inherits@handicaps: ^PlayerHandicaps
+	Huntable:
+	Targetable:
+		TargetTypes: Ground, Building, C4
+	HitShape:
+		UseTargetableCellsOffsets: true
+		Type: Rectangle
+			LocalYaw: -128
+			TopLeft: -512, -512
+			BottomRight: 512, 512
+	Building:
+		Dimensions: 1,1
+		Footprint: x
+		BuildSounds: place2.aud
+		TerrainTypes: Clear, Rough, Road, DirtRoad, Green, Sand, Pavement
+		UndeploySounds: cashturn.aud
+	ActorPreviewPlaceBuildingPreview:
+		Palette: ra
+		FootprintAlpha: 0.7
+		LineBuildFootprintAlpha: 0.5
+		PreviewAlpha: 0.55
+		FootprintUnderPreview: Valid, LineBuild, Invalid
+		FootprintOverPreview: None
+	RequiresBuildableArea:
+		AreaTypes: building
+		Adjacent: 4
+	FrozenUnderFog:
+	SoundOnDamageTransition:
+		DamagedSounds: expnew01.aud
+		DestroyedSounds: crmble2.aud
+	WithSpriteBody:
+	FireWarheadsOnDeath:
+		Weapon: BuildingExplosions
+		EmptyWeapon: BuildingExplosions
+		Type: Footprint
+	InstantlyRepairable:
+	ShakeOnDeath:
+		Duration: 15
+		Intensity: 6
+	Guardable:
+		Range: 3c0
+	Demolishable:
+	FireProjectilesOnDeath@SMALL:
+		Weapons: SmallDebris
+		Pieces: 2, 4
+		Range: 2c0, 5c0
+	FireProjectilesOnDeath@LARGE:
+		Weapons: LargeDebris, LargeDebrisWithTrail
+		Pieces: 1, 2
+		Range: 2c0, 5c0
+	MapEditorData:
+		Categories: Building
+	CommandBarBlacklist:
+
+^Building:
+	Inherits@1: ^BasicBuilding
+	Inherits@2: ^EmpDisable
+	Inherits@ARMORTYPE: ^FeatureArmortypeBuilding
+	GivesBuildableArea:
+		AreaTypes: building
+	CaptureManager:
+	Capturable:
+		RequiresCondition: !build-incomplete
+		Types: building
+	RepairableBuilding:
+		RepairStep: 7
+		PlayerExperience: 5
+		RepairingNotification: Repairing
+	WithDeathAnimation:
+		DeathSequence: dead
+		UseDeathTypeSuffix: false
+	SpawnActorsOnSell@gdi:
+		ActorTypes: gasol, gasol, e2, medic
+		GuaranteedActorTypes: gasol
+		Factions: gdi
+	SpawnActorsOnSell@nod:
+		ActorTypes: nasol, nasol, nasol, e3, e3
+		GuaranteedActorTypes: nasol
+		Factions: nod
+	MustBeDestroyed:
+		RequiredForShortGame: true
+	OwnerLostAction:
+		Action: Kill
+	CaptureNotification:
+		TextNotification: notification-building-captured
+	Demolishable:
+		Condition: being-demolished
+	Sellable:
+		RequiresCondition: !build-incomplete && !being-demolished
+		SellSounds: cashturn.aud
+		Notification: StructureSold
+	WithMakeAnimation:
+		Condition: build-incomplete
+	DamageSmoke:
+		RequiresCondition: !build-incomplete
+		MinimumDamageState: Medium
+		CriticalDamageState: Critical
+		Interval: 6
+		CriticalInterval: 2
+		Image: durasmoke_large
+		Sequences: idle
+		Palette: effect
+		Offsets: 0,-1536,512
+		Lifetime: 220, 300
+		Rise: 8, 16
+		Drift: 0, 6
+		RandomRate: 24
+		TurnRate: 0
+	GrantConditionOnDamageState@CRITICALFIRE:
+		Condition: building-critical-fire
+		ValidDamageStates: Critical
+	GrantRandomCondition@CRITICALFIREVARIANT:
+		Conditions: building-fire-1, building-fire-2, building-fire-3
+	WithIdleOverlay@CRITICALFIRE1:
+		Image: huskfire01a
+		Palette: effect
+		Sequence: idle-overlay
+		RequiresCondition: !build-incomplete && building-critical-fire && building-fire-1
+		Offset: 0, 0, 128
+	WithIdleOverlay@CRITICALFIRE2:
+		Image: huskfire02a
+		Palette: effect
+		Sequence: idle-overlay
+		RequiresCondition: !build-incomplete && building-critical-fire && building-fire-2
+		Offset: 0, 0, 128
+	WithIdleOverlay@CRITICALFIRE3:
+		Image: huskfire03a
+		Palette: effect
+		Sequence: idle-overlay
+		RequiresCondition: !build-incomplete && building-critical-fire && building-fire-3
+		Offset: 0, 0, 128
+	PeriodicSpriteEffect@FIREFLICKER:
+		Image: explosion
+		Sequences: small_flash_y
+		Palette: effect
+		MinInterval: 5
+		MaxInterval: 5
+		Offset: 0,0,256
+		RequiresCondition: !build-incomplete && building-critical-fire
+	FireProjectilesOnDeath@SMALL:
+		Pieces: 3, 5
+	FireProjectilesOnDeath@LARGE:
+		Pieces: 2, 3
+	WithBuildingRepairDecoration:
+		Image: allyrepair
+		Sequence: repair
+		Position: Center
+		Palette: mouse
+
+^Support:
+	Inherits: ^Building
+	Inherits@selection: ^SelectableCombatBuilding
+	-GivesBuildableArea:
+	RenderRangeCircle:
+	RenderDetectionCircle:
+	RevealsShroud:
+		Range: 6c0
+	DetectCloaked:
+		Range: 5c0
+	Targetable:
+		TargetTypes: Ground, Building, C4, Support
+	-Capturable:
+	RevealOnFire:
+	MapEditorData:
+		Categories: Support
+	-CommandBarBlacklist:
+
+^CivBuilding:
+	Inherits: ^BasicBuilding
+	Inherits@ARMORTYPE: ^FeatureArmortypeBuilding
+	-UpdatesPlayerStatistics:
+	CNHealth:
+		HP: 900
+	Armor:
+		Type: Light
+	RevealsShroud:
+		Range: 4c0
+		MaxHeightDelta: 3
+	RenderSprites:
+		Palette: terraindecoration
+	MapEditorData:
+		Categories: Civilian building
+
+^OldBase:
+	Inherits: ^CivBuilding
+	Inherits@SHAPE: ^2x2Shape
+	Building:
+		Footprint: xx xx
+		Dimensions: 2, 2
+	Armor:
+		Type: Heavy
+	CNHealth:
+		HP: 400
+	RenderSprites:
+		-Palette:
+	-Cloak@EXTERNALCLOAK:
+	-ExternalCondition@CLOAKGENERATOR:
+	-ExternalCondition@CRATE-CLOAK:
+
+^CivBillboard:
+	Inherits: ^CivBuilding
+	Building:
+		Footprint: x
+		Dimensions: 1, 1
+	Armor:
+		Type: Heavy
+	CNHealth:
+		HP: 400
+	MapEditorData:
+		RequireTilesets: TEMPERATE
+	FireProjectilesOnDeath@SMALL:
+		Pieces: 1, 3
+	FireProjectilesOnDeath@LARGE:
+		Pieces: 1, 1
+	MapEditorData:
+		Categories: Billboard
+		
+^Wall:
+	Inherits@1: ^SpriteActor
+	Inherits@2: ^Cloakable
+	Inherits@CRUSHABLETYPE: ^CrushableWall
+	Inherits@ARMORTYPE: ^FeatureArmortypeBuilding
+	CombatDebugOverlay:
+	FrozenUnderFog:
+	AppearsOnRadar:
+	Interactable:
+	OwnerLostAction:
+		Action: ChangeOwner
+	Building:
+		Dimensions: 1,1
+		Footprint: x
+		BuildSounds: place2.aud
+		TerrainTypes: Clear, Rough, Road, DirtRoad, Green, Sand, Pavement
+		UndeploySounds: cashturn.aud
+	FootprintPlaceBuildingPreview:
+		Palette: ra
+		FootprintAlpha: 0.7
+		LineBuildFootprintAlpha: 0.5
+	RequiresBuildableArea:
+		AreaTypes: building
+		Adjacent: 7
+	SoundOnDamageTransition:
+		DamagedSounds: expnew01.aud
+		DestroyedSounds: crmble2.aud
+	LineBuild:
+		Range: 8
+		NodeTypes: wall
+	LineBuildNode:
+		Types: wall
+	Targetable:
+		TargetTypes: Ground, Wall, C4
+	WithWallSpriteBody:
+		Type: wall
+	Demolishable:
+		Condition: being-demolished
+	Sellable:
+		RequiresCondition: !being-demolished
+		SellSounds: cashturn.aud
+	ScriptTriggers:
+	CNHealth:
+	HitShape:
+		Type: Rectangle
+			LocalYaw: 128
+			TopLeft: -512, -512
+			BottomRight: 512, 512
+			VerticalTopOffset: 768
+	AppearsOnMapPreview:
+	MapEditorData:
+		Categories: Wall
+	Valued:
+		Cost: 50
+	CustomSellValue:
+		Value: 0
+	BlocksProjectiles:
+		Height: 768
+
+^BuildingPlug:
+	Interactable:
+	Building:
+		BuildSounds: place2.aud
+		UndeploySounds: cashturn.aud
+	SequencePlaceBuildingPreview:
+		Sequence: place
+		Palette: ra
+		FootprintAlpha: 0.7
+		SequenceAlpha: 0.55
+	KillsSelf:
+		RemoveInstead: true
+	RenderSprites:
+
+^Gate:
+	Inherits: ^Building
+	Inherits@EMPDISABLE: ^EmpDisable
+	Huntable:
+	Valued:
+		Cost: 250
+	CNHealth:
+		HP: 350
+	Armor:
+		Type: Heavy
+	LineBuildNode:
+		Types: wall, gate
+	-Capturable:
+	-GivesBuildableArea:
+	-MustBeDestroyed:
+	-WithMakeAnimation:
+	-WithSpriteBody:
+	WithGateSpriteBody:
+		OpenSequence: open
+	Tooltip:
+	Buildable:
+		Description: meta-gate-description
+	HitShape:
+		Type: Rectangle
+			LocalYaw: -128
+			TopLeft: -512, -512
+			BottomRight: 512, 512
+			VerticalTopOffset: 768
+	MapEditorData:
+		Categories: Wall
+	Gate:
+		PauseOnCondition: empdisable
+		OpeningSound: gateup1.aud
+		ClosingSound: gatedwn1.aud
+		BlocksProjectilesHeight: 768
+	Sellable:
+		RequiresCondition: !being-demolished
+
+^Gate_A:
+	Inherits: ^Gate
+	Inherits@shape: ^3x1Shape
+	CNHealth:
+	Building:
+		Dimensions: 3,1
+		Footprint: xxx
+	WithGateSpriteBody:
+		WallConnections: -1,0, 3,0
+	LineBuildNode:
+		Connections: -1,0, 1,0
+
+^Gate_B:
+	Inherits: ^Gate
+	Inherits@shape: ^1x3Shape
+	CNHealth:
+	Building:
+		Dimensions: 1,3
+		Footprint: x x x
+	WithGateSpriteBody:
+		WallConnections: 0,-1, 0,3
+	LineBuildNode:
+		Connections: 0,-1, 0,1

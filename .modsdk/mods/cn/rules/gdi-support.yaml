@@ -1,19 +1,18 @@
 GAWALL:
 	Inherits: ^Wall
+	Inherits@CRUSHABLETYPE: ^CrushableHeavyWall
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 10
-		Prerequisites: ~structures.gdi, ~techlevel.low
+		Prerequisites: gapile, ~structures.gdi, ~techlevel.low
 		Description: actor-gawall.description
 	-SoundOnDamageTransition:
 	Tooltip:
 		Name: actor-gawall.name
-	Health:
-		HP: 22500
+	CNHealth:
+		HP: 225
 	Armor:
-		Type: Concrete
-	Crushable:
-		CrushClasses: heavywall
+		Type: Heavy
 	LineBuild:
 		NodeTypes: wall, turret
 	Replaceable:
@@ -41,7 +40,7 @@ GAGATE_B:
 	Replacement:
 		ReplaceableTypes: GDIGate
 
-GACTWR:
+GAMG:
 	Inherits: ^Support
 	Inherits@IDISABLE: ^DisableOnPowerDown
 	Inherits@AUTOTARGET: ^AutoTargetAll
@@ -56,56 +55,46 @@ GACTWR:
 	Valued:
 		Cost: 200
 	Tooltip:
-		Name: actor-gactwr.name
+		Name: actor-gamg.name
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 70
 		Prerequisites: gapile, ~structures.gdi, ~techlevel.low
-		Description: actor-gactwr.description
-	Health:
-		HP: 50000
+		Description: actor-gamg.description
+	CNHealth:
+		HP: 500
 	Armor:
-		Type: Light
+		Type: Medium
 	BlocksProjectiles:
 		Height: 768
 	BodyOrientation:
 		QuantizedFacings: 32
 	DetectCloaked:
-		RequiresCondition: !empdisable && !disabled && (tower.vulcan || tower.rocket || tower.sam)
+		RequiresCondition: !empdisable && !disabled
 	Turreted:
 		TurnSpeed: 40
 		InitialFacing: 896
 		RealignDelay: -1
 	AttackTurreted:
-		RequiresCondition: !build-incomplete && (tower.vulcan || tower.rocket || tower.sam)
+		RequiresCondition: !build-incomplete
 		PauseOnCondition: empdisable || disabled
-	WithSpriteTurret@VULC:
-		RequiresCondition: !build-incomplete && tower.vulcan
-		Recoils: false
+	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
+		Recoils: true
 		Sequence: turret-vulcan
-	WithSpriteTurret@ROCKET:
-		RequiresCondition: !build-incomplete && tower.rocket
-		Recoils: false
-		Sequence: turret-rocket
-	WithSpriteTurret@SAM:
-		RequiresCondition: !build-incomplete && tower.sam
-		Recoils: false
-		Sequence: turret-sam
-	Armament@VULCAN:
-		RequiresCondition: tower.vulcan
-		Weapon: VulcanTower
-		LocalOffset: 588,120,1358, 588,-120,1358
-		MuzzleSequence: muzzle
-	Armament@ROCKET:
-		RequiresCondition: tower.rocket
-		Weapon: RPGTower
-		LocalOffset: 272,-92,1493
-	Armament@SAM:
-		RequiresCondition: tower.sam
-		Weapon: RedEye2
-		LocalOffset: 543,0,1697
 	WithMuzzleOverlay:
-		RequiresCondition: !build-incomplete && tower.vulcan
+	IsometricSelectable:
+		Height: 48
+	Armament:
+		Weapon: VulcanTower
+		LocalOffset: 910,-96,1570, 910,88,1570
+		MuzzleSequence: muzzle_mg
+		MuzzlePalette: effect
+		Recoil: 64
+		RecoilRecovery: 32
+	Power:
+		RequiresCondition: !disabled
+		Amount: -30
 	WithIdleOverlay@LIGHTS:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights
@@ -115,91 +104,353 @@ GACTWR:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights-bright
 		Palette: bright
-	WithMakeOverlay@MAKE-BRIGHT:
-		Sequence: make-bright
+	LineBuildNode:
+		Types: turret
+	ProvidesPrerequisite@buildingname:
+	BotCapabilities:
+		Capabilities: Defense, InfantryDefense
+
+GACAN:
+	Inherits: ^Support
+	Inherits@IDISABLE: ^DisableOnPowerDown
+	Inherits@AUTOTARGET: ^AutoTargetAll
+	WithMakeAnimation:
+		BodyNames: make
+	WithSpriteBody:
+		Name: make
+		Sequence: invisible
+	WithWallSpriteBody:
+		RequiresCondition: !build-incomplete
+		Type: wall
+	Valued:
+		Cost: 200
+	Tooltip:
+		Name: actor-gacan.name
+	Buildable:
+		Queue: Support
+		BuildPaletteOrder: 70
+		Prerequisites: gaweap, ~structures.gdi, ~techlevel.medium
+		Description: actor-gacan.description
+	CNHealth:
+		HP: 500
+	Armor:
+		Type: Medium
+	BlocksProjectiles:
+		Height: 768
+	BodyOrientation:
+		QuantizedFacings: 32
+	DetectCloaked:
+		RequiresCondition: !empdisable && !disabled
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 896
+		RealignDelay: -1
+	AttackTurreted:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: empdisable || disabled
+	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
+		Recoils: true
+		Sequence: turret-cannon
+	WithMuzzleOverlay:
+	IsometricSelectable:
+		Height: 48
+	Armament:
+		Weapon: 120mm
+		LocalOffset: 1200,250,1580
+		MuzzleSequence: muzzle_cannon
+		MuzzlePalette: effect
+		Recoil: 128
+		RecoilRecovery: 32
+	Power:
+		RequiresCondition: !disabled
+		Amount: -30
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights-bright
 		Palette: bright
 	LineBuildNode:
 		Types: turret
-	Power@base:
-		RequiresCondition: !disabled
-		Amount: -10
-	Power@turrets:
-		RequiresCondition: !disabled && (tower.vulcan || tower.rocket || tower.sam)
-		Amount: -20
-	Power@samextra:
-		RequiresCondition: !disabled && tower.sam
-		Amount: -10
-	Pluggable:
-		Conditions:
-			tower.vulcan: tower.vulcan
-			tower.rocket: tower.rocket
-			tower.sam: tower.sam
-		Requirements:
-			tower.vulcan: !build-incomplete && !tower.vulcan && !tower.rocket && !tower.sam
-			tower.rocket: !build-incomplete && !tower.rocket && !tower.vulcan && !tower.sam
-			tower.sam: !build-incomplete && !tower.vulcan && !tower.rocket && !tower.sam
-		EditorOptions:
-			tower.vulcan: Vulcan Tower
-			tower.rocket: RPG Upgrade
-			tower.sam: SAM Upgrade
 	ProvidesPrerequisite@buildingname:
-	ProvidesPrerequisite@pluggable:
-		RequiresCondition: !build-incomplete && !tower.vulcan && !tower.rocket && !tower.sam
-		Prerequisite: gactwr.socket
-	Replacement:
-		ReplaceableTypes: GDITower
+	BotCapabilities:
+		Capabilities: Defense, ArmorDefense
+
+GASAM:
+	Inherits: ^Support
+	Inherits@IDISABLE: ^DisableOnPowerDown
+	Inherits@AUTOTARGET: ^AutoTargetAll
+	WithMakeAnimation:
+		BodyNames: make
+	WithSpriteBody:
+		Name: make
+		Sequence: invisible
+	WithWallSpriteBody:
+		RequiresCondition: !build-incomplete
+		Type: wall
+	Valued:
+		Cost: 200
+	Tooltip:
+		Name: actor-gasam.name
+	Buildable:
+		Queue: Support
+		BuildPaletteOrder: 70
+		Prerequisites: garadr, ~structures.gdi, ~techlevel.medium
+		Description: actor-gasam.description
+	CNHealth:
+		HP: 500
+	Armor:
+		Type: Medium
+	BlocksProjectiles:
+		Height: 768
+	BodyOrientation:
+		QuantizedFacings: 32
+	DetectCloaked:
+		RequiresCondition: !empdisable && !disabled
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 896
+		RealignDelay: -1
+	AttackTurreted:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: empdisable || disabled
+	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
+		Recoils: true
+		Sequence: turret-sam
+	WithMuzzleOverlay:
 	IsometricSelectable:
 		Height: 48
-
-GACTWR.SOCKET:
-	Interactable:
-	Tooltip:
-		Name: actor-gactwr-socket-name
-
-GAVULC:
-	Inherits: ^BuildingPlug
-	Valued:
-		Cost: 150
-	Tooltip:
-		Name: actor-gavulc.name
-	Buildable:
-		Queue: Support
-		BuildPaletteOrder: 80
-		Prerequisites: gactwr.socket, gapile, ~structures.gdi, ~techlevel.low
-		Description: actor-gavulc.description
-	Plug:
-		Type: tower.vulcan
+	Armament:
+		Weapon: RedEye2
+		LocalOffset: 400,340,2000, 400,-340,2000
+		MuzzleSequence: muzzle_missile
+		MuzzlePalette: effect
+		Recoil: 64
+		RecoilRecovery: 32
 	Power:
-		Amount: -20
-
-GAROCK:
-	Inherits: ^BuildingPlug
-	Valued:
-		Cost: 600
-	Tooltip:
-		Name: actor-garock.name
-	Buildable:
-		Queue: Support
-		BuildPaletteOrder: 90
-		Prerequisites: gactwr.socket, gapile, ~structures.gdi, ~techlevel.high
-		Description: actor-garock.description
-	Plug:
-		Type: tower.rocket
-	Power:
-		Amount: -20
-
-GACSAM:
-	Inherits: ^BuildingPlug
-	Valued:
-		Cost: 300
-	Tooltip:
-		Name: actor-gacsam.name
-	Buildable:
-		Queue: Support
-		BuildPaletteOrder: 100
-		Prerequisites: gactwr.socket, garadr, ~structures.gdi, ~techlevel.medium
-		Description: actor-gacsam.description
-	Plug:
-		Type: tower.sam
-	Power:
+		RequiresCondition: !disabled
 		Amount: -30
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights-bright
+		Palette: bright
+	LineBuildNode:
+		Types: turret
+	ProvidesPrerequisite@buildingname:
+	BotCapabilities:
+		Capabilities: Defense, AADefense
+
+GAGAT:
+	Inherits: ^Support
+	Inherits@IDISABLE: ^DisableOnPowerDown
+	Inherits@AUTOTARGET: ^AutoTargetAll
+	WithMakeAnimation:
+		BodyNames: make
+	WithSpriteBody:
+		Name: make
+		Sequence: invisible
+	WithWallSpriteBody:
+		RequiresCondition: !build-incomplete
+		Type: wall
+	Valued:
+		Cost: 200
+	Tooltip:
+		Name: actor-gagat.name
+	Buildable:
+		Queue: Support
+		BuildPaletteOrder: 70
+		Prerequisites: gapile, gaarmory, ~structures.gdi, ~techlevel.medium
+		Description: actor-gagat.description
+	CNHealth:
+		HP: 500
+	Armor:
+		Type: Medium
+	BlocksProjectiles:
+		Height: 768
+	BodyOrientation:
+		QuantizedFacings: 32
+	DetectCloaked:
+		RequiresCondition: !empdisable && !disabled
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 896
+		RealignDelay: -1
+	AttackTurreted:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: empdisable || disabled
+	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
+		Recoils: true
+		Sequence: turret-gagat
+	WithMuzzleOverlay:
+	IsometricSelectable:
+		Height: 48
+	Armament:
+		Weapon: VulcanTower2
+		LocalOffset: 910,-96,1570, 910,88,1570, 537,537,1527, 537,-537,1527, 537,537,1312, 537,-537,1312
+		MuzzleSequence: muzzle_mg
+		MuzzlePalette: effect
+		Recoil: 64
+		RecoilRecovery: 32
+	Power:
+		RequiresCondition: !disabled
+		Amount: -30
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights-bright
+		Palette: bright
+	LineBuildNode:
+		Types: turret
+	ProvidesPrerequisite@buildingname:
+	BotCapabilities:
+		Capabilities: Defense, InfantryDefense
+
+GASEN:
+	Inherits: ^Support
+	Inherits@IDISABLE: ^DisableOnPowerDown
+	Inherits@AUTOTARGET: ^AutoTargetAll
+	WithMakeAnimation:
+		BodyNames: make
+	WithSpriteBody:
+		Name: make
+		Sequence: invisible
+	WithWallSpriteBody:
+		RequiresCondition: !build-incomplete
+		Type: wall
+	Valued:
+		Cost: 200
+	Tooltip:
+		Name: actor-gasen.name
+	Buildable:
+		Queue: Support
+		BuildPaletteOrder: 70
+		Prerequisites: gapile, garadr, ~structures.gdi, ~techlevel.medium
+		Description: actor-gasen.description
+	CNHealth:
+		HP: 500
+	Armor:
+		Type: Medium
+	BlocksProjectiles:
+		Height: 768
+	BodyOrientation:
+		QuantizedFacings: 32
+	DetectCloaked:
+		RequiresCondition: !empdisable && !disabled
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 896
+		RealignDelay: -1
+	AttackTurreted:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: empdisable || disabled
+	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
+		Recoils: false
+		Sequence: turret-sensor
+	IsometricSelectable:
+		Height: 48
+	Armament:
+		Weapon: VulcanTower
+		LocalOffset: 849,0,1448
+	Power:
+		RequiresCondition: !disabled
+		Amount: -30
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights-bright
+		Palette: bright
+	LineBuildNode:
+		Types: turret
+	ProvidesPrerequisite@buildingname:
+	BotCapabilities:
+		Capabilities: Defense, InfantryDefense
+
+GAMORTAR:
+	Inherits: ^Support
+	Inherits@IDISABLE: ^DisableOnPowerDown
+	Inherits@AUTOTARGET: ^AutoTargetAll
+	WithMakeAnimation:
+		BodyNames: make
+	WithSpriteBody:
+		Name: make
+		Sequence: invisible
+	WithWallSpriteBody:
+		RequiresCondition: !build-incomplete
+		Type: wall
+	Valued:
+		Cost: 200
+	Tooltip:
+		Name: actor-gamortar.name
+	Buildable:
+		Queue: Support
+		BuildPaletteOrder: 70
+		Prerequisites: gaweap, garadr, gaarmory, ~structures.gdi, ~techlevel.medium
+		Description: actor-gamortar.description
+	CNHealth:
+		HP: 500
+	Armor:
+		Type: Medium
+	BlocksProjectiles:
+		Height: 768
+	BodyOrientation:
+		QuantizedFacings: 32
+	DetectCloaked:
+		RequiresCondition: !empdisable && !disabled
+	Turreted:
+		TurnSpeed: 40
+		InitialFacing: 896
+		RealignDelay: -1
+	AttackTurreted:
+		RequiresCondition: !build-incomplete
+		PauseOnCondition: empdisable || disabled
+	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
+		Recoils: true
+		Sequence: turret-mortar
+	WithMuzzleOverlay:
+	IsometricSelectable:
+		Height: 48
+	Armament:
+		Weapon: 155mm
+		MuzzleSequence: muzzle_mortar
+		MuzzlePalette: effect
+		LocalOffset: 1060,0,2830
+		Recoil: 128
+		RecoilRecovery: 32
+	Power:
+		RequiresCondition: !disabled
+		Amount: -30
+	WithIdleOverlay@LIGHTS:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@LIGHTS-BRIGHT:
+		RequiresCondition: !build-incomplete && !disabled
+		Sequence: idle-lights-bright
+		Palette: bright
+	LineBuildNode:
+		Types: turret
+	ProvidesPrerequisite@buildingname:
+	BotCapabilities:
+		Capabilities: Defense, ArmorDefense, ArtilleryDefense

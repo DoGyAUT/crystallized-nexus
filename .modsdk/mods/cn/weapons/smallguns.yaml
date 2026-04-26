@@ -1,45 +1,32 @@
-^MG:
-	ReloadDelay: 20
-	Range: 4c0
+GMinigun:
+	Inherits: ^MG
+	ReloadDelay: 26
 	Projectile: InstantHit
+		Inaccuracy: 1c0
+	Report: rifle_g1.aud, rifle_g2.aud #carbine_g1.aud, carbine_g2.aud #infgun3.aud, gostgun1.aud, slvkgun1.aud
 	Warhead@1Dam: SpreadDamage
-		Spread: 108
-		Falloff: 100, 50, 25, 12, 6, 3, 0
-		Damage: 1500
-		Versus:
-			None: 100
-			Wood: 60
-			Light: 40
-			Heavy: 25
-			Concrete: 10
-		DamageTypes: Prone70Percent, TriggerProne, BulletDeath
-	Warhead@2Eff: CreateEffect
-		Explosions: piffs
-		ValidTargets: Ground, Air
-	Warhead@3EffWater: CreateEffect
-		Explosions: water_piffs
-		ExplosionPalette: ra
-		ValidTargets: Water
-		InvalidTargets: Vehicle
+		Damage: 80
 
-Minigun:
+NMinigun:
 	Inherits: ^MG
 	ReloadDelay: 21
-	Report: infgun3.aud, gostgun1.aud, slvkgun1.aud
+	Projectile: InstantHit
+		Inaccuracy: 1c512
+	Report: rifle_n1.aud, rifle_n2.aud #carbine_n1.aud, carbine_n2.aud, carbine_n3.aud #infgun3.aud, gostgun1.aud, slvkgun1.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 800
-		Versus:
-			Wood: 50
+		Damage: 60
 
 M1Carbine:
 	Inherits: ^MG
 	Report: infgun3.aud
+	Warhead@1Dam: SpreadDamage
+		Damage: 120
 
 Vulcan:
 	Inherits: ^MG
 	Report: chaingn1.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 2000
+		Damage: 100
 
 Vulcan2:
 	Inherits: ^MG
@@ -48,7 +35,7 @@ Vulcan2:
 	Range: 6c0
 	Report: tsgun4.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 5000
+		Damage: 200
 
 Vulcan3:
 	Inherits: ^MG
@@ -56,17 +43,62 @@ Vulcan3:
 	Burst: 3
 	Report: cygun1.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 1000
+		Damage: 130
+
+EliteCadreGun:
+	Inherits: ^MG
+	Range: 5c0
+	ReloadDelay: 50
+	Projectile: InstantHit
+		Inaccuracy: 0c256
+	Range: 5c0
+	Report: confcarbine01.aud, confcarbine02.aud, confcarbine03.aud
+	Burst: 4
+	BurstDelays: 4
+	Warhead@1Dam: SpreadDamage
+		Damage: 50
+	Warhead@2Eff: CreateEffect
+		Explosions: gatpiff_single
 
 VulcanTower:
 	Inherits: ^MG
-	ReloadDelay: 26
-	Range: 6c0
-	Burst: 2
-	BurstDelays: 0
+	ReloadDelay: 40
+	Range: 7c0
+	Burst: 4
+	BurstDelays: 5
 	Report: chaingn1.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 1800
+		Damage: 150
+	Warhead@2Eff: CreateEffect
+		Explosions: gatpiff_small
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
+
+VulcanTower2:
+	Inherits: ^MG
+	ReloadDelay: 40
+	Range: 7c0
+	Burst: 6
+	BurstDelays: 5
+	Report: chaingn1.aud
+	Warhead@1Dam: SpreadDamage
+		Damage: 150
+	Warhead@2Eff: CreateEffect
+		Explosions: gatpiff_small
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
 
 JumpCannon:
 	Inherits: ^MG
@@ -75,23 +107,96 @@ JumpCannon:
 	Range: 5c0
 	Report: jumpjet1.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 1500
+		Damage: 100
 
 AssaultCannon:
 	Inherits: ^MG
 	ReloadDelay: 50
-	Range: 5c0
-	Report: tsgun4.aud
+	Projectile: InstantHit
+		Inaccuracy: 0c512
+	Range: 6c0
+	Report: mgfire.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 4000
+		Damage: 200
+		Spread: 0c256
+	Warhead@2Eff: CreateEffect
+		Explosions: gatpiff_large
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
+
+HeavyAssaultCannon:
+	Inherits: ^MG
+	ReloadDelay: 100
+	Burst: 10
+	BurstDelays: 5
+	Projectile: InstantHit
+		Inaccuracy: 0c512
+	Range: 8c0
+	Report: hmg.aud
+	Warhead@1Dam: SpreadDamage
+		Damage: 100
+		Spread: 0c256
+	Warhead@2Eff: CreateEffect
+		Explosions: gatpiff_single
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
 
 RaiderCannon:
 	Inherits: ^MG
 	ReloadDelay: 55
-	Range: 4c0
+	Projectile: InstantHit
+		Inaccuracy: 0c128
+	Range: 6c0
+	Burst: 3
 	Report: chaingn1.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 4000
+		Damage: 150
+		Spread: 0c128
+	Warhead@2Eff: CreateEffect
+		Explosions: gatpiff_small
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
+
+GattlingCannon:
+	Inherits: ^MG
+	ReloadDelay: 250
+	Range: 8c0
+	Burst: 100
+	BurstDelays: 2
+	AfterFireSound: gattling_start.aud
+	Report: gattling01.aud, gattling02.aud, gattling03.aud
+	Projectile: InstantHit
+		Inaccuracy: 2c0
+	Warhead@1Dam: SpreadDamage
+		Damage: 100
+	Warhead@2Eff: CreateEffect
+		Explosions: gatpiff_single
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
 
 HarpyClaw:
 	Inherits: ^MG
@@ -99,7 +204,17 @@ HarpyClaw:
 	Range: 5c0
 	Report: cygun1.aud
 	Warhead@1Dam: SpreadDamage
-		Damage: 6000
+		Damage: 300
+	Warhead@2Eff: CreateEffect
+		Explosions: gatpiff_small
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
 
 Pistola:
 	Inherits: ^MG
@@ -112,21 +227,46 @@ Pistola:
 	Warhead@3EffWater: CreateEffect
 		Explosions: water_piff
 
-Sniper:
-	Inherits: ^MG
-	ReloadDelay: 60
-	Range: 6c768
-	Report: silencer.aud
+Marksmanrifle:
+	Inherits: ^Sniper
+	ReloadDelay: 100
+	Range: 7c0
+	Burst: 3
+	BurstDelays: 7
+	Report: carbine_n1.aud, carbine_n2.aud, carbine_n3.aud
+	Projectile: InstantHit
+		Inaccuracy: 0c512
 	Warhead@1Dam: SpreadDamage
 		Spread: 36
-		Damage: 15000
-		Versus:
-			Wood: 5
-			Light: 5
-			Heavy: 5
-			Concrete: 5
-		DamageTypes: Prone100Percent, TriggerProne, BulletDeath
+		Damage: 50
 	Warhead@2Eff: CreateEffect
 		Explosions: piff
+		InvalidTargets: Vehicle, Cyborg
 	Warhead@3EffWater: CreateEffect
 		Explosions: water_piff
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
+
+Sniper:
+	Inherits: ^Sniper
+	ReloadDelay: 90
+	Range: 10c0
+	Report: sniper1.aud, sniper2.aud, sniper3.aud
+	Warhead@1Dam: SpreadDamage
+		Spread: 36
+		Damage: 200
+	Warhead@2Eff: CreateEffect
+		Explosions: piff
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3EffWater: CreateEffect
+		Explosions: water_piff
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure

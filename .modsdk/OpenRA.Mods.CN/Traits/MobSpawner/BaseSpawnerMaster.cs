@@ -80,7 +80,8 @@ namespace OpenRA.Mods.CN.Traits
 
 		int exitRoundRobin = -1;
 
-		public BaseSpawnerMaster(ActorInitializer init, BaseSpawnerMasterInfo info) : base(info)
+		public BaseSpawnerMaster(ActorInitializer init, BaseSpawnerMasterInfo info)
+			: base(info)
 		{
 			self = init.Self;
 			SlaveEntries = CreateSlaveEntries(info);
@@ -92,7 +93,7 @@ namespace OpenRA.Mods.CN.Traits
 		public virtual BaseSpawnerSlaveEntry[] CreateSlaveEntries(BaseSpawnerMasterInfo info)
 		{
 			var entries = new BaseSpawnerSlaveEntry[info.Actors.Length];
-			for (int i = 0; i < entries.Length; i++)
+			for (var i = 0; i < entries.Length; i++)
 				entries[i] = new BaseSpawnerSlaveEntry();
 			return entries;
 		}
@@ -105,9 +106,9 @@ namespace OpenRA.Mods.CN.Traits
 			exits = self.Info.TraitInfos<ExitInfo>().ToArray();
 			rallyPoint = self.TraitOrDefault<RallyPoint>();
 
-			int burst = Info.InitialActorCount == -1 ? Info.Actors.Length : Info.InitialActorCount;
+			var burst = Info.InitialActorCount == -1 ? Info.Actors.Length : Info.InitialActorCount;
 			if (!IsTraitDisabled)
-				for (int i = 0; i < burst; i++)
+				for (var i = 0; i < burst; i++)
 					Replenish(self, SlaveEntries);
 		}
 
@@ -182,8 +183,8 @@ namespace OpenRA.Mods.CN.Traits
 
 		public void SpawnIntoWorld(Actor self, Actor slave, WPos centerPosition)
 		{
-			var exit = ChooseExit(self);
-			SetSpawnedFacing(slave, self, exit);
+			var exit = ChooseExit();
+			SetSpawnedFacing(slave, exit);
 
 			self.World.AddFrameEndTask(w =>
 			{
@@ -212,7 +213,7 @@ namespace OpenRA.Mods.CN.Traits
 			});
 		}
 
-		ExitInfo ChooseExit(Actor self)
+		ExitInfo ChooseExit()
 		{
 			if (exits.Length == 0)
 				return null;
@@ -221,7 +222,7 @@ namespace OpenRA.Mods.CN.Traits
 			return exits[exitRoundRobin];
 		}
 
-		void SetSpawnedFacing(Actor spawned, Actor spawner, ExitInfo exit)
+		void SetSpawnedFacing(Actor spawned, ExitInfo exit)
 		{
 			var facingOffset = facing?.Facing ?? WAngle.Zero;
 			var exitFacing = exit?.Facing ?? WAngle.Zero;

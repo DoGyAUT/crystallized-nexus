@@ -26,32 +26,50 @@ waypoint:
 	MapEditorData:
 		Categories: System
 
-harv.colorpicker:
+gharv.colorpicker:
 	Inherits: GHARV
 	-Buildable:
 	-MapEditorData:
 	RenderVoxels:
-		Image: harv
+		Image: gharv
 		Palette: colorpicker
-		Scale: 18
+		PlayerPalette: cdvoxels
+		NormalsPalette: RA2normals
+		LightAmbientColor: -0.1,-0.1,-0.1
+		LightDiffuseColor: 0.8,0.8,0.8
+		LightPitch: 128
+		LightYaw: 768
+		Scale: 10
 
-hvr.colorpicker:
-	Inherits: HVR
+gtmtnk.colorpicker:
+	Inherits: GTMTNK
 	-Buildable:
 	-MapEditorData:
 	RenderVoxels:
-		Image: hvr
+		Image: gtmtnk
 		Palette: colorpicker
-		Scale: 18
+		PlayerPalette: cdvoxels
+		NormalsPalette: RA2normals
+		LightAmbientColor: -0.1,-0.1,-0.1
+		LightDiffuseColor: 0.8,0.8,0.8
+		LightPitch: 128
+		LightYaw: 768
+		Scale: 10
 
-stnk.colorpicker:
-	Inherits: STNK
+subtank.colorpicker:
+	Inherits: SUBTANK
 	-Buildable:
 	-MapEditorData:
 	RenderVoxels:
-		Image: stnk
+		Image: subtank
 		Palette: colorpicker
-		Scale: 18
+		PlayerPalette: cdvoxels
+		NormalsPalette: RA2normals
+		LightAmbientColor: -0.1,-0.1,-0.1
+		LightDiffuseColor: 0.8,0.8,0.8
+		LightPitch: 128
+		LightYaw: 768
+		Scale: 10
 
 CAMERA:
 	Interactable:
@@ -70,6 +88,53 @@ CAMERA:
 		Range: 10c0
 	MapEditorData:
 		Categories: System
+
+TIBCLOUD1:
+	BodyOrientation:
+		QuantizedFacings: 1
+		UseClassicPerspectiveFudge: False
+	RenderSprites:
+		Image: tibcloud
+		Palette: effect75
+	WithSpriteBody:
+		Sequence: cloud1
+	Mobile:
+		Locomotor: tibcloud
+		Speed: 20
+		TurnSpeed: 16
+		TurnsWhileMoving: true
+	Wanders:
+		WanderMoveRadius: 8
+		MinMoveDelay: 10
+		MaxMoveDelay: 75
+	FireWarheads:
+		Weapons: TibCloudDamage
+		StartCooldown: 10
+		Interval: 25
+	HitShape:
+	CNHealth:
+		HP: 1
+	Armor:
+		Type: None
+	KillsSelf:
+		Delay: 500, 850
+	WithDeathAnimation:
+		FallbackSequence: cloud1-die
+		DeathSequencePalette: effect75
+		DeathPaletteIsPlayerPalette: false
+		UseDeathTypeSuffix: false
+	HiddenUnderFog:
+		Type: CenterPosition
+
+TIBCLOUD2:
+	Inherits: TIBCLOUD1
+	WithSpriteBody:
+		Sequence: cloud2
+	WithDeathAnimation:
+		FallbackSequence: cloud2-die
+		DeathSequencePalette: effect75
+		DeathPaletteIsPlayerPalette: false
+		UseDeathTypeSuffix: false
 
 CRATE:
 	Inherits: ^Crate

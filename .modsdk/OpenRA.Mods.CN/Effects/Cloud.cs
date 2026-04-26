@@ -1,6 +1,7 @@
 #region Copyright & License Information
 /*
- * Copyright 2019-2024 The OpenHV Developers (see CREDITS)
+ * Copyright 2019-2025 The OpenHV Developers (see CREDITS)
+ * Adapted for Crystallized Nexus.
  * This file is part of OpenHV, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,6 +12,7 @@
 
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using OpenRA.Effects;
 using OpenRA.Graphics;
 using OpenRA.Mods.CN.Traits;
@@ -26,7 +28,6 @@ namespace OpenRA.Mods.CN.Effects
 		readonly int facing;
 		readonly ImmutableArray<WDist> speed;
 		readonly WDist closeEnough;
-
 		WPos position;
 
 		public Cloud(World world, Animation animation, WPos position, WPos edge, int facing, CloudSpawnerInfo info)
@@ -49,7 +50,10 @@ namespace OpenRA.Mods.CN.Effects
 			if (world.ShroudObscures(position))
 				return SpriteRenderable.None;
 
-			return animation.Render(position, r.Palette(palette));
+			var renderables = animation.Render(position, r.Palette(palette));
+
+			// AsDecoration skips depth buffer testing so clouds always render above terrain
+			return renderables.Select(rb => rb.AsDecoration());
 		}
 
 		void IEffect.Tick(World world)

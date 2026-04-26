@@ -62,6 +62,10 @@ namespace OpenRA.Mods.CN.Traits
 			"the master untargetable while slaves are alive.")]
 		public readonly string ProtectedBySlavesCondition = null;
 
+		[Desc("If true, XP earned by any slave is redirected to the master. " +
+			"Newly spawned slaves inherit the master's current experience so the whole squad levels together.")]
+		public readonly bool ShareSlaveExperience = false;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -73,15 +77,27 @@ namespace OpenRA.Mods.CN.Traits
 		public override object Create(ActorInitializer init) { return new MobSpawnerMaster(init, this); }
 	}
 
-	public class MobSpawnerMaster : BaseSpawnerMaster, INotifyCreated, INotifyOwnerChanged, ITick, IResolveOrder, INotifyAttack, INotifyDamage, INotifyEnteredCargo, INotifyExitedCargo
+	public class MobSpawnerMaster :
+		BaseSpawnerMaster,
+		INotifyCreated,
+		INotifyOwnerChanged,
+		ITick,
+		IResolveOrder,
+		INotifyAttack,
+		IDamageModifier,
+		INotifyDamage,
+		INotifyEnteredCargo,
+		INotifyExitedCargo
 	{
 		class MobSpawnerSlaveEntry : BaseSpawnerSlaveEntry
 		{
 			public new MobSpawnerSlave SpawnerSlave;
-			public Health Health;
+			public IHealth Health;
+			public GainsExperience GainsExperience;
+			public int LastTrackedExperience;
 		}
 
-		public new MobSpawnerMasterInfo Info { get; private set; }
+		public new MobSpawnerMasterInfo Info { get; }
 
 		MobSpawnerSlaveEntry[] slaveEntries;
 
@@ -91,10 +107,17 @@ namespace OpenRA.Mods.CN.Traits
 		bool isDamagePropagating = false;
 		int protectedBySlavesToken = Actor.InvalidConditionToken;
 
-		IPositionable position;
-		Health health;
+		// Stores the pre-modifier damage value set by IDamageModifier.GetDamageModifier so that
+		// INotifyDamage.Damaged can redirect the original amount even though e.Damage.Value == 0
+		// when IDamageModifier returns 0%.
+		int pendingRedirectDamage = 0;
 
-		public MobSpawnerMaster(ActorInitializer init, MobSpawnerMasterInfo info) : base(init, info)
+		IPositionable position;
+		IHealth health;
+		GainsExperience masterXP;
+
+		public MobSpawnerMaster(ActorInitializer init, MobSpawnerMasterInfo info)
+			: base(init, info)
 		{
 			Info = info;
 		}
@@ -102,7 +125,14 @@ namespace OpenRA.Mods.CN.Traits
 		protected override void Created(Actor self)
 		{
 			position = self.TraitOrDefault<IPositionable>();
-			health = self.Trait<Health>();
+			health = self.Trait<IHealth>();
+
+			// Cache before base.Created, which calls Replenish → InitializeSlaveEntry.
+			if (Info.ShareSlaveExperience)
+				masterXP = self.TraitOrDefault<GainsExperience>();
+
+			// Stagger HP refresh across squads so they don't all call InflictDamage on the same tick.
+			aggregateHealthUpdateTicks = self.World.SharedRandom.Next(0, Info.AggregateHealthUpdateDelay);
 
 			base.Created(self); // Spawns initial slaves (not yet in world)
 
@@ -131,7 +161,7 @@ namespace OpenRA.Mods.CN.Traits
 		public override BaseSpawnerSlaveEntry[] CreateSlaveEntries(BaseSpawnerMasterInfo info)
 		{
 			slaveEntries = new MobSpawnerSlaveEntry[info.Actors.Length];
-			for (int i = 0; i < slaveEntries.Length; i++)
+			for (var i = 0; i < slaveEntries.Length; i++)
 				slaveEntries[i] = new MobSpawnerSlaveEntry();
 
 			return slaveEntries;
@@ -143,11 +173,20 @@ namespace OpenRA.Mods.CN.Traits
 			base.InitializeSlaveEntry(slave, se);
 
 			se.SpawnerSlave = slave.Trait<MobSpawnerSlave>();
-			se.Health = slave.Trait<Health>();
+			se.Health = slave.Trait<IHealth>();
+
+			if (Info.ShareSlaveExperience)
+			{
+				se.GainsExperience = slave.TraitOrDefault<GainsExperience>();
+
+				// Newly spawned slave inherits the squad's current experience level so it doesn't
+				// start at rank 0 when the rest of the squad has already levelled up.
+				if (se.GainsExperience != null && masterXP != null && masterXP.Experience > 0)
+					se.GainsExperience.GiveExperience(masterXP.Experience, true);
+			}
 		}
 
 		// --- IResolveOrder ---
-
 		public void ResolveOrder(Actor self, Order order)
 		{
 			if (Info.SlavesHaveFreeWill)
@@ -155,6 +194,10 @@ namespace OpenRA.Mods.CN.Traits
 
 			if (order.OrderString == "Stop")
 				StopSlaves();
+
+			if ((order.OrderString == "Attack" || order.OrderString == "ForceAttack") &&
+				order.Target.Type != TargetType.Invalid)
+				AssignTargetsToSlaves(self, order.Target, forceAttack: order.OrderString == "ForceAttack");
 
 			// Block EnterTransport if the transport can't fit the master + all alive slaves.
 			// This prevents a partial load where only the master enters and slaves are left behind.
@@ -175,22 +218,15 @@ namespace OpenRA.Mods.CN.Traits
 				var masterWeight = self.Info.TraitInfoOrDefault<PassengerInfo>()?.Weight ?? 1;
 				var totalRequired = masterWeight + slaveWeight;
 
-				// HasSpace is internal — use CanLoad sequentially as a read-only probe.
-				// We temporarily simulate: does the transport have room for master + all slaves?
-				// Since CanLoad checks (totalWeight + reservedWeight + weight <= MaxWeight),
-				// and nothing is reserved yet, we can check the sum directly via HasSpace proxy.
 				var hasRoom = cargo.HasSpace(totalRequired);
 				if (!hasRoom)
 				{
-					// Cancel the enter order — squad won't fit
 					self.CancelActivity();
-					return;
 				}
 			}
 		}
 
 		// --- INotifyAttack ---
-
 		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel) { }
 
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)
@@ -198,14 +234,32 @@ namespace OpenRA.Mods.CN.Traits
 			if (Info.SlavesHaveFreeWill)
 				return;
 
-			AssignTargetsToSlaves(self, target);
+			// If the master fired, slaves follow with forceAttack so they can hit the same target
+			// regardless of stance or target type (e.g. ground attack, allied/neutral actors).
+			AssignTargetsToSlaves(self, target, forceAttack: true);
 		}
 
-		// --- INotifyDamage ---
-		// When the master takes a hit while slaves are alive, redirect the full
-		// damage to a random slave and immediately undo the damage on the master.
-		// We cannot use IDamageModifier to zero the hit because that also zeros
-		// e.Damage.Value in this callback — leaving us with nothing to redirect.
+		// --- IDamageModifier + INotifyDamage ---
+		// When slaves are alive, block all incoming damage on the master (return 0%) and store the
+		// original pre-modifier amount in pendingRedirectDamage. INotifyDamage then reads that
+		// stored value and redirects it to ONE random slave. This prevents the undo-trick's fatal
+		// flaw: if a hit exceeded the master's HP the engine would set IsDead before the undo could
+		// run, triggering OnMasterKilled → KillSlaves and wiping the whole squad.
+		int IDamageModifier.GetDamageModifier(Actor attacker, Damage damage)
+		{
+			// Pass-through during internal HP adjustments (RefreshMasterHP sets isDamagePropagating)
+			// or when no slaves are alive.
+			if (isDamagePropagating || !Info.AggregateHealth)
+				return 100;
+
+			var anyAlive = slaveEntries.Any(s => s.IsValid && s.Actor.IsInWorld && !s.Health.IsDead);
+			if (!anyAlive)
+				return 100;
+
+			// Store original damage for INotifyDamage and suppress the hit on the master entirely.
+			pendingRedirectDamage = damage.Value;
+			return 0;
+		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
@@ -215,37 +269,37 @@ namespace OpenRA.Mods.CN.Traits
 			if (!Info.AggregateHealth)
 				return;
 
-			// Ignore self-inflicted HP adjustments from RefreshMasterHP
+			// Ignore self-inflicted HP adjustments from RefreshMasterHP.
 			if (e.Attacker == self)
 				return;
 
-			var aliveSlaves = slaveEntries.Where(s => s.IsValid && s.Actor.IsInWorld).ToArray();
-			if (aliveSlaves.Length == 0)
+			// Use the pre-modifier value stored by GetDamageModifier (e.Damage.Value is 0 when
+			// the modifier returned 0%).
+			var damageValue = pendingRedirectDamage;
+			pendingRedirectDamage = 0;
+
+			if (damageValue <= 0)
 				return;
 
-			// Damage value before any modifiers — e.Damage.Value is post-modifier,
-			// but since we don't use IDamageModifier the value is the real hit.
-			var damageValue = e.Damage.Value;
-			if (damageValue <= 0)
+			var aliveSlaves = slaveEntries.Where(s => s.IsValid && s.Actor.IsInWorld && !s.Health.IsDead).ToArray();
+			if (aliveSlaves.Length == 0)
 				return;
 
 			isDamagePropagating = true;
 			try
 			{
-				// Undo the hit on master
-				health.InflictDamage(self, self, new Damage(-damageValue, e.Damage.DamageTypes), true);
-
-				// Redirect to a random alive slave
+				// Pick one random slave to receive the hit.
+				// Overkill is absorbed by the engine — only this one slave can die per hit.
 				var target = aliveSlaves.Random(self.World.SharedRandom);
-				target.Health.InflictDamage(target.Actor, e.Attacker ?? self, e.Damage, false);
+				target.Health.InflictDamage(target.Actor, e.Attacker ?? self, new Damage(damageValue, e.Damage.DamageTypes), false);
 			}
 			finally
 			{
 				isDamagePropagating = false;
 			}
 		}
-		// --- ITick ---
 
+		// --- ITick ---
 		void ITick.Tick(Actor self)
 		{
 			// Respawn timer
@@ -275,10 +329,32 @@ namespace OpenRA.Mods.CN.Traits
 			// Keep slaves moving/attacking with master
 			if (!Info.SlavesHaveFreeWill)
 				AssignSlaveActivity(self);
+
+			// Redirect XP earned by any slave to the master.
+			if (Info.ShareSlaveExperience && masterXP != null)
+				RedirectSlaveExperience();
+		}
+
+		void RedirectSlaveExperience()
+		{
+			foreach (var se in slaveEntries)
+			{
+				if (!se.IsValid || !se.Actor.IsInWorld || se.GainsExperience == null)
+					continue;
+
+				var gained = se.GainsExperience.Experience - se.LastTrackedExperience;
+				if (gained > 0)
+				{
+					// Give the XP to the master and strip it from the slave.
+					masterXP.GiveExperience(gained);
+					se.GainsExperience.GiveExperience(-gained);
+				}
+
+				se.LastTrackedExperience = se.GainsExperience.Experience;
+			}
 		}
 
 		// --- Spawning ---
-
 		void SpawnReplenishedSlaves(Actor self)
 		{
 			WPos centerPosition;
@@ -307,8 +383,6 @@ namespace OpenRA.Mods.CN.Traits
 			// individual exit offsets. They will then follow via AssignSlaveActivity.
 			if (isInitialSpawn)
 			{
-				// Use a nested AddFrameEndTask so this runs after SpawnIntoWorld's own
-				// AddFrameEndTask has already placed the slaves into the world.
 				self.World.AddFrameEndTask(_ =>
 					self.World.AddFrameEndTask(w =>
 					{
@@ -321,15 +395,12 @@ namespace OpenRA.Mods.CN.Traits
 							if (mv == null)
 								continue;
 
-							// Cancel the scatter-to-exit activity, move to master instead
 							se.Actor.CancelActivity();
 							se.Actor.QueueActivity(mv.MoveTo(self.Location, 2));
 						}
 					}));
 			}
 		}
-
-
 
 		public override void OnSlaveKilled(Actor self, Actor slave)
 		{
@@ -354,19 +425,12 @@ namespace OpenRA.Mods.CN.Traits
 		}
 
 		// --- APC Transport ---
-		//
-		// When the master enters a transport, all alive slaves follow immediately.
-		// When the master exits, slaves are unloaded and respawned near the exit point.
-		// AssignSlaveActivity already skips slaves that are !IsInWorld (inside a transport),
-		// so no extra guard is needed during transit.
-
 		void INotifyEnteredCargo.OnEnteredCargo(Actor self, Actor transport)
 		{
 			var cargo = transport.TraitOrDefault<Cargo>();
 			if (cargo == null)
 				return;
 
-			// Space check already passed in ResolveOrder — just load all slaves.
 			self.World.AddFrameEndTask(w =>
 			{
 				foreach (var se in slaveEntries)
@@ -390,8 +454,6 @@ namespace OpenRA.Mods.CN.Traits
 			if (cargo == null)
 				return;
 
-			// Unload slaves from cargo — UnloadCargo activity will call World.Add() for each.
-			// Do NOT call SpawnReplenishedSlaves or World.Add here — that races with UnloadCargo.
 			self.World.AddFrameEndTask(w =>
 			{
 				foreach (var se in slaveEntries)
@@ -409,7 +471,6 @@ namespace OpenRA.Mods.CN.Traits
 		}
 
 		// --- Position aggregation (nexus mode only) ---
-
 		void SetNexusPosition(Actor self)
 		{
 			int x = 0, y = 0, cnt = 0;
@@ -433,14 +494,6 @@ namespace OpenRA.Mods.CN.Traits
 		}
 
 		// --- Health display ---
-		//
-		// Master HP bar = (master.HP + sum of alive slave HP) / totalMaxHP * master.MaxHP
-		// where totalMaxHP = master.MaxHP + sum of all slave MaxHP.
-		//
-		// This reflects the true health pool of the squad — a squad with wounded slaves
-		// shows a lower bar than one with full slaves, even at the same member count.
-		// Master HP itself is protected (immortal while slaves alive) via INotifyDamage.
-
 		void RefreshMasterHP(Actor self)
 		{
 			if (aggregateHealthUpdateTicks > 0)
@@ -453,24 +506,17 @@ namespace OpenRA.Mods.CN.Traits
 
 			var aliveSlaves = slaveEntries.Where(s => s.IsValid && s.Actor.IsInWorld).ToArray();
 
-			// Once all slaves are dead, stop overriding — master fights with its own HP.
 			if (aliveSlaves.Length == 0)
 				return;
 
-			// Total max HP pool: master + alive slaves only.
-			// Dead slaves are excluded from both numerator and denominator so that
-			// losing a slave reduces the bar proportionally without causing a heal spike.
 			var totalMaxHP = health.MaxHP + aliveSlaves.Sum(s => s.Health.MaxHP);
-
-			// Current pool: master own HP + all alive slave HP
 			var currentHP = health.HP + aliveSlaves.Sum(s => s.Health.HP);
 
-			// Scale to master HP range for display
 			var targetHP = (int)((long)currentHP * health.MaxHP / totalMaxHP);
-			targetHP = Math.Max(targetHP, 1); // never show 0 while master is alive
+			targetHP = Math.Max(targetHP, 1);
 
 			var delta = health.HP - targetHP;
-			if (delta > 0)
+			if (delta != 0)
 			{
 				isDamagePropagating = true;
 				try
@@ -482,31 +528,17 @@ namespace OpenRA.Mods.CN.Traits
 					isDamagePropagating = false;
 				}
 			}
-			else if (delta < 0)
-			{
-				// Heal master display HP upward when slaves are healed or respawned
-				isDamagePropagating = true;
-				try
-				{
-					health.InflictDamage(self, self, new Damage(delta), true); // negative = heal
-				}
-				finally
-				{
-					isDamagePropagating = false;
-				}
-			}
 		}
 
 		// --- Slave activity assignment ---
-
-		void AssignTargetsToSlaves(Actor self, in Target target)
+		void AssignTargetsToSlaves(Actor _, in Target target, bool forceAttack = false)
 		{
 			foreach (var se in slaveEntries)
 			{
 				if (!se.IsValid)
 					continue;
 
-				se.SpawnerSlave.Attack(se.Actor, target);
+				se.SpawnerSlave.Attack(se.Actor, target, forceAttack);
 			}
 		}
 
@@ -574,9 +606,6 @@ namespace OpenRA.Mods.CN.Traits
 				return;
 			}
 
-			// Master is idle — pull any stray slaves back to the master's cell.
-			// This handles post-spawn, post-unload, and any other case where slaves
-			// are in the world but haven't received a move order yet.
 			if (activity == null)
 				GatherStraySlaves(self);
 		}
@@ -588,7 +617,6 @@ namespace OpenRA.Mods.CN.Traits
 				if (!se.IsValid || !se.Actor.IsInWorld)
 					continue;
 
-				// Skip slaves that are already at or moving toward the master
 				if (se.Actor.Location == self.Location)
 					continue;
 
@@ -600,7 +628,6 @@ namespace OpenRA.Mods.CN.Traits
 		}
 
 		// --- Trait enable/disable ---
-
 		protected override void TraitEnabled(Actor self)
 		{
 			if (!Info.EnabledByDefault && !hasSpawnedInitialLoad)

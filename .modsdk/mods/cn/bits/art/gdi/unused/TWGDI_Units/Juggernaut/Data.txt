@@ -1,0 +1,106 @@
+*******
+Art.ini
+*******
+
+[JUGG]; Tiberium War GDI's Juggernaut Walker
+Cameo=JUGGICON
+AltCameo=JUGGuICO
+Voxel=no
+Remapable=yes
+WalkFrames=17
+FiringFrames=7
+StandingFrames=1
+Facings=8
+PrimaryFireFLH=80,48,400
+StartStandFrame=0
+StartWalkFrame=8
+StartFiringFrame=144
+
+*********
+Rules.ini
+*********
+
+; Tiberium War GDI's Juggernaut Walker
+[JUGG]
+UIName=Name:JUGG
+Name=Juggernaut
+Image=JUGG
+Prerequisite=GAWEAP,GATECH
+Primary=Jugg90mm
+CanPassiveAquire=no ; Won't try to pick up own targets
+Category=LRFS
+Category=Support
+Strength=350
+Armor=heavy
+Turret=no
+IsTilter=no
+Crusher=yes
+TargetLaser=yes
+TooBigToFitUnderBridge=true
+TechLevel=7
+Sight=9
+Speed=3
+AllowedToStartInMultiplayer=no
+WalkRate=3;4
+Owner=British,French,Germans,Americans,Alliance
+Cost=2200
+Points=25
+ROT=5
+IsSelectableCombatant=yes
+Explosion=TWLT070,S_BANG48,S_BRNL58,S_CLSN58,S_TUMU60
+CreateSound=JuggernautAppear
+VoiceSelect=JuggernautSelect
+VoiceMove=JuggernautMove
+VoiceAttack=JuggernautAttack
+VoiceFeedback=
+MaxDebris=5
+Locomotor={55D141B8-DB94-11d1-AC98-006008055BB5}
+;Locomotor={4A582741-9839-11d1-B709-00A024DDAFD1}
+MovementZone=Normal ;Destroyer
+ThreatPosed=25	; This value MUST be 0 for all building addons
+DamageParticleSystems=SparkSys,SmallGreySSys
+VeteranAbilities=STRONGER,FIREPOWER,SIGHT,FASTER
+EliteAbilities=SELF_HEAL,STRONGER,FIREPOWER,ROF,SENSORS
+ImmuneToVeins=yes
+Size=5
+ElitePrimary=Jugg90mmE
+ZFudgeColumn=8
+ZFudgeTunnel=13
+MovingFire=no
+CrateGoodie=yes
+NavalTargeting=5
+ImmuneToPsionics=no
+Bunkerable=no; Units default to yes, others default to no
+AIBuildThis=no
+
+;Weapon
+
+[Jugg90mm]
+Damage=75
+ROF=140  ;was 110
+Range=17
+MinimumRange=4
+Projectile=Cannon
+Speed=10
+Warhead=AP
+Report=GrizzlyTankAttack
+Anim=GUNFIRE
+Lobber=yes
+BurstDelay0=0 ;obsolete in ra2
+BurstDelay1=24 ;obsolete in ra2
+Burst=3
+
+[Jugg90mmE]
+Damage=90
+ROF=140  ;was 110
+Range=18
+MinimumRange=3.5
+Projectile=Cannon
+Speed=10
+Warhead=AP
+Report=GrizzlyTankAttack
+Anim=GUNFIRE
+Lobber=yes
+BurstDelay0=0 ;obsolete in ra2
+BurstDelay1=24 ;obsolete in ra2
+Burst=3

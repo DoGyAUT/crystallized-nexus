@@ -1,0 +1,5 @@
+[MHN]
+PrimaryFireFLH=260,-65,10
+
+
+PS：made by lmss22

@@ -1,0 +1,103 @@
+^VoxelDynamicsBike:
+	VoxelDynamics:
+		MaxPitch: 120
+		MaxRoll: 80
+		SpringStrength: 15
+		Damping: 80
+		ImpactPitch: 40
+		ImpactRoll: 30
+		ImpactHoldTicks: 3
+		ImpactDamageTypes: SmallExplosionDeath, ExplosionDeath
+		RecoilPitch: 20
+		RecoilRoll: 15
+		AccelerationPitchScale: 1100
+		TurnRollScale: 1200
+		ContinuousTurnRoll: true
+		PitchOffset: 12
+		RollOffset: 0
+
+^VoxelDynamicsLight:
+	VoxelDynamics:
+		MaxPitch: 40
+		MaxRoll: 40
+		SpringStrength: 10
+		Damping: 60
+		ImpactPitch: 30
+		ImpactRoll: 20
+		ImpactHoldTicks: 3
+		ImpactDamageTypes: SmallExplosionDeath, ExplosionDeath
+		RecoilPitch: 10
+		RecoilRoll: 5
+		AccelerationPitchScale: 600
+		TurnRollScale: 200
+		PitchOffset: 0
+		RollOffset: 0
+
+^VoxelDynamicsMedium:
+	VoxelDynamics:
+		MaxPitch: 30
+		MaxRoll: 30
+		SpringStrength: 18
+		Damping: 60
+		ImpactPitch: 20
+		ImpactRoll: 15
+		ImpactHoldTicks: 3
+		ImpactDamageTypes: SmallExplosionDeath, ExplosionDeath
+		RecoilPitch: 20
+		RecoilRoll: 15
+		AccelerationPitchScale: 800
+		TurnRollScale: 400
+		PitchOffset: 0
+		RollOffset: 0
+
+^VoxelDynamicsHeavy:
+	VoxelDynamics:
+		MaxPitch: 20
+		MaxRoll: 20
+		SpringStrength: 18
+		Damping: 60
+		ImpactPitch: 15
+		ImpactRoll: 10
+		ImpactHoldTicks: 3
+		ImpactDamageTypes: SmallExplosionDeath, ExplosionDeath
+		RecoilPitch: 20
+		RecoilRoll: 15
+		AccelerationPitchScale: 600
+		TurnRollScale: 200
+		PitchOffset: 0
+		RollOffset: 0
+
+^VoxelDynamicsSuperHeavy:
+	VoxelDynamics:
+		MaxPitch: 10
+		MaxRoll: 10
+		SpringStrength: 24
+		Damping: 75
+		ImpactPitch: 5
+		ImpactRoll: 4
+		ImpactHoldTicks: 4
+		ImpactDamageTypes: SmallExplosionDeath, ExplosionDeath
+		RecoilPitch: 0
+		RecoilRoll: 0
+		AccelerationPitchScale: 350
+		TurnRollScale: 100
+		PitchOffset: 0
+		RollOffset: 0
+
+^VoxelDynamicsHover:
+	VoxelDynamics:
+		MaxPitch: 100
+		MaxRoll: 120
+		ImpactPitch: 35
+		ImpactRoll: 40
+		ImpactHoldTicks: 4
+		ImpactDamageTypes: SmallExplosionDeath, ExplosionDeath
+		SpringStrength: 6
+		Damping: 45
+		AccelerationPitchScale: 900
+		TurnRollScale: 800
+		ContinuousTurnRoll: true
+		RecoilPitch: 15
+		RecoilRoll: 15
+		PitchOffset: -5
+		InvertPitch: true

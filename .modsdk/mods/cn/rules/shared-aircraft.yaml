@@ -4,8 +4,8 @@ HUNTER:
 		Cost: 1000
 	Tooltip:
 		Name: actor-hunter-name
-	Health:
-		HP: 50000
+	CNHealth:
+		HP: 500
 	Armor:
 		Type: Light
 	Aircraft:

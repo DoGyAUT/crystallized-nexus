@@ -1,0 +1,161 @@
+
+NASOL.Member:
+	Inherits: ^Soldier
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits@SQUAD: ^MobSquadMember
+	-SelectionDecorations:
+	Voiced:
+		VoiceSet: Rookie
+	RenderSprites:
+		Image: NASOL
+	CNHealth:
+		HP: 100
+	Armor:
+		Type: Light
+	Mobile:
+		Speed: 71
+	Armament@PRIMARY:
+		Weapon: NMinigun
+		RequiresCondition: !rank-elite
+	Armament@ELITE:
+		Weapon: M1Carbine
+		RequiresCondition: rank-elite
+	AttackFrontal:
+		FacingTolerance: 0
+	WithSplitAttackPaletteInfantryBody:
+		DefaultAttackSequence: attack
+	RevealsShroud:
+		Range: 5c0
+	BotCapabilities:
+		Capabilities: Infantry, AntiInfantry
+#	SoundOnDamageTransition:
+#		DamagedSounds: nod1_f1.aud, nod1_f2.aud, nod1_f3.aud, nod1_f4.aud, nod1_f5.aud, nod1_f6.aud, nod1_f7.aud
+
+E3.Member:
+	Inherits: ^Soldier
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	Inherits@SQUAD: ^MobSquadMember
+	Voiced:
+		VoiceSet: Rocketeer
+	-SelectionDecorations:
+	RenderSprites:
+		Image: E3
+	CNHealth:
+		HP: 100
+	Armor:
+		Type: Light
+	Mobile:
+		Speed: 56
+	Armament:
+		Weapon: Bazooka
+		LocalOffset: 356,0,967
+	TakeCover:
+		ProneOffset: 52,64,-652
+	AttackFrontal:
+		FacingTolerance: 0
+	WithSplitAttackPaletteInfantryBody:
+		DefaultAttackSequence: attack
+	RevealsShroud:
+		Range: 7c0
+	BotCapabilities:
+		Capabilities: Infantry, AntiArmor, AntiAir
+#	SoundOnDamageTransition:
+#		DamagedSounds: nod2_f1.aud, nod2_f2.aud, nod2_f3.aud, nod2_f4.aud, nod2_f5.aud, nod2_f6.aud, nod2_f7.aud
+
+NACAD.Member:
+	Inherits: ^Soldier
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	Inherits@SQUAD: ^MobSquadMember
+	Voiced:
+		VoiceSet: EliteCadre
+	-SelectionDecorations:
+	RenderSprites:
+		Image: NACAD
+	CNHealth:
+		HP: 100
+	Armor:
+		Type: Medium
+	Mobile:
+		Speed: 71
+	Armament@primary:
+		Weapon: EliteCadreGun
+	Armament@secondary:
+		Weapon: EliteCadreGrenade
+		LocalOffset: 260,0,680
+		FireDelay: 10
+	AttackFrontal:
+		Voice: Attack
+		FacingTolerance: 0
+	WithSplitAttackPaletteInfantryBody:
+		DefaultAttackSequence: attack
+	RevealsShroud:
+		Range: 7c0
+	BotCapabilities:
+		Capabilities: Infantry, AntiInfantry, AntiArmor
+
+SHADOW.Member:
+	Inherits: ^Soldier
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	Inherits@SQUAD: ^MobSquadMember
+	Voiced:
+		VoiceSet: Shadow
+	-SelectionDecorations:
+	RenderSprites:
+		Image: SHADOW
+	CNHealth:
+		HP: 100
+	Armor:
+		Type: Light
+	Mobile:
+		Speed: 71
+	Armament@primary:
+		Weapon: Sniper
+	AttackFrontal:
+		Voice: Attack
+		FacingTolerance: 0
+	WithSplitAttackPaletteInfantryBody:
+		DefaultAttackSequence: attack
+	RevealsShroud:
+		Range: 7c0
+	Cloak@SELF:
+		InitialDelay: 90
+		CloakDelay: 90
+		CloakSound: stealth01.aud
+		UncloakSound: unstealth01.aud
+		UncloakOn: Attack, Unload, Infiltrate, Demolish, Damage, Heal, SupportPower
+		PauseOnCondition: cloak-force-disabled || empdisable
+		CloakType: nod-stealth
+	GrantConditionOnDamageState@UNCLOAK:
+		Condition: cloak-force-disabled
+		ValidDamageStates: Critical
+	BotCapabilities:
+		Capabilities: Infantry, AntiInfantry, Cloaked
+
+
+ACOLYTE.Member:
+	Inherits: ^Soldier
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	Inherits@SQUAD: ^MobSquadMember
+	Voiced:
+		VoiceSet: Acolyte
+	-SelectionDecorations:
+	RenderSprites:
+		Image: ACOLYTE
+	CNHealth:
+		HP: 120
+	Armor:
+		Type: Medium
+	Mobile:
+		Speed: 71
+	Armament@primary:
+		Weapon: AcolyteGun
+		LocalOffset: 260,0,680
+	AttackFrontal:
+		Voice: Attack
+		FacingTolerance: 0
+	WithSplitAttackPaletteInfantryBody:
+		DefaultAttackSequence: attack
+	RevealsShroud:
+		Range: 7c0
+	BotCapabilities:
+		Capabilities: Infantry, AntiInfantry, AntiArmor

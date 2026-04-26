@@ -1,0 +1,92 @@
+^ExistsInWorld:
+	AppearsOnRadar:
+	UpdatesPlayerStatistics:
+	CombatDebugOverlay:
+	GivesExperience:
+		PlayerExperienceModifier: 1
+	ScriptTriggers:
+	RenderDebugState:
+
+^SpriteActor:
+	BodyOrientation:
+		UseClassicPerspectiveFudge: False
+		CameraPitch: 85
+	QuantizeFacingsFromSequence:
+	RenderSprites:
+
+^VoxelActor:
+	BodyOrientation:
+		QuantizedFacings: 0
+		UseClassicPerspectiveFudge: False
+	RenderVoxels:
+		RequiresCondition: !inside-tunnel
+	CNWithVoxelBody:
+
+^VoxelVehicle:
+	Inherits: ^Vehicle
+	BodyOrientation:
+		QuantizedFacings: 0
+		UseClassicPerspectiveFudge: False
+	RenderVoxels:
+		PlayerPalette: cdvoxels
+		NormalsPalette: RA2normals
+		LightAmbientColor: -0.1,-0.1,-0.1
+		LightDiffuseColor: 0.8,0.8,0.8
+		LightPitch: 128
+		LightYaw: 768
+		Scale: 10
+		RequiresCondition: !inside-tunnel
+	CNWithVoxelBody:
+
+^VoxelTank:
+	Inherits: ^Tank
+	BodyOrientation:
+		QuantizedFacings: 0
+		UseClassicPerspectiveFudge: False
+	RenderVoxels:
+		PlayerPalette: cdvoxels
+		NormalsPalette: RA2normals
+		LightAmbientColor: -0.1,-0.1,-0.1
+		LightDiffuseColor: 0.8,0.8,0.8
+		LightPitch: 128
+		LightYaw: 768
+		Scale: 10
+		RequiresCondition: !inside-tunnel
+	CNWithVoxelBody:
+
+^VoxelWalker:
+	Inherits: ^VoxelTank
+		TerrainSpeeds:
+			Clear: 90
+			Road: 100
+			Bridge: 100
+			Rail: 100
+			DirtRoad: 90
+			Rough: 90
+			Green: 90
+			Tiberium: 70
+			BlueTiberium: 70
+			RedTiberium: 70
+			PurpleTiberium: 70
+			Veins: 70
+
+^CivilianVoxelVehicle:
+	Inherits: ^Vehicle
+	Inherits: ^VoxelActor
+	Inherits@CRUSHABLETYPE: ^CrushableLightVehicle
+	-MustBeDestroyed:
+
+^CivilianVoxelCrusher:
+	Inherits: ^CivilianVoxelVehicle
+	Mobile:
+		Locomotor: heavywheeled
+
+^TerrainOverlay:
+	Immobile:
+		OccupiesSpace: False
+	RenderSprites:
+		Palette: terraindecoration
+	WithSpriteBody:
+	BodyOrientation:
+		UseClassicPerspectiveFudge: False
+		QuantizedFacings: 1

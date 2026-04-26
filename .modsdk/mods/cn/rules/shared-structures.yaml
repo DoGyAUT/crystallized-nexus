@@ -14,10 +14,10 @@ GASILO:
 		Footprint: xx xx
 		Dimensions: 2, 2
 	-GivesBuildableArea:
-	Health:
-		HP: 30000
+	CNHealth:
+		HP: 300
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 4c0
 		MaxHeightDelta: 3
@@ -44,6 +44,30 @@ GASILO:
 	FireWarheadsOnDeath:
 		RequiresCondition: contains-tiberium
 		Weapon: TiberiumExplosion
+	SpawnActorOnDeath@TIBCLOUD1:
+		Actor: TIBCLOUD1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		Probability: 85
+		RequiresCondition: contains-tiberium
+	SpawnActorOnDeath@TIBCLOUD2:
+		Actor: TIBCLOUD2
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		Probability: 55
+		RequiresCondition: contains-tiberium
+	SpawnActorOnDeath@TIBCLOUD3:
+		Actor: TIBCLOUD1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		Probability: 55
+		RequiresCondition: contains-tiberium
+	SpawnActorOnDeath@TIBCLOUD4:
+		Actor: TIBCLOUD2
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		Probability: 85
+		RequiresCondition: contains-tiberium
 	WithResourceStoragePipsDecoration:
 		Position: BottomLeft
 		RequiresSelection: true

@@ -1,20 +1,23 @@
 NMCV:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsHeavy
 	Inherits@selection: ^SelectableSupportUnit
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 160
-		Prerequisites: ~naweap, natech, ~techlevel.medium
+		Prerequisites: ~naweap, ~techlevel.low
 		Description: actor-mcv.description
 	Valued:
 		Cost: 2500
 	Tooltip:
 		Name: actor-mcv.name
+	Voiced:
+		VoiceSet: Nmcv
 	Selectable:
 		DecorationBounds: 1267, 2534
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	Armor:
 		Type: Heavy
 	Mobile:
@@ -36,16 +39,26 @@ NMCV:
 		Voice: Move
 		NoTransformNotification: BuildingCannotPlaceAudio
 		NoTransformTextNotification: notification-cannot-deploy-here
-
+	ActorLostNotification:
+		Notification: CriticalUnitLost
+	SpawnActorOnDeath@HUSK:
+		Actor: NMCV.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, Expansion
 
 NHARV:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsMedium
 	Inherits@selection: ^SelectableEconomicUnit
 	Valued:
 		Cost: 1400
 	Tooltip:
 		Name: actor-harv.name
+	Voiced:
+		VoiceSet: Nharv
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
@@ -54,7 +67,7 @@ NHARV:
 	Selectable:
 		Bounds: 1086, 2172
 		DecorationBounds: 1086, 2172
-	Harvester:
+	CNHarvester:
 		Resources: Tiberium, BlueTiberium, RedTiberium
 		BaleLoadDelay: 15
 		BaleUnloadDelay: 15
@@ -70,10 +83,10 @@ NHARV:
 		Voice: Move
 	Mobile:
 		Speed: 71
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	ChangesHealth:
-		Step: 500
+		Step: 5
 		Delay: 10
 		StartIfBelow: 50
 		DamageCooldown: 200
@@ -83,8 +96,8 @@ NHARV:
 		RequiresCondition: !inside-tunnel
 		Range: 4c0
 		MaxHeightDelta: 3
-	-WithVoxelBody:
-	WithVoxelUnloadBody:
+	-CNWithVoxelBody:
+	CNWithVoxelUnloadBody:
 	FireWarheadsOnDeath:
 		RequiresCondition: !no-tiberium
 		Weapon: TiberiumExplosion
@@ -102,19 +115,46 @@ NHARV:
 		ResourceSequences:
 			Tiberium: pip-green
 			BlueTiberium: pip-blue
+			RedTiberium: pip-red
 	WithDecoration@UNDERGROUND:
 		Sequence: harvester
+	ActorLostNotification:
+		Notification: CriticalUnitLost
+	SpawnActorOnDeath@HUSK:
+		Actor: NHARV.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	SpawnActorOnDeath@TIBCLOUD1:
+		Actor: TIBCLOUD1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		Probability: 85
+		RequiresCondition: !no-tiberium
+	SpawnActorOnDeath@TIBCLOUD2:
+		Actor: TIBCLOUD2
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		Probability: 55
+		RequiresCondition: !no-tiberium
+	BotCapabilities:
+		Capabilities: Vehicle, Harvester
 
 BGGY:
 	Inherits@VOXELS: ^VoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits@CRUSHABLETYPE: ^CrushableLightVehicle
+	AutoCrusher@AUTOCRUSHER:
+		ScanRadius: 6c0
 	Valued:
 		Cost: 500
 	Tooltip:
 		Name: actor-bggy.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Voiced:
+		VoiceSet: Buggy
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 30
@@ -123,51 +163,93 @@ BGGY:
 	Mobile:
 		TurnSpeed: 32
 		Speed: 142
-	Health:
-		HP: 22000
+	CNHealth:
+		HP: 100
 	Armor:
 		Type: Light
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 6c0
 		MaxHeightDelta: 3
 	Armament:
 		Weapon: RaiderCannon
-		LocalOffset: 300,0,860
+		LocalOffset: 360,0,950
 		MuzzleSequence: muzzle
 	Turreted:
-		TurnSpeed: 7
+		TurnSpeed: 60
 		Offset: -136,0,0
 	AttackTurreted
 		Voice: Attack
 		PauseOnCondition: empdisable
-	WithVoxelTurret:
+	CNWithVoxelTurret:
 	WithMuzzleOverlay:
 	-DamagedByTerrain@VEINS:
 	-LeavesTrails@VEINS:
+	SpawnActorOnDeath@HUSK:
+		Actor: BGGY.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiInfantry
 
 BIKE:
 	Inherits@VOXELS: ^VoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsBike
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	Inherits@CRUSHABLETYPE: ^CrushableLightVehicle
 	Valued:
 		Cost: 600
 	Tooltip:
 		Name: actor-bike.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Voiced:
+		VoiceSet: Buggy
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 40
 		Prerequisites: ~naweap, ~techlevel.low
 		Description: actor-bike.description
 	Mobile:
-		TurnSpeed: 32
+		TurnSpeed: 50
 		Speed: 170
-	Health:
-		HP: 15000
+	CNHealth:
+		HP: 100
 	Armor:
-		Type: Wood
+		Type: Light
+	SecondaryHealth@ARMOR:
+		MaxHP: 150
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
@@ -188,10 +270,89 @@ BIKE:
 		RequiresCondition: !inside-tunnel && !rank-elite
 	LeavesTrails@VEINS:
 		RequiresCondition: !inside-tunnel && !rank-elite
+	SpawnActorOnDeath@HUSK:
+		Actor: BIKE.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor, AntiAir
+
+LTNK:
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsMedium
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Valued:
+		Cost: 800
+	Tooltip:
+		Name: actor-ltnk.name
+	Voiced:
+		VoiceSet: Scoprion
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 50
+		Prerequisites: ~gaweap, ~techlevel.low
+		Description: actor-ltnk.description
+	Mobile:
+		TurnSpeed: 30
+		Speed: 80
+		AlwaysTurnInPlace: true
+	CNHealth:
+		HP: 150
+	SecondaryHealth@ARMOR:
+		MaxHP: 400
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
+	Armor:
+		Type: Medium
+	RevealsShroud:
+		RequiresCondition: !inside-tunnel
+		Range: 8c0
+		MaxHeightDelta: 3
+	Turreted:
+		TurnSpeed: 20
+		Offset: -150,0,0
+	AttackTurreted:
+		Voice: Attack
+		PauseOnCondition: empdisable
+	CNWithVoxelTurret:
+#	CNWithVoxelBarrel:
+	Armament:
+		Weapon: 90mm
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		Recoil: 256
+		RecoilRecovery: 32
+		LocalOffset: 1620,0,870
+	WithMuzzleOverlay:
+	Selectable:
+		DecorationBounds: 1267, 2534
+	Carryable:
+		LocalOffset: 0,0,577
+	SpawnActorOnDeath@HUSK:
+		Actor: LTNK.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor
 
 TTNK:
-	Inherits: ^Tank
-	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsMedium
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
@@ -204,31 +365,39 @@ TTNK:
 		RequiresCondition: deployed
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Voiced:
+		VoiceSet: Scoprion
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
-		Prerequisites: ~naweap, ~techlevel.medium
+		Prerequisites: ~naweap, ~techlevel.low
 		Description: actor-ttnk.description
 	Mobile:
 		TurnSpeed: 20
 		Speed: 85
 		ImmovableCondition: !undeployed
 		RequireForceMoveCondition: !undeployed
-	Health:
-		HP: 35000
+	CNHealth:
+		HP: 100
 	Armor:
-		Type: Light
-		RequiresCondition: undeployed
-	Armament@PRIMARY:
-		Weapon: 90mm
-		LocalOffset: 407,0,362
-		RequiresCondition: !rank-elite
-		MuzzleSequence: muzzle
-	Armament@ELITE:
-		Weapon: 120mmx
-		LocalOffset: 407,0,362
-		RequiresCondition: rank-elite
-		MuzzleSequence: muzzle
+		Type: Medium
+		RequiresCondition: !deployed
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	WithMuzzleOverlay:
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
@@ -237,6 +406,7 @@ TTNK:
 	RenderSprites:
 		Image: ttnk
 	WithMakeAnimation:
+		Condition: deploying
 	GrantConditionOnDeploy:
 		PauseOnCondition: empdisable || being-captured
 		DeployedCondition: deployed
@@ -245,8 +415,8 @@ TTNK:
 		UndeployOnPickup: true
 		Facing: 640
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySounds: place2.aud
-		UndeploySounds: clicky1.aud
+		DeploySounds: nhwtzdeploy1.wav
+		UndeploySounds: nhwtzundeploy1.wav
 		Voice: Move
 	EntersTunnels:
 		RequireForceMoveCondition: !undeployed
@@ -256,71 +426,116 @@ TTNK:
 		RequireForceMoveCondition: !undeployed
 	GrantCondition@PREVIEWWORKAROUND:
 		Condition: real-actor
-	WithVoxelBody:
+	CNWithVoxelBody:
 		RequiresCondition: undeployed
 	WithSpriteBody@deployed:
 		RequiresCondition: !undeployed && real-actor
-	AttackFrontal:
+	AttackTurreted:
+		Turrets: primary, deployed
+		Armaments: primary, secondary, deployedprimary, deployedsecondary
 		Voice: Attack
-		RequiresCondition: undeployed
 		PauseOnCondition: empdisable
-		FacingTolerance: 0
 	Turreted:
-		TurnSpeed: 24
-		Turret: deployed
-		InitialFacing: 640
-		Offset: -20, -130, 128
-		RealignDelay: -1
-	WithVoxelBarrel:
-		Armament: deployed
-		LocalOffset: 181,0,362
-		RequiresCondition: deployed
-	WithVoxelTurret@deployed:
-		Turret: deployed
-		RequiresCondition: deployed
-	AttackTurreted@deployed:
-		Voice: Attack
-		Armaments: deployed
-		Turrets: deployed
-		RequiresCondition: deployed
-		PauseOnCondition: empdisable
-		OutsideRangeRequiresForceFire: True
-	Armament@deployed:
-		Name: deployed
-		Turret: deployed
-		Weapon: 90mm
-		LocalOffset: 543,0,362
-		RequiresCondition: !rank-elite
+		Turret: primary
+		TurnSpeed: 20
+		Offset: 275,0,0
+	CNWithVoxelTurret:
+		Turret: primary
+		RequiresCondition: undeployed
+	CNWithVoxelBarrel@1:
+		Armament: primary
+		RequiresCondition: undeployed
+	CNWithVoxelBarrel@2:
+		Sequence: barrel2
+		Armament: secondary
+		RequiresCondition: undeployed
+	Armament@primary:
+		Name: primary
+		Turret: primary
+		Weapon: 57mm
+		LocalOffset: 800,150,650
 		MuzzleSequence: muzzle
-	Armament@deployedElite:
-		Name: deployed
-		Turret: deployed
-		Weapon: 120mmx
-		LocalOffset: 543,0,362
-		RequiresCondition: rank-elite
+		MuzzlePalette: effect
+		RequiresCondition: undeployed
+		Recoil: 256
+		RecoilRecovery: 32
+	Armament@secondary:
+		Name: secondary
+		Turret: primary
+		Weapon: 57mm
+		LocalOffset: 800,-150,650
 		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		RequiresCondition: undeployed
+		Recoil: 256
+		RecoilRecovery: 32
+		FireDelay: 25
+	Turreted@DEPLOYED:
+		Turret: deployed
+		TurnSpeed: 20
+		Offset: 288,0,336
+	CNWithVoxelTurret@deployed:
+		Turret: deployed
+		RequiresCondition: deployed
+	CNWithVoxelBarrel@1DEPLOYED:
+		Armament: deployedprimary
+		Turret: deployed
+		RequiresCondition: deployed
+	CNWithVoxelBarrel@2DEPLOYED:
+		Armament: deployedsecondary
+		Sequence: barrel2
+		Turret: deployed
+		RequiresCondition: deployed
+	Armament@DEPLOYEDprimary:
+		Name: deployedprimary
+		Turret: deployed
+		Weapon: 57mm_deployed
+		LocalOffset: 800,150,650
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		RequiresCondition: deployed
+		Recoil: 256
+		RecoilRecovery: 32
+	Armament@DEPLOYEDsecondary:
+		Name: deployedsecondary
+		Turret: deployed
+		Weapon: 57mm_deployed
+		LocalOffset: 800,-150,650
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		RequiresCondition: deployed
+		Recoil: 256
+		RecoilRecovery: 32
+		FireDelay: 15
 	Armor@deployed:
-		Type: Concrete
+		Type: Superheavy
 		RequiresCondition: deployed
 	DetectCloaked:
 		Range: 1c768
 		RequiresCondition: rank-elite
 	RenderDetectionCircle:
 	RevealOnFire:
-		ArmamentNames: primary, deployed
-	RenderVoxels:
-		Scale: 11.5
-	AutoDeployer:
-		DeployTrigger: Attack, Damage
-		DeployChance: 75
-		DeployTicks: 1500
-		UndeployTicks: 600
+		ArmamentNames: primary, secondary, deployedprimary, deployedsecondary
+	SpawnActorOnDeath@HUSK:
+		RequiresCondition: !deployed
+		Actor: TTNK.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	SpawnActorOnDeath@DEPLOYEDHUSK:
+		RequiresCondition: deployed
+		Actor: TTNK.Deployed.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor
 
-ART2:
-	Inherits: ^Tank
-	Inherits@VOXELS: ^VoxelActor
+NHWTZ:
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsMedium
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	AutoCrusher@AUTOCRUSHER:
+		ScanRadius: 2c0
 	Valued:
 		Cost: 975
 	Tooltip:
@@ -331,15 +546,33 @@ ART2:
 		RequiresCondition: deployed
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Voiced:
+		VoiceSet: Specter
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 100
 		Prerequisites: ~naweap, naradr, ~techlevel.high
 		Description: actor-art2.description
-	Health:
-		HP: 30000
+	CNHealth:
+		HP: 100
 	Armor:
 		Type: Light
+	SecondaryHealth@ARMOR:
+		MaxHP: 100
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Mobile:
 		Speed: 71
 		TurnSpeed: 8
@@ -349,48 +582,46 @@ ART2:
 		RequiresCondition: !inside-tunnel
 		Range: 9c0
 		MaxHeightDelta: 3
-	RenderVoxels:
-		LightAmbientColor: 0.4, 0.4, 0.4
-	RenderSprites:
-		Image: art2
-	WithMakeAnimation:
 	GrantConditionOnDeploy:
 		PauseOnCondition: empdisable || being-captured
 		DeployedCondition: deployed
 		UndeployedCondition: undeployed
 		UndeployOnMove: true
 		UndeployOnPickup: true
-		Facing: 384
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySounds: place2.aud
-		UndeploySounds: clicky1.aud
+		DeploySounds: nhwtzdeploy1.wav
+		UndeploySounds: nhwtzundeploy1.wav
 		Voice: Move
+		CanDeployOnRamps: True
 	EntersTunnels:
-		RequireForceMoveCondition: !undeployed
+		RequireForceMoveCondition: undeployed
 	Repairable:
 		RequireForceMoveCondition: !undeployed
 	Passenger:
 		RequireForceMoveCondition: !undeployed
 	GrantCondition@PREVIEWWORKAROUND:
 		Condition: real-actor
-	WithVoxelBody:
+	CNWithVoxelBody@undeployed:
 		RequiresCondition: undeployed
-	WithSpriteBody@deployed:
-		RequiresCondition: !undeployed && real-actor
-	Turreted:
+	Turreted@deployed:
 		Turret: deployed
-		TurnSpeed: 20
-		InitialFacing: 384
-		Offset: 0,0,256
+		TurnSpeed: 4
 		RealignDelay: -1
-	WithVoxelBarrel:
-		Armament: deployed
-		LocalOffset: 203,0,0
-		LocalOrientation: 0, 128, 0
-		RequiresCondition: !undeployed
-	WithVoxelTurret@deployed:
+		Offset: -362,0,0
+		RequiresCondition: deployed
+	-CNWithVoxelBody:
+	CNWithVoxelBody@deployed:
+		Sequence: deployed
+		RequiresCondition: deployed
+	CNWithVoxelTurret@deployed:
+		Sequence: deployed_turret
 		Turret: deployed
-		RequiresCondition: !undeployed
+		Recoils: False
+		RequiresCondition: deployed
+	CNWithVoxelBarrel:
+		Sequence: deployed_barrel
+		Armament: deployed
+		RequiresCondition: deployed
 	AttackTurreted@deployed:
 		Voice: Attack
 		Armaments: deployed
@@ -404,21 +635,34 @@ ART2:
 		Name: deployed
 		Turret: deployed
 		Weapon: 155mm
-		LocalOffset: 820,0,1386
+		LocalOffset: 1200,0,2500
 		RequiresCondition: deployed
 		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		Recoil: 100
+		RecoilRecovery: 5
 	WithMuzzleOverlay:
+		RequiresCondition: deployed
 	RevealOnFire:
 		ArmamentNames: deployed
-	AutoDeployer:
-		DeployTrigger: BecomingIdle
-		DeployChance: 90
-		DeployTicks: 100
-		UndeployTicks: 999999
+		RequiresCondition: deployed
+	SpawnActorOnDeath@HUSK:
+		RequiresCondition: !deployed
+		Actor: NHWTZ.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	SpawnActorOnDeath@DEPLOYEDHUSK:
+		RequiresCondition: deployed
+		Actor: NHWTZ.Deployed.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor, Artillery
 
 REPAIR:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
@@ -430,8 +674,24 @@ REPAIR:
 		Name: actor-repair.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
-	Health:
-		HP: 20000
+	CNHealth:
+		HP: 100
+	SecondaryHealth@ARMOR:
+		MaxHP: 100
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Mobile:
 		Speed: 85
 		TurnSpeed: 20
@@ -454,10 +714,17 @@ REPAIR:
 		InitialStance: AttackAnything
 	AutoTargetPriority@DEFAULT:
 		ValidTargets: Vehicle
+	SpawnActorOnDeath@HUSK:
+		Actor: REPAIR.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle
 
 WEED:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@selection: ^SelectableEconomicUnit
 	Valued:
 		Cost: 1400
@@ -468,7 +735,9 @@ WEED:
 		BuildPaletteOrder: 170
 		Prerequisites: ~naweap, nawast, ~techlevel.superweapons
 		Description: actor-weed.description
-	Harvester:
+	Voiced:
+		VoiceSet: Nharv
+	CNHarvester:
 		Type: UnloadWeed
 		Resources: Veins
 		BaleUnloadDelay: 20
@@ -484,10 +753,10 @@ WEED:
 	Mobile:
 		Speed: 71
 		TurnSpeed: 20
-	Health:
-		HP: 60000
+	CNHealth:
+		HP: 600
 	ChangesHealth:
-		Step: 500
+		Step: 5
 		Delay: 10
 		StartIfBelow: 50
 		DamageCooldown: 200
@@ -497,8 +766,8 @@ WEED:
 		RequiresCondition: !inside-tunnel
 		Range: 4c0
 		MaxHeightDelta: 3
-	-WithVoxelBody:
-	WithVoxelUnloadBody:
+	-CNWithVoxelBody:
+	CNWithVoxelUnloadBody:
 	-DamagedByTerrain@VEINS:
 	-LeavesTrails@VEINS:
 	WithStoresResourcesPipsDecoration:
@@ -508,10 +777,16 @@ WEED:
 		FullSequence: pip-red
 		Palette: pips
 		PipCount: 7
+	SpawnActorOnDeath@HUSK:
+		Actor: WEED.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, Harvester
 
 SAPC:
-	Inherits: ^Tank
-	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@CARGOPIPS: ^CargoPips
 	Valued:
 		Cost: 800
@@ -519,6 +794,8 @@ SAPC:
 		Name: actor-sapc.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Voiced:
+		VoiceSet: SAPC
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 110
@@ -529,8 +806,24 @@ SAPC:
 		Speed: 71
 		PauseOnCondition: empdisable || loading || being-captured || carried
 		Locomotor: subterranean
-	Health:
-		HP: 17500
+	CNHealth:
+		HP: 175
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Superheavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -539,11 +832,11 @@ SAPC:
 		MaxHeightDelta: 3
 	Cargo:
 		Types: Infantry
-		MaxWeight: 5
+		MaxWeight: 8
 		UnloadVoice: Unload
 		LoadingCondition: loading
 		EjectOnDeath: true
-	WithVoxelBody:
+	CNWithVoxelBody:
 		RequiresCondition: !submerged
 	Targetable:
 		RequiresCondition: !inside-tunnel && !submerged
@@ -559,16 +852,27 @@ SAPC:
 		RequiresCondition: !submerged
 	WithDecoration@UNDERGROUND:
 		RequiresCondition: inside-tunnel || submerged
+	AnnounceOnSeen:
+		PingRadar: True
+		Notification: SubterraneanUnitDetected
+	SpawnActorOnDeath@HUSK:
+		Actor: SAPC.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, Transporter, Subterranean
 
 SUBTANK:
-	Inherits: ^Tank
-	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsMedium
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
 		Cost: 750
 	Tooltip:
 		Name: actor-subtank.name
+	Voiced:
+		VoiceSet: Devil
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
@@ -580,22 +884,39 @@ SUBTANK:
 		TurnSpeed: 24
 		Speed: 71
 		Locomotor: subterranean
-	Health:
-		HP: 30000
+	CNHealth:
+		HP: 100
+	SecondaryHealth@ARMOR:
+		MaxHP: 300
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Armor:
-		Type: Light
+		Type: Medium
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel && !submerged
 		Range: 5c0
 		MaxHeightDelta: 3
 	Armament:
 		Weapon: FireballLauncher
+		LocalOffset: 700,520,425, 700,-520,425
 		PauseOnCondition: submerged
 	AttackFrontal:
 		Voice: Attack
 		PauseOnCondition: empdisable
 		FacingTolerance: 0
-	WithVoxelBody:
+	CNWithVoxelBody:
 		RequiresCondition: !submerged
 	Targetable:
 		RequiresCondition: !inside-tunnel && !submerged
@@ -611,16 +932,27 @@ SUBTANK:
 		RequiresCondition: !submerged
 	WithDecoration@UNDERGROUND:
 		RequiresCondition: inside-tunnel || submerged
+	AnnounceOnSeen:
+		PingRadar: True
+		Notification: SubterraneanUnitDetected
+	SpawnActorOnDeath@HUSK:
+		Actor: SUBTANK.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiInfantry, Subterranean
 
 STNK:
-	Inherits: ^Tank
-	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsMedium
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
 	Valued:
 		Cost: 1100
 	Tooltip:
 		Name: actor-stnk.name
+	Voiced:
+		VoiceSet: Stealthtank
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
@@ -631,45 +963,76 @@ STNK:
 	Mobile:
 		TurnSpeed: 20
 		Speed: 85
-	Health:
-		HP: 18000
+	CNHealth:
+		HP: 100
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Medium
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Armor:
 		Type: Light
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
 		MaxHeightDelta: 3
-	Cloak:
+	Cloak@SELF:
 		InitialDelay: 90
 		CloakDelay: 90
-		CloakSound: cloak5.aud
-		UncloakSound: cloak5.aud
-		UncloakOn: Attack, Unload, Infiltrate, Demolish, Damage, Heal
+		CloakSound: stealth01.aud
+		UncloakSound: unstealth01.aud
+		UncloakOn: Attack, Unload, Infiltrate, Demolish, Damage, Heal, SupportPower
 		PauseOnCondition: cloak-force-disabled || empdisable
 		CloakType: nod-stealth
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
+	Turreted:
+		TurnSpeed: 10
+		Offset: 0,0,0
 	Armament:
 		Weapon: Dragon
-		LocalOffset: 301,61,421, 301,-61,421
-	AttackFrontal:
+		LocalOffset: 181,232,849, 181,-232,849
+		MuzzleSequence: muzzle
+	AttackTurreted:
 		Voice: Attack
 		PauseOnCondition: empdisable
-		FacingTolerance: 0
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: ReturnFire
+	CNWithVoxelTurret:
 	-MustBeDestroyed:
+	WithMuzzleOverlay:
 	FireWarheadsOnDeath:
 		RequiresCondition: !rank-elite
 	FireWarheadsOnDeath@ELITE:
 		RequiresCondition: rank-elite
 		Weapon: UnitExplode
+	SpawnActorOnDeath@HUSK:
+		Actor: STNK.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	AnnounceOnSeen:
+		PingRadar: True
+		Notification: StealthUnitDetected
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor, AntiAir, Cloaked
 
 SGEN:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@selection: ^SelectableSupportUnit
 	-AppearsOnRadar:
 	Buildable:
@@ -687,8 +1050,8 @@ SGEN:
 		RequiresCondition: deployed
 	Selectable:
 		Bounds: 1206, 1768, 0, -603
-	Health:
-		HP: 20000
+	CNHealth:
+		HP: 200
 	Armor:
 		Type: Light
 	Voiced:
@@ -751,3 +1114,9 @@ SGEN:
 		Range: 6c0
 		Type: cloakgenerator
 		RequiresCondition: deployed && !empdisable
+	SpawnActorOnDeath@HUSK:
+		Actor: SGEN.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, Cloaked

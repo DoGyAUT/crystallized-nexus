@@ -1,0 +1,41 @@
+^CrushableInfantry:
+	Crushable:
+		CrushSound: squish6.aud
+
+^CrushableInfantrySoft:
+	Crushable:
+		CrushSound: squishy2.aud
+
+^CrushableHeavyInfantry:
+	Crushable:
+		CrushClasses: heavyinfantry
+		CrushSound: squishy2.aud
+		WarnProbability: 20
+
+^CrushableWall:
+	Crushable:
+		CrushClasses: wall
+
+^CrushableHeavyWall:
+	Crushable:
+		CrushClasses: heavywall
+
+^CrushableLightVehicle:
+	Crushable:
+		CrushClasses: lightvehicle
+		WarnProbability: 10
+
+^CrushableVehicleHusk:
+	Crushable:
+		CrushClasses: vehiclehusk
+		WarnProbability: 0
+
+^CrushableVisceroidFusing:
+	Crushable:
+		CrushClasses: visceroid-fusing
+
+^CrushableVisceroidFusingFriendly:
+	Crushable:
+		CrushClasses: visceroid-fusing
+		WarnProbability: 0
+		CrushedByFriendlies: True

@@ -1,20 +1,23 @@
 GMCV:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsHeavy
 	Inherits@selection: ^SelectableSupportUnit
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 160
-		Prerequisites: ~gaweap, gatech, ~techlevel.medium
+		Prerequisites: ~gaweap, ~techlevel.low
 		Description: actor-mcv.description
 	Valued:
 		Cost: 2500
 	Tooltip:
 		Name: actor-mcv.name
+	Voiced:
+		VoiceSet: Gmcv
 	Selectable:
 		DecorationBounds: 1267, 2534
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	Armor:
 		Type: Heavy
 	Mobile:
@@ -36,15 +39,26 @@ GMCV:
 		Voice: Move
 		NoTransformNotification: BuildingCannotPlaceAudio
 		NoTransformTextNotification: notification-cannot-deploy-here
+	ActorLostNotification:
+		Notification: CriticalUnitLost
+	SpawnActorOnDeath@HUSK:
+		Actor: GMCV.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, Expansion
 
 GHARV:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsMedium
 	Inherits@selection: ^SelectableEconomicUnit
 	Valued:
 		Cost: 1400
 	Tooltip:
 		Name: actor-harv.name
+	Voiced:
+		VoiceSet: Gharv
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
@@ -53,7 +67,7 @@ GHARV:
 	Selectable:
 		Bounds: 1086, 2172
 		DecorationBounds: 1086, 2172
-	Harvester:
+	CNHarvester:
 		Resources: Tiberium, BlueTiberium, RedTiberium
 		BaleLoadDelay: 15
 		BaleUnloadDelay: 15
@@ -69,10 +83,10 @@ GHARV:
 		Voice: Move
 	Mobile:
 		Speed: 71
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	ChangesHealth:
-		Step: 500
+		Step: 5
 		Delay: 10
 		StartIfBelow: 50
 		DamageCooldown: 200
@@ -82,8 +96,8 @@ GHARV:
 		RequiresCondition: !inside-tunnel
 		Range: 4c0
 		MaxHeightDelta: 3
-	-WithVoxelBody:
-	WithVoxelUnloadBody:
+	-CNWithVoxelBody:
+	CNWithVoxelUnloadBody:
 	FireWarheadsOnDeath:
 		RequiresCondition: !no-tiberium
 		Weapon: TiberiumExplosion
@@ -101,12 +115,34 @@ GHARV:
 		ResourceSequences:
 			Tiberium: pip-green
 			BlueTiberium: pip-blue
+			RedTiberium: pip-red
 	WithDecoration@UNDERGROUND:
 		Sequence: harvester
+	ActorLostNotification:
+		Notification: CriticalUnitLost
+	SpawnActorOnDeath@HUSK:
+		Actor: GHARV.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	SpawnActorOnDeath@TIBCLOUD1:
+		Actor: TIBCLOUD1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		Probability: 85
+		RequiresCondition: !no-tiberium
+	SpawnActorOnDeath@TIBCLOUD2:
+		Actor: TIBCLOUD2
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		Probability: 55
+		RequiresCondition: !no-tiberium
+	BotCapabilities:
+		Capabilities: Vehicle, Harvester
 
 APC:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@CARGOPIPS: ^CargoPips
 	Valued:
 		Cost: 800
@@ -114,36 +150,54 @@ APC:
 		Name: actor-apc.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Voiced:
+		VoiceSet: Predator
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 80
-		Prerequisites: ~gaweap, gapile, ~techlevel.medium
+		Prerequisites: ~gaweap, gapile, ~techlevel.low
 		Description: actor-apc.description
 	Mobile:
 		TurnSpeed: 20
 		Speed: 113
 		PauseOnCondition: empdisable || loading || being-captured || carried
 		Locomotor: amphibious
-	Health:
-		HP: 20000
+	CNHealth:
+		HP: 100
 	Armor:
 		Type: Heavy
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Superheavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
 		MaxHeightDelta: 3
 	Cargo:
 		Types: Infantry
-		MaxWeight: 5
+		MaxWeight: 8
 		UnloadVoice: Unload
 		LoadingCondition: loading
 		EjectOnDeath: true
 	GrantConditionOnTerrain:
 		Condition: inwater
 		TerrainTypes: Water
-	WithVoxelBody:
+	CNWithVoxelBody:
 		RequiresCondition: !inwater
-	WithVoxelBody@water:
+	CNWithVoxelBody@water:
 		Sequence: water
 		RequiresCondition: inwater
 	LeavesTrails:
@@ -153,15 +207,24 @@ APC:
 		TerrainTypes: Water
 		StationaryInterval: 18
 		MovingInterval: 6
+	SpawnActorOnDeath@HUSK:
+		Actor: APC.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, Transporter
 
 HVR:
 	Inherits@VOXELS: ^VoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsHover
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
 	Valued:
 		Cost: 900
 	Tooltip:
 		Name: actor-hvr.name
+	Voiced:
+		VoiceSet: Slingshot
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
@@ -177,24 +240,41 @@ HVR:
 		TurnSpeed: 24
 	Selectable:
 		Bounds: 1206, 1448, 0, -603
-	Health:
-		HP: 23000
+	CNHealth:
+		HP: 130
 	Armor:
-		Type: Wood
+		Type: Light
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Medium
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 7c0
 		MaxHeightDelta: 3
 	Armament:
 		Weapon: HoverMissile
-		LocalOffset: 141,181,543, 141,-181,543
+		LocalOffset: 220,181,660, 220,-181,660
+		MuzzleSequence: muzzle
 	Turreted:
 		TurnSpeed: 28
 		Offset: -362,0,120
 	AttackTurreted:
 		Voice: Attack
 		PauseOnCondition: empdisable
-	WithVoxelTurret:
+	CNWithVoxelTurret
 	Hovers:
 		RequiresCondition: !empdisable
 		BobDistance: -64
@@ -207,13 +287,22 @@ HVR:
 		TrailWhileStationary: True
 		StationaryInterval: 18
 		MovingInterval: 6
+	WithMuzzleOverlay:
 	-DamagedByTerrain@VEINS:
 	-LeavesTrails@VEINS:
+	SpawnActorOnDeath@HUSK:
+		Actor: HVR.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, Hover, AntiArmor, AntiAir
 
 SMECH:
 	Inherits: ^Vehicle
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	-GrantConditionOnBotOwner@AUTOCRUSHER:
+	-AutoCrusher@AUTOCRUSHER:
 	Valued:
 		Cost: 500
 	Tooltip:
@@ -225,15 +314,34 @@ SMECH:
 		BuildPaletteOrder: 20
 		Prerequisites: ~gaweap, ~techlevel.low
 		Description: actor-smech.description
+	Voiced:
+		VoiceSet: Wolverine
 	Mobile:
+		Locomotor: lightwalker
 		TurnSpeed: 20
-		Speed: 99
+		Speed: 100
 		AlwaysTurnInPlace: true
 		TerrainOrientationAdjustmentMargin: -1
-	Health:
-		HP: 17500
+	CNHealth:
+		HP: 100
 	Armor:
 		Type: Light
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 6c0
@@ -242,50 +350,141 @@ SMECH:
 		Voice: Attack
 		PauseOnCondition: empdisable
 		FacingTolerance: 0
-	Armament:
+	Armament@primary:
 		Weapon: AssaultCannon
-		LocalOffset: 0,0,620
-	Voiced:
-		VoiceSet: Mech
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
 		RequiresCondition: !inside-tunnel
 	BodyOrientation:
 		QuantizedFacings: 8
-		CameraPitch: 250
-	WithAttackOverlay@muzzle:
-		Sequence: shoot-muzzle
-		Palette: muzzle
-		IsDecoration: true
 	Selectable:
-		Bounds: 603, 1930, 0, -482
+		Bounds: 905, 2534, 0, -482
 	-DamagedByTerrain@VEINS:
 	-LeavesTrails@VEINS:
+	SpawnActorOnDeath@HUSK:
+		Actor: SMECH.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		InheritFacing: true
+	BotCapabilities:
+		Capabilities: Vehicle, AntiInfantry
+
+GTMTNK:
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsMedium
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Valued:
+		Cost: 800
+	Tooltip:
+		Name: actor-gtmtnk.name
+	Voiced:
+		VoiceSet: Archon
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 50
+		Prerequisites: ~gaweap, ~techlevel.low
+		Description: actor-gtmtnk.description
+	Mobile:
+		TurnSpeed: 20
+		Speed: 70
+		AlwaysTurnInPlace: true
+	CNHealth:
+		HP: 150
+	SecondaryHealth@ARMOR:
+		MaxHP: 400
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
+	Armor:
+		Type: Medium
+	RevealsShroud:
+		RequiresCondition: !inside-tunnel
+		Range: 8c0
+		MaxHeightDelta: 3
+	Turreted:
+		TurnSpeed: 20
+		Offset: -50,0,0
+	AttackTurreted:
+		Voice: Attack
+		PauseOnCondition: empdisable
+	CNWithVoxelTurret:
+	CNWithVoxelBarrel:
+	Armament:
+		Weapon: 90mm
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		Recoil: 256
+		RecoilRecovery: 32
+		LocalOffset: 1620,0,870
+	WithMuzzleOverlay:
+	Selectable:
+		DecorationBounds: 1267, 2534
+	Carryable:
+		LocalOffset: 0,0,577
+	SpawnActorOnDeath@HUSK:
+		Actor: GTMTNK.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor
 
 MMCH:
 	Inherits: ^Tank
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
-		Cost: 800
+		Cost: 1000
 	Tooltip:
 		Name: actor-mmch.name
+	Voiced:
+		VoiceSet: Titan
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
-		Prerequisites: ~gaweap, ~techlevel.medium
+		Prerequisites: ~gaweap, gaarmory, ~techlevel.medium
 		Description: actor-mmch.description
 	Mobile:
+		Locomotor: walker
 		TurnSpeed: 20
 		Speed: 56
 		AlwaysTurnInPlace: true
 		TerrainOrientationAdjustmentMargin: -1
-	Health:
-		HP: 40000
+	CNHealth:
+		HP: 200
+	SecondaryHealth@ARMOR:
+		MaxHP: 600
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Armor:
-		Type: Heavy
+		Type: Light
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 8c0
@@ -295,6 +494,7 @@ MMCH:
 		UseClassicPerspectiveFudge: False
 	WithFacingSpriteBody:
 		Sequence: stand
+		RequiresCondition: !inside-tunnel
 	WithMoveAnimation:
 		MoveSequence: walk
 		ValidMovementTypes: Horizontal, Turn
@@ -308,6 +508,7 @@ MMCH:
 	Armament:
 		Weapon: 120mm
 		MuzzleSequence: muzzle
+		MuzzlePalette: effect
 		Recoil: 128
 		RecoilRecovery: 32
 		LocalOffset: 1188,458,1485
@@ -320,30 +521,156 @@ MMCH:
 		Bounds: 905, 2534, 0, -482
 	Carryable:
 		LocalOffset: 0,0,577
+	SpawnActorOnDeath@HUSK:
+		Actor: MMCH.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		InheritFacing: true
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor
 
-HMEC:
-	Inherits: ^Tank
-	Inherits@VOXELS: ^VoxelActor
+4TNK:
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsHeavy
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	Valued:
+		Cost: 1700
+	Tooltip:
+		Name: actor-4tnk-name
+	Voiced:
+		VoiceSet: Mammoth
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 50
+		Prerequisites: ~gaweap, gaarmory, ~techlevel.medium
+		Description: actor-gtmtnk.description
+	Mobile:
+		Locomotor: heavytracked
+		Speed: 56
+		TurnSpeed: 20
+	CNHealth:
+		HP: 400
+	Armor:
+		Type: Heavy
+	RevealsShroud:
+		Range: 6c0
+		MaxHeightDelta: 3
+		RequiresCondition: !inside-tunnel
+	SecondaryHealth@ARMOR:
+		MaxHP: 600
+		InitialHP: -1
+		ArmorType: Superheavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
+	Turreted:
+		TurnSpeed: 12
+	Armament@PRIMARY:
+		Name: primary
+		Weapon: 120mmx
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		LocalOffset: 1556,181,1061
+		Recoil: 256
+		RecoilRecovery: 32
+	Armament@SECONDARY:
+		Name: secondary
+		Weapon: 120mmx
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		LocalOffset: 1556,-181,1061
+		Recoil: 256
+		RecoilRecovery: 32
+		FireDelay: 10
+	Armament@ROCKETS:
+		Name: rockets
+		Weapon: MammothTusk
+		MuzzleSequence: muzzle_rockets
+		MuzzlePalette: effect
+		LocalOffset: 181,424,785, 181,-424,919
+	AttackTurreted:
+		Armaments: primary, secondary, rockets
+		Voice: Attack
+		PauseOnCondition: empdisable
+	ChangesHealth:
+		Step: 5
+		Delay: 10
+		StartIfBelow: 100
+		DamageCooldown: 200
+	CNWithVoxelTurret:
+	CNWithVoxelBarrel@1:
+		Sequence: barrel1
+		Armament: primary
+	CNWithVoxelBarrel@2:
+		Sequence: barrel2
+		Armament: secondary
+	WithMuzzleOverlay:
+	SpawnActorOnDeath@HUSK:
+		Actor: 4TNK.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor, AntiAir
+
+HMEC:
+	Inherits@VOXELS: ^VoxelWalker
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsSuperHeavy
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	AutoCrusher@AUTOCRUSHER:
+		ScanRadius: 3c0
 	Valued:
 		Cost: 3000
 	Tooltip:
 		Name: actor-hmec.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Voiced:
+		VoiceSet: Marv
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 140
 		Prerequisites: ~gaweap, gatech, ~techlevel.high
 		Description: actor-hmec.description
 	Mobile:
+		Locomotor: heavywalker
 		TurnSpeed: 12
 		Speed: 42
-	Health:
-		HP: 80000
+	CNHealth:
+		HP: 800
+	SecondaryHealth@ARMOR:
+		MaxHP: 800
+		InitialHP: -1
+		ArmorType: Superheavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	ChangesHealth:
-		Step: 500
+		Step: 5
+		Delay: 10
+		StartIfBelow: 100
+		DamageCooldown: 200
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -353,24 +680,44 @@ HMEC:
 	AttackFrontal:
 		Voice: Attack
 		PauseOnCondition: empdisable
-		FacingTolerance: 0
-	Armament@MISSILES:
-		Weapon: MammothTusk
-		LocalOffset: -243,-368,1208, -243,368,1208
+		FacingTolerance: 64
 	Armament@RAILGUN:
 		Weapon: MechRailgun
-		LocalOffset: 368,-311,1030, 368,311,1030
-	-WithVoxelBody:
-	WithVoxelWalkerBody:
-		TickRate: 1
+		LocalOffset: 900,-680,2400, 900,680,2400, 900,-680,2200, 900,680,2200
+		MuzzleSequence: muzzle_gun
+		MuzzlePalette: effect
+	Armament@MISSILES:
+		Weapon: Mammoth2Tusk
+		LocalOffset: -565,-600,2900, -565,600,2900, -565,-670,2900, -565,670,2900
+		MuzzleSequence: muzzle_missile
+		MuzzlePalette: effect
+	Armament@MG:
+		Weapon: HeavyAssaultCannon
+		LocalOffset: 1800,0,1000
+		MuzzleSequence: muzzle_mg
+		MuzzlePalette: effect
+	WithMuzzleOverlay:
+	RenderVoxels:
+		Scale: 1.2
+	-CNWithVoxelBody:
+	CNWithVoxelWalkerBody:
+		TickRate: 2
 	Selectable:
 		Bounds: 1206, 2413, 0, -482
 	Carryable:
 		LocalOffset: 0,0,509
+	ActorLostNotification:
+		Notification: CriticalUnitLost
+	SpawnActorOnDeath@HUSK:
+		Actor: HMEC.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor, AntiAir, AntiInfantry
 
 SONIC:
-	Inherits: ^Tank
-	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsHeavy
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
@@ -379,6 +726,8 @@ SONIC:
 		Name: actor-sonic.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Voiced:
+		VoiceSet: Predator
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 120
@@ -389,36 +738,63 @@ SONIC:
 	Mobile:
 		TurnSpeed: 16
 		Speed: 56
-	Health:
-		HP: 50000
+	CNHealth:
+		HP: 150
 	Armor:
-		Type: Heavy
+		Type: Medium
+	SecondaryHealth@ARMOR:
+		MaxHP: 400
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 7c0
 		MaxHeightDelta: 3
 	Armament:
 		Weapon: SonicZap
-		LocalOffset: -71,0,580
+		LocalOffset: 300,0,1250
 	AttackTurreted:
 		Voice: Attack
 		PauseOnCondition: empdisable
 		OpportunityFire: False
 	Turreted:
 		TurnSpeed: 20
-		Offset: -170,0,0
+		Offset: -380,0,0
 	WithVoxelTurret:
 	FireWarheadsOnDeath:
 		RequiresCondition: !rank-elite
 	FireWarheadsOnDeath@ELITE:
 		RequiresCondition: rank-elite
 		Weapon: UnitExplode
+	VoxelDynamics:
+		RecoilPitch: 5
+		RecoilRoll: 5
+	SpawnActorOnDeath@HUSK:
+		Actor: SONIC.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor, AntiInfantry
 
 JUGG:
 	Inherits: ^Tank
 	Inherits@SPRITES: ^SpriteActor
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	AutoCrusher@AUTOCRUSHER:
+		ScanRadius: 2c0
 	Valued:
 		Cost: 950
 	Tooltip:
@@ -429,16 +805,35 @@ JUGG:
 		RequiresCondition: deployed
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	Voiced:
+		VoiceSet: Marv
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 100
 		Prerequisites: ~gaweap, garadr, ~techlevel.high
 		Description: actor-jugg.description
-	Health:
-		HP: 35000
+	CNHealth:
+		HP: 200
 	Armor:
-		Type: Light
+		Type: Medium
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Mobile:
+		Locomotor: walker
 		Speed: 71
 		TurnSpeed: 20
 		AlwaysTurnInPlace: true
@@ -449,18 +844,15 @@ JUGG:
 		RequiresCondition: !inside-tunnel
 		Range: 9c0
 		MaxHeightDelta: 3
-	RenderVoxels:
-		LightAmbientColor: 0.4, 0.4, 0.4
-	RenderSprites:
-		Image: jugg
 	WithMakeAnimation:
 		BodyNames: body, deployedbody
 	WithFacingSpriteBody:
 		Sequence: stand
-		RequiresCondition: !deployed
+		RequiresCondition: !deployed && !inside-tunnel
 	WithMoveAnimation:
 		MoveSequence: walk
 		ValidMovementTypes: Horizontal, Turn
+		RequiresCondition: !deployed && !inside-tunnel
 	GrantConditionOnDeploy:
 		PauseOnCondition: empdisable || being-captured
 		DeployedCondition: deployed
@@ -469,8 +861,8 @@ JUGG:
 		UndeployOnPickup: true
 		Facing: 384
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySounds: place2.aud
-		UndeploySounds: clicky1.aud
+		DeploySounds: juggerdeploy1.wav
+		UndeploySounds: juggerundeploy1.wav
 		Voice: Move
 	EntersTunnels:
 		RequireForceMoveCondition: !undeployed
@@ -483,23 +875,18 @@ JUGG:
 	QuantizeFacingsFromSequence:
 		Sequence: turret
 	WithSpriteBody@deployed:
-		RequiresCondition: deployed && real-actor
-		Name: deployedbody
+		RequiresCondition: deployed && real-actor && !inside-tunnel
+		Name: idle
 	Turreted:
 		Turret: deployed
 		TurnSpeed: 20
-		InitialFacing: 384
+		InitialFacing: 512
 		Offset: -153,-17,633
 		RealignDelay: -1
-	WithVoxelBarrel:
-		Armament: deployed
-		LocalOffset: 512,0,362
-		LocalOrientation: 0, 128, 0
-		RequiresCondition: deployed
 	WithSpriteTurret@deployed:
 		Turret: deployed
 		RequiresCondition: deployed
-		Recoils: false
+		Recoils: true
 	AttackTurreted@deployed:
 		Voice: Attack
 		Armaments: deployed
@@ -513,23 +900,35 @@ JUGG:
 		Name: deployed
 		Turret: deployed
 		Weapon: Jugg90mm
-		LocalOffset: 820,203,1386, 820,0,1386, 820,-203,1386
+		LocalOffset: 1448,57,1980, 1448,212,1980, 1448,-99,1980
+		Recoil: 128
+		RecoilRecovery: 32
 		RequiresCondition: deployed
 		MuzzleSequence: muzzle
+		MuzzlePalette: effect
 	WithMuzzleOverlay:
 	RevealOnFire:
 		ArmamentNames: deployed
 	Selectable:
 		DecorationBounds: 1448, 2413, 0, -482
-	AutoDeployer:
-		DeployTrigger: BecomingIdle
-		DeployChance: 90
-		DeployTicks: 100
-		UndeployTicks: 999999
+	SpawnActorOnDeath@HUSK:
+		RequiresCondition: !deployed
+		Actor: JUGG.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		InheritFacing: true
+	SpawnActorOnDeath@DEPLOYEDHUSK:
+		RequiresCondition: deployed
+		Actor: JUGG.Deployed.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		InheritFacing: true
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor, Artillery
 
 MOBILEMP:
-	Inherits: ^Tank
-	Inherits@VOXELS: ^VoxelActor
+	Inherits@VOXELS: ^VoxelTank
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsMedium
 	Inherits@selection: ^SelectableSupportUnit
 	Buildable:
 		Queue: Vehicle
@@ -540,13 +939,13 @@ MOBILEMP:
 		Cost: 1000
 	Tooltip:
 		Name: actor-mobilemp.name
-	Health:
-		HP: 80000
+	CNHealth:
+		HP: 800
 	Armor:
-		Type: Heavy
+		Type: Medium
 	Mobile:
 		Speed: 85
-	WithVoxelBody:
+	CNWithVoxelBody:
 		Offset: 0,0,-256
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
@@ -560,3 +959,10 @@ MOBILEMP:
 	FireWarheads:
 		Weapons: MEMPulse
 		RequiresCondition: triggered && !empdisable
+	SpawnActorOnDeath@HUSK:
+		Actor: MOBILEMP.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, EMP
+

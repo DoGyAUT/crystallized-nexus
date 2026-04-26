@@ -1,53 +1,13 @@
-4TNK:
-	Inherits: ^Tank
-	Inherits@VOXELS: ^VoxelActor
-	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
-	Valued:
-		Cost: 1700
-	Tooltip:
-		Name: actor-4tnk-name
-	Mobile:
-		Speed: 56
-		TurnSpeed: 20
-	Health:
-		HP: 60000
-	Armor:
-		Type: Heavy
-	RevealsShroud:
-		Range: 6c0
-		MaxHeightDelta: 3
-		RequiresCondition: !inside-tunnel
-	Turreted:
-		TurnSpeed: 12
-	Armament@PRIMARY:
-		Weapon: 120mmx
-		LocalOffset: 707,85,509, 707,-120,509
-		MuzzleSequence: muzzle
-	Armament@SECONDARY:
-		Weapon: MammothTusk
-		LocalOffset: 0,283,580, 0,-283,580
-	AttackTurreted:
-		Voice: Attack
-		PauseOnCondition: empdisable
-	ChangesHealth:
-		Step: 500
-		Delay: 10
-		StartIfBelow: 50
-		DamageCooldown: 200
-	WithVoxelTurret:
-	WithVoxelBarrel:
-	WithMuzzleOverlay:
-
 ^TRUCK:
 	Inherits: ^CivilianVoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@selection: ^SelectableSupportUnit
 	Valued:
 		Cost: 500
 	Tooltip:
 		Name: meta-truck-name
-	Health:
-		HP: 20000
+	CNHealth:
+		HP: 200
 	Armor:
 		Type: Light
 	Mobile:
@@ -65,13 +25,14 @@ TRUCKB:
 
 ICBM:
 	Inherits: ^CivilianVoxelCrusher
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@selection: ^SelectableSupportUnit
 	Valued:
 		Cost: 1400
 	Tooltip:
 		Name: actor-icbm-name
-	Health:
-		HP: 50000
+	CNHealth:
+		HP: 500
 	Armor:
 		Type: Light
 	Mobile:
@@ -91,6 +52,7 @@ ICBM:
 
 BUS:
 	Inherits: ^CivilianVoxelCrusher
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@CARGOPIPS: ^CargoPips
 	Valued:
 		Cost: 800
@@ -100,8 +62,8 @@ BUS:
 		TurnSpeed: 20
 		Speed: 113
 		PauseOnCondition: empdisable || loading || being-captured || carried
-	Health:
-		HP: 10000
+	CNHealth:
+		HP: 100
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -117,6 +79,7 @@ BUS:
 
 PICK:
 	Inherits: ^CivilianVoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@CARGOPIPS: ^CargoPips
 	Valued:
 		Cost: 800
@@ -126,8 +89,8 @@ PICK:
 		TurnSpeed: 20
 		Speed: 113
 		PauseOnCondition: empdisable || loading || being-captured || carried
-	Health:
-		HP: 10000
+	CNHealth:
+		HP: 100
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -143,6 +106,7 @@ PICK:
 
 CAR:
 	Inherits: ^CivilianVoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@CARGOPIPS: ^CargoPips
 	Valued:
 		Cost: 800
@@ -152,8 +116,8 @@ CAR:
 		TurnSpeed: 20
 		Speed: 113
 		PauseOnCondition: empdisable || loading || being-captured || carried
-	Health:
-		HP: 10000
+	CNHealth:
+		HP: 100
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -169,6 +133,7 @@ CAR:
 
 WINI:
 	Inherits: ^CivilianVoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsLight
 	Inherits@CARGOPIPS: ^CargoPips
 	Valued:
 		Cost: 800
@@ -178,8 +143,8 @@ WINI:
 		TurnSpeed: 20
 		Speed: 113
 		PauseOnCondition: empdisable || loading || being-captured || carried
-	Health:
-		HP: 20000
+	CNHealth:
+		HP: 200
 	Armor:
 		Type: Light
 	RevealsShroud:

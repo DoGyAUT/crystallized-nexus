@@ -1,3 +1,212 @@
+^VehicleHusk:
+	Inherits@CRUSHABLETYPE: ^CrushableVehicleHusk
+	Immobile:
+	HuskFacing:
+	BodyOrientation:
+		QuantizedFacings: 0
+		UseClassicPerspectiveFudge: False
+		CameraPitch: 85
+	RenderVoxels:
+		Palette: cdvoxels.charred
+		NormalsPalette: RA2normals
+		LightAmbientColor: -0.1,-0.1,-0.1
+		LightDiffuseColor: 0.8,0.8,0.8
+		LightPitch: 128
+		LightYaw: 768
+		Scale: 10
+	CNWithVoxelBody:
+	RenderSprites:
+	Targetable:
+		TargetTypes: Ground
+	Armor:
+		Type: None
+	GrantRandomCondition:
+		Conditions: husk-fire-1, husk-fire-2, husk-fire-3
+	DamageSmoke:
+		MinimumDamageState: Undamaged
+		CriticalDamageState: Critical
+		Interval: 6
+		CriticalInterval: 3
+		Image: durasmoke_medium
+		Sequences: idle
+		Palette: effect
+		Offsets: 0,-1536,120
+		Lifetime: 200, 300
+		Rise: 16, 32
+		Drift: 0, 8
+		RandomRate: 18
+		TurnRate: 1
+	PeriodicSpriteEffect@FIREFLICKER:
+		Image: explosion
+		Sequences: tiny_flash_y
+		Palette: effect
+		MinInterval: 5
+		MaxInterval: 5
+		Offset: 0,0,192
+	WithIdleOverlay@FIRE1:
+		Image: huskfire01a
+		Sequence: idle-overlay
+		RequiresCondition: husk-fire-1
+		Palette: effect
+		Offset: 0,0,128
+	WithIdleOverlay@FIRE2:
+		Image: huskfire02a
+		Sequence: idle-overlay
+		RequiresCondition: husk-fire-2
+		Palette: effect
+		Offset: 0,0,128
+	WithIdleOverlay@FIRE3:
+		Image: huskfire03a
+		Sequence: idle-overlay
+		RequiresCondition: husk-fire-3
+		Palette: effect
+		Offset: 0,0,128
+	HitShape:
+	CNHealth:
+		HP: 100
+	ChangesHealth:
+		Step: -10
+		StartIfBelow: 101
+		Delay: 500
+	FireWarheadsOnDeath:
+		Weapon: HuskExplode
+	HiddenUnderFog:
+		Type: GroundPosition
+	Interactable:
+	ScriptTriggers:
+
+# GDI Vehicle Husks
+GMCV.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: gmcv
+
+GHARV.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: gharv
+
+APC.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: apc
+
+HVR.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: hvr
+
+GTMTNK.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: gtmtnk
+
+LTNK.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: ltnk
+
+4TNK.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: 4tnk
+
+HMEC.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Scale: 1.2
+		Image: hmec
+
+SONIC.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: sonic
+
+MOBILEMP.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: mobilemp
+
+# NOD Vehicle Husks
+NMCV.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: nmcv
+
+NHARV.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: nharv
+
+BGGY.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: bggy
+
+BIKE.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: bike
+
+TTNK.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: ttnk
+
+TTNK.Deployed.Husk:
+	Inherits: ^SpriteVehicleHusk
+	-WithFacingSpriteBody:
+	RenderSprites:
+		Image: ttnk_deployed_husk
+	WithSpriteBody:
+
+NHWTZ.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: nhwtz
+
+NHWTZ.Deployed.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: nhwtz_deployed_husk
+
+REPAIR.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: repair
+
+WEED.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: weed
+
+SAPC.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: sapc
+
+SUBTANK.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: subtank
+
+STNK.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: stnk
+
+SGEN.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: sgen
+
+LPST.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: lpst
+		Scale: 11.5
+
+# Aircraft Husks
 DSHP.Husk:
 	Inherits: ^AircraftHusk
 	Tooltip:
@@ -8,8 +217,12 @@ DSHP.Husk:
 	-RenderSprites:
 	RenderVoxels:
 		Image: dshp
+	SpawnActorOnDeath@GROUNDHUSK:
+		Actor: DSHP.GroundHusk
+		OwnerType: InternalName
+		InternalOwner: Neutral
 
-ORCA.Husk:
+ORCA_F1.Husk:
 	Inherits: ^AircraftHusk
 	Tooltip:
 		Name: actor-orca-husk-name
@@ -17,33 +230,42 @@ ORCA.Husk:
 		TurnSpeed: 20
 		Speed: 186
 	RenderSprites:
-		Image: orca
+		Image: orca_f1
 	RenderVoxels:
-		Image: orca
+		Image: orca_f1
+	SpawnActorOnDeath@GROUNDHUSK:
+		Actor: ORCA_F1.GroundHusk
+		OwnerType: InternalName
+		InternalOwner: Neutral
 
-ORCA.Husk.EMP:
-	Inherits: ORCA.Husk
+ORCA_F1.Husk.EMP:
+	Inherits: ORCA_F1.Husk
 	Inherits@EMP: ^EmpVisualEffects
 
-ORCAB.Husk:
+ORCA_B.Husk:
 	Inherits: ^AircraftHusk
 	Tooltip:
 		Name: actor-orcab-husk-name
 	Aircraft:
 		TurnSpeed: 12
 		Speed: 96
-	FallsToEarth:
-		MaximumSpinSpeed: 24
+	CNAircraftFallsToEarth:
+		Profiles: Glide, Glide, Curve, Spiral
+		SpiralMaxSpin: 24
 	RenderSprites:
-		Image: orcab
+		Image: orca_b
 	RenderVoxels:
-		Image: orcab
+		Image: orca_b
+	SpawnActorOnDeath@GROUNDHUSK:
+		Actor: ORCA_B.GroundHusk
+		OwnerType: InternalName
+		InternalOwner: Neutral
 
-ORCAB.Husk.EMP:
-	Inherits: ORCAB.Husk
+ORCA_B.Husk.EMP:
+	Inherits: ORCA_B.Husk
 	Inherits@EMP: ^EmpVisualEffects
 
-ORCATRAN.Husk:
+ORCA_TRAN.Husk:
 	Inherits: ^AircraftHusk
 	Tooltip:
 		Name: actor-orcatran-husk-name
@@ -51,12 +273,16 @@ ORCATRAN.Husk:
 		TurnSpeed: 20
 		Speed: 84
 	RenderSprites:
-		Image: orcatran
+		Image: orca_tran
 	RenderVoxels:
-		Image: orcatran
+		Image: orca_tran
+	SpawnActorOnDeath@GROUNDHUSK:
+		Actor: ORCA_TRAN.GroundHusk
+		OwnerType: InternalName
+		InternalOwner: Neutral
 
-ORCATRAN.Husk.EMP:
-	Inherits: ORCATRAN.Husk
+ORCA_TRAN.Husk.EMP:
+	Inherits: ORCA_TRAN.Husk
 	Inherits@EMP: ^EmpVisualEffects
 
 TRNSPORT.Husk:
@@ -70,6 +296,10 @@ TRNSPORT.Husk:
 		Image: trnsport
 	RenderVoxels:
 		Image: trnsport
+	SpawnActorOnDeath@GROUNDHUSK:
+		Actor: TRNSPORT.GroundHusk
+		OwnerType: InternalName
+		InternalOwner: Neutral
 
 TRNSPORT.Husk.EMP:
 	Inherits: TRNSPORT.Husk
@@ -82,32 +312,252 @@ SCRIN.Husk:
 	Aircraft:
 		TurnSpeed: 12
 		Speed: 168
-	FallsToEarth:
-		MaximumSpinSpeed: 24
+	CNAircraftFallsToEarth:
+		Profiles: Glide, Curve, Curve, Spiral
+		SpiralMaxSpin: 24
 	RenderSprites:
 		Image: scrin
 	RenderVoxels:
 		Image: scrin
+	SpawnActorOnDeath@GROUNDHUSK:
+		Actor: SCRIN.GroundHusk
+		OwnerType: InternalName
+		InternalOwner: Neutral
 
 SCRIN.Husk.EMP:
 	Inherits: SCRIN.Husk
 	Inherits@EMP: ^EmpVisualEffects
 
-APACHE.Husk:
+HYDRA.Husk:
 	Inherits: ^AircraftHusk
 	Tooltip:
 		Name: actor-apache-husk-name
 	Aircraft:
 		TurnSpeed: 20
 		Speed: 130
-	WithIdleOverlay:
-		Offset: 85,0,598
-		Sequence: rotor
 	RenderSprites:
-		Image: apache
+		Image: hydra
 	RenderVoxels:
-		Image: apache
+		Image: hydra
+	SpawnActorOnDeath@GROUNDHUSK:
+		Actor: HYDRA.GroundHusk
+		OwnerType: InternalName
+		InternalOwner: Neutral
 
-APACHE.Husk.EMP:
-	Inherits: APACHE.Husk
+HYDRA.Husk.EMP:
+	Inherits: HYDRA.Husk
 	Inherits@EMP: ^EmpVisualEffects
+
+# Aircraft Ground Husks (spawned when aircraft husk hits the ground)
+DSHP.GroundHusk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: dshp
+
+ORCA_F1.GroundHusk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: orca_f1
+
+ORCA_B.GroundHusk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: orca_b
+
+ORCA_TRAN.GroundHusk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: orca_tran
+
+TRNSPORT.GroundHusk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: trnsport
+
+SCRIN.GroundHusk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: scrin
+
+HYDRA.GroundHusk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: hydra
+
+# Sprite Vehicle Husks
+^SpriteVehicleHusk:
+	Inherits@CRUSHABLETYPE: ^CrushableVehicleHusk
+	Immobile:
+	HuskFacing:
+	BodyOrientation:
+		QuantizedFacings: 8
+		UseClassicPerspectiveFudge: False
+	RenderSprites:
+		Palette: player.charred
+	WithFacingSpriteBody:
+		Sequence: stand
+	Targetable:
+		TargetTypes: Ground
+	Armor:
+		Type: None
+	GrantRandomCondition:
+		Conditions: husk-fire-1, husk-fire-2, husk-fire-3
+	WithIdleOverlay@FIRE1:
+		Image: huskfire01a
+		Sequence: idle-overlay
+		Palette: effect
+		RequiresCondition: husk-fire-1
+		Offset: 0,0,128
+	WithIdleOverlay@FIRE2:
+		Image: huskfire02a
+		Sequence: idle-overlay
+		Palette: effect
+		RequiresCondition: husk-fire-2
+		Offset: 0,0,128
+	WithIdleOverlay@FIRE3:
+		Image: huskfire03a
+		Sequence: idle-overlay
+		Palette: effect
+		RequiresCondition: husk-fire-3
+		Offset: 0,0,128
+	DamageSmoke:
+		MinimumDamageState: Undamaged
+		CriticalDamageState: Critical
+		Interval: 6
+		CriticalInterval: 3
+		Image: durasmoke_medium
+		Sequences: idle
+		Palette: effect
+		Offsets: 0,-1536,120
+		Lifetime: 200, 300
+		Rise: 16, 32
+		Drift: 0, 8
+		RandomRate: 18
+		TurnRate: 1
+	PeriodicSpriteEffect@FIREFLICKER:
+		Image: explosion
+		Sequences: tiny_flash_y
+		Palette: effect
+		MinInterval: 5
+		MaxInterval: 5
+		Offset: 0,0,192
+	HitShape:
+	CNHealth:
+		HP: 100
+	ChangesHealth:
+		Step: -10
+		StartIfBelow: 101
+		Delay: 500
+	FireWarheadsOnDeath:
+		Weapon: HuskExplode
+	HiddenUnderFog:
+		Type: GroundPosition
+	Interactable:
+	ScriptTriggers:
+
+SMECH.Husk:
+	Inherits: ^SpriteVehicleHusk
+	BodyOrientation:
+		QuantizedFacings: 8
+
+MMCH.Husk:
+	Inherits: ^SpriteVehicleHusk
+
+JUGG.Husk:
+	Inherits: ^SpriteVehicleHusk
+
+JUGG.Deployed.Husk:
+	Inherits: ^SpriteVehicleHusk
+	-WithFacingSpriteBody:
+	RenderSprites:
+		Image: jugg_deployed_husk
+	WithSpriteBody:
+
+^InfantryHusk:
+	Interactable:
+	BodyOrientation:
+		QuantizedFacings: 1
+	RenderSprites:
+		Palette: effect
+	Immobile:
+		OccupiesSpace: False
+	HitShape:
+	CNHealth:
+		HP: 1
+	KillsSelf:
+		Delay: 1500
+	HiddenUnderFog:
+		Type: GroundPosition
+	Targetable:
+		RequiresCondition: !inside-tunnel
+		TargetTypes: DeadInfantry
+
+INFANTRY.Husk:
+	Inherits: ^InfantryHusk
+	GrantRandomCondition:
+		Conditions: infdeath-a, infdeath-b, infdeath-c, infdeath-d, infdeath-e, infdeath-f
+	WithIdleOverlay@A:
+		Image: death_a
+		StartSequence: decay
+		Sequence: idle
+		RequiresCondition: infdeath-a
+	WithIdleOverlay@B:
+		Image: death_b
+		StartSequence: decay
+		Sequence: idle
+		RequiresCondition: infdeath-b
+	WithIdleOverlay@C:
+		Image: death_c
+		StartSequence: decay
+		Sequence: idle
+		RequiresCondition: infdeath-c
+	WithIdleOverlay@D:
+		Image: death_d
+		StartSequence: decay
+		Sequence: idle
+		RequiresCondition: infdeath-d
+	WithIdleOverlay@E:
+		Image: death_e
+		StartSequence: decay
+		Sequence: idle
+		RequiresCondition: infdeath-e
+	WithIdleOverlay@F:
+		Image: death_f
+		StartSequence: decay
+		Sequence: idle
+		RequiresCondition: infdeath-f
+
+^BloodDecal:
+	Interactable:
+	BodyOrientation:
+		QuantizedFacings: 1
+	HiddenUnderFog:
+		Type: CenterPosition
+	FadeOut:
+		Delay: 150
+		FadeDuration: 100
+	RenderSprites:
+		Palette: effect
+	Immobile:
+		OccupiesSpace: true
+
+BLOODDECAL:
+	Inherits: ^BloodDecal
+	GrantRandomCondition:
+		Conditions: blood-1, blood-2, blood-3, blood-4
+	WithIdleOverlay@B1:
+		Image: blooddecal1
+		Sequence: idle
+		RequiresCondition: blood-1
+	WithIdleOverlay@B2:
+		Image: blooddecal2
+		Sequence: idle
+		RequiresCondition: blood-2
+	WithIdleOverlay@B3:
+		Image: blooddecal3
+		Sequence: idle
+		RequiresCondition: blood-3
+	WithIdleOverlay@B4:
+		Image: blooddecal4
+		Sequence: idle
+		RequiresCondition: blood-4

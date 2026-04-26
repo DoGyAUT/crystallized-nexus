@@ -10,10 +10,10 @@ GACNST:
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
 		Description: actor-gacnst.description
-	Health:
-		HP: 150000
+	CNHealth:
+		HP: 1500
 	Armor:
-		Type: Wood
+		Type: Heavy
 	RevealsShroud:
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -71,6 +71,8 @@ GACNST:
 		RequiresCondition: !build-incomplete
 		Sequence: idle-top-bright
 		Palette: bright
+	ActorLostNotification:
+		Notification: CriticalStructureLost
 	Power:
 		Amount: 0
 	ProvidesPrerequisite@gdi:
@@ -96,10 +98,10 @@ GAPOWR:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 75000
+	CNHealth:
+		HP: 750
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 4c0
 		MaxHeightDelta: 3
@@ -116,6 +118,10 @@ GAPOWR:
 		RequiresCondition: !build-incomplete
 		PauseOnCondition: empdisable
 		Sequence: idle-plug
+	WithIdleOverlay@SMOKE:
+		RequiresCondition: !build-incomplete
+		Sequence: idle-smoke
+		Palette: player25alpha
 	WithMakeOverlay@MAKE-BRIGHT:
 		Sequence: make-bright
 		Palette: bright
@@ -134,6 +140,9 @@ GAPOWR:
 			powrup: !build-incomplete && !powrup.a
 		EditorOptions:
 			powrup: Power Turbine
+	GrantConditionOnPrerequisite@pluga:
+		Condition: powrup.a
+		Prerequisites: gapowrup1
 	Power@pluga:
 		RequiresCondition: !empdisable && powrup.a
 		Amount: 50
@@ -149,6 +158,9 @@ GAPOWR:
 			powrup: !build-incomplete && !powrup.b
 		EditorOptions:
 			powrup: Power Turbine
+	GrantConditionOnPrerequisite@plugb:
+		Condition: powrup.b
+		Prerequisites: gapowrup2
 	WithIdleOverlay@plugb:
 		RequiresCondition: !build-incomplete && powrup.b
 		PauseOnCondition: empdisable
@@ -157,32 +169,8 @@ GAPOWR:
 		RequiresCondition: !empdisable && powrup.b
 		Amount: 50
 	ProvidesPrerequisite@buildingname:
-	ProvidesPrerequisite@pluggable:
-		RequiresCondition: !powrup.a || !powrup.b
-		Prerequisite: gapowr.socket
 	IsometricSelectable:
 		Height: 48
-
-GAPOWR.SOCKET:
-	Interactable:
-	Tooltip:
-		Name: actor-gapowr-socket-name
-
-GAPOWRUP:
-	Inherits: ^BuildingPlug
-	Valued:
-		Cost: 150
-	Tooltip:
-		Name: actor-gapowrup.name
-	Buildable:
-		Queue: Building
-		BuildPaletteOrder: 100
-		Prerequisites: gapowr.socket, ~structures.gdi, ~techlevel.medium
-		Description: actor-gapowrup.description
-	Plug:
-		Type: powrup
-	Power:
-		Amount: 50
 
 GPROC:
 	Inherits: ^Building
@@ -199,8 +187,10 @@ GPROC:
 	Building:
 		Footprint: xxX+ xx++ xxX+
 		Dimensions: 4,3
-	Health:
-		HP: 90000
+	CNHealth:
+		HP: 900
+	Armor:
+		Type: Medium
 	RevealsShroud:
 		Range: 6c0
 		MaxHeightDelta: 3
@@ -246,6 +236,26 @@ GPROC:
 	FireWarheadsOnDeath:
 		RequiresCondition: contains-tiberium
 		Weapon: TiberiumExplosion
+	SpawnActorOnDeath@TIBCLOUD1:
+		Actor: TIBCLOUD1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		RequiresCondition: contains-tiberium
+	SpawnActorOnDeath@TIBCLOUD2:
+		Actor: TIBCLOUD2
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		RequiresCondition: contains-tiberium
+	SpawnActorOnDeath@TIBCLOUD3:
+		Actor: TIBCLOUD1
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		RequiresCondition: contains-tiberium
+	SpawnActorOnDeath@TIBCLOUD4:
+		Actor: TIBCLOUD2
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		RequiresCondition: contains-tiberium
 	WithResourceStoragePipsDecoration:
 		Position: BottomLeft
 		RequiresSelection: true
@@ -259,7 +269,7 @@ GPROC:
 GAPILE:
 	Inherits: ^Building
 	Inherits@SHAPE: ^2x2Shape
-	Inherits@PRIMARY: ^PrimaryBuilding
+	Inherits@QUEUE: ^ProductionInfantry
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 20
@@ -274,10 +284,10 @@ GAPILE:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 80000
+	CNHealth:
+		HP: 800
 	Armor:
-		Type: Wood
+		Type: Medium
 	RevealsShroud:
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -328,18 +338,6 @@ GAPILE:
 		SpawnOffset: -724,0,0
 		ExitCell: -1,2
 	ExitsDebugOverlay:
-	ProductionQueue:
-		Type: Infantry
-		Group: Infantry
-		BuildDurationModifier: 120
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: notification-unit-ready
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: notification-unable-to-comply-building-in-progress
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
 	Production:
 		Produces: Infantry
 		PauseOnCondition: empdisable
@@ -364,11 +362,13 @@ GAPILE:
 	Power:
 		Amount: -20
 	ProvidesPrerequisite@buildingname:
+	ActorLostNotification:
+		Notification: ProductionFacilityDestroyed
 
 GAWEAP:
 	Inherits: ^Building
 	Inherits@SHAPE: ^4x3FactoryWithBibShape
-	Inherits@PRIMARY: ^PrimaryBuilding
+	Inherits@QUEUE: ^ProductionVehicle
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -383,8 +383,8 @@ GAWEAP:
 	Building:
 		Footprint: xxX+ xxX+ xxX+
 		Dimensions: 4,3
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	RevealsShroud:
 		Range: 4c0
 		MaxHeightDelta: 3
@@ -403,18 +403,6 @@ GAWEAP:
 		ExitCell: 3,1
 		ExitDelay: 5
 	ExitsDebugOverlay:
-	ProductionQueue:
-		Type: Vehicle
-		Group: Vehicle
-		BuildDurationModifier: 120
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: notification-unit-ready
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: notification-unable-to-comply-building-in-progress
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
 	Production:
 		Produces: Vehicle
 		PauseOnCondition: empdisable
@@ -454,11 +442,13 @@ GAWEAP:
 	ProvidesPrerequisite@buildingname:
 	IsometricSelectable:
 		Height: 48
+	ActorLostNotification:
+		Notification: ProductionFacilityDestroyed
 
 GAHPAD:
 	Inherits: ^Building
 	Inherits@SHAPE: ^2x2Shape
-	Inherits@PRIMARY: ^PrimaryBuilding
+	Inherits@QUEUE: ^ProductionAir
 	Valued:
 		Cost: 500
 	Tooltip:
@@ -471,8 +461,10 @@ GAHPAD:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 60000
+	CNHealth:
+		HP: 600
+	Armor:
+		Type: Light
 	RevealsShroud:
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -488,18 +480,6 @@ GAHPAD:
 		CirclesSequence:
 	CommandBarBlacklist:
 		DisableStop: false
-	ProductionQueue:
-		Type: Air
-		Group: Air
-		BuildDurationModifier: 120
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: notification-unit-ready
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: notification-unable-to-comply-building-in-progress
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
 	Production:
 		Produces: Air
 		PauseOnCondition: empdisable
@@ -532,6 +512,8 @@ GAHPAD:
 	Power:
 		Amount: -10
 	ProvidesPrerequisite@buildingname:
+	ActorLostNotification:
+		Notification: ProductionFacilityDestroyed
 
 GADEPT:
 	Inherits: ^Building
@@ -548,8 +530,10 @@ GADEPT:
 	Building:
 		Footprint: =+= x++ x+=
 		Dimensions: 3,3
-	Health:
-		HP: 110000
+	CNHealth:
+		HP: 1100
+	Armor:
+		Type: Light
 	RevealsShroud:
 		Range: 5c0
 		MaxHeightDelta: 3
@@ -632,7 +616,7 @@ GARADR:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 40
-		Prerequisites: gproc, ~structures.gdi, ~techlevel.low
+		Prerequisites: gproc, gapile, ~structures.gdi, ~techlevel.low
 		Description: actor-garadr.description
 	Valued:
 		Cost: 1000
@@ -643,12 +627,12 @@ GARADR:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	Armor:
-		Type: Wood
+		Type: Light
 	ProvidesRadar:
-		RequiresCondition: !disabled && !empdisable
+		RequiresCondition: !disabled && !empdisable && !ionstorm
 	InfiltrateForExploration:
 		PlayerExperience: 10
 	DetectCloaked:
@@ -669,6 +653,42 @@ GARADR:
 	IsometricSelectable:
 		Height: 72
 
+GAARMORY:
+	Inherits: ^Building
+	Inherits@SHAPE: ^3x2Shape
+	Inherits@IDISABLED: ^DisableOnLowPower
+	Buildable:
+		Queue: Building
+		BuildPaletteOrder: 85
+		Prerequisites: anypower, garadr, ~structures.gdi, ~techlevel.medium
+		Description: actor-gaarmory.description
+		Cost: 500
+	Tooltip:
+		Name: actor-gaarmory.name
+	Building:
+		Footprint: xx xx xx
+		Dimensions: 2,3
+	CNHealth:
+		HP: 500
+	Armor:
+		Type: Medium
+	RevealsShroud:
+		Range: 7c73
+	Production@Tech:
+		Produces: Tech
+		MoveIntoWorld: False
+	Exit:
+	ExitsDebugOverlay:
+	ProductionBar:
+		ProductionType: Tech
+	Power:
+		Amount: -50
+	ProvidesPrerequisite@buildingname:
+	RequiresBuildableArea:
+		AreaTypes: building
+	IsometricSelectable:
+		Height: 48
+
 GATECH:
 	Inherits: ^Building
 	Inherits@IDISABLED: ^DisableOnLowPower
@@ -676,7 +696,7 @@ GATECH:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 90
-		Prerequisites: gaweap, garadr, ~structures.gdi, ~techlevel.medium
+		Prerequisites: gaweap, garadr, gaarmory, ~structures.gdi, ~techlevel.medium
 		Description: actor-gatech.description
 	Valued:
 		Cost: 1500
@@ -687,10 +707,10 @@ GATECH:
 	Building:
 		Footprint: xxx xxx
 		Dimensions: 3,2
-	Health:
-		HP: 50000
+	CNHealth:
+		HP: 500
 	Armor:
-		Type: Wood
+		Type: Light
 	RevealsShroud:
 		Range: 4c0
 		MaxHeightDelta: 3
@@ -735,10 +755,10 @@ GAPLUG:
 	WithIdleOverlay@STRIP:
 		RequiresCondition: !build-incomplete && !disabled && !empdisable
 		Sequence: idle-strip
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	Armor:
-		Type: Wood
+		Type: Medium
 	RevealsShroud:
 		Range: 6c0
 		MaxHeightDelta: 3
@@ -887,6 +907,8 @@ GAPLUG:
 		Prerequisite: gaplug.socket.hunterseeker
 	IsometricSelectable:
 		Height: 48
+	ActorLostNotification:
+		Notification: CriticalStructureLost
 
 GAPLUG.SOCKET.IONCANNON:
 	Interactable:
@@ -965,8 +987,8 @@ GAFIRE:
 	RevealsShroud:
 		Range: 6c0
 		MaxHeightDelta: 3
-	Health:
-		HP: 100000
+	CNHealth:
+		HP: 1000
 	WithIdleOverlay@lights:
 		RequiresCondition: !build-incomplete
 		Sequence: idle-lights
@@ -1001,3 +1023,5 @@ GAFIRE:
 		AreaTypes: building
 	MustBeDestroyed:
 		RequiredForShortGame: false
+	ActorLostNotification:
+		Notification: CriticalStructureLost

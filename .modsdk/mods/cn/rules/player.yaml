@@ -16,6 +16,7 @@ Player:
 	GrantConditionOnPrerequisiteManager:
 	ClassicProductionQueue@Building:
 		Type: Building
+		Group: Building
 		DisplayOrder: 0
 		BuildDurationModifier: 120
 		LowPowerModifier: 300
@@ -29,6 +30,7 @@ Player:
 		SpeedUp: True
 	ClassicProductionQueue@Support:
 		Type: Support
+		Group: Support
 		DisplayOrder: 1
 		BuildDurationModifier: 120
 		LowPowerModifier: 300
@@ -40,45 +42,14 @@ Player:
 		OnHoldAudio: OnHold
 		CancelledAudio: Cancelled
 		SpeedUp: True
-	ClassicProductionQueue@Vehicle:
-		Type: Vehicle
-		DisplayOrder: 3
+	ClassicProductionQueue@Tech:
+		Type: Tech
+		Group: Tech
+		DisplayOrder: 5
 		BuildDurationModifier: 120
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: notification-unit-ready
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: notification-unable-to-comply-building-in-progress
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
-	ClassicProductionQueue@Infantry:
-		Type: Infantry
-		DisplayOrder: 2
-		BuildDurationModifier: 120
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: notification-unit-ready
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: notification-unable-to-comply-building-in-progress
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
-	ClassicProductionQueue@Air:
-		Type: Air
-		DisplayOrder: 4
-		BuildDurationModifier: 120
-		LowPowerModifier: 300
-		ReadyAudio: UnitReady
-		ReadyTextNotification: notification-unit-ready
-		LimitedAudio: BuildingInProgress
-		LimitedTextNotification: notification-unable-to-comply-building-in-progress
-		QueuedAudio: Training
-		OnHoldAudio: OnHold
-		CancelledAudio: Cancelled
-		SpeedUp: True
+		LowPowerSlowdown: 2
+		QueuedAudio: BuildTech
+		ReadyAudio: TechComplete
 	PlaceBuilding:
 		NewOptionsNotification: NewOptions
 		CannotPlaceNotification: BuildingCannotPlaceAudio
@@ -90,11 +61,18 @@ Player:
 		WinNotification: Win
 		LoseNotification: Lose
 		LeaveNotification: Leave
+	PlayerDefeatedAnnouncer:
+	BotPlayerNames:
+		Names:
+			default: Atlas, Bastion, Cipher, Falcon, Nova, Orion, Sentinel, Vector
+			gdi: Nick "Havoc" Parker, Erich "Patch" Wulfe, Shai "Hotwire" Aviv, Daryl "Deadeye" Macinnis, Nigel "Gunner" Grant, Sakura "Blackwidow" Obata, Gen. James Solomon, Gen. Paul Cortez
+			nod: Kane, Anton Slavik, Gideon Raveshaw, Kilian Qatar, Seth, Marcion, Oxanna Kristos, Jade Liang, Caleb Cypher
 	ConquestVictoryConditions:
 	PowerManager:
 		SpeechNotification: LowPower
 		TextNotification: notification-low-power
 	AllyRepair:
+	EnemyWatcher:
 	PlayerResources:
 		InsufficientFundsNotification: InsufficientFunds
 		InsufficientFundsTextNotification: notification-insufficient-funds
@@ -152,4 +130,3 @@ Player:
 	PlayerExperience:
 	GameSaveViewportManager:
 	PlayerRadarTerrain:
-	AutoDeployManager:

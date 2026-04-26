@@ -97,6 +97,15 @@
 		Name: sparkle
 		Filename: anim.pal
 		AllowModifiers: false
+	PaletteFromFile@TIBPOISON:
+		Name: tibpoison
+		Filename: tibpoison.pal
+		AllowModifiers: false
+	PaletteFromPaletteWithAlpha@TIBPOISON25:
+		Name: tibpoison25
+		BasePalette: tibpoison
+		Alpha: 0.25
+		AllowModifiers: false
 	PaletteFromFile@sidebar:
 		Name: sidebar
 		Filename: sidebar-nod|sidebar.pal
@@ -176,15 +185,123 @@
 		BasePalette: cdvoxels
 		BaseName: cdvoxels
 		RemapIndex: 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+	CharredPalette@cdvoxels.charred:
+		Name: cdvoxels.charred
+		BasePalette: cdvoxels
+		Desaturation: 0.80
+		Darkness: 0.28
+		AllowModifiers: True
+	CharredPalette@playertem.charred:
+		Name: playertem.charred
+		BasePalette: playertem
+		Desaturation: 0.80
+		Darkness: 0.28
+		AllowModifiers: True
+	CharredPalette@player.charred:
+		Name: player.charred
+		BasePalette: player
+		Desaturation: 0.80
+		Darkness: 0.28
+		AllowModifiers: True
 	PaletteFromPaletteWithAlpha@player75alpha:
 		Name: player25alpha
 		BasePalette: player
 		Alpha: 0.25
 		Premultiply: False
-	PaletteFromRGBA@Cloud:
-		Name: cloud
+	PaletteFromRGBA@Cloud50:
+		Name: cloud50
 		R: 0
 		G: 0
 		B: 0
 		A: 50
 		TransparentIndex: 255
+	PaletteFromRGBA@Cloud25:
+		Name: cloud25
+		R: 0
+		G: 0
+		B: 0
+		A: 25
+		TransparentIndex: 255
+	PaletteFromRGBA@Cloud75:
+		Name: cloud75
+		R: 0
+		G: 0
+		B: 0
+		A: 75
+		TransparentIndex: 255
+	PaletteFromFile@apolra:
+		Name: apolra
+		Filename: apolra2.pal
+	PaletteFromPaletteWithAlpha@apolra2:
+		Name: apolra2
+		BasePalette: apolra
+		Alpha: 0.5
+		Premultiply: False
+	PaletteFromFile@APOLCYAN:
+		Name: apolcyan
+		Filename: apolcyan.pal
+	PaletteFromPaletteWithAlpha@APOLCYAN50:
+		Name: apolcyan50
+		BasePalette: apolcyan
+		Alpha: 0.5
+		AllowModifiers: false
+	PaletteFromPaletteWithAlpha@APOLCYAN50:
+		Name: apolcyan50
+		BasePalette: apolcyan
+		Alpha: 0.50
+		AllowModifiers: false
+	PaletteFromPaletteWithAlpha@effect25:
+		Name: effect25
+		BasePalette: effect
+		Alpha: 0.25
+		AllowModifiers: false
+	PaletteFromPaletteWithAlpha@effect75:
+		Name: effect75
+		BasePalette: effect
+		Alpha: 0.75
+		AllowModifiers: false
+	PaletteFromFile@clightpalW:
+		Name: light_white
+		Filename: clightpal.pal
+	PaletteFromFile@clightpalY:
+		Name: light_yellow
+		Filename: clightyelpal2.pal
+	PaletteFromFile@sonic:
+		Name: sonic
+		Filename: sonic.pal
+	PaletteFromFile@blood:
+		Name: blood
+		Filename: blood.pal
+	PaletteFromPaletteWithAlpha@bloodalpha:
+		Name: bloodalpha
+		BasePalette: blood
+		Alpha: 0.70
+		AllowModifiers: false
+	PaletteFromGimpOrJascFile@ssmuzzle:
+		Name: ssmuzzle
+		Filename: ssmuzzle.pal
+		Premultiply: False
+	PaletteFromGimpOrJascFile@apexplosion01:
+		Name: apexplosion01
+		Filename: apexplosion01.pal	
+		Premultiply: False
+	PaletteFromGimpOrJascFile@heexplosion01:
+		Name: heexplosion01
+		Filename: heexplosion01.pal
+		Premultiply: False
+	PaletteFromGimpOrJascFile@heexplosion02:
+		Name: heexplosion02
+		Filename: heexplosion02.pal
+		Premultiply: False
+	PaletteFromGimpOrJascFile@unitexplode01:
+		Name: unitexplode01
+		Filename: unitexplode01.pal
+		Premultiply: False
+	PaletteFromGimpOrJascFile@unitexplode02:
+		Name: unitexplode02
+		Filename: unitexplode02.pal
+		Premultiply: False
+	PaletteFromGimpOrJascFile@pvzrvmst:
+		Name: pvzrvmst
+		Filename: pvzrvmst.pal
+		Premultiply: False

@@ -41,7 +41,6 @@ namespace OpenRA.Mods.CN.Traits
 
 		public bool HasFreeWill = false;
 
-		int masterDeadToken = Actor.InvalidConditionToken;
 		BaseSpawnerMaster spawnerMaster = null;
 
 		public Actor Master { get; private set; }
@@ -72,7 +71,7 @@ namespace OpenRA.Mods.CN.Traits
 			this.spawnerMaster = spawnerMaster;
 		}
 
-		bool TargetSwitched(in Target lastTarget, in Target newTarget)
+		static bool TargetSwitched(in Target lastTarget, in Target newTarget)
 		{
 			if (newTarget.Type != lastTarget.Type)
 				return true;
@@ -98,12 +97,13 @@ namespace OpenRA.Mods.CN.Traits
 
 		Target lastTarget = Target.Invalid;
 
-		public void Attack(Actor self, in Target target)
+		public void Attack(Actor self, in Target target, bool forceAttack = false)
 		{
 			if (!TargetSwitched(lastTarget, target))
 				return;
 
-			if (target.Type != TargetType.Terrain && !target.IsValidFor(self))
+			// Skip validity check when force-firing (ground attack, allied/neutral actors).
+			if (!forceAttack && target.Type != TargetType.Terrain && !target.RequiresForceFire && !target.IsValidFor(self))
 			{
 				Stop(self);
 				return;
@@ -116,14 +116,14 @@ namespace OpenRA.Mods.CN.Traits
 				if (ab.IsTraitDisabled)
 					continue;
 
-				ab.AttackTarget(target, AttackSource.Default, false, true, target.RequiresForceFire);
+				ab.AttackTarget(target, AttackSource.Default, false, true, forceAttack || target.RequiresForceFire);
 			}
 		}
 
 		public virtual void OnMasterKilled(Actor self, Actor attacker, SpawnerSlaveDisposal disposal)
 		{
 			if (!string.IsNullOrEmpty(info.MasterDeadCondition))
-				masterDeadToken = self.GrantCondition(info.MasterDeadCondition);
+				_ = self.GrantCondition(info.MasterDeadCondition);
 
 			switch (disposal)
 			{

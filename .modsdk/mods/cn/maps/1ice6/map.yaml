@@ -62,37 +62,37 @@ Actors:
 	Actor0: aban03
 		Location: 85,5
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor1: aban07
 		Location: 77,3
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor2: aban08
 		Location: 85,-2
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor3: ca0006
 		Location: 76,-6
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor4: ca0007
 		Location: 80,-7
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor5: ca0008
 		Location: 70,-4
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor6: ca0001
 		Location: 74,10
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor7: ca0020
 		Location: 70,7
@@ -113,37 +113,37 @@ Actors:
 	Actor11: aban06
 		Location: 97,-36
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor12: aban11
 		Location: 108,-37
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor13: ca0016
 		Location: 95,-25
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor14: ca0016
 		Location: 115,-18
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor15: ca0003
 		Location: 106,-16
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor16: ca0011
 		Location: 82,12
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor17: ca0004
 		Location: 114,-27
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor18: ca0018
 		Location: 92,-39
@@ -172,7 +172,7 @@ Actors:
 	Actor24: aban08
 		Location: 104,-30
 		Owner: Neutral
-		Health: 0
+		CNHealth: 0
 		Facing: 896
 	Actor25: inblulmp
 		Location: 110,71

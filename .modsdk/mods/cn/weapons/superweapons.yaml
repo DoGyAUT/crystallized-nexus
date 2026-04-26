@@ -13,37 +13,28 @@ MultiCluster:
 		VerticalRateOfTurn: 64
 	Warhead@1Dam: SpreadDamage
 		Spread: 216
-		Damage: 13000
+		Damage: 150
 		ValidTargets: Ground, Water, Air, Trees
-		Versus:
-			None: 100
-			Wood: 85
-			Light: 70
-			Heavy: 35
-			Concrete: 28
 		DamageTypes: Prone50Percent, TriggerProne, ExplosionDeath
 	Warhead@2Eff: CreateEffect
 		ImpactActors: false
-		Explosions: large_twlt
+		Explosions: unitexplode2_huge, unitexplode1_large, large_bang, large_brnl, large_tumu, verylarge_clsn, building, artexplo01, artexplo02, artexplo03, artexplo04
+		ExplosionPalette: effect
 		ImpactSounds: expnew09.aud
 	Warhead@ResourceDestruction: DestroyResource
 
 ClusterMissile:
+	Inherits@DefaultWahead: ^MissileWarhead
 	ValidTargets: Ground, Water, Air, Trees
 	Warhead@1Dam: SpreadDamage
 		Spread: 512
 		Falloff: 100, 100, 0
-		Damage: 26000
+		Damage: 300
 		ValidTargets: Ground, Water, Air, Trees
-		Versus:
-			None: 100
-			Wood: 85
-			Light: 70
-			Heavy: 35
-			Concrete: 28
 		DamageTypes: Prone50Percent, TriggerProne, ExplosionDeath
 	Warhead@SoundEffect: CreateEffect
-		Explosions: large_twlt
+		Explosions: unitexplode2_huge, unitexplode1_large, large_bang, large_brnl, large_tumu, verylarge_clsn, building, artexplo01, artexplo02, artexplo03, artexplo04
+		ExplosionPalette: effect
 		ImpactSounds: expnew19.aud
 		ImpactActors: false
 		ValidTargets: Ground, Water, Air
@@ -58,13 +49,14 @@ ClusterMissile:
 		Multiplier: 1,1
 
 SuicideBomb:
+	Inherits@DefaultWahead: ^ExplosionWarhead
 	Range: 0c512
 	TargetActorCenter: true
 	Report: hunter2.aud
 	Projectile: InstantHit
 	ValidTargets: Vehicle, Building, Support, Infantry
 	Warhead@1Dam: TargetDamage
-		Damage: 1000000
+		Damage: 1000
 		DamageTypes: FireDeath
 		ValidTargets: Vehicle, Building, Support, Infantry
 
@@ -72,13 +64,13 @@ IonCannon:
 	ValidTargets: Ground, Water, Air, Trees
 	Warhead@1Dam_impact: SpreadDamage
 		Spread: 1c0
-		Damage: 10000
+		Damage: 250
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		ValidTargets: Ground, Water, Air
 		DamageTypes: Prone100Percent, TriggerProne, EnergyDeath
 	Warhead@2Dam_area: SpreadDamage
 		Spread: 1c0
-		Damage: 25000
+		Damage: 500
 		Falloff: 100, 50, 25, 0
 		Delay: 3
 		ValidTargets: Ground, Water, Air, Trees

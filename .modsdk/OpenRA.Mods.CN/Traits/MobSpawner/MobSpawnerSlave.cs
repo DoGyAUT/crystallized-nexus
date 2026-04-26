@@ -32,7 +32,8 @@ namespace OpenRA.Mods.CN.Traits
 
 		public bool IsMoving { get { return self.CurrentActivity is Move; } }
 
-		public MobSpawnerSlave(ActorInitializer init, MobSpawnerSlaveInfo info) : base(init, info)
+		public MobSpawnerSlave(ActorInitializer init, MobSpawnerSlaveInfo info)
+			: base(init, info)
 		{
 			self = init.Self;
 		}

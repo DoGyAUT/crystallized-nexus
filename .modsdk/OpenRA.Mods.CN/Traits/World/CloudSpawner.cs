@@ -58,6 +58,13 @@ namespace OpenRA.Mods.CN.Traits
 
 		[Desc("Should we pre-spawn clouds covers the map?")]
 		public readonly bool ShouldPrespawn = true;
+
+		[Desc("Blend mode for rendering. Use Alpha for cloud shadows, Additive for godrays.")]
+		public readonly BlendMode BlendMode = BlendMode.Alpha;
+
+		[Desc("Z-offset for render ordering. Higher values render on top. Default 32768 renders above terrain.")]
+		public readonly int RenderZOffset = 32768;
+
 		public override object Create(ActorInitializer init) { return new CloudSpawner(this); }
 	}
 
@@ -84,7 +91,7 @@ namespace OpenRA.Mods.CN.Traits
 			}
 		}
 
-		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
+		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
 		{
 			if (info.ShouldPrespawn)
 				PreSpawnClouds(w);

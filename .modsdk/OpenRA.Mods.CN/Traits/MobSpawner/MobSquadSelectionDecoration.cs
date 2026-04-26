@@ -77,4 +77,3 @@ namespace OpenRA.Mods.CN.Traits
 		bool IRenderAnnotations.SpatiallyPartitionable => true;
 	}
 }
-

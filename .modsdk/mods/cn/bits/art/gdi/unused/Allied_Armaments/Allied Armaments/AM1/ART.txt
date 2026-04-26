@@ -1,0 +1,7 @@
+[M1]
+TurretOffset=-30
+PrimaryFireFLH=200,0,165
+SecondaryFireFLH=10,80,90
+
+
+PS：made by lmss22

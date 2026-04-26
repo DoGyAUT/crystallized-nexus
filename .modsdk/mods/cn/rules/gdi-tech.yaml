@@ -1,0 +1,33 @@
+upgrade.gapowerup1:
+	Inherits: ^Tech
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: actor-gapowrup1.name
+	Buildable:
+		Queue: Tech
+		BuildPaletteOrder: 100
+		Prerequisites: gaarmory, ~structures.gdi, ~!upgrade.gapowerup1, ~techlevel.medium
+		BuildLimit: 1
+		Description: actor-gapowrup1.description
+	ProvidesPrerequisite:
+		Prerequisite: gapowrup2
+	RenderSprites:
+		Image: gapowrup1
+
+upgrade.gapowerup2:
+	Inherits: ^Tech
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: actor-gapowrup2.name
+	Buildable:
+		Queue: Tech
+		BuildPaletteOrder: 101
+		Prerequisites: gaarmory, ~structures.gdi, ~!upgrade.gapowerup2, ~techlevel.medium
+		BuildLimit: 1
+		Description: actor-gapowrup2.description
+	ProvidesPrerequisite:
+		Prerequisite: gapowrup1
+	RenderSprites:
+		Image: gapowrup2
