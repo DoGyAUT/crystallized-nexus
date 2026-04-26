@@ -31,9 +31,9 @@ namespace OpenRA.Mods.CN.Traits
 		public readonly ImmutableArray<ushort> PavementTemplates = default;
 
 		[Desc("Terrain template IDs for LAT transition tiles (plat01-plat16).",
-			"Must contain exactly 16 IDs, one for each bitmask combination.",
-			"Order: index 0 = no pavement neighbours (standalone edge),",
-			"through to index 15 = all 4 neighbours are pavement.",
+			"Must contain exactly 16 IDs, one for each clear-side bitmask combination.",
+			"Order: bit 0 = north side is clear, bit 1 = east side is clear,",
+			"bit 2 = south side is clear, bit 3 = west side is clear.",
 			"Temperate: 596-611. Snow: 1046-1061.",
 			"Leave empty to disable LAT transitions (hard edges).")]
 		public readonly ImmutableArray<ushort> TransitionTemplates = default;
@@ -125,12 +125,20 @@ namespace OpenRA.Mods.CN.Traits
 				innerCells = allCells;
 
 			// First pass: set inner pavement tiles and store originals
+			var targetPavementCells = new HashSet<CPos>();
 			foreach (var cell in allCells)
 			{
+				if (IsPavement(cell, map))
+				{
+					targetPavementCells.Add(cell);
+					continue;
+				}
+
 				if (!CanPaveCell(cell, map, terrainInfo))
 					continue;
 
 				originalTiles[cell] = map.Tiles[cell];
+				targetPavementCells.Add(cell);
 
 				if (innerCells.Contains(cell))
 				{
@@ -147,23 +155,16 @@ namespace OpenRA.Mods.CN.Traits
 				var borderCells = allCells.Except(innerCells).Where(c => originalTiles.ContainsKey(c));
 
 				foreach (var cell in borderCells)
-				{
-					var mask = CalculateTransitionMask(cell, map);
-					var transitionId = info.TransitionTemplates[mask];
-					map.Tiles[cell] = new TerrainTile(transitionId, 0);
-				}
+					SetTransitionTile(self, map, cell, targetPavementCells);
 
 				// Also update inner edge cells that border non-paved terrain
 				foreach (var cell in innerCells.Where(c => originalTiles.ContainsKey(c)))
 				{
-					var mask = CalculateTransitionMask(cell, map);
+					var mask = CalculateClearSideMask(cell, map, targetPavementCells);
 
 					// Not fully surrounded by pavement
-					if (mask < 15)
-					{
-						var transitionId = info.TransitionTemplates[mask];
-						map.Tiles[cell] = new TerrainTile(transitionId, 0);
-					}
+					if (mask > 0)
+						SetTransitionTile(self, map, cell, targetPavementCells);
 				}
 			}
 
@@ -195,24 +196,49 @@ namespace OpenRA.Mods.CN.Traits
 		}
 
 		/// <summary>
-		/// Calculate a 4-bit bitmask based on which cardinal neighbours are pavement.
-		/// Bit layout (TS convention):
-		///   bit 0 (1) = North neighbour is pavement
-		///   bit 1 (2) = East neighbour is pavement
-		///   bit 2 (4) = South neighbour is pavement
-		///   bit 3 (8) = West neighbour is pavement
-		/// Result: 0 = no pavement neighbours, 15 = all 4 sides are pavement.
+		/// Calculate a 4-bit bitmask based on which cardinal sides are clear terrain.
+		/// Bit layout:
+		///   bit 0 (1) = North side is clear
+		///   bit 1 (2) = East side is clear
+		///   bit 2 (4) = South side is clear
+		///   bit 3 (8) = West side is clear
+		/// Result: 0 = fully surrounded by pavement, 15 = standalone pavement.
 		/// </summary>
-		int CalculateTransitionMask(CPos cell, Map map)
+		int CalculateClearSideMask(CPos cell, Map map, HashSet<CPos> targetPavementCells)
 		{
 			var mask = 0;
 
-			if (IsPavement(cell + new CVec(0, -1), map)) mask |= 1;  // North
-			if (IsPavement(cell + new CVec(1, 0), map)) mask |= 2;   // East
-			if (IsPavement(cell + new CVec(0, 1), map)) mask |= 4;   // South
-			if (IsPavement(cell + new CVec(-1, 0), map)) mask |= 8;  // West
+			if (!IsTargetPavement(cell + new CVec(0, -1), map, targetPavementCells))
+				mask |= 1;
+			if (!IsTargetPavement(cell + new CVec(1, 0), map, targetPavementCells))
+				mask |= 2;
+			if (!IsTargetPavement(cell + new CVec(0, 1), map, targetPavementCells))
+				mask |= 4;
+			if (!IsTargetPavement(cell + new CVec(-1, 0), map, targetPavementCells))
+				mask |= 8;
 
 			return mask;
+		}
+
+		void SetTransitionTile(Actor self, Map map, CPos cell, HashSet<CPos> targetPavementCells)
+		{
+			var mask = CalculateClearSideMask(cell, map, targetPavementCells);
+			if (mask == 0)
+			{
+				var templateId = info.PavementTemplates[self.World.SharedRandom.Next(info.PavementTemplates.Length)];
+				map.Tiles[cell] = new TerrainTile(templateId, 0);
+				return;
+			}
+
+			map.Tiles[cell] = new TerrainTile(info.TransitionTemplates[mask], 0);
+		}
+
+		bool IsTargetPavement(CPos cell, Map map, HashSet<CPos> targetPavementCells)
+		{
+			if (!map.Contains(cell))
+				return false;
+
+			return targetPavementCells.Contains(cell) || IsPavement(cell, map);
 		}
 
 		bool IsPavement(CPos cell, Map map)
