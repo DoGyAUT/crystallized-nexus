@@ -149,6 +149,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 			else
 				GoToRandomOwnBuilding(squad);
+
+			Retreat(squad, flee: false, rearm: true, repair: true);
 		}
 
 		public void Tick(CNSquad squad)

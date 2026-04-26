@@ -125,7 +125,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Activate(CNSquad squad)
 		{
 			fleeStartTick = squad.World.WorldTick;
-			GoToRandomOwnBuilding(squad);
+			Retreat(squad, flee: true, rearm: true, repair: true);
 		}
 
 		public void Tick(CNSquad squad)

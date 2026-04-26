@@ -223,16 +223,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		protected static void QueueReturnToBase(CNSquad squad)
 		{
-			foreach (var unit in squad.OrderableUnits)
-			{
-				if (!unit.Info.HasTraitInfo<AircraftInfo>())
-					continue;
-
-				if (IsRearming(unit) || HasFullCombatAmmo(unit))
-					continue;
-
-				squad.Bot.QueueOrder(new Order("ReturnToBase", unit, false));
-			}
+			Retreat(squad, flee: false, rearm: true, repair: true);
 		}
 
 		protected static bool AllAircraftReady(CNSquad squad)

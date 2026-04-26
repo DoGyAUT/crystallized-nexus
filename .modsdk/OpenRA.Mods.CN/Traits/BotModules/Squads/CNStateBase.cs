@@ -148,5 +148,78 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					return false;
 			return true;
 		}
+
+		protected static void Retreat(CNSquad squad, bool flee, bool rearm, bool repair)
+		{
+			var fleeingUnits = new List<Actor>();
+			var repairOrderedForAircraft = false;
+
+			foreach (var unit in squad.OrderableUnits)
+			{
+				if (IsRearming(unit))
+					continue;
+
+				var orderQueued = false;
+
+				if (rearm && NeedsRearm(unit))
+				{
+					squad.Bot.QueueOrder(new Order("ReturnToBase", unit, false));
+					orderQueued = true;
+				}
+
+				if (repair && NeedsRepair(unit) && TryFindRepairOrder(unit, out var orderId, out var repairBuilding))
+				{
+					var isAircraft = unit.Info.HasTraitInfo<AircraftInfo>();
+					if (!isAircraft || !repairOrderedForAircraft)
+					{
+						squad.Bot.QueueOrder(new Order(orderId, unit, Target.FromActor(repairBuilding), orderQueued));
+						orderQueued = true;
+						repairOrderedForAircraft |= isAircraft;
+					}
+				}
+
+				if (flee && !orderQueued)
+					fleeingUnits.Add(unit);
+			}
+
+			if (fleeingUnits.Count > 0)
+				squad.Bot.QueueOrder(new Order("Move", null, Target.FromCell(squad.World, RandomBuildingLocation(squad)), false,
+					groupedActors: fleeingUnits.ToArray()));
+		}
+
+		static bool NeedsRearm(Actor unit)
+		{
+			var ammoPools = unit.TraitsImplementing<AmmoPool>().ToArray();
+			return ammoPools.Length > 0 &&
+				!ReloadsAutomatically(ammoPools, unit.TraitOrDefault<Rearmable>()) &&
+				!FullAmmo(ammoPools);
+		}
+
+		static bool NeedsRepair(Actor unit)
+		{
+			var health = unit.TraitOrDefault<IHealth>();
+			return health != null && health.DamageState > DamageState.Undamaged;
+		}
+
+		static bool TryFindRepairOrder(Actor unit, out string orderId, out Actor repairBuilding)
+		{
+			orderId = "Repair";
+			repairBuilding = null;
+
+			var repairable = unit.TraitOrDefault<Repairable>();
+			if (repairable != null)
+			{
+				repairBuilding = repairable.FindRepairBuilding(unit);
+				return repairBuilding != null;
+			}
+
+			var repairableNear = unit.TraitOrDefault<RepairableNear>();
+			if (repairableNear == null)
+				return false;
+
+			orderId = "RepairNear";
+			repairBuilding = repairableNear.FindRepairBuilding(unit);
+			return repairBuilding != null;
+		}
 	}
 }

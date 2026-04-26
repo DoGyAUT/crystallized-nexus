@@ -615,7 +615,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			GoToRandomOwnBuilding(squad);
+			Retreat(squad, flee: true, rearm: true, repair: true);
 			squad.FuzzyStateMachine.ChangeState(squad, new CNGroundIdleState());
 		}
 
@@ -714,6 +714,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var target = Target.FromCell(squad.World, returnCell);
 			foreach (var a in squad.OrderableUnits)
 				squad.Bot.QueueOrder(new Order("Move", a, target, false));
+
+			Retreat(squad, flee: false, rearm: true, repair: true);
 		}
 
 		public void Tick(CNSquad squad)
