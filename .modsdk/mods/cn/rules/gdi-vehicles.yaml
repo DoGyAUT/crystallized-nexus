@@ -137,7 +137,7 @@ GHARV:
 		Probability: 55
 		RequiresCondition: !no-tiberium
 	BotCapabilities:
-		Capabilities: Vehicle, Harvester
+		Capabilities: Vehicle, Harvester, Economy
 
 APC:
 	Inherits: ^Tank
@@ -388,7 +388,7 @@ GTMTNK:
 		Prerequisites: ~gaweap, ~techlevel.low
 		Description: actor-gtmtnk.description
 	Mobile:
-		TurnSpeed: 20
+		TurnSpeed: 10
 		Speed: 70
 		AlwaysTurnInPlace: true
 	CNHealth:
@@ -424,7 +424,7 @@ GTMTNK:
 	CNWithVoxelTurret:
 	CNWithVoxelBarrel:
 	Armament:
-		Weapon: 90mm
+		Weapon: 75mm
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		Recoil: 256
@@ -550,7 +550,7 @@ MMCH:
 	Mobile:
 		Locomotor: heavytracked
 		Speed: 56
-		TurnSpeed: 20
+		TurnSpeed: 5
 	CNHealth:
 		HP: 400
 	Armor:

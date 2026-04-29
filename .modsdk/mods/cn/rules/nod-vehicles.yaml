@@ -137,7 +137,7 @@ NHARV:
 		Probability: 55
 		RequiresCondition: !no-tiberium
 	BotCapabilities:
-		Capabilities: Vehicle, Harvester
+		Capabilities: Vehicle, Harvester, Economy
 
 BGGY:
 	Inherits@VOXELS: ^VoxelVehicle
@@ -293,16 +293,16 @@ LTNK:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
-		Prerequisites: ~gaweap, ~techlevel.low
+		Prerequisites: ~naweap, ~techlevel.low
 		Description: actor-ltnk.description
 	Mobile:
-		TurnSpeed: 30
-		Speed: 80
+		TurnSpeed: 20
+		Speed: 90
 		AlwaysTurnInPlace: true
 	CNHealth:
-		HP: 150
+		HP: 125
 	SecondaryHealth@ARMOR:
-		MaxHP: 400
+		MaxHP: 300
 		InitialHP: -1
 		ArmorType: Heavy
 		RegenerateRate: 0
@@ -330,14 +330,14 @@ LTNK:
 		Voice: Attack
 		PauseOnCondition: empdisable
 	CNWithVoxelTurret:
-#	CNWithVoxelBarrel:
+	CNWithVoxelBarrel:
 	Armament:
 		Weapon: 90mm
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		Recoil: 256
 		RecoilRecovery: 32
-		LocalOffset: 1620,0,870
+		LocalOffset: 1450,0,870
 	WithMuzzleOverlay:
 	Selectable:
 		DecorationBounds: 1267, 2534
@@ -407,6 +407,9 @@ TTNK:
 		Image: ttnk
 	WithMakeAnimation:
 		Condition: deploying
+	WithMakeOverlay:
+		Sequence: dig
+		Palette: terrain
 	GrantConditionOnDeploy:
 		PauseOnCondition: empdisable || being-captured
 		DeployedCondition: deployed
@@ -415,8 +418,8 @@ TTNK:
 		UndeployOnPickup: true
 		Facing: 640
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySounds: nhwtzdeploy1.wav
-		UndeploySounds: nhwtzundeploy1.wav
+		DeploySounds: subdril1.aud
+		UndeploySounds: subdril1.aud
 		Voice: Move
 	EntersTunnels:
 		RequireForceMoveCondition: !undeployed
@@ -438,7 +441,7 @@ TTNK:
 	Turreted:
 		Turret: primary
 		TurnSpeed: 20
-		Offset: 275,0,0
+		Offset: 330,0,0
 	CNWithVoxelTurret:
 		Turret: primary
 		RequiresCondition: undeployed
@@ -453,7 +456,7 @@ TTNK:
 		Name: primary
 		Turret: primary
 		Weapon: 57mm
-		LocalOffset: 800,150,650
+		LocalOffset: 960,180,780
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		RequiresCondition: undeployed
@@ -463,7 +466,7 @@ TTNK:
 		Name: secondary
 		Turret: primary
 		Weapon: 57mm
-		LocalOffset: 800,-150,650
+		LocalOffset: 960,-180,780
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		RequiresCondition: undeployed
@@ -473,7 +476,7 @@ TTNK:
 	Turreted@DEPLOYED:
 		Turret: deployed
 		TurnSpeed: 20
-		Offset: 288,0,336
+		Offset: 345,0,403
 	CNWithVoxelTurret@deployed:
 		Turret: deployed
 		RequiresCondition: deployed
@@ -490,7 +493,7 @@ TTNK:
 		Name: deployedprimary
 		Turret: deployed
 		Weapon: 57mm_deployed
-		LocalOffset: 800,150,650
+		LocalOffset: 960,180,780
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		RequiresCondition: deployed
@@ -500,7 +503,7 @@ TTNK:
 		Name: deployedsecondary
 		Turret: deployed
 		Weapon: 57mm_deployed
-		LocalOffset: 800,-150,650
+		LocalOffset: 960,-180,780
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		RequiresCondition: deployed

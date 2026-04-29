@@ -18,6 +18,9 @@
 						Mountains: 300
 						Forests: 25
 						ForestCutout: 2
+						IceFields: 0
+						IceFieldWaterBorder: 2
+						RoughGroundPatches: 100
 						MaximumCutoutSpacing: 12
 						TerrainSmoothing: 4
 						SmoothingThreshold: 833
@@ -26,6 +29,8 @@
 						MinimumLandSeaThickness: 4
 						MinimumMountainThickness: 4
 						MaximumAltitude: 8
+						BaseLandHeight: 2
+						BaseLandHeightEdgeVariation: 1
 						RoughnessRadius: 5
 						Roughness: 250
 						WaterCliffs: False
@@ -40,21 +45,44 @@
 						ForestClumpiness: 1
 						DenyWalledAreas: True
 						EnforceSymmetry: 0
+						Roads: False
+						RoadSpacing: 24
+						RoadShrink: 0
 						CreateEntities: True
 						CentralSpawnReservationFraction: 250
-						ResourceSpawnReservation: 8
-						SpawnRegionSize: 12
-						SpawnBuildSize: 8
-						MinimumSpawnRadius: 5
+						ResourceSpawnReservation: 10
+						SpawnRegionSize: 15
+						SpawnBuildSize: 10
+						MinimumSpawnRadius: 6
 						SpawnResourceSpawns: 3
-						SpawnReservation: 16
-						SpawnResourceBias: 500
+						SpawnReservation: 18
+						SpawnResourceBias: 250
 						OreUniformity: 250
 						OreClumpiness: 2
 						MinimumExpansionSize: 2
 						MaximumExpansionSize: 12
 						ExpansionInner: 2
 						ExpansionBorder: 1
+						DecorativeRocks: 4
+						StrategicRocks: 3
+						MinimumStrategicRockClusterActors: 2
+						MaximumStrategicRockClusterActors: 5
+						StrategicRockClusterInner: 1
+						MinimumStrategicRockClusterRadius: 2
+						MaximumStrategicRockClusterRadius: 5
+						StrategicRockClusterBorder: 2
+						RockReservation: 2
+						RockWeights:
+							srock01: 1
+							srock02: 1
+							srock03: 1
+							srock04: 1
+							srock05: 1
+							trock01: 1
+							trock02: 1
+							trock03: 1
+							trock04: 1
+							trock05: 1
 						CivilianBuildings: 125
 						CivilianBuildingDensity: 500
 						MinimumCivilianBuildingDensity: 90
@@ -78,9 +106,33 @@
 						ForestObstacles: Trees
 						UnplayableObstacles: Obstructions
 						CivilianBuildingsObstacles: CivilianBuildings
+						RoughGroundPatchBrushes: RoughGroundPatches
 						LandTile: 0
 						WaterTile: 341
 						ForestFloor: 125
+						PavedRoadNorthWestSouthEastTile: 312
+						PavedRoadNorthEastSouthWestTile: 313
+						PavedRoadCrossingTile: 314
+						PavedRoadTJunctionNorthEastTile: 317
+						PavedRoadTJunctionSouthEastTile: 318
+						PavedRoadTJunctionSouthWestTile: 319
+						PavedRoadTJunctionNorthWestTile: 320
+						PavedRoadClearNorthWestTile: 321
+						PavedRoadClearSouthEastTile: 322
+						PavedRoadDamagedNorthWestSouthEastTile: 323
+						PavedRoadClearSouthWestTile: 324
+						PavedRoadClearNorthEastTile: 325
+						PavedRoadDamagedNorthEastSouthWestTile: 326
+						PavedRoadEndSouthEastTile: 562
+						PavedRoadEndNorthEastTile: 563
+						PavedRoadEndNorthWestTile: 564
+						PavedRoadEndSouthWestTile: 565
+						PavedRoadCrosswalkNorthWestSouthEastTile: 624
+						PavedRoadCrosswalkNorthEastSouthWestTile: 625
+						PavedRoadSlopeNorthWestDownSouthEastUpTile: 672
+						PavedRoadSlopeNorthEastDownSouthWestUpTile: 673
+						PavedRoadSlopeNorthWestUpSouthEastDownTile: 674
+						PavedRoadSlopeNorthEastUpSouthWestDownTile: 675
 						RepaintTiles:
 							341: Water
 						RampTiles: 0, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57
@@ -231,6 +283,7 @@
 					Tileset: SNOW
 					Settings:
 						ForestFloorTile: 150
+						IceFieldBrushes: IceFields
 						OtherGround:
 							150: 250
 							989: 150
@@ -374,21 +427,21 @@
 								AutoMain:
 								Low: 341
 								____: 341
-								___x: 456, 520, 584
-								__x_: 457, 521, 585
-								__xx: 458, 522, 586
-								_x__: 459, 523, 587
-								_x_x: 460, 524, 588
-								_xx_: 461, 525, 589
-								_xxx: 462, 526, 590
-								x___: 463, 527, 591
-								x__x: 464, 528, 592
-								x_x_: 465, 529, 593
-								x_xx: 466, 530, 594
-								xx__: 467, 531, 595
-								xx_x: 468, 532, 596
-								xxx_: 469, 533, 597
-								xxxx: 470, 534, 598
+								___x: 440, 456, 472, 488, 504, 520, 536, 552, 568, 584, 600, 616
+								__x_: 441, 457, 473, 489, 505, 521, 537, 553, 569, 585, 601, 617
+								__xx: 442, 458, 474, 490, 506, 522, 538, 554, 570, 586, 602, 618
+								_x__: 443, 459, 475, 491, 507, 523, 539, 555, 571, 587, 603, 619
+								_x_x: 444, 460, 476, 492, 508, 524, 540, 556, 572, 588, 604, 620
+								_xx_: 445, 461, 477, 493, 509, 525, 541, 557, 573, 589, 605, 621
+								_xxx: 446, 462, 478, 494, 510, 526, 542, 558, 574, 590, 606, 622
+								x___: 447, 463, 479, 495, 511, 527, 543, 559, 575, 591, 607, 623
+								x__x: 448, 464, 480, 496, 512, 528, 544, 560, 576, 592, 608, 624
+								x_x_: 449, 465, 481, 497, 513, 529, 545, 561, 577, 593, 609, 625
+								x_xx: 450, 466, 482, 498, 514, 530, 546, 562, 578, 594, 610, 626
+								xx__: 451, 467, 483, 499, 515, 531, 547, 563, 579, 595, 611, 627
+								xx_x: 452, 468, 484, 500, 516, 532, 548, 564, 580, 596, 612, 628
+								xxx_: 453, 469, 485, 501, 517, 533, 549, 565, 581, 597, 613, 629
+								xxxx: 454, 470, 486, 502, 518, 534, 550, 566, 582, 598, 614, 630
 			IntegerOption@Seed:
 				Label: label-ts-map-generator-option-seed
 				Parameter: Seed
@@ -475,6 +528,116 @@
 						Water: 200
 						Mountains: 900
 						Roughness: 850
+			MultiChoiceOption@ForestDensity:
+				Label: label-ts-map-generator-option-forest-density
+				Priority: 2
+				Default: Default
+				Choice@Default:
+					Label: label-ts-map-generator-choice-forest-density-default
+					Settings:
+				Choice@Low:
+					Label: label-ts-map-generator-choice-forest-density-low
+					Settings:
+						Forests: 100
+				Choice@Medium:
+					Label: label-ts-map-generator-choice-forest-density-medium
+					Settings:
+						Forests: 200
+				Choice@High:
+					Label: label-ts-map-generator-choice-forest-density-high
+					Settings:
+						Forests: 300
+				Choice@VeryHigh:
+					Label: label-ts-map-generator-choice-forest-density-very-high
+					Settings:
+						Forests: 400
+			MultiChoiceOption@RoughGroundPatches:
+				Label: label-ts-map-generator-option-rough-ground-patches
+				Priority: 2
+				Default: Default
+				Choice@Default:
+					Label: label-ts-map-generator-choice-rough-ground-patches-default
+					Settings:
+				Choice@None:
+					Label: label-ts-map-generator-choice-rough-ground-patches-none
+					Settings:
+						RoughGroundPatches: 0
+				Choice@Low:
+					Label: label-ts-map-generator-choice-rough-ground-patches-low
+					Settings:
+						RoughGroundPatches: 50
+				Choice@High:
+					Label: label-ts-map-generator-choice-rough-ground-patches-high
+					Settings:
+						RoughGroundPatches: 180
+			MultiChoiceOption@IceFields:
+				Label: label-ts-map-generator-option-ice-fields
+				Priority: 2
+				Default: None
+				Choice@None:
+					Label: label-ts-map-generator-choice-ice-fields-none
+					Settings:
+						IceFields: 0
+				Choice@Low:
+					Label: label-ts-map-generator-choice-ice-fields-low
+					Settings:
+						IceFields: 80
+				Choice@Medium:
+					Label: label-ts-map-generator-choice-ice-fields-medium
+					Settings:
+						IceFields: 160
+				Choice@High:
+					Label: label-ts-map-generator-choice-ice-fields-high
+					Settings:
+						IceFields: 280
+			MultiChoiceOption@Rocks:
+				Label: label-ts-map-generator-option-rocks
+				Priority: 2
+				Default: Default
+				Choice@Default:
+					Label: label-ts-map-generator-choice-rocks-default
+					Settings:
+				Choice@None:
+					Label: label-ts-map-generator-choice-rocks-none
+					Settings:
+						DecorativeRocks: 0
+						StrategicRocks: 0
+				Choice@Low:
+					Label: label-ts-map-generator-choice-rocks-low
+					Settings:
+						DecorativeRocks: 2
+						StrategicRocks: 1
+				Choice@High:
+					Label: label-ts-map-generator-choice-rocks-high
+					Settings:
+						DecorativeRocks: 8
+						StrategicRocks: 6
+			MultiChoiceOption@Roads:
+				Label: label-ts-map-generator-option-roads
+				Default: None
+				Priority: 2
+				Choice@None:
+					Label: label-ts-map-generator-choice-roads-none
+					Settings:
+						Roads: False
+				Choice@Low:
+					Label: label-ts-map-generator-choice-roads-low
+					Settings:
+						Roads: True
+						RoadSpacing: 32
+						RoadShrink: 8
+				Choice@Medium:
+					Label: label-ts-map-generator-choice-roads-medium
+					Settings:
+						Roads: True
+						RoadSpacing: 24
+						RoadShrink: 6
+				Choice@High:
+					Label: label-ts-map-generator-choice-roads-high
+					Settings:
+						Roads: True
+						RoadSpacing: 16
+						RoadShrink: 4
 			MultiIntegerChoiceOption@Players:
 				Label: label-ts-map-generator-option-players
 				Parameter: Players
@@ -621,27 +784,66 @@
 						MaximumResourceSpawnsPerExpansion: 1
 			MultiChoiceOption@Buildings:
 				Label: label-ts-map-generator-option-buildings
-				Default: Standard
+				Default: None
 				Choice@None:
 					Label: label-ts-map-generator-choice-buildings-none
 					Settings:
 						MinimumBuildings: 0
 						MaximumBuildings: 0
 						BuildingWeights:
-				Choice@Veinholes:
-					Label: label-ts-map-generator-choice-buildings-veinholes
+				Choice@TechLow:
+					Label: label-ts-map-generator-choice-buildings-tech-low
 					Settings:
 						MinimumBuildings: 1
 						MaximumBuildings: 1
+						MaximumBuildingsTotal: 4
 						BuildingWeights:
-							veinhole: 1
-				Choice@MoreVeinholes:
-					Label: label-ts-map-generator-choice-buildings-more-veinholes
+							cahosp: 3
+							caarmr: 2
+							caaray: 1
+				Choice@TechMedium:
+					Label: label-ts-map-generator-choice-buildings-tech-medium
+					Settings:
+						MinimumBuildings: 1
+						MaximumBuildings: 2
+						MaximumBuildingsTotal: 6
+						BuildingWeights:
+							cahosp: 3
+							caarmr: 2
+							caaray: 1
+				Choice@TechHigh:
+					Label: label-ts-map-generator-choice-buildings-tech-high
 					Settings:
 						MinimumBuildings: 2
-						MaximumBuildings: 2
+						MaximumBuildings: 3
+						MaximumBuildingsTotal: 8
 						BuildingWeights:
-							veinhole: 1
+							cahosp: 3
+							caarmr: 2
+							caaray: 1
+			MultiChoiceOption@Veinholes:
+				Label: label-ts-map-generator-option-veinholes
+				Default: None
+				Choice@None:
+					Label: label-ts-map-generator-choice-veinholes-none
+					Settings:
+						MinimumVeinholes: 0
+						MaximumVeinholes: 0
+				Choice@Low:
+					Label: label-ts-map-generator-choice-veinholes-low
+					Settings:
+						MinimumVeinholes: 1
+						MaximumVeinholes: 1
+				Choice@Medium:
+					Label: label-ts-map-generator-choice-veinholes-medium
+					Settings:
+						MinimumVeinholes: 1
+						MaximumVeinholes: 2
+				Choice@High:
+					Label: label-ts-map-generator-choice-veinholes-high
+					Settings:
+						MinimumVeinholes: 3
+						MaximumVeinholes: 4
 			MultiChoiceOption@Density:
 				Label: label-ts-map-generator-option-density
 				Default: Players

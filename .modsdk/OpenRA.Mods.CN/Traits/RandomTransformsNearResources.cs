@@ -41,17 +41,31 @@ namespace OpenRA.Mods.CN.Traits
 		public override object Create(ActorInitializer init) { return new RandomTransformsNearResources(init.Self, this); }
 	}
 
-	public class RandomTransformsNearResources : ITick
+	public class RandomTransformsNearResources : ITick, INotifyAddedToWorld, INotifyRemovedFromWorld
 	{
 		readonly RandomTransformsNearResourcesInfo info;
 		readonly IResourceLayer resourceLayer;
 		int delay;
+		bool adjacentInitialized;
+		bool hasRequiredAdjacentResources;
+		CPos location;
 
 		public RandomTransformsNearResources(Actor self, RandomTransformsNearResourcesInfo info)
 		{
 			resourceLayer = self.World.WorldActor.Trait<IResourceLayer>();
 			delay = Common.Util.RandomInRange(self.World.SharedRandom, info.Delay);
+			location = self.Location;
 			this.info = info;
+		}
+
+		void INotifyAddedToWorld.AddedToWorld(Actor self)
+		{
+			resourceLayer.CellChanged += ResourceLayerCellChanged;
+		}
+
+		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
+		{
+			resourceLayer.CellChanged -= ResourceLayerCellChanged;
 		}
 
 		void ITick.Tick(Actor self)
@@ -59,11 +73,44 @@ namespace OpenRA.Mods.CN.Traits
 			if (delay < 0)
 				return;
 
+			if (!adjacentInitialized || location != self.Location)
+			{
+				location = self.Location;
+				UpdateAdjacentResourceState();
+				adjacentInitialized = true;
+			}
+
+			if (!hasRequiredAdjacentResources)
+				return;
+
+			delay--;
+			if (delay < 0)
+				Transform(self);
+		}
+
+		void ResourceLayerCellChanged(CPos cell, string resourceType)
+		{
+			if (delay < 0 || !adjacentInitialized || !IsAdjacentCell(cell))
+				return;
+
+			UpdateAdjacentResourceState();
+		}
+
+		bool IsAdjacentCell(CPos cell)
+		{
+			if (cell.Layer != location.Layer)
+				return false;
+
+			var offset = cell - location;
+			return offset != CVec.Zero && offset.X >= -1 && offset.X <= 1 && offset.Y >= -1 && offset.Y <= 1;
+		}
+
+		void UpdateAdjacentResourceState()
+		{
 			var adjacent = 0;
 			foreach (var direction in CVec.Directions)
 			{
-				var location = self.Location + direction;
-				var resource = resourceLayer.GetResource(location);
+				var resource = resourceLayer.GetResource(location + direction);
 				if (resource.Type == null || resource.Type != info.Type)
 					continue;
 
@@ -73,12 +120,11 @@ namespace OpenRA.Mods.CN.Traits
 				if (++adjacent < info.Adjacency)
 					continue;
 
-				delay--;
-				break;
+				hasRequiredAdjacentResources = true;
+				return;
 			}
 
-			if (delay < 0)
-				Transform(self);
+			hasRequiredAdjacentResources = false;
 		}
 
 		void Transform(Actor self)

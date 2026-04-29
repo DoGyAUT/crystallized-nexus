@@ -455,7 +455,7 @@ ttnk:
 		Filename: gatick.shp
 		ShadowStart: 3
 		Offset: 0, -14, 7
-		Scale: 1.2
+		Scale: 1.45
 	damaged-idle:
 		Filename: gatick.shp
 		Start: 1
@@ -467,7 +467,7 @@ ttnk:
 		Length: 24
 		ShadowStart: 24
 		Offset: 0, -14, 7
-		Scale: 1.2
+		Scale: 1.45
 	muzzle:
 		Filename: tankmuzzle_medium.png
 		Facings: -32
@@ -476,6 +476,13 @@ ttnk:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+	dig:
+		Filename: dig.png
+		Palette: terrain
+		Length: *
+		ZOffset: 511
+		Offset: 0, 0, 24
+		BlendMode: Alpha
 	icon:
 		Filename: tickicon.shp
 
@@ -485,7 +492,7 @@ ttnk_deployed_husk:
 	idle:
 		ShadowStart: 3
 		Offset: 0, -14, 7
-		Scale: 1.2
+		Scale: 1.45
 
 stnk:
 	Inherits: ^VehicleOverlays

@@ -358,6 +358,8 @@ Player:
 	CaptureManagerBotModule@test:
 		RequiresCondition: enable-cn-ai
 		CapturingActorTypes: engineer, nengineer
+		CapturableActorTypes: cahosp, caarmr, caaray
+		MaximumCaptureTargetOptions: 25
 
 	CNSquadManagerBotModule:
 		RequiresCondition: enable-cn-ai
@@ -587,7 +589,6 @@ Player:
 				MaxInstances: 1
 				MinSlotsToActivate: 2
 				Factions: gdi
-				PriorityTargetTypes: gharv, nharv, gproc, nproc, gapowr, napowr, naradr, garadr, engineer, nengineer
 				ThreatBonuses:
 					Harvester: 25
 					Artillery: 15
@@ -610,7 +611,7 @@ Player:
 				MaxInstances: 1
 				MinSlotsToActivate: 1
 				Factions: gdi
-				PriorityTargetTypes: gharv, nharv, nproc, naweap, nahand, naradr, nasam, naobel
+				PriorityTargetCapabilities: Harvester, Economy, Production, Superweapon, Tech
 				ThreatBonuses:
 					Infantry: 18
 					Harvester: 20
@@ -626,7 +627,7 @@ Player:
 			GDI_Orca_Fighters:
 				Role: AircraftSupport
 				Priority: 104
-				MaxInstances: 2
+				MaxInstances: 3
 				MinSlotsToActivate: 1
 				Factions: gdi
 				ThreatBonuses:
@@ -646,10 +647,9 @@ Player:
 			GDI_Orca_Bombers:
 				Role: AircraftAttack
 				Priority: 103
-				MaxInstances: 1
+				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: gdi
-				PriorityTargetTypes: naobel, napuls, nalasr, nagat, naflamer, nproc, naweap, natech, natmpl, namisl
 				ThreatBonuses:
 					Vehicle: 14
 					AntiAir: -20
@@ -704,7 +704,7 @@ Player:
 				Slots:
 					Tanks:
 						Count: 2
-						AllowedTypes: ttnk
+						AllowedTypes: ltnk, ttnk
 					Rockets:
 						Count: 3
 						AllowedTypes: e3
@@ -768,7 +768,7 @@ Player:
 				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: nod
-				PriorityTargetTypes: gharv, nharv, jugg, nhwtz, sonic, hvr, engineer, nengineer, orca_b, orca_f1
+				PriorityTargetCapabilities: Harvester, Economy, Power
 				ThreatBonuses:
 					Vehicle: 22
 					Aircraft: 22
@@ -800,7 +800,7 @@ Player:
 				Slots:
 					Tanks:
 						Count: 4
-						AllowedTypes: ttnk
+						AllowedTypes: ltnk, ttnk
 					Screen:
 						Count: 2
 						AllowedTypes: bggy, e3
@@ -831,7 +831,7 @@ Player:
 				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: nod
-				PriorityTargetTypes: gharv, nharv, gproc, nproc, gapile, nahand, gaweap, naweap
+				PriorityTargetCapabilities: Harvester, Economy, Production, Tech, Superweapon
 				ThreatBonuses:
 					Infantry: 25
 					Harvester: 20
@@ -851,7 +851,6 @@ Player:
 				MaxInstances: 1
 				MinSlotsToActivate: 2
 				Factions: nod
-				PriorityTargetTypes: gacnst, gproc, gaweap, gapile, gatech, gaarmory, gharv, nharv
 				ThreatBonuses:
 					Harvester: 20
 					Artillery: 15
@@ -896,7 +895,7 @@ Player:
 				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: nod
-				PriorityTargetTypes: gharv, nharv, hvr, jugg, sonic, gatech, gaarmory, gproc, gapowr, gacnst
+				PriorityTargetCapabilities: Harvester, Superweapon, Tech, Economy, Power
 				ThreatBonuses:
 					Vehicle: 24
 					Aircraft: 18
@@ -915,7 +914,7 @@ Player:
 			NOD_Hydra_Gunships:
 				Role: AircraftSupport
 				Priority: 104
-				MaxInstances: 2
+				MaxInstances: 4
 				MinSlotsToActivate: 1
 				Factions: nod
 				ThreatBonuses:
@@ -934,10 +933,9 @@ Player:
 			NOD_Banshee_Strike:
 				Role: AircraftAttack
 				Priority: 103
-				MaxInstances: 1
+				MaxInstances: 3
 				MinSlotsToActivate: 1
 				Factions: nod
-				PriorityTargetTypes: gamortar, gacan, gasam, gproc, gaweap, gatech, gaplug, gaplug2, gaplug3, gaplug4
 				ThreatBonuses:
 					Vehicle: 24
 					AntiAir: -20

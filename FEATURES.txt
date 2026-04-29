@@ -1,0 +1,218 @@
+================================================================================
+  CRYSTALLIZED NEXUS — Custom Features vs. OpenRA Tiberian Sun Mod
+================================================================================
+
+
+RENDERING & VOXELS
+------------------
+  VoxelDynamics
+    Spring-based physics tilts: impact tilt, acceleration tilt, firing recoil,
+    roll on turns. All CN voxel units have real-time pitch/roll animation.
+
+  CNWithVoxelBody / Turret / Barrel / WalkerBody / UnloadBody
+    Drop-in replacements for all voxel render traits, integrating VoxelDynamics.
+
+  AlphaGradientPalette
+    Runtime gradient palette for additive effects.
+
+  CharredPalette
+    Charred palette for destroyed units.
+
+  DamageSmoke
+    Smoke effects based on damage state.
+
+  PeriodicSpriteEffect
+    Periodic sprite effects (e.g. idle animations).
+
+
+WEATHER & ATMOSPHERE
+--------------------
+  WeatherController
+    Full ion storm system: Clear / Warning / Storm / Clearing lifecycle,
+    grants `ionstorm` condition to all actors, plays storm music.
+
+  WeatherTintEffect
+    Lerps color tint post-processing based on storm intensity.
+
+  IonStormDamage
+    Random lightning strikes via weapon warheads during storms.
+
+  AnnounceOnCondition
+    Faction-specific voice lines + text notifications on condition changes
+    (used for ion storm warnings).
+
+  CloudSpawner / Cloud
+    Cloud shadows & godray sprites, pre-spawned across the map.
+
+
+TERRAIN & MAP
+-------------
+  TerrainAnimationOverlay
+    Terrain effects (water waves, etc.).
+
+  ResourceAnimationOverlay
+    Tiberium sparkle / poison effects on resource tiles.
+
+  PlacesPavement
+    Automatically lays pavement tiles under structures.
+
+  RandomMapAmbientSound
+    Random ambient sounds per map.
+
+  TerrainDeformationWarhead
+    Terrain deformation via weapons.
+
+  ExplodeResourceWarhead
+    Chain reactions on resource tiles (blue / red tiberium explodes when hit).
+
+
+GAMEPLAY MECHANICS
+------------------
+  HeightAdvantageBonus
+    High ground advantage: weapon range and sight range scale with terrain height
+    (IRangeModifier + IRevealsShroudModifier). BaseHeight 2 matches RMG maps.
+
+  Slope Speed System  [engine patch]
+    Units slow down going uphill and speed up going downhill. Configurable per
+    locomotor type. Smooth lerp transition (no instant speed jumps). Ramp
+    lookahead detects the first ramp cell even when its height equals flat
+    ground so the effect triggers at the visual ramp start.
+
+  Explosive Tiberium
+    Blue and red tiberium chain-react when hit by weapons or unit explosions.
+    Chain propagates via ExplodeResourceWarhead; resources are cleared to
+    prevent infinite loops.
+
+  Scatterer
+    Units automatically dodge sideways when a crusher approaches.
+
+  FormationMove
+    Rectangular grid formation for multi-unit move orders.
+
+  FadeOut
+    Alpha fade over time then dispose (used for corpses and decals).
+
+  RandomTransformsNearResources
+    Units randomly transform when near resource fields.
+
+  ExploresMapOnOwnerChange
+    Reveals fog of war in actor vicinity when ownership changes.
+
+
+MOB / SQUAD SYSTEM
+------------------
+  MobSpawnerMaster / MobSpawnerSlave
+    C&C Generals-style aggregate HP: damage is redirected from the master to
+    slaves. Supports invisible nexus or visible squad leader mode.
+
+  BaseSpawnerMaster / BaseSpawnerSlave
+    Base spawner framework shared by mob and other spawner systems.
+
+
+UNIT MECHANICS
+--------------
+  CNHealth
+    Custom HP system.
+
+  SecondaryHealth
+    Secondary health bar (e.g. for shields or armor layers).
+
+  HuskFacing
+    Corrects husk facing when a unit dies mid-turn.
+
+  CNSteeredMobile
+    Steered movement for vehicles (smooth arc turns).
+
+  CNAircraftFallsToEarth
+    Custom crash behavior for aircraft.
+
+  CallProtectorsOnDamage
+    Signals nearby protector units to respond when this actor takes damage.
+
+  SpawnActorOnDamage / SpawnActorOnTimer
+    Spawns actors when damage threshold is crossed or on a timer.
+
+  KeepNearActors
+    Keeps units within range of specified other actors.
+
+  CNHarvester
+    Custom harvester logic with dedicated resource assignment and routing.
+
+
+UI & PLAYER
+-----------
+  CNProductionPaletteWidget / Tabs / Queue / Selection
+    Fully reworked production UI.
+
+  SubgroupIcon / SubgroupButton / SubgroupIconWidget / SelectionSubgroupLogic
+    Sub-group system within unit selection (group by type within a selection).
+
+  PlayerDefeatedAnnouncer
+    Announces when a player is defeated.
+
+  BotPlayerNames
+    Custom named bot personalities.
+
+
+AI — BOT MODULES
+----------------
+  CNBaseBuilderBotModule
+    Base construction with layout strategies (Random / Grid / Clustered /
+    Compact), configurable building fractions, delays, limits, wall placement.
+
+  CNBaseBuilderQueueManager
+    Build queue decision logic: power priority, refineries, naval production,
+    silos, defense structures.
+
+  CNUnitBuilderBotModule
+    Unit build decisions and army composition.
+
+  CNHarvesterBotModule
+    Harvester management and resource field assignment.
+
+  CNRepairManagerBotModule
+    Automated repair of damaged units and structures.
+
+  CNMcvExpansionManagerBotModule
+    MCV deployment and expansion decisions.
+
+  CNResourceMapBotModule
+    Resource map analysis to guide harvester and base placement.
+
+  CombatAnalysisBotModule
+    Real-time combat situation analysis.
+
+  BotCapabilities
+    Bot capability profile (declares what a bot personality can do).
+
+  DeployBotModule
+    Deploy behavior for deployable units (e.g. artillery).
+
+  CNSquadManagerBotModule
+    Full squad manager with dedicated state machines per squad type:
+      Ground / Artillery / Raider / Stealth / Subterranean /
+      Aircraft / Transport / Defense / Support
+
+
+ENGINE PATCHES  (CN fork — not in mainline OpenRA)
+---------------------------------------------------
+  Slope Speed System  [Locomotor.cs, Mobile.cs, Move.cs]
+    Directional movement costs + smooth slopeSpeedFactor lerp per actor.
+    EffectiveSlopeHeightDelta with ramp lookahead. GetSlopeSpeedFactor exposed
+    from Locomotor; smoothed in Mobile.UpdateMovement() at 0.2 rate per tick.
+
+  OpenGL Depth / Alpha Fix  [OpenGL.cs, Sdl2GraphicsContext.cs]
+    glBlendFuncSeparate (GL_ZERO, GL_ONE for alpha channel) +
+    glDepthMask(false) for additive / subtractive blend modes. Prevents
+    additive sprites from punching through opaque geometry.
+
+  Multi-Cell Mobile  [Mobile.cs]
+    Multi-cell footprint support for mobile units, mirroring Building.cs
+    pattern. Uses local A* instead of HPA* pathfinding.
+
+  TSMapGenerator Extensions  [TSMapGenerator.cs]
+    Road split logic (SplitRoadRun): roads end cleanly before ramps with
+    3-wide end-cap tiles instead of painting over slope tiles.
+    Ramp guard (tileType > 0 check) prevents roads from overwriting ramps.
+
+================================================================================

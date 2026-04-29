@@ -70,7 +70,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// --- Type-specific fields ---
 		public WDist ArtilleryHangBackRange;  // Artillery: how far behind frontline to stay
 		public CNSquad AttachedTo;            // ArtilleryAssault/Support: squad to follow
-		public string[] PreferredTargetTypes; // Priority target actor type names (Raider, Stealth, SubAssault, ...)
+		public string[] PreferredTargetCapabilities; // BotCapabilities tags to prioritize as targets (Raider, Stealth, SubAssault, ...)
 
 		// --- Mob-Awareness ---
 		/// <summary>True if any unit in this squad is a MobSpawnerMaster.</summary>
@@ -116,7 +116,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			Type = type;
 			TemplateName = templateName;
 			TemplateInfo = templateInfo;
-			PreferredTargetTypes = templateInfo?.PriorityTargetTypes;
+			PreferredTargetCapabilities = templateInfo?.PriorityTargetCapabilities;
 			FuzzyStateMachine = new CNStateMachine();
 			Target = Target.Invalid;
 		}
@@ -179,8 +179,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		/// </summary>
 		public bool IsTargetValid =>
 			TargetActor != null &&
-			TargetActor.IsInWorld &&
-			!TargetActor.IsDead &&
+			SquadManager.IsLiveEnemyActor(TargetActor) &&
 			!TargetActor.Info.HasTraitInfo<HuskInfo>() &&
 			Units.Any(u => u != null && !u.IsDead && u.IsInWorld);
 

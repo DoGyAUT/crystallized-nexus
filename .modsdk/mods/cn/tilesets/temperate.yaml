@@ -21607,6 +21607,8 @@ MultiBrushCollections:
 		MultiBrush@346:
 			Template: 346
 			Weight: 100
+	RoughGroundPatches:
+		FromTemplates: 552, 553, 554, 555, 556, 557, 558, 559, 560, 561
 	CivilianBuildings:
 		FromActors: ca0001,ca0002,ca0003,ca0004,ca0005,ca0006,ca0007,ca0008,ca0009,ca0010,ca0011,ca0012,ca0013,ca0014,ca0015,ca0016,ca0017,ca0018,ca0019,ca0020,ca0021
 	Obstructions:

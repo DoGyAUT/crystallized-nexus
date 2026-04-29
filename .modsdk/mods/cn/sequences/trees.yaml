@@ -60,12 +60,6 @@ tree01:
 		TilesetFilenames:
 			TEMPERATE: tree01.tem
 			SNOW: tree01.sno
-	active:
-		Filename: tree01_a.tem
-		Length: 16
-		ShadowStart: 16
-		Tick: 150
-		Offset: 0, -12, 12
 
 tree02:
 	Inherits: ^tree
@@ -234,6 +228,31 @@ tree25:
 		TilesetFilenames:
 			TEMPERATE: tree25.tem
 			SNOW: tree25.sno
+
+bush01:
+	Inherits: ^tree
+	idle:
+		Filename: bush01.shp
+
+bush02:
+	Inherits: ^tree
+	idle:
+		Filename: bush02.shp
+
+bush03:
+	Inherits: ^tree
+	idle:
+		Filename: bush03.shp
+
+bush04:
+	Inherits: ^tree
+	idle:
+		Filename: bush04.shp
+
+bush05:
+	Inherits: ^tree
+	idle:
+		Filename: bush05.shp
 
 fona01:
 	Inherits: ^tree

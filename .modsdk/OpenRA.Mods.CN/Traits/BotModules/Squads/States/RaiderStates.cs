@@ -17,7 +17,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	/// <summary>
-	/// Idle: find a priority target using PreferredTargetTypes from the team template,
+	/// Idle: find a priority target using PreferredTargetCapabilities from the team template,
 	/// then fall back to the closest visible enemy unit.
 	/// Re-evaluates every RethinkInterval ticks.
 	/// </summary>
@@ -47,8 +47,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			Actor target = null;
 
-			if (squad.PreferredTargetTypes != null && squad.PreferredTargetTypes.Length > 0)
-				target = FindPriorityTarget(squad, squad.PreferredTargetTypes, center);
+			if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
+				target = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
 
 			target ??= FindClosestEnemyUnit(squad);
 

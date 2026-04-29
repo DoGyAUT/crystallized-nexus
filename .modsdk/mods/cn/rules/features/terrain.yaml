@@ -31,6 +31,9 @@
 	Inherits@1: ^SpriteActor
 	Inherits@2: ^ExistsInWorld
 	Inherits@ARMORTYPE: ^FeatureArmortypeFlora
+	Building:
+		Footprint: f
+		Dimensions: 1, 1
 	RandomTransformsNearResources@TIBGREEN:
 		Type: Tiberium
 		IntoActors: FONA06, FONA07, FONA08, FONA09, FONA10, FONA11, FONA12, FONA13, FONA14, FONA15 #, TIBTRE01, TIBTRE02, TIBTRE03
@@ -53,9 +56,6 @@
 	RenderSprites:
 		Palette: terraindecoration
 	WithSpriteBody:
-	Building:
-		Footprint: x
-		Dimensions: 1, 1
 	Tooltip:
 		Name: meta-tree-name
 	MapEditorData:
@@ -68,7 +68,7 @@
 	Armor:
 		Type: Light
 	Targetable:
-		TargetTypes: Trees, NoAutoTarget
+		TargetTypes: Ground, Trees, NoAutoTarget
 	GrantConditionOnDamageState@Small:
 		Condition: small-fire
 		ValidDamageStates: Medium
@@ -145,6 +145,14 @@
 	PlacesPavement:
 		PavementTemplates: 582, 583, 584, 585
 		TransitionTemplates: 596, 597, 598, 599, 600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611
+		TerrainLatBaseTemplates:
+			Rough: 150
+			Sand: 535
+			Green: 626
+		TerrainLatTransitionTemplates:
+			Rough: 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166
+			Sand: 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551
+			Green: 627, 628, 629, 630, 631, 632, 633, 634, 635, 636, 637, 638, 639, 640, 641, 642
 		Padding: 1
 		RemoveOnSelling: true
 		RemoveOnDeath: false

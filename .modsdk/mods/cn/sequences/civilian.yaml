@@ -460,6 +460,10 @@ caarmr:
 		Filename: ctarmr.shp
 		Start: 2
 		ShadowStart: 5
+	idle-flag:
+		Filename: ctarmr_a.shp
+		Length: *
+		Tick: 100
 
 caaray:
 	Defaults:
@@ -560,7 +564,7 @@ cahosp:
 			SNOW: cahosp.shp
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: 15, 0
-		Offset: 15, -36, 36
+		Offset: 15, -36, 40
 	idle:
 		ShadowStart: 3
 	damaged-idle:

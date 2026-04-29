@@ -1,4 +1,9 @@
 ^Infantry:
+	HeightAdvantageBonus:
+		BaseHeight: 2
+		RangeBonusPerLevel: 5
+		SightBonusPerLevel: 8
+		MaxBonusLevels: 4
 	Inherits@2: ^ExistsInWorld
 	Inherits@3: ^SpriteActor
 	Inherits@4: ^Cloakable
@@ -187,6 +192,11 @@
 		Categories: Civilian infantry
 
 ^Vehicle:
+	HeightAdvantageBonus:
+		BaseHeight: 2
+		RangeBonusPerLevel: 5
+		SightBonusPerLevel: 8
+		MaxBonusLevels: 4
 	Inherits@2: ^ExistsInWorld
 	Inherits@3: ^EmpDisable
 	Inherits@4: ^Cloakable

@@ -160,6 +160,18 @@
 			Shield: 40
 			Stability: 600
 		DamageTypes: ExplosionDeath, TriggerProne, Prone100Percent
+	Warhead@TerrainDeformation: TerrainDeformation
+		Size: 1
+		Chance: 35
+		HeightDelta: -1
+	Warhead@BlueChain: ExplodeResource
+		Weapon: BlueTiberiumExplosion
+		Radius: 1
+		ResourceTypes: BlueTiberium
+	Warhead@RedChain: ExplodeResource
+		Weapon: RedTiberiumExplosion
+		Radius: 1
+		ResourceTypes: RedTiberium
 
 ^SmallExplosionWarhead:
 	Warhead@1Dam: SpreadDamage
@@ -180,6 +192,10 @@
 			Shield: 30
 			Stability: 250
 		DamageTypes: SmallExplosionDeath, TriggerProne, Prone70Percent
+	Warhead@TerrainDeformation: TerrainDeformation
+		Size: 0
+		Chance: 20
+		HeightDelta: -1
 
 ^CannonWarhead:
 	Warhead@1Dam: SpreadDamage
@@ -201,6 +217,10 @@
 			Shield: 40
 			Stability: 150
 		DamageTypes: SmallExplosionDeath, TriggerProne, Prone70Percent
+	Warhead@TerrainDeformation: TerrainDeformation
+		Size: 0
+		Chance: 15
+		HeightDelta: -1
 
 ^MissileWarhead:
 	Warhead@1Dam: SpreadDamage
@@ -222,6 +242,10 @@
 			Shield: 50
 			Stability: 200
 		DamageTypes: SmallExplosionDeath, TriggerProne, Prone70Percent
+	Warhead@TerrainDeformation: TerrainDeformation
+		Size: 0
+		Chance: 15
+		HeightDelta: -1
 
 ^RailgunWarhead:
 	Warhead@1Dam: SpreadDamage

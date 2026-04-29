@@ -146,6 +146,26 @@ TREE24:
 TREE25:
 	Inherits: ^Tree
 
+^Bush:
+	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
+
+BUSH01:
+	Inherits: ^Bush
+
+BUSH02:
+	Inherits: ^Bush
+
+BUSH03:
+	Inherits: ^Bush
+
+BUSH04:
+	Inherits: ^Bush
+
+BUSH05:
+	Inherits: ^Bush
+
 VEINHOLE:
 	HiddenUnderShroud:
 	RadarColorFromTerrain:

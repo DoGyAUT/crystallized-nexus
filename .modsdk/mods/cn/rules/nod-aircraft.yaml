@@ -28,7 +28,7 @@ SCRIN:
 		CanHover: false
 		CanSlide: false
 	CNHealth:
-		HP: 280
+		HP: 400
 	Armor:
 		Type: Light
 	Armament:
@@ -97,7 +97,7 @@ HYDRA:
 		CanSlide: false
 		TakeOffOnResupply: true
 	CNHealth:
-		HP: 225
+		HP: 300
 	Armor:
 		Type: Light
 	Armament:

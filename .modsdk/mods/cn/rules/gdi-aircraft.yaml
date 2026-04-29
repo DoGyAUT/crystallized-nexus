@@ -145,7 +145,7 @@ ORCA_F1:
 		CanSlide: false
 		TakeOffOnResupply: true
 	CNHealth:
-		HP: 200
+		HP: 250
 	Armor:
 		Type: Light
 	Armament:
@@ -165,7 +165,7 @@ ORCA_F1:
 		Actor: ORCA_F1.Husk
 		RequiresCondition: !empdisable
 	SpawnActorOnDeath@EMP:
-		Actor: ORCA.Husk_F1.EMP
+		Actor: ORCA_F1.Husk.EMP
 		RequiresCondition: empdisable
 	Rearmable:
 		RearmActors: gahpad, nahpad
@@ -210,7 +210,7 @@ ORCA_B:
 		CanHover: false
 		CanSlide: false
 	CNHealth:
-		HP: 260
+		HP: 500
 	Armor:
 		Type: Medium
 	Armament:

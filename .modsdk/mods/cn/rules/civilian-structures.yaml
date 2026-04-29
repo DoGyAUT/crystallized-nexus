@@ -746,6 +746,14 @@ CAARAY:
 		HP: 400
 	RenderSprites:
 		Palette: player
+	CaptureManager:
+	Capturable:
+		Types: building
+	CaptureNotification:
+		TextNotification: notification-building-captured
+	ExploresMapOnOwnerChange:
+	BotCapabilities:
+		Capabilities: Tech
 	WithIdleOverlay@SATELLITE:
 		Sequence: idle-satellite
 	WithIdleOverlay@RADAR:
@@ -778,9 +786,15 @@ CAARMR:
 		Palette: player
 	ProvidesPrerequisite:
 		Prerequisite: barracks.upgraded
+	WithIdleOverlay@FLAG:
+		Sequence: idle-flag
 	CaptureManager:
 	Capturable:
 		Types: building
+	CaptureNotification:
+		TextNotification: notification-building-captured
+	BotCapabilities:
+		Capabilities: Tech
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 6, 9
 	FireProjectilesOnDeath@LARGE:
@@ -829,6 +843,8 @@ CAHOSP:
 	CaptureNotification:
 		TextNotification: notification-building-captured
 	ProvidesPrerequisite@BuildingName:
+	BotCapabilities:
+		Capabilities: Tech
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:

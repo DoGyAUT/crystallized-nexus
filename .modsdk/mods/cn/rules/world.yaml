@@ -263,7 +263,7 @@ World:
 		ClassName: options-starting-units.heavy
 		Factions: nod
 		BaseActor: nmcv
-		SupportActors: nasol,nasol,e3,e3,nacad,bggy,bike,ttnk
+		SupportActors: nasol,nasol,e3,e3,nacad,bggy,bike,ltnk
 		InnerSupportRadius: 3
 		OuterSupportRadius: 5
 	MapStartingLocations:

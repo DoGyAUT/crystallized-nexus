@@ -73,7 +73,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		/// <summary>
 		/// Finds the best attack target:
-		/// 1. PriorityTargetTypes from template (if configured)
+		/// 1. PriorityTargetCapabilities from template (if configured)
 		/// 2. Closest visible enemy unit
 		/// 3. Closest enemy building (no shroud check)
 		/// </summary>
@@ -84,10 +84,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			return squad.World
 				.FindActorsInCircle(center, WDist.FromCells(radiusCells))
-				.Where(a => a != null &&
-				            !a.IsDead &&
-				            a.IsInWorld &&
-				            a.Owner.RelationshipWith(squad.Bot.Player) == PlayerRelationship.Enemy &&
+				.Where(a => squad.SquadManager.IsLiveEnemyActor(a) &&
 				            a.Info.HasTraitInfo<BuildingInfo>() &&
 				            !a.Info.HasTraitInfo<LineBuildInfo>())
 				.MinByOrDefault(a => (a.CenterPosition - center).LengthSquared);
@@ -142,10 +139,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			foreach (var actor in squad.World.FindActorsInCircle(stagingPos, WDist.FromCells(8)))
 			{
-				if (actor.IsDead || !actor.IsInWorld || !actor.CanBeViewedByPlayer(squad.Bot.Player))
-					continue;
-
-				if (actor.Owner.RelationshipWith(squad.Bot.Player) != PlayerRelationship.Enemy)
+				if (!squad.SquadManager.IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(squad.Bot.Player))
 					continue;
 
 				if (!actor.Info.HasTraitInfo<BuildingInfo>())
@@ -173,9 +167,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			void CheckCandidate(Actor actor)
 			{
-				if (actor == null || actor.IsDead || !actor.IsInWorld || !actor.CanBeViewedByPlayer(squad.Bot.Player))
-					return;
-				if (actor.Owner.RelationshipWith(squad.Bot.Player) != PlayerRelationship.Enemy)
+				if (!squad.SquadManager.IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(squad.Bot.Player))
 					return;
 				var score = ScoreRushTarget(leader, actor);
 				if (score < bestScore)
@@ -219,8 +211,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			foreach (var actor in world.FindActorsInCircle(candidatePos, WDist.FromCells(AssaultThreatRadiusCells)))
 			{
-				if (actor.IsDead || !actor.IsInWorld ||
-					actor.Owner.RelationshipWith(squad.Bot.Player) != PlayerRelationship.Enemy)
+				if (!squad.SquadManager.IsLiveEnemyActor(actor))
 					continue;
 
 				var isBuilding = actor.Info.HasTraitInfo<BuildingInfo>();
@@ -243,8 +234,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			foreach (var actor in squad.World.FindActorsInCircle(target.CenterPosition, WDist.FromCells(5)))
 			{
-				if (actor.IsDead || !actor.IsInWorld ||
-					actor.Owner.RelationshipWith(squad.Bot.Player) != PlayerRelationship.Enemy)
+				if (!squad.SquadManager.IsLiveEnemyActor(actor))
 					continue;
 
 				var isBuilding = actor.Info.HasTraitInfo<BuildingInfo>();

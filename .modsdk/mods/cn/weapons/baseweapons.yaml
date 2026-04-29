@@ -286,3 +286,11 @@
 		Duration: 10
 		Intensity: 1
 		Multiplier: 1,1
+	Warhead@BlueChain: ExplodeResource
+		Weapon: BlueTiberiumExplosion
+		Radius: 1
+		ResourceTypes: BlueTiberium
+	Warhead@RedChain: ExplodeResource
+		Weapon: RedTiberiumExplosion
+		Radius: 1
+		ResourceTypes: RedTiberium

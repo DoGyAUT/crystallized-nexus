@@ -3,6 +3,9 @@
 		Name: foot
 		Crushes: crate
 		SharesCell: true
+		PassableFootprints: f
+		SlopeUphillCostModifier: 155
+		SlopeDownhillCostModifier: 78
 		TerrainSpeeds:
 			Clear: 95
 			Road: 110
@@ -10,6 +13,8 @@
 			Rail: 90
 			DirtRoad: 105
 			Rough: 85
+			Tree: 65
+				PathingCost: 300
 			Tiberium: 85
 				PathingCost: 220
 			BlueTiberium: 85
@@ -21,6 +26,9 @@
 	Locomotor@FLAMEGUY:
 		Name: flameguy
 		SharesCell: true
+		PassableFootprints: f
+		SlopeUphillCostModifier: 155
+		SlopeDownhillCostModifier: 78
 		TerrainSpeeds:
 			Clear: 100
 			Road: 110
@@ -28,6 +36,8 @@
 			Rail: 90
 			DirtRoad: 105
 			Rough: 85
+			Tree: 70
+				PathingCost: 250
 			Tiberium: 90
 				PathingCost: 220
 			BlueTiberium: 90
@@ -56,6 +66,8 @@
 	Locomotor@WHEELED:
 		Name: wheeled
 		Crushes: crate, infantry
+		SlopeUphillCostModifier: 320
+		SlopeDownhillCostModifier: 63
 		TerrainSpeeds:
 			Clear: 78
 			Road: 120
@@ -71,6 +83,8 @@
 	Locomotor@HEAVYWHEELED:
 		Name: heavywheeled
 		Crushes: wall, crate, infantry
+		SlopeUphillCostModifier: 340
+		SlopeDownhillCostModifier: 60
 		TerrainSpeeds:
 			Clear: 72
 			Road: 115
@@ -86,6 +100,8 @@
 	Locomotor@TRACKED:
 		Name: tracked
 		Crushes: wall, crate, infantry
+		SlopeUphillCostModifier: 300
+		SlopeDownhillCostModifier: 65
 		TerrainSpeeds:
 			Clear: 82
 			Road: 110
@@ -100,6 +116,8 @@
 	Locomotor@HEAVYTRACKED:
 		Name: heavytracked
 		Crushes: wall, crate, infantry, lightvehicle, heavyinfantry, vehiclehusk
+		SlopeUphillCostModifier: 320
+		SlopeDownhillCostModifier: 63
 		TerrainSpeeds:
 			Clear: 78
 			Road: 105
@@ -114,6 +132,8 @@
 	Locomotor@WALKER:
 		Name: walker
 		Crushes: wall, crate, infantry, lightvehicle, vehiclehusk
+		SlopeUphillCostModifier: 185
+		SlopeDownhillCostModifier: 70
 		TerrainSpeeds:
 			Clear: 85
 			Road: 100
@@ -128,6 +148,8 @@
 	Locomotor@LIGHTWALKER:
 		Name: lightwalker
 		Crushes: wall, crate
+		SlopeUphillCostModifier: 165
+		SlopeDownhillCostModifier: 72
 		TerrainSpeeds:
 			Clear: 85
 			Road: 100
@@ -142,6 +164,8 @@
 	Locomotor@HEAVYWALKER:
 		Name: heavywalker
 		Crushes: wall, crate, infantry, lightvehicle, heavyinfantry, vehiclehusk
+		SlopeUphillCostModifier: 200
+		SlopeDownhillCostModifier: 68
 		TerrainSpeeds:
 			Clear: 78
 			Road: 95
@@ -156,6 +180,8 @@
 	Locomotor@AMPHIBIOUS:
 		Name: amphibious
 		Crushes: wall, crate, infantry
+		SlopeUphillCostModifier: 300
+		SlopeDownhillCostModifier: 65
 		TerrainSpeeds:
 			Clear: 75
 			Road: 100
@@ -171,6 +197,8 @@
 	SubterraneanLocomotor@SUBTERRANEAN:
 		Name: subterranean
 		Crushes: wall, crate, infantry
+		SlopeUphillCostModifier: 200
+		SlopeDownhillCostModifier: 68
 		TerrainSpeeds:
 			Clear: 75
 			Road: 100

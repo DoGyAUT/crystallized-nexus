@@ -74,10 +74,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			foreach (var actor in squad.World.Actors)
 			{
-				if (actor.IsDead || !actor.IsInWorld || !actor.CanBeViewedByPlayer(squad.Bot.Player))
-					continue;
-
-				if (actor.Owner.RelationshipWith(squad.Bot.Player) != PlayerRelationship.Enemy)
+				if (!squad.SquadManager.IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(squad.Bot.Player))
 					continue;
 
 				if (!leadAircraft.Info.HasTraitInfo<AttackBaseInfo>() || !CanAttackTarget(leadAircraft, actor))
@@ -120,10 +117,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var bestScore = int.MaxValue;
 			foreach (var actor in squad.World.FindActorsInCircle(anchor.CenterPosition, WDist.FromCells(14)))
 			{
-				if (actor.IsDead || !actor.IsInWorld || !actor.CanBeViewedByPlayer(squad.Bot.Player))
-					continue;
-
-				if (actor.Owner.RelationshipWith(squad.Bot.Player) != PlayerRelationship.Enemy)
+				if (!squad.SquadManager.IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(squad.Bot.Player))
 					continue;
 
 				if (!CanAttackTarget(leadAircraft, actor))
@@ -205,10 +199,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var score = 0;
 			foreach (var threat in squad.World.FindActorsInCircle(target.CenterPosition, WDist.FromCells(AircraftThreatScanCells)))
 			{
-				if (threat.IsDead || !threat.IsInWorld)
-					continue;
-
-				if (threat.Owner.RelationshipWith(squad.Bot.Player) != PlayerRelationship.Enemy)
+				if (!squad.SquadManager.IsLiveEnemyActor(threat))
 					continue;
 
 				if (!threat.Info.HasTraitInfo<AttackBaseInfo>() || !CanAttackTarget(threat, aircraft))

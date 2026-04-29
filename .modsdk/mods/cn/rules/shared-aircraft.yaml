@@ -21,6 +21,23 @@ HUNTER:
 		AttackType: Hover
 	Armament@PRIMARY:
 		Weapon: SuicideBomb
+	AutoTarget:
+		ScanRadius: 150
+		InitialStance: AttackAnything
+		InitialStanceAI: AttackAnything
+		AllowMovement: true
+		ScanOnIdle: true
+		EnableStances: false
+	AutoTargetPriority@BUILDING:
+		ValidTargets: Building, Support
+		InvalidTargets: Wall
+		Priority: 30
+	AutoTargetPriority@VEHICLE:
+		ValidTargets: Vehicle
+		Priority: 20
+	AutoTargetPriority@INFANTRY:
+		ValidTargets: Infantry
+		Priority: 10
 	GrantConditionOnAttack:
 		Condition: triggered
 	KillsSelf:

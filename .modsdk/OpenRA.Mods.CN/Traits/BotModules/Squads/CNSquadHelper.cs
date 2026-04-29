@@ -10,6 +10,7 @@
 #endregion
 
 using System.Linq;
+using OpenRA.Mods.CN.Traits;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
@@ -54,34 +55,53 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		}
 
 		/// <summary>
-		/// Scans for preferred target types in priority order (first match wins).
-		/// Falls back to null if none found. Used by Raider, Stealth, Assault with PriorityTargetTypes set.
+		/// Closest enemy building not tagged Defense. Falls back to any enemy building.
+		/// No shroud check — for infiltrators that navigate to known positions past defenses.
 		/// </summary>
-		public static Actor FindPriorityTarget(CNSquad squad, string[] priorityTypes, Actor sourceUnit)
+		public static Actor FindUnprotectedTarget(CNSquad squad)
 		{
-			if (sourceUnit == null || priorityTypes == null || priorityTypes.Length == 0)
+			var center = squad.CenterUnit();
+			if (center == null)
+				return null;
+
+			var nonDefense = squad.World.ActorsHavingTrait<Building>()
+				.Where(a => squad.SquadManager.IsLiveEnemyActor(a) &&
+				            !(a.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains("Defense") ?? false))
+				.MinByOrDefault(a => (a.CenterPosition - center.CenterPosition).LengthSquared);
+
+			return nonDefense ?? FindClosestEnemyBuilding(squad);
+		}
+
+		/// <summary>
+		/// Scans for preferred targets by BotCapabilities tag in priority order (first match wins).
+		/// Falls back to null if none found. Used by Raider, Stealth, Assault with PriorityTargetCapabilities set.
+		/// </summary>
+		public static Actor FindPriorityTarget(CNSquad squad, string[] priorityCaps, Actor sourceUnit)
+		{
+			if (sourceUnit == null || priorityCaps == null || priorityCaps.Length == 0)
 				return null;
 
 			var world = squad.World;
-			var player = squad.Bot.Player;
-			var bestByPriority = new Actor[priorityTypes.Length];
-			var bestDistanceByPriority = new long[priorityTypes.Length];
+			var bestByPriority = new Actor[priorityCaps.Length];
+			var bestDistanceByPriority = new long[priorityCaps.Length];
 
 			for (var i = 0; i < bestDistanceByPriority.Length; i++)
 				bestDistanceByPriority[i] = long.MaxValue;
 
 			void CheckActor(Actor actor)
 			{
-				if (actor.IsDead || !actor.IsInWorld)
+				if (!squad.SquadManager.IsPreferredEnemyUnit(actor))
 					return;
-				if (actor.Owner.RelationshipWith(player) != PlayerRelationship.Enemy)
-					return;
-				if (!actor.CanBeViewedByPlayer(player))
+				if (!actor.CanBeViewedByPlayer(squad.Bot.Player))
 					return;
 
-				for (var i = 0; i < priorityTypes.Length; i++)
+				var caps = actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+				if (caps == null)
+					return;
+
+				for (var i = 0; i < priorityCaps.Length; i++)
 				{
-					if (!string.Equals(priorityTypes[i], actor.Info.Name, System.StringComparison.Ordinal))
+					if (!caps.Contains(priorityCaps[i]))
 						continue;
 
 					var distance = (actor.CenterPosition - sourceUnit.CenterPosition).LengthSquared;
@@ -111,7 +131,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		/// <summary>
 		/// Find the best attack target for a squad:
-		/// 1. PriorityTargetTypes from template (if any)
+		/// 1. PriorityTargetCapabilities from template (if any)
 		/// 2. Closest visible enemy unit
 		/// 3. Closest enemy building (no shroud check)
 		/// </summary>
@@ -121,9 +141,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (center == null)
 				return null;
 
-			if (squad.PreferredTargetTypes != null && squad.PreferredTargetTypes.Length > 0)
+			if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
 			{
-				var prio = FindPriorityTarget(squad, squad.PreferredTargetTypes, center);
+				var prio = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
 				if (prio != null)
 					return prio;
 			}

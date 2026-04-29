@@ -539,12 +539,22 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						// Defense placement uses a bounded sampled search. A miss can simply
 						// mean this phase did not include a valid cell, not that the base is
-						// truly stuck. Retry later with a different phase instead of counting
-						// toward cancellation or expansion nudges.
+						// truly stuck. Retry later with a different phase, then fall back to
+						// normal base placement so completed defenses cannot block the queue.
 						defensePlacementAttempt++;
-						return true;
-					}
+						if (defensePlacementAttempt < baseBuilder.Info.MaximumFailedPlacementAttempts)
+							return true;
 
+						(location, baseCenterKeepsFailing, actorVariant) =
+							ChooseBuildLocation(currentBuilding.Item, true, BuildingType.Building);
+
+						if (location == null)
+							defensePlacementAttempt = 0;
+					}
+				}
+
+				if (location == null)
+				{
 					// If we just reached the maximum fail count, cache the number of current structures
 					if (++failCount >= baseBuilder.Info.MaximumFailedPlacementAttempts)
 					{

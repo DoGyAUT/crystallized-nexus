@@ -30,6 +30,11 @@
 		CrushClasses: vehiclehusk
 		WarnProbability: 0
 
+^CrushableTree:
+	Crushable:
+		CrushClasses: tree
+		WarnProbability: 0
+
 ^CrushableVisceroidFusing:
 	Crushable:
 		CrushClasses: visceroid-fusing

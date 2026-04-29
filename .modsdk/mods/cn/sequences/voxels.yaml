@@ -71,7 +71,7 @@ gtmtnk:
 ltnk:
 	idle:
 	turret: ltnktur
-#	barrel: ltnkbarl
+	barrel: ltnkbarl
 
 stnk:
 	idle:

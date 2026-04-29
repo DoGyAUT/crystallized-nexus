@@ -77,6 +77,8 @@ GASILO:
 		PipStride: 4, 2
 		PipCount: 12
 		Palette: pips
+	BotCapabilities:
+		Capabilities: Economy
 
 ANYPOWER:
 	Interactable:

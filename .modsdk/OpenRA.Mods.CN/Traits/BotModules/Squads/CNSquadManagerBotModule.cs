@@ -75,8 +75,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("This squad attaches to (follows) active squads of these types.")]
 		public readonly CNSquadType[] AttachToRole = [];
 
-		[Desc("Preferred target actor type names (highest priority first). Applies to Raider, Stealth, and SubAssault roles.")]
-		public readonly string[] PriorityTargetTypes = [];
+		[Desc("Preferred target capability tags in priority order (first match wins). " +
+			"Matches actors that have BotCapabilities: <tag>. Applies to Raider, Stealth, SubAssault, JumpJet, and Hover roles.")]
+		public readonly string[] PriorityTargetCapabilities = [];
 
 		[Desc("Restrict template to specific factions (empty = all factions).")]
 		public readonly string[] Factions = [];
@@ -343,8 +344,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (!IsValidAttackResponseTarget(e.Attacker))
 				return;
 
-			if (e.Attacker.Owner.RelationshipWith(Player) != PlayerRelationship.Enemy)
+			if (!IsLiveEnemyActor(e.Attacker))
 				return;
+
+			if (IsProtectedTechBuilding(self))
+				ProtectOwn(bot, e.Attacker, self);
 
 			if (!recentAttackers.Contains(e.Attacker))
 			{
@@ -375,15 +379,35 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		int CleanupInterval => Info.CleanupInterval > 0 ? Info.CleanupInterval : 1;
 
-		void ProtectOwn(IBot bot, Actor attacker)
+		bool ShouldRespondToAttack(Actor defended, Actor attacker)
+		{
+			if (!IsValidAttackResponseTarget(attacker))
+				return false;
+
+			var basePos = World.Map.CenterOfCell(GetRandomBaseCenter());
+			var maxDefenseRange = WDist.FromCells(Info.DangerScanRadius * 2);
+			if ((attacker.CenterPosition - basePos).LengthSquared <=
+				(long)maxDefenseRange.Length * maxDefenseRange.Length)
+				return true;
+
+			return IsProtectedTechBuilding(defended);
+		}
+
+		static bool IsProtectedTechBuilding(Actor actor)
+		{
+			return actor != null &&
+				!actor.IsDead &&
+				actor.IsInWorld &&
+				actor.Info.HasTraitInfo<BuildingInfo>() &&
+				(actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains("Tech") ?? false);
+		}
+
+		void ProtectOwn(IBot bot, Actor attacker, Actor defended = null)
 		{
 			if (!IsValidAttackResponseTarget(attacker))
 				return;
 
-			var basePos = World.Map.CenterOfCell(GetRandomBaseCenter());
-			var maxDefenseRange = WDist.FromCells(Info.DangerScanRadius * 2);
-			if ((attacker.CenterPosition - basePos).LengthSquared >
-				(long)maxDefenseRange.Length * maxDefenseRange.Length)
+			if (!ShouldRespondToAttack(defended, attacker))
 				return;
 
 			var protectSquad = Squads.FirstOrDefault(s =>
@@ -871,8 +895,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			foreach (var a in World.ActorsHavingTrait<BotCapabilities>())
 			{
-				if (a.IsDead || !a.IsInWorld) continue;
-				if (a.Owner.RelationshipWith(Player) != PlayerRelationship.Enemy) continue;
+				if (!IsLiveEnemyActor(a)) continue;
 				if (nemesis != null && a.Owner != nemesis) continue;
 
 				var caps = a.Trait<BotCapabilities>().Info.CapabilitySet;
@@ -1118,9 +1141,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public bool IsPreferredEnemyUnit(Actor actor)
 		{
-			if (actor == null || actor.IsDead || !actor.IsInWorld)
-				return false;
-			if (actor.Owner.RelationshipWith(Player) != PlayerRelationship.Enemy)
+			if (!IsLiveEnemyActor(actor))
 				return false;
 
 			var targetTypes = actor.GetEnabledTargetTypes();
@@ -1128,6 +1149,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return false;
 
 			if (!Info.IgnoredEnemyTargetTypes.IsEmpty && targetTypes.Overlaps(Info.IgnoredEnemyTargetTypes))
+				return false;
+
+			return true;
+		}
+
+		public bool IsLiveEnemyActor(Actor actor)
+		{
+			if (actor == null || actor.IsDead || !actor.IsInWorld || actor.Owner == null)
+				return false;
+			if (actor.Owner.NonCombatant || actor.Owner.WinState != WinState.Undefined)
+				return false;
+			if (actor.Owner.RelationshipWith(Player) != PlayerRelationship.Enemy)
 				return false;
 
 			return true;
@@ -1171,9 +1204,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (World.WorldTick == cachedEnemyBuildingsTick)
 				return cachedEnemyBuildings;
 			cachedEnemyBuildings = World.ActorsHavingTrait<Building>()
-				.Where(a => a.Owner.RelationshipWith(Player) == PlayerRelationship.Enemy
-				         && !a.IsDead
-				         && a.IsInWorld
+				.Where(a => IsLiveEnemyActor(a)
 				         && !a.Info.HasTraitInfo<LineBuildInfo>())
 				.ToList();
 			cachedEnemyBuildingsTick = World.WorldTick;

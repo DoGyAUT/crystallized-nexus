@@ -38,6 +38,14 @@ namespace OpenRA.Mods.CN.Traits
 			"Leave empty to disable LAT transitions (hard edges).")]
 		public readonly ImmutableArray<ushort> TransitionTemplates = default;
 
+		[Desc("Terrain template IDs that should be treated as the solid source tile for terrain-to-clear LAT around pavement.",
+			"Keyed by a local group name, e.g. Green: 626. This lets surrounding terrain fade into the clear side of pavement LAT.")]
+		public readonly Dictionary<string, ImmutableArray<ushort>> TerrainLatBaseTemplates = [];
+
+		[Desc("Terrain LAT template IDs for the same groups as TerrainLatBaseTemplates.",
+			"Must contain exactly 16 IDs per group, using the same clear-side bitmask order as TransitionTemplates.")]
+		public readonly Dictionary<string, ImmutableArray<ushort>> TerrainLatTransitionTemplates = [];
+
 		[Desc("Number of extra cells around the building footprint to pave.",
 			"0 = only footprint, 1 = footprint + 1 ring around it, etc.")]
 		public readonly int Padding = 1;
@@ -63,6 +71,7 @@ namespace OpenRA.Mods.CN.Traits
 		readonly PlacesPavementInfo info;
 		readonly Dictionary<CPos, TerrainTile> originalTiles = [];
 		readonly HashSet<ushort> allPavementTypes = [];
+		readonly Dictionary<ushort, string> terrainLatGroups = [];
 		bool placed;
 
 		public PlacesPavement(ActorInitializer init, PlacesPavementInfo info)
@@ -74,6 +83,17 @@ namespace OpenRA.Mods.CN.Traits
 				allPavementTypes.Add(t);
 			foreach (var t in info.TransitionTemplates)
 				allPavementTypes.Add(t);
+
+			foreach (var kv in info.TerrainLatBaseTemplates)
+			{
+				if (!info.TerrainLatTransitionTemplates.TryGetValue(kv.Key, out var transitions) || transitions.Length != 16)
+					continue;
+
+				foreach (var t in kv.Value)
+					terrainLatGroups[t] = kv.Key;
+				foreach (var t in transitions)
+					terrainLatGroups[t] = kv.Key;
+			}
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -126,15 +146,19 @@ namespace OpenRA.Mods.CN.Traits
 
 			// First pass: set inner pavement tiles and store originals
 			var targetPavementCells = new HashSet<CPos>();
+			var forceSolidCells = new HashSet<CPos>(innerCells);
 			foreach (var cell in allCells)
 			{
-				if (IsPavement(cell, map))
+				if (map.Ramp[cell] == 0 && IsPavement(cell, map))
 				{
 					targetPavementCells.Add(cell);
-					continue;
+
+					// Existing pavement inside the new placement area is shared between buildings.
+					// Keep it solid instead of re-LATing it as an outer edge.
+					forceSolidCells.Add(cell);
 				}
 
-				if (!CanPaveCell(cell, map, terrainInfo))
+				if (IsPavement(cell, map) || !CanPaveCell(cell, map, terrainInfo))
 					continue;
 
 				originalTiles[cell] = map.Tiles[cell];
@@ -151,21 +175,11 @@ namespace OpenRA.Mods.CN.Traits
 			// Second pass: set transition tiles on border cells
 			if (info.TransitionTemplates.Length == 16)
 			{
-				// Find the border ring (cells that are paved but have non-paved neighbours)
-				var borderCells = allCells.Except(innerCells).Where(c => originalTiles.ContainsKey(c));
+				var updatePavementCells = CollectPavementUpdateCells(map, allCells, targetPavementCells);
+				foreach (var cell in updatePavementCells)
+					SetTransitionTile(self, map, cell, updatePavementCells, forceSolidCells);
 
-				foreach (var cell in borderCells)
-					SetTransitionTile(self, map, cell, targetPavementCells);
-
-				// Also update inner edge cells that border non-paved terrain
-				foreach (var cell in innerCells.Where(c => originalTiles.ContainsKey(c)))
-				{
-					var mask = CalculateClearSideMask(cell, map, targetPavementCells);
-
-					// Not fully surrounded by pavement
-					if (mask > 0)
-						SetTransitionTile(self, map, cell, targetPavementCells);
-				}
+				SetAdjacentTerrainTransitions(map, updatePavementCells);
 			}
 
 			placed = true;
@@ -174,6 +188,9 @@ namespace OpenRA.Mods.CN.Traits
 		bool CanPaveCell(CPos cell, Map map, ITerrainInfo terrainInfo)
 		{
 			if (!map.Contains(cell))
+				return false;
+
+			if (map.Ramp[cell] != 0)
 				return false;
 
 			var currentTile = map.Tiles[cell];
@@ -220,10 +237,10 @@ namespace OpenRA.Mods.CN.Traits
 			return mask;
 		}
 
-		void SetTransitionTile(Actor self, Map map, CPos cell, HashSet<CPos> targetPavementCells)
+		void SetTransitionTile(Actor self, Map map, CPos cell, HashSet<CPos> targetPavementCells, HashSet<CPos> forceSolidCells)
 		{
 			var mask = CalculateClearSideMask(cell, map, targetPavementCells);
-			if (mask == 0)
+			if (mask == 0 || forceSolidCells.Contains(cell))
 			{
 				var templateId = info.PavementTemplates[self.World.SharedRandom.Next(info.PavementTemplates.Length)];
 				map.Tiles[cell] = new TerrainTile(templateId, 0);
@@ -231,6 +248,116 @@ namespace OpenRA.Mods.CN.Traits
 			}
 
 			map.Tiles[cell] = new TerrainTile(info.TransitionTemplates[mask], 0);
+		}
+
+		HashSet<CPos> CollectPavementUpdateCells(Map map, HashSet<CPos> allCells, HashSet<CPos> targetPavementCells)
+		{
+			var updateCells = new HashSet<CPos>(targetPavementCells);
+			var queue = new Queue<(CPos Cell, int Distance)>();
+
+			foreach (var cell in allCells)
+			{
+				if (!map.Contains(cell))
+					continue;
+
+				queue.Enqueue((cell, 0));
+			}
+
+			var visited = new HashSet<CPos>(allCells);
+			var maxDistance = info.Padding + 2;
+			while (queue.Count > 0)
+			{
+				var (cell, distance) = queue.Dequeue();
+				if (distance >= maxDistance)
+					continue;
+
+				foreach (var neighbor in NeighborCells(cell))
+				{
+					if (!map.Contains(neighbor) || !visited.Add(neighbor))
+						continue;
+
+					if (map.Ramp[neighbor] != 0)
+						continue;
+
+					if (IsPavement(neighbor, map))
+					{
+						updateCells.Add(neighbor);
+						queue.Enqueue((neighbor, distance + 1));
+					}
+				}
+			}
+
+			return updateCells;
+		}
+
+		void SetAdjacentTerrainTransitions(Map map, HashSet<CPos> targetPavementCells)
+		{
+			if (terrainLatGroups.Count == 0)
+				return;
+
+			var adjacentTerrainCells = new HashSet<CPos>();
+			foreach (var cell in targetPavementCells)
+			{
+				foreach (var neighbor in CardinalNeighborCells(cell))
+				{
+					if (!map.Contains(neighbor) || IsTargetPavement(neighbor, map, targetPavementCells))
+						continue;
+
+					if (map.Ramp[neighbor] != 0)
+						continue;
+
+					if (terrainLatGroups.ContainsKey(map.Tiles[neighbor].Type))
+						adjacentTerrainCells.Add(neighbor);
+				}
+			}
+
+			foreach (var cell in adjacentTerrainCells)
+				SetTerrainTransitionTile(map, cell, targetPavementCells);
+		}
+
+		void SetTerrainTransitionTile(Map map, CPos cell, HashSet<CPos> targetPavementCells)
+		{
+			if (!terrainLatGroups.TryGetValue(map.Tiles[cell].Type, out var group))
+				return;
+
+			if (!info.TerrainLatTransitionTemplates.TryGetValue(group, out var transitions) || transitions.Length != 16)
+				return;
+
+			var mask = CalculateTerrainClearSideMask(cell, map, targetPavementCells, group);
+			if (mask == 0)
+				return;
+
+			if (!originalTiles.ContainsKey(cell))
+				originalTiles[cell] = map.Tiles[cell];
+
+			map.Tiles[cell] = new TerrainTile(transitions[mask], 0);
+		}
+
+		int CalculateTerrainClearSideMask(CPos cell, Map map, HashSet<CPos> targetPavementCells, string group)
+		{
+			var mask = 0;
+
+			if (IsClearSideForTerrainLat(cell + new CVec(0, -1), map, targetPavementCells, group))
+				mask |= 1;
+			if (IsClearSideForTerrainLat(cell + new CVec(1, 0), map, targetPavementCells, group))
+				mask |= 2;
+			if (IsClearSideForTerrainLat(cell + new CVec(0, 1), map, targetPavementCells, group))
+				mask |= 4;
+			if (IsClearSideForTerrainLat(cell + new CVec(-1, 0), map, targetPavementCells, group))
+				mask |= 8;
+
+			return mask;
+		}
+
+		bool IsClearSideForTerrainLat(CPos cell, Map map, HashSet<CPos> targetPavementCells, string group)
+		{
+			if (!map.Contains(cell))
+				return true;
+
+			if (IsTargetPavement(cell, map, targetPavementCells))
+				return true;
+
+			return !terrainLatGroups.TryGetValue(map.Tiles[cell].Type, out var otherGroup) || otherGroup != group;
 		}
 
 		bool IsTargetPavement(CPos cell, Map map, HashSet<CPos> targetPavementCells)
@@ -293,6 +420,14 @@ namespace OpenRA.Mods.CN.Traits
 			yield return new CPos(cell.X - 1, cell.Y + 1);
 			yield return new CPos(cell.X, cell.Y + 1);
 			yield return new CPos(cell.X + 1, cell.Y + 1);
+		}
+
+		static IEnumerable<CPos> CardinalNeighborCells(CPos cell)
+		{
+			yield return new CPos(cell.X, cell.Y - 1);
+			yield return new CPos(cell.X + 1, cell.Y);
+			yield return new CPos(cell.X, cell.Y + 1);
+			yield return new CPos(cell.X - 1, cell.Y);
 		}
 	}
 }

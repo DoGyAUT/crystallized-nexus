@@ -268,8 +268,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			foreach (var actor in world.FindActorsInCircle(candidatePos, WDist.FromCells(6)))
 			{
-				if (actor.IsDead || !actor.IsInWorld ||
-					actor.Owner.RelationshipWith(squad.Bot.Player) != PlayerRelationship.Enemy)
+				if (!squad.SquadManager.IsLiveEnemyActor(actor))
 					continue;
 
 				var isBuilding = actor.Info.HasTraitInfo<BuildingInfo>();
@@ -285,8 +284,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			foreach (var actor in world.FindActorsInCircle(targetPos, WDist.FromCells(4)))
 			{
-				if (actor.IsDead || !actor.IsInWorld ||
-					actor.Owner.RelationshipWith(squad.Bot.Player) != PlayerRelationship.Enemy)
+				if (!squad.SquadManager.IsLiveEnemyActor(actor))
 					continue;
 
 				if (!actor.Info.HasTraitInfo<BuildingInfo>())

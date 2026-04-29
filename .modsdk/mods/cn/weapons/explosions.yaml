@@ -98,6 +98,54 @@ TiberiumExplosion:
 		Explosions: tibbomb
 		ExplosionPalette: effect
 
+BlueTiberiumExplosion:
+	Range: 0c128
+	Projectile: InstantHit
+	Warhead@1Dam: SpreadDamage
+		Spread: 2c0
+		Damage: 400
+		Falloff: 100, 50, 25, 0
+		DamageTypes: ExplosionDeath, TriggerProne, Prone100Percent
+	Warhead@2Eff: CreateEffect
+		Explosions: unitexplode2_huge, unitexplode1_large, large_bang, large_brnl, large_tumu, verylarge_clsn, building, artexplo01, artexplo02, artexplo03, artexplo04
+		ExplosionPalette: effect
+		ImpactSounds: expnew09.aud, expnew10.aud
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: MediumCrater
+		InvalidTargets: Building, Wall
+	Warhead@Shake: ShakeScreen
+		Duration: 10
+		Intensity: 2
+		Multiplier: 1,1
+#	Warhead@BlueChain: ExplodeResource
+#		Weapon: BlueTiberiumExplosion
+#		Radius: 2
+#		ResourceTypes: BlueTiberium
+
+RedTiberiumExplosion:
+	Range: 0c128
+	Projectile: InstantHit
+	Warhead@1Dam: SpreadDamage
+		Spread: 3c0
+		Damage: 700
+		Falloff: 100, 50, 25, 0
+		DamageTypes: ExplosionDeath, TriggerProne, Prone100Percent
+	Warhead@2Eff: CreateEffect
+		Explosions: unitexplode2_huge, unitexplode1_large, large_bang, large_brnl, large_tumu, verylarge_clsn, building, artexplo01, artexplo02, artexplo03, artexplo04
+		ExplosionPalette: effect
+		ImpactSounds: expnew12.aud, expnew09.aud
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: LargeCrater
+		InvalidTargets: Building, Wall
+	Warhead@Shake: ShakeScreen
+		Duration: 20
+		Intensity: 4
+		Multiplier: 1,1
+#	Warhead@RedChain: ExplodeResource
+#		Weapon: RedTiberiumExplosion
+#		Radius: 3
+#		ResourceTypes: RedTiberium
+
 Demolish:
 	Warhead@1Dam: SpreadDamage
 		DamageTypes: DefaultDeath

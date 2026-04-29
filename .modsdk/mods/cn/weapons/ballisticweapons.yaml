@@ -6,25 +6,40 @@
 		Explosions: apexplosion01
 		ExplosionPalette: effect
 	Warhead@1Dam: SpreadDamage
-		Damage: 20
+		Damage: 30
 	Warhead@4Smu: LeaveSmudge
 		SmudgeType: SmallCrater
 
 57mm_deployed:
 	Inherits: ^Cannon
-	ReloadDelay: 60
+	ReloadDelay: 40
 	Report: 57mm_v1.wav, 57mm_v2.wav, 57mm_v3.wav
 	Warhead@2Eff: CreateEffect
 		Explosions: apexplosion01
 		ExplosionPalette: effect
 	Warhead@1Dam: SpreadDamage
-		Damage: 20
+		Damage: 30
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: SmallCrater
+
+75mm:
+	Inherits: ^Cannon
+	Report: 75mm_v1.wav, 75mm_v2.wav, 75mm_v3.wav, 75mm_v4.wav, 75mm_v5.wav, 75mm_v6.wav
+	ReloadDelay: 60
+	Warhead@1Dam: SpreadDamage
+		Damage: 40
+	Warhead@2Eff: CreateEffect
+		Explosions: apexplosion01
+		ExplosionPalette: effect
 	Warhead@4Smu: LeaveSmudge
 		SmudgeType: SmallCrater
 
 90mm:
 	Inherits: ^Cannon
-	Report: 90mm_v1.wav, 90mm_v2.wav, 90mm_v3.wav #tankcannon1.aud, tankcannon2.aud, tankcannon3.aud, tankcannon4.aud, tankcannon5.aud, tankcannon6.aud
+	Report: 90mm_v1.wav, 90mm_v2.wav, 90mm_v3.wav
+	ReloadDelay: 70
+	Warhead@1Dam: SpreadDamage
+		Damage: 55
 	Warhead@2Eff: CreateEffect
 		Explosions: apexplosion01
 		ExplosionPalette: effect

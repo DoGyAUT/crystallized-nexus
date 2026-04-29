@@ -42,6 +42,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			return squad.OrderableUnits.Any(IsSubmerged);
 		}
+
 	}
 
 	// ===========================================================================
@@ -64,12 +65,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (center == null)
 				return;
 
-			// Find a priority target or closest enemy
+			// Priority target by BotCapabilities tag, then closest non-defense building.
 			Actor target = null;
-			if (squad.PreferredTargetTypes != null && squad.PreferredTargetTypes.Length > 0)
-				target = FindPriorityTarget(squad, squad.PreferredTargetTypes, center);
+			if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
+				target = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
 
-			target ??= FindClosestEnemyUnit(squad);
+			target ??= CNSquadHelper.FindUnprotectedTarget(squad);
 
 			if (target == null)
 				return;
@@ -173,10 +174,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (SubterraneanHelpers.AnySubmerged(squad))
 				return;
 
-			// Issue attack orders to idle units
+			// Attack the specific target — no AttackMove so defenses along the way are ignored.
 			foreach (var unit in squad.OrderableUnits)
 				if (!BusyAttack(unit))
-					squad.Bot.QueueOrder(new Order("AttackMove", unit, squad.Target, false));
+					squad.Bot.QueueOrder(new Order("Attack", unit, squad.Target, false));
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -375,7 +376,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var enemyCY = world.ActorsHavingTrait<Building>()
 				.Where(a => !a.IsDead &&
 							a.IsInWorld &&
-							a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy &&
+							squad.SquadManager.IsLiveEnemyActor(a) &&
 							a.CanBeViewedByPlayer(player) &&
 							a.Info.HasTraitInfo<BuildingInfo>())
 				.MinByOrDefault(a => (a.CenterPosition - (squad.CenterUnit()?.CenterPosition ?? WPos.Zero)).LengthSquared);

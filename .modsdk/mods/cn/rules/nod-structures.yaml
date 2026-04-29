@@ -87,6 +87,8 @@ NACNST:
 		Prerequisite: structures.nod
 	IsometricSelectable:
 		Height: 50
+	BotCapabilities:
+		Capabilities: Production, Tech
 
 NAPOWR:
 	Inherits: ^Building
@@ -131,6 +133,8 @@ NAPOWR:
 	PowerTooltip:
 	IsometricSelectable:
 		Height: 48
+	BotCapabilities:
+		Capabilities: Power
 
 NPROC:
 	Inherits: ^Building
@@ -229,6 +233,8 @@ NPROC:
 		PipStride: 4, 2
 		PipCount: 25
 		Palette: pips
+	BotCapabilities:
+		Capabilities: Economy
 
 NAAPWR:
 	Inherits: ^Building
@@ -286,6 +292,8 @@ NAAPWR:
 	ProvidesPrerequisite@buildingname:
 	IsometricSelectable:
 		Height: 48
+	BotCapabilities:
+		Capabilities: Power
 
 NAHAND:
 	Inherits: ^Building
@@ -376,6 +384,8 @@ NAHAND:
 		Height: 64
 	ActorLostNotification:
 		Notification: ProductionFacilityDestroyed
+	BotCapabilities:
+		Capabilities: Production
 
 NAWEAP:
 	Inherits: ^Building
@@ -443,6 +453,8 @@ NAWEAP:
 		Height: 48
 	ActorLostNotification:
 		Notification: ProductionFacilityDestroyed
+	BotCapabilities:
+		Capabilities: Production
 
 NAHPAD:
 	Inherits: ^Building
@@ -515,6 +527,8 @@ NAHPAD:
 		Height: 36
 	ActorLostNotification:
 		Notification: ProductionFacilityDestroyed
+	BotCapabilities:
+		Capabilities: Production
 
 NARADR:
 	Inherits: ^Building
@@ -559,6 +573,8 @@ NARADR:
 	ProvidesPrerequisite@buildingname:
 	IsometricSelectable:
 		Height: 72
+	BotCapabilities:
+		Capabilities: Tech
 
 NATECH:
 	Inherits: ^Building
@@ -597,6 +613,8 @@ NATECH:
 	Power:
 		Amount: -150
 	ProvidesPrerequisite@buildingname:
+	BotCapabilities:
+		Capabilities: Tech
 
 NASTLH:
 	Inherits: ^Building
@@ -643,6 +661,8 @@ NASTLH:
 		EnableSound: cloak5.aud
 		DisableSound: cloak5.aud
 		AffectsParent: true
+	BotCapabilities:
+		Capabilities: Tech, Cloak
 
 NAPYRA:
 	Inherits: ^Building
@@ -690,6 +710,8 @@ NAPYRA:
 		AreaTypes: building
 	IsometricSelectable:
 		Height: 72
+	BotCapabilities:
+		Capabilities: Tech
 
 NATMPL:
 	Inherits: ^Building
@@ -748,6 +770,8 @@ NATMPL:
 		Height: 60
 	ActorLostNotification:
 		Notification: CriticalStructureLost
+	BotCapabilities:
+		Capabilities: Tech, Superweapon
 
 NAMISL:
 	Inherits: ^Building
@@ -825,6 +849,8 @@ NAMISL:
 		Palette: bright
 	ActorLostNotification:
 		Notification: CriticalStructureLost
+	BotCapabilities:
+		Capabilities: Tech, Superweapon
 
 NAWAST:
 	Inherits: ^Building
@@ -887,3 +913,5 @@ NAWAST:
 		Palette: pips
 	ActorLostNotification:
 		Notification: CriticalStructureLost
+	BotCapabilities:
+		Capabilities: Tech, Superweapon

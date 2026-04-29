@@ -80,6 +80,8 @@ GACNST:
 		Prerequisite: structures.gdi
 	IsometricSelectable:
 		Height: 36
+	BotCapabilities:
+		Capabilities: Production, Tech
 
 GAPOWR:
 	Inherits: ^Building
@@ -171,6 +173,8 @@ GAPOWR:
 	ProvidesPrerequisite@buildingname:
 	IsometricSelectable:
 		Height: 48
+	BotCapabilities:
+		Capabilities: Power
 
 GPROC:
 	Inherits: ^Building
@@ -265,6 +269,8 @@ GPROC:
 		PipStride: 4, 2
 		PipCount: 25
 		Palette: pips
+	BotCapabilities:
+		Capabilities: Economy
 
 GAPILE:
 	Inherits: ^Building
@@ -364,6 +370,8 @@ GAPILE:
 	ProvidesPrerequisite@buildingname:
 	ActorLostNotification:
 		Notification: ProductionFacilityDestroyed
+	BotCapabilities:
+		Capabilities: Production
 
 GAWEAP:
 	Inherits: ^Building
@@ -444,6 +452,8 @@ GAWEAP:
 		Height: 48
 	ActorLostNotification:
 		Notification: ProductionFacilityDestroyed
+	BotCapabilities:
+		Capabilities: Production
 
 GAHPAD:
 	Inherits: ^Building
@@ -514,6 +524,8 @@ GAHPAD:
 	ProvidesPrerequisite@buildingname:
 	ActorLostNotification:
 		Notification: ProductionFacilityDestroyed
+	BotCapabilities:
+		Capabilities: Production
 
 GADEPT:
 	Inherits: ^Building
@@ -608,6 +620,8 @@ GADEPT:
 		AfterDockDuration: 20
 	Sellable:
 		RequiresCondition: !serving && !build-incomplete && !being-demolished
+	BotCapabilities:
+		Capabilities: Tech
 
 GARADR:
 	Inherits: ^Building
@@ -652,6 +666,8 @@ GARADR:
 	ProvidesPrerequisite@buildingname:
 	IsometricSelectable:
 		Height: 72
+	BotCapabilities:
+		Capabilities: Tech
 
 GAARMORY:
 	Inherits: ^Building
@@ -688,6 +704,8 @@ GAARMORY:
 		AreaTypes: building
 	IsometricSelectable:
 		Height: 48
+	BotCapabilities:
+		Capabilities: Tech
 
 GATECH:
 	Inherits: ^Building
@@ -727,6 +745,8 @@ GATECH:
 		Amount: -150
 	ProvidesPrerequisite@buildingname:
 	IsometricSelectable:
+	BotCapabilities:
+		Capabilities: Tech
 
 GAPLUG:
 	Inherits: ^Building
@@ -909,6 +929,8 @@ GAPLUG:
 		Height: 48
 	ActorLostNotification:
 		Notification: CriticalStructureLost
+	BotCapabilities:
+		Capabilities: Tech, Superweapon
 
 GAPLUG.SOCKET.IONCANNON:
 	Interactable:
@@ -1025,3 +1047,5 @@ GAFIRE:
 		RequiredForShortGame: false
 	ActorLostNotification:
 		Notification: CriticalStructureLost
+	BotCapabilities:
+		Capabilities: Tech, Superweapon

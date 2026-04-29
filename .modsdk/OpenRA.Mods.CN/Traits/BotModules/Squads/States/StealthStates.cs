@@ -39,10 +39,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 
 			Actor target = null;
-			if (squad.PreferredTargetTypes != null && squad.PreferredTargetTypes.Length > 0)
-				target = FindPriorityTarget(squad, squad.PreferredTargetTypes, center);
+			if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
+				target = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
 
-			target ??= squad.SquadManager.FindClosestEnemy(center, WDist.FromCells(squad.SquadManager.Info.AttackScanRadius));
+			target ??= CNSquadHelper.FindUnprotectedTarget(squad);
 
 			if (target != null)
 			{
