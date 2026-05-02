@@ -23,7 +23,7 @@
 	MapEditorData:
 		Categories: Resource spawn
 	AmbientSound:
-		SoundFiles: gasflow1.wav, gasflow2.wav
+		SoundFiles: gasflow1.ogg, gasflow2.ogg
 		Delay: 150, 450
 		Interval: 500, 1000
 
@@ -69,6 +69,10 @@
 		Type: Light
 	Targetable:
 		TargetTypes: Ground, Trees, NoAutoTarget
+	ProximityExternalCondition@FORESTCOVER:
+		Condition: forest-cover
+		Range: 1c512
+		ValidRelationships: Ally, Neutral, Enemy
 	GrantConditionOnDamageState@Small:
 		Condition: small-fire
 		ValidDamageStates: Medium

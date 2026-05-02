@@ -78,17 +78,24 @@ Player:
 		InsufficientFundsTextNotification: notification-insufficient-funds
 		CashTickUpNotification: CashTickUp
 		CashTickDownNotification: CashTickDown
+		DefaultCashDropdownDisplayOrder: 1
+		DefaultCashDropdownCategory: starting
 	DeveloperMode:
 		CheckboxEnabled: true
-		CheckboxDisplayOrder: 8
+		CheckboxDisplayOrder: 1
+		CheckboxCategory: advanced
 	Shroud:
-		FogCheckboxDisplayOrder: 3
+		ExploredMapCheckboxDisplayOrder: 1
+		ExploredMapCheckboxCategory: rules
+		FogCheckboxDisplayOrder: 2
+		FogCheckboxCategory: rules
 	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
 		ID: factundeploy
 		Label: checkbox-redeployable-mcvs.label
 		Description: checkbox-redeployable-mcvs.description
 		Enabled: True
 		DisplayOrder: 7
+		Category: rules
 		Prerequisites: global-factundeploy
 	FrozenActorLayer:
 	DamageNotifier:

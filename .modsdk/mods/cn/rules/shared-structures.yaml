@@ -109,3 +109,113 @@ TECH:
 	Interactable:
 	Tooltip:
 		Name: actor-tech-name
+
+CAARMR:
+	Inherits: ^Building
+	Inherits@shape: ^4x4Shape
+	Tooltip:
+		Name: actor-caarmr-name
+	Building:
+		Footprint: xxxx xxxx xxxx xxxx
+		Dimensions: 4, 4
+	Armor:
+		Type: Heavy
+	CNHealth:
+		HP: 800
+	ProvidesPrerequisite:
+		Prerequisite: barracks.upgraded
+	WithIdleOverlay@FLAG:
+		Sequence: idle-flag
+	CaptureManager:
+	Capturable:
+		Types: building
+	CaptureNotification:
+		TextNotification: notification-building-captured
+	BotCapabilities:
+		Capabilities: Tech
+	FireProjectilesOnDeath@SMALL:
+		Pieces: 6, 9
+	FireProjectilesOnDeath@LARGE:
+		Pieces: 3, 4
+	MapEditorData:
+		Categories: Tech building
+
+CAARAY:
+	Inherits: ^Building
+	Inherits@shape: ^2x2Shape
+	Tooltip:
+		Name: actor-caaray-name
+	Building:
+		Footprint: xx xx
+		Dimensions: 2, 2
+	Armor:
+		Type: Heavy
+	CNHealth:
+		HP: 400
+	CaptureManager:
+	Capturable:
+		Types: building
+	CaptureNotification:
+		TextNotification: notification-building-captured
+	ExploresMapOnOwnerChange:
+	BotCapabilities:
+		Capabilities: Tech
+	WithIdleOverlay@SATELLITE:
+		Sequence: idle-satellite
+	WithIdleOverlay@RADAR:
+		Sequence: idle-radar
+	WithIdleOverlay@SCANNER:
+		Sequence: idle-scanner
+	WithIdleOverlay@LIGHT-bright:
+		Sequence: idle-light-bright
+		Palette: bright
+	FireProjectilesOnDeath@SMALL:
+		Pieces: 5, 7
+	FireProjectilesOnDeath@LARGE:
+		Pieces: 2, 4
+	MapEditorData:
+		Categories: Tech building
+	IsometricSelectable:
+		Height: 72
+
+CAHOSP:
+	Inherits: ^Building
+	Inherits@shape: ^3x4Shape
+	Tooltip:
+		Name: actor-cahosp.name
+	TooltipDescription@ally:
+		Description: actor-cahosp.captured-desc
+		ValidRelationships: Ally
+	TooltipDescription@other:
+		Description: actor-cahosp.capturable-desc
+		ValidRelationships: Neutral, Enemy
+	Building:
+		Footprint: XxX xxx xxx xxx
+		Dimensions: 3, 4
+	Armor:
+		Type: Heavy
+	CNHealth:
+		HP: 800
+	CaptureManager:
+	Capturable:
+		Types: building
+	CaptureNotification:
+		TextNotification: notification-building-captured
+	ProvidesPrerequisite@BuildingName:
+	WithIdleOverlay@TOP:
+		Sequence: idle-light
+		Palette: player-nobright
+		IsPlayerPalette: True
+	WithIdleOverlay@TOP-BRIGHT:
+		Sequence: idle-light-bright
+		Palette: bright
+	BotCapabilities:
+		Capabilities: Tech
+	FireProjectilesOnDeath@SMALL:
+		Pieces: 5, 9
+	FireProjectilesOnDeath@LARGE:
+		Pieces: 2, 4
+	MapEditorData:
+		Categories: Tech building
+	IsometricSelectable:
+		Height: 48

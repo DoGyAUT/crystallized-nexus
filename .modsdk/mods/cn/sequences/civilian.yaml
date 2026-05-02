@@ -464,6 +464,15 @@ caarmr:
 		Filename: ctarmr_a.shp
 		Length: *
 		Tick: 100
+	emp-overlay:
+		Filename: emp_fx01.shp
+		TilesetFilenames:
+		Length: *
+		Offset: 0, 0, 37
+		ZOffset: 512
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		DepthSprite:
 
 caaray:
 	Defaults:
@@ -508,6 +517,52 @@ caaray:
 		Length: 12
 		Tick: 100
 		IgnoreWorldTint: True
+	emp-overlay:
+		Filename: emp_fx01.shp
+		TilesetFilenames:
+		Length: *
+		Offset: 0, 0, 37
+		ZOffset: 512
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		DepthSprite:
+
+cahosp:
+	Defaults:
+		DepthSprite: isodepth.shp
+		DepthSpriteOffset: 18, 0
+		Offset: 15, -36, 48
+	idle:
+		Filename: cthosp.shp
+		ShadowStart: 3
+	damaged-idle:
+		Filename: cthosp.shp
+		Start: 1
+		ShadowStart: 4
+	critical-idle:
+		Filename: cthosp.shp
+		Start: 2
+		ShadowStart: 5
+	idle-light:
+		Filename: cthosp_a.shp
+		Offset: 15, -36, 50
+		Length: *
+		Tick: 80
+	idle-light-bright:
+		Filename: cthosp_a.shp
+		Offset: 15, -36, 50
+		Length: *
+		Tick: 80
+		IgnoreWorldTint: True
+	emp-overlay:
+		Filename: emp_fx01.shp
+		TilesetFilenames:
+		Length: *
+		Offset: 0, 0, 37
+		ZOffset: 512
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		DepthSprite:
 
 cabhut:
 	idle:
@@ -556,23 +611,6 @@ cacrsh05:
 		TilesetFilenames:
 			TEMPERATE: ctcrsh05.shp
 			SNOW: cacrsh05.shp
-
-cahosp:
-	Defaults:
-		TilesetFilenames:
-			TEMPERATE: cthosp.shp
-			SNOW: cahosp.shp
-		DepthSprite: isodepth.shp
-		DepthSpriteOffset: 15, 0
-		Offset: 15, -36, 40
-	idle:
-		ShadowStart: 3
-	damaged-idle:
-		Start: 1
-		ShadowStart: 4
-	critical-idle:
-		Start: 2
-		ShadowStart: 5
 
 capyr01:
 	idle:

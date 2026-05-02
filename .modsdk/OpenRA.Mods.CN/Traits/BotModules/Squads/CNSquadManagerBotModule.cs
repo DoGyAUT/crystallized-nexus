@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.CN.Traits.BotModules.Squads.States;
 using OpenRA.Primitives;
@@ -1026,6 +1027,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				case CNSquadType.Transport:
 					squad.FuzzyStateMachine.ChangeState(squad, new TransportIdleState());
 					break;
+				case CNSquadType.AirTransport:
+					squad.FuzzyStateMachine.ChangeState(squad, new AirTransportIdleState());
+					break;
 				case CNSquadType.AircraftAttack:
 					squad.FuzzyStateMachine.ChangeState(squad, new AircraftAttackIdleState());
 					break;
@@ -1313,6 +1317,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					continue;
 				if (actor.Info.HasTraitInfo<MobSpawnerSlaveInfo>())
 					continue;
+				if (actor.CurrentActivity is Enter)
+					continue;
 				units.Add(actor);
 			}
 
@@ -1321,6 +1327,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				if (actor.Owner != Player || actor.IsDead || !actor.IsInWorld || activeUnits.Contains(actor))
 					continue;
 				if (actor.Info.HasTraitInfo<MobSpawnerSlaveInfo>())
+					continue;
+				if (actor.CurrentActivity is Enter)
 					continue;
 				units.Add(actor);
 			}

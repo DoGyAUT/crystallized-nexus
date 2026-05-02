@@ -36,6 +36,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// Support
 		Support,               // Repair vehicles / medics, follows Assault squads
 		Transport,             // APC: load infantry → move → unload → return
+		AirTransport,          // Orca Transport: avoid AA, land near soft critical targets
 
 		// Tactical
 		Raider,                // Targets soft units (harvesters, arty), flees on resistance

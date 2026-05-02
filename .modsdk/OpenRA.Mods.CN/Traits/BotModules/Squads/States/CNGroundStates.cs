@@ -27,6 +27,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		const int AssaultStagingMinCells = 6;
 		const int AssaultStagingMaxCells = 11;
 		const int AssaultThreatRadiusCells = 6;
+		const int CoordinatedDefenseRadiusCells = 9;
 
 		Actor leader;
 
@@ -154,6 +155,23 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			return bestTarget ?? defaultTarget;
+		}
+
+		protected static Actor FindDefenseBlockingAssault(CNSquad squad, Actor target)
+		{
+			if (target != null && IsDefenseStructure(target))
+				return target;
+
+			return FindDefenseNearTarget(squad, target, CoordinatedDefenseRadiusCells);
+		}
+
+		protected static bool HasAttachedArtillery(CNSquad squad)
+		{
+			return squad.SquadManager.Squads.Any(s =>
+				s.Type == CNSquadType.ArtilleryAssault &&
+				s.IsOperational &&
+				(s.AttachedTo == squad || s.AttachedTo == null || !s.AttachedTo.IsWaitingForArtillery) &&
+				s.OrderableUnits.Any());
 		}
 
 		protected static Actor FindRushTarget(CNSquad squad, Actor defaultTarget)
@@ -323,12 +341,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	{
 		CPos? stagingCell;
 		int waitTicks;
+		int artilleryHoldTicks;
 		const int MaxStageTicks = 6;
+		const int MaxArtilleryHoldTicks = 12;
 		const int GatherRadiusCells = 4;
 
 		public void Activate(CNSquad squad)
 		{
 			waitTicks = 0;
+			artilleryHoldTicks = 0;
+			squad.IsWaitingForArtillery = false;
+			squad.CoordinatedAssaultTarget = null;
 			stagingCell = squad.IsTargetValid ? FindAssaultStagingCell(squad, squad.TargetActor) : null;
 		}
 
@@ -369,8 +392,28 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				}
 			}
 
-			if ((totalCount > 0 && packedCount >= Math.Max(2, totalCount * 2 / 3)) || waitTicks >= MaxStageTicks)
+			var readyToPush = (totalCount > 0 && packedCount >= Math.Max(2, totalCount * 2 / 3)) ||
+				waitTicks >= MaxStageTicks;
+
+			if (readyToPush)
 			{
+				var defenseTarget = FindDefenseBlockingAssault(squad, squad.TargetActor);
+				if (defenseTarget != null && HasAttachedArtillery(squad) && artilleryHoldTicks < MaxArtilleryHoldTicks)
+				{
+					artilleryHoldTicks++;
+					squad.IsWaitingForArtillery = true;
+					squad.CoordinatedAssaultTarget = defenseTarget;
+
+					foreach (var unit in squad.OrderableUnits)
+						if (!unit.IsIdle && (unit.CenterPosition - stagingPos).Length <= gatherRadius.Length)
+							squad.Bot.QueueOrder(new Order("Stop", unit, false));
+
+					return;
+				}
+
+				squad.IsWaitingForArtillery = false;
+				squad.CoordinatedAssaultTarget = null;
+
 				var entryTarget = FindAssaultEntryTarget(squad, stagingCell.Value, squad.TargetActor);
 				squad.SetActorToTarget(entryTarget);
 				squad.Bot.QueueOrder(new Order("AttackMove", null, squad.Target, false,
@@ -379,7 +422,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 		}
 
-		public void Deactivate(CNSquad squad) { }
+		public void Deactivate(CNSquad squad)
+		{
+			squad.IsWaitingForArtillery = false;
+			squad.CoordinatedAssaultTarget = null;
+		}
 	}
 
 	// ---------------------------------------------------------------------------

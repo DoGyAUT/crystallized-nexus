@@ -25,6 +25,25 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Deactivate(CNSquad squad) { }
 	}
 
+	sealed class AirTransportIdleState : CNStateBase, ICNState
+	{
+		public void Activate(CNSquad squad) { }
+
+		public void Tick(CNSquad squad)
+		{
+			if (!squad.IsOperational)
+				return;
+
+			var hasCarriers = squad.CarrierUnits.Any(u => !u.IsDead);
+			var hasPassengers = squad.PassengerUnits.Any(u => !u.IsDead);
+
+			if (hasCarriers && hasPassengers)
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportLoadState());
+		}
+
+		public void Deactivate(CNSquad squad) { }
+	}
+
 	sealed class TransportLoadState : CNStateBase, ICNState
 	{
 		int waitTicks;
@@ -84,7 +103,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (allLoaded || waitTicks >= MaxLoadTicks)
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new TransportAttackMoveState());
+				if (squad.Type == CNSquadType.AirTransport)
+					squad.FuzzyStateMachine.ChangeState(squad, new AirTransportAttackMoveState());
+				else
+					squad.FuzzyStateMachine.ChangeState(squad, new TransportAttackMoveState());
+
 				return;
 			}
 
@@ -185,6 +208,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					return;
 				}
 			}
+
 			var unloadRange = WDist.FromCells(dropCell.HasValue ? DropArriveRangeCells : 12);
 
 			foreach (var carrier in carriers)
@@ -293,6 +317,231 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				if ((actor.CenterPosition - candidatePos).LengthSquared <=
 					(long)WDist.FromCells(6).Length * WDist.FromCells(6).Length)
 					score += 80;
+			}
+
+			return score;
+		}
+	}
+
+	sealed class AirTransportAttackMoveState : CNStateBase, ICNState
+	{
+		const int DropSearchMinCells = 5;
+		const int DropSearchMaxCells = 13;
+		const int DropArriveRangeCells = 2;
+		const int ThreatScanCells = 7;
+		const int MaxAcceptableDropScore = 1600;
+
+		CPos? dropCell;
+		Actor lastTarget;
+
+		public void Activate(CNSquad squad)
+		{
+			dropCell = null;
+			lastTarget = null;
+		}
+
+		public void Tick(CNSquad squad)
+		{
+			if (!squad.IsValid)
+				return;
+
+			var leadCarrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead);
+			if (leadCarrier == null)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
+				return;
+			}
+
+			if (!squad.IsTargetValid || !dropCell.HasValue)
+			{
+				if (!TryFindAirDropPlan(squad, leadCarrier, out var dropTarget, out dropCell))
+				{
+					squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
+					return;
+				}
+
+				squad.SetActorToTarget(dropTarget);
+				lastTarget = dropTarget;
+			}
+
+			if (squad.TargetActor != lastTarget)
+			{
+				dropCell = FindSafeAirDropCell(squad, leadCarrier, squad.TargetActor);
+				lastTarget = squad.TargetActor;
+
+				if (!dropCell.HasValue)
+				{
+					squad.SetActorToTarget(null);
+					squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
+					return;
+				}
+			}
+
+			var carriers = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
+			if (carriers.Any(c => c.TraitOrDefault<IHealth>()?.DamageState >= DamageState.Heavy))
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
+				return;
+			}
+
+			var targetPos = squad.World.Map.CenterOfCell(dropCell.Value);
+			var unloadRange = WDist.FromCells(DropArriveRangeCells);
+
+			foreach (var carrier in carriers)
+			{
+				if ((carrier.CenterPosition - targetPos).LengthSquared <= (long)unloadRange.Length * unloadRange.Length)
+				{
+					squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
+					return;
+				}
+
+				if (carrier.IsIdle)
+					squad.Bot.QueueOrder(new Order("Move", carrier, Target.FromCell(squad.World, dropCell.Value), false));
+			}
+		}
+
+		public void Deactivate(CNSquad squad) { }
+
+		static bool TryFindAirDropPlan(CNSquad squad, Actor carrier, out Actor target, out CPos? dropCell)
+		{
+			target = null;
+			dropCell = null;
+
+			var bestScore = int.MaxValue;
+			foreach (var candidate in squad.SquadManager.GetCachedEnemyBuildings().Where(IsCriticalDropTarget))
+			{
+				var candidateDropCell = FindSafeAirDropCell(squad, carrier, candidate);
+				if (!candidateDropCell.HasValue)
+					continue;
+
+				var score = ScoreAirDropTarget(squad, carrier, candidate) +
+					ScoreAirDropCell(squad, carrier, squad.World.Map.CellContaining(candidate.CenterPosition),
+						squad.SquadManager.GetRandomBaseCenter(), candidateDropCell.Value);
+
+				if (score >= bestScore)
+					continue;
+
+				bestScore = score;
+				target = candidate;
+				dropCell = candidateDropCell;
+			}
+
+			return target != null;
+		}
+
+		static bool IsCriticalDropTarget(Actor actor)
+		{
+			var caps = actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			return caps != null &&
+				(caps.Contains("Economy") ||
+				 caps.Contains("Production") ||
+				 caps.Contains("Tech") ||
+				 caps.Contains("Superweapon") ||
+				 caps.Contains("Power"));
+		}
+
+		static int ScoreAirDropTarget(CNSquad squad, Actor carrier, Actor target)
+		{
+			var score = (int)((carrier.CenterPosition - target.CenterPosition).LengthSquared / 65536);
+
+			var caps = target.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			if (caps != null)
+			{
+				if (caps.Contains("Superweapon"))
+					score -= 900;
+				if (caps.Contains("Tech"))
+					score -= 700;
+				if (caps.Contains("Production"))
+					score -= 550;
+				if (caps.Contains("Economy"))
+					score -= 450;
+				if (caps.Contains("Power"))
+					score -= 250;
+			}
+
+			score += ScoreAirThreatAt(squad, carrier, target.CenterPosition, ThreatScanCells + 3);
+			return score;
+		}
+
+		static CPos? FindSafeAirDropCell(CNSquad squad, Actor carrier, Actor target)
+		{
+			if (target == null)
+				return null;
+
+			var aircraft = carrier.TraitOrDefault<Aircraft>();
+			if (aircraft == null)
+				return null;
+
+			var world = squad.World;
+			var map = world.Map;
+			var targetCell = map.CellContaining(target.CenterPosition);
+			var ourBaseCell = squad.SquadManager.GetRandomBaseCenter();
+
+			CPos? bestCell = null;
+			var bestScore = int.MaxValue;
+
+			for (var dy = -DropSearchMaxCells; dy <= DropSearchMaxCells; dy++)
+			{
+				for (var dx = -DropSearchMaxCells; dx <= DropSearchMaxCells; dx++)
+				{
+					var distanceSquared = dx * dx + dy * dy;
+					if (distanceSquared < DropSearchMinCells * DropSearchMinCells ||
+						distanceSquared > DropSearchMaxCells * DropSearchMaxCells)
+						continue;
+
+					var cell = targetCell + new CVec(dx, dy);
+					if (!aircraft.CanLand(cell))
+						continue;
+
+					var score = ScoreAirDropCell(squad, carrier, targetCell, ourBaseCell, cell);
+					if (score >= bestScore)
+						continue;
+
+					bestScore = score;
+					bestCell = cell;
+				}
+			}
+
+			return bestScore <= MaxAcceptableDropScore ? bestCell : null;
+		}
+
+		static int ScoreAirDropCell(CNSquad squad, Actor carrier, CPos targetCell, CPos ourBaseCell, CPos candidate)
+		{
+			var world = squad.World;
+			var candidatePos = world.Map.CenterOfCell(candidate);
+			var score = 0;
+
+			score += (candidate - targetCell).LengthSquared * 12;
+
+			var baseToCandidate = (candidate - ourBaseCell).LengthSquared;
+			var baseToTarget = (targetCell - ourBaseCell).LengthSquared;
+			if (baseToCandidate < baseToTarget)
+				score += (baseToTarget - baseToCandidate) * 4;
+
+			score += ScoreAirThreatAt(squad, carrier, candidatePos, ThreatScanCells);
+			return score;
+		}
+
+		static int ScoreAirThreatAt(CNSquad squad, Actor carrier, WPos position, int radiusCells)
+		{
+			var score = 0;
+			foreach (var actor in squad.World.FindActorsInCircle(position, WDist.FromCells(radiusCells)))
+			{
+				if (!squad.SquadManager.IsLiveEnemyActor(actor))
+					continue;
+
+				var caps = actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+				var isDefense = caps?.Contains("Defense") ?? false;
+				var isAntiAir = (caps?.Contains("AntiAir") ?? false) || (caps?.Contains("AADefense") ?? false);
+				var isBuilding = actor.Info.HasTraitInfo<BuildingInfo>();
+				var canAttackCarrier = actor.Info.HasTraitInfo<AttackBaseInfo>() && CanAttackTarget(actor, carrier);
+
+				if (isAntiAir || canAttackCarrier)
+					score += isBuilding ? 2200 : 900;
+				else if (isDefense)
+					score += isBuilding ? 800 : 250;
+				else if (isBuilding && actor.Info.HasTraitInfo<AttackBaseInfo>())
+					score += 450;
 			}
 
 			return score;

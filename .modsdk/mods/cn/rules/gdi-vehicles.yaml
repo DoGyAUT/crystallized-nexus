@@ -441,6 +441,18 @@ GTMTNK:
 		InternalOwner: Neutral
 	BotCapabilities:
 		Capabilities: Vehicle, AntiArmor
+#	WithIdleOverlay@HEADLIGHT_L:
+#		RequiresCondition: ionstorm
+#		Image: veh_conelight_w
+#		Sequence: cone
+#		Palette: effect
+#		Offset: 800, 180, 400
+#	WithIdleOverlay@HEADLIGHT_R:
+#		RequiresCondition: ionstorm
+#		Image: veh_conelight_w
+#		Sequence: cone
+#		Palette: effect
+#		Offset: 800, -180, 400
 
 MMCH:
 	Inherits: ^Tank
@@ -861,8 +873,8 @@ JUGG:
 		UndeployOnPickup: true
 		Facing: 384
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySounds: juggerdeploy1.wav
-		UndeploySounds: juggerundeploy1.wav
+		DeploySounds: juggerdeploy1.ogg
+		UndeploySounds: juggerundeploy1.ogg
 		Voice: Move
 	EntersTunnels:
 		RequireForceMoveCondition: !undeployed

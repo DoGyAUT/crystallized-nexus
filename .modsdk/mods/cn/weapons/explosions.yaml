@@ -10,7 +10,7 @@ UnitExplodeSmall:
 	Warhead@2Eff: CreateEffect
 		Explosions: unitexplode1_small
 		ExplosionPalette: effect
-		ImpactSounds: tank_destroyed_small_v1.wav, tank_destroyed_small_v2.wav, tank_destroyed_small_v3.wav
+		ImpactSounds: tank_destroyed_small_v1.ogg, tank_destroyed_small_v2.ogg, tank_destroyed_small_v3.ogg
 	Warhead@4Smu: LeaveSmudge
 		SmudgeType: SmallCrater
 		InvalidTargets: Building, Wall
@@ -34,7 +34,7 @@ UnitExplodeMedium:
 	Warhead@2Eff: CreateEffect
 		Explosions: unitexplode1_medium, unitexplode1_small
 		ExplosionPalette: effect
-		ImpactSounds: tank_destroyed_medium_v1.wav, tank_destroyed_medium_v2.wav, tank_destroyed_medium_v3.wav
+		ImpactSounds: tank_destroyed_medium_v1.ogg, tank_destroyed_medium_v2.ogg, tank_destroyed_medium_v3.ogg
 	Warhead@4Smu: LeaveSmudge
 		SmudgeType: MediumScorch
 		InvalidTargets: Building, Wall
@@ -48,7 +48,7 @@ UnitExplodeLarge:
 	Warhead@2Eff: CreateEffect
 		Explosions: unitexplode1_large, unitexplode1_medium
 		ExplosionPalette: effect
-		ImpactSounds: tank_destroyed_large_v1.wav, tank_destroyed_large_v2.wav, tank_destroyed_large_v3.wav
+		ImpactSounds: tank_destroyed_large_v1.ogg, tank_destroyed_large_v2.ogg, tank_destroyed_large_v3.ogg
 	Warhead@4Smu: LeaveSmudge
 		SmudgeType: SmallCrater
 		InvalidTargets: Building, Wall

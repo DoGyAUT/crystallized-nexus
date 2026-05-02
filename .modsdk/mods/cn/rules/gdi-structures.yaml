@@ -552,6 +552,7 @@ GADEPT:
 	Reservable:
 	RepairsUnits:
 		HpPerStep: 1000
+		RepairDamageTypes: RepairArmor
 		PauseOnCondition: empdisable
 		PlayerExperience: 5
 		StartRepairingNotification: Repairing

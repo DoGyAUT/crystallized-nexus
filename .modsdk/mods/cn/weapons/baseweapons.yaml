@@ -17,7 +17,7 @@
 	Warhead@3Eff: CreateEffect
 		Explosions: rchet00, rchet01, rchet02
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -78,7 +78,7 @@
 	Warhead@2Eff: CreateEffect
 		Explosions: apexplosion01
 		ExplosionPalette: effect
-		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
+		ImpactSounds: Tank_hit_HE_v1.ogg, Tank_hit_HE_v2.ogg, Tank_hit_HE_v3.ogg
 		ValidTargets: Ground, Air, DeadInfantry
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@3EffWater: CreateEffect
@@ -93,13 +93,13 @@
 	Warhead@5Eff: CreateEffect
 		Explosions: pboom1, pboom2, pboom3
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav
+		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 #	Warhead@5Eff: CreateEffect
 #		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5, sparks6
 #		ExplosionPalette: effect
-#		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav #expnew13.aud
+#		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg #expnew13.aud
 #		ValidTargets: Vehicle, Cyborg
 #		InvalidTargets: Infantry, Structure
 
@@ -125,8 +125,8 @@
 	Projectile: Missile
 		MinimumLaunchAngle: 200
 		MaximumLaunchAngle: 200
-		MaximumLaunchSpeed: 50
-		MinimumLaunchSpeed: 50
+		MaximumLaunchSpeed: 0c256
+		MinimumLaunchSpeed: 0c256
 		Speed: 0c256
 		Blockable: false
 		Shadow: true
@@ -140,7 +140,7 @@
 		Trail2Palette: effect
 		RangeLimit: 28c291
 		Palette: ra
-		Acceleration: 96
+		Acceleration: 0
 		AllowSnapping: true
 		CloseEnough: 0c384
 		CruiseAltitude: 4c0
@@ -155,7 +155,7 @@
 	Warhead@2Eff: CreateEffect
 		Explosions: pvzrvmst1, pvzrvmst2, pvzrvmst3, pvzrvmst4
 		ExplosionPalette: effect
-		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
+		ImpactSounds: Tank_hit_HE_v1.ogg, Tank_hit_HE_v2.ogg, Tank_hit_HE_v3.ogg
 		ValidTargets: Ground
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
@@ -208,7 +208,7 @@
 	Warhead@2Eff: CreateEffect
 		Explosions: apexplosion01
 		ExplosionPalette: effect
-		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
+		ImpactSounds: Tank_hit_HE_v1.ogg, Tank_hit_HE_v2.ogg, Tank_hit_HE_v3.ogg
 		ValidTargets: Ground, Air, DeadInfantry
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@3EffWater: CreateEffect
@@ -223,7 +223,7 @@
 	Warhead@5Eff: CreateEffect
 		Explosions: pboom1, pboom2, pboom3
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav
+		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 	Warhead@5Eff: CreateEffect

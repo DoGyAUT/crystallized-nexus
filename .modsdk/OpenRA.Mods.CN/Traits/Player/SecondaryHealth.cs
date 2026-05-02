@@ -83,6 +83,7 @@ namespace OpenRA.Mods.CN.Traits
 		public int CurrentHP { get; private set; }
 		public int MaxHP => Info.MaxHP;
 		public string ArmorType => Info.ArmorType;
+		public bool NeedsRepair => !IsTraitDisabled && CurrentHP < Info.MaxHP;
 
 		public SecondaryHealth(Actor self, SecondaryHealthInfo info)
 			: base(info)

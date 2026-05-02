@@ -97,6 +97,9 @@ actor-orcab =
        Weak vs Infantry and Aircraft
 
 actor-orcatran-name = Orca Transport
+actor-orcatran-description =
+    VTOL transport for infantry drops.
+       Unarmed
 
 actor-trnsport =
     .name = Carryall

@@ -5,66 +5,147 @@
 		Conditions:
 			500: rank
 			1000: rank
+			1600: rank
+			2400: rank
+			3400: rank
 		LevelUpImage: crate-effects
-	GrantCondition@RANK-VETERAN:
+	GrantCondition@RANK1:
 		RequiresCondition: rank == 1
+		Condition: rank-1
+	GrantCondition@RANK2:
+		RequiresCondition: rank == 2
+		Condition: rank-2
+	GrantCondition@RANK3:
+		RequiresCondition: rank == 3
+		Condition: rank-3
+	GrantCondition@RANK4:
+		RequiresCondition: rank == 4
+		Condition: rank-4
+	GrantCondition@RANK5:
+		RequiresCondition: rank >= 5
+		Condition: rank-5
+	GrantCondition@RANK-VETERAN:
+		RequiresCondition: rank >= 1
 		Condition: rank-veteran
 	GrantCondition@RANK-ELITE:
-		RequiresCondition: rank >= 2
+		RequiresCondition: rank >= 4
 		Condition: rank-elite
-	FirepowerMultiplier@VETERAN:
-		RequiresCondition: rank-veteran
+	FirepowerMultiplier@RANK1:
+		RequiresCondition: rank-1
+		Modifier: 105
+	FirepowerMultiplier@RANK2:
+		RequiresCondition: rank-2
 		Modifier: 110
-	FirepowerMultiplier@ELITE:
-		RequiresCondition: rank-elite
-		Modifier: 130
-	DamageMultiplier@VETERAN:
-		RequiresCondition: rank-veteran
-		Modifier: 90
-	DamageMultiplier@ELITE:
-		RequiresCondition: rank-elite
-		Modifier: 75
-	SpeedMultiplier@VETERAN:
-		RequiresCondition: rank-veteran
-		Modifier: 120
-	SpeedMultiplier@ELITE:
-		RequiresCondition: rank-elite
+	FirepowerMultiplier@RANK3:
+		RequiresCondition: rank-3
+		Modifier: 115
+	FirepowerMultiplier@RANK4:
+		RequiresCondition: rank-4
+		Modifier: 125
+	FirepowerMultiplier@RANK5:
+		RequiresCondition: rank-5
 		Modifier: 140
-	ReloadDelayMultiplier@VETERAN:
-		RequiresCondition: rank-veteran
+	DamageMultiplier@RANK1:
+		RequiresCondition: rank-1
+		Modifier: 95
+	DamageMultiplier@RANK2:
+		RequiresCondition: rank-2
 		Modifier: 90
-	ReloadDelayMultiplier@ELITE:
-		RequiresCondition: rank-elite
+	DamageMultiplier@RANK3:
+		RequiresCondition: rank-3
+		Modifier: 85
+	DamageMultiplier@RANK4:
+		RequiresCondition: rank-4
+		Modifier: 80
+	DamageMultiplier@RANK5:
+		RequiresCondition: rank-5
+		Modifier: 70
+	ReloadDelayMultiplier@RANK1:
+		RequiresCondition: rank-1
+		Modifier: 97
+	ReloadDelayMultiplier@RANK2:
+		RequiresCondition: rank-2
+		Modifier: 94
+	ReloadDelayMultiplier@RANK3:
+		RequiresCondition: rank-3
+		Modifier: 90
+	ReloadDelayMultiplier@RANK4:
+		RequiresCondition: rank-4
+		Modifier: 85
+	ReloadDelayMultiplier@RANK5:
+		RequiresCondition: rank-5
 		Modifier: 75
-	ChangesHealth@ELITE:
-		Step: 2
-		Delay: 100
+	ChangesHealth@RANK4:
+		Step: 1
+		Delay: 125
 		StartIfBelow: 100
 		DamageCooldown: 125
-		RequiresCondition: rank-elite
-	WithDecoration@VETERAN:
-		RequiresCondition: rank-veteran
+		RequiresCondition: rank-4
+	ChangesHealth@RANK5:
+		Step: 2
+		Delay: 125
+		StartIfBelow: 100
+		DamageCooldown: 125
+		RequiresCondition: rank-5
+	WithDecoration@RANK1:
+		RequiresCondition: rank-1
 		Position: BottomRight
 		Margin: 3, 4
 		Image: rank
-		Sequence: veteran
+		Sequence: 1
 		Palette: ra
 		ValidRelationships: Ally, Enemy, Neutral
-	WithDecoration@ELITE:
-		RequiresCondition: rank-elite
+	WithDecoration@RANK2:
+		RequiresCondition: rank-2
 		Position: BottomRight
 		Margin: 3, 4
 		Image: rank
-		Sequence: elite
+		Sequence: 2
+		Palette: ra
+		ValidRelationships: Ally, Enemy, Neutral
+	WithDecoration@RANK3:
+		RequiresCondition: rank-3
+		Position: BottomRight
+		Margin: 3, 4
+		Image: rank
+		Sequence: 3
+		Palette: ra
+		ValidRelationships: Ally, Enemy, Neutral
+	WithDecoration@RANK4:
+		RequiresCondition: rank-4
+		Position: BottomRight
+		Margin: 3, 4
+		Image: rank
+		Sequence: 4
+		Palette: ra
+		ValidRelationships: Ally, Enemy, Neutral
+	WithDecoration@RANK5:
+		RequiresCondition: rank-5
+		Position: BottomRight
+		Margin: 3, 4
+		Image: rank
+		Sequence: 5
 		Palette: ra
 		ValidRelationships: Ally, Enemy, Neutral
 
 ^InfantryExperienceHospitalOverrides:
-	WithDecoration@VETERAN:
+	WithDecoration@RANK1:
 		BlinkInterval: 32
 		BlinkPatterns:
 			hospitalheal: On, Off
-	WithDecoration@ELITE:
+	WithDecoration@RANK2:
+		BlinkInterval: 32
+		BlinkPatterns:
+			hospitalheal: On, Off
+	WithDecoration@RANK3:
+		BlinkInterval: 32
+		BlinkPatterns:
+			hospitalheal: On, Off
+	WithDecoration@RANK4:
+		BlinkInterval: 32
+		BlinkPatterns:
+			hospitalheal: On, Off
+	WithDecoration@RANK5:
 		BlinkInterval: 32
 		BlinkPatterns:
 			hospitalheal: On, Off

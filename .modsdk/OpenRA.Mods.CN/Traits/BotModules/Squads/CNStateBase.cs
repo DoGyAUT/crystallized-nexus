@@ -70,6 +70,33 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return false;
 		}
 
+		protected static bool IsDefenseStructure(Actor actor)
+		{
+			if (actor == null || actor.IsDead || !actor.IsInWorld || actor.OccupiesSpace == null)
+				return false;
+
+			if (!actor.Info.HasTraitInfo<BuildingInfo>())
+				return false;
+
+			var caps = actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			return (caps?.Contains("Defense") ?? false) || actor.Info.HasTraitInfo<AttackBaseInfo>();
+		}
+
+		protected static Actor FindDefenseNearTarget(CNSquad squad, Actor target, int radiusCells)
+		{
+			if (target == null || target.IsDead || !target.IsInWorld || target.OccupiesSpace == null)
+				return null;
+
+			return FindDefenseNearPosition(squad, target.CenterPosition, radiusCells);
+		}
+
+		protected static Actor FindDefenseNearPosition(CNSquad squad, WPos center, int radiusCells)
+		{
+			return squad.World.FindActorsInCircle(center, WDist.FromCells(radiusCells))
+				.Where(a => squad.SquadManager.IsLiveEnemyActor(a) && IsDefenseStructure(a))
+				.MinByOrDefault(a => (a.CenterPosition - center).LengthSquared);
+		}
+
 		// --- Flee decision ---
 
 		protected virtual bool ShouldFlee(CNSquad squad)

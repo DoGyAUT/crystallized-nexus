@@ -1,7 +1,7 @@
 57mm:
 	Inherits: ^Cannon
 	ReloadDelay: 100
-	Report: 57mm_v1.wav, 57mm_v2.wav, 57mm_v3.wav
+	Report: 57mm_v1.ogg, 57mm_v2.ogg, 57mm_v3.ogg
 	Warhead@2Eff: CreateEffect
 		Explosions: apexplosion01
 		ExplosionPalette: effect
@@ -13,7 +13,7 @@
 57mm_deployed:
 	Inherits: ^Cannon
 	ReloadDelay: 40
-	Report: 57mm_v1.wav, 57mm_v2.wav, 57mm_v3.wav
+	Report: 57mm_v1.ogg, 57mm_v2.ogg, 57mm_v3.ogg
 	Warhead@2Eff: CreateEffect
 		Explosions: apexplosion01
 		ExplosionPalette: effect
@@ -24,7 +24,7 @@
 
 75mm:
 	Inherits: ^Cannon
-	Report: 75mm_v1.wav, 75mm_v2.wav, 75mm_v3.wav, 75mm_v4.wav, 75mm_v5.wav, 75mm_v6.wav
+	Report: 75mm_v1.ogg, 75mm_v2.ogg, 75mm_v3.ogg, 75mm_v4.ogg, 75mm_v5.ogg, 75mm_v6.ogg
 	ReloadDelay: 60
 	Warhead@1Dam: SpreadDamage
 		Damage: 40
@@ -36,7 +36,7 @@
 
 90mm:
 	Inherits: ^Cannon
-	Report: 90mm_v1.wav, 90mm_v2.wav, 90mm_v3.wav
+	Report: 90mm_v1.ogg, 90mm_v2.ogg, 90mm_v3.ogg
 	ReloadDelay: 70
 	Warhead@1Dam: SpreadDamage
 		Damage: 55
@@ -48,7 +48,7 @@
 
 120mm:
 	Inherits: ^Cannon
-	Report: 122mm_v1.wav, 122mm_v2.wav, 122mm_v3.wav #105mm.aud, 122mm.aud, 128mm.aud
+	Report: 122mm_v1.ogg, 122mm_v2.ogg, 122mm_v3.ogg
 	ReloadDelay: 80
 	Projectile: Bullet
 		-Image:
@@ -61,17 +61,15 @@
 
 120mmx:
 	Inherits: ^Cannon
-	Report: 122mm_v1.wav, 122mm_v2.wav, 122mm_v3.wav
+	Report: 122mm_v1.ogg, 122mm_v2.ogg, 122mm_v3.ogg
 	ReloadDelay: 80
-	#Burst: 2
-	#BurstDelays: 5
 	Warhead@1Dam: SpreadDamage
 		Damage: 50
 		DamageTypes: SmallExplosionDeath, TriggerProne, Prone70Percent, PierceArmor, BypassArmorLight
 
 RPGTower:
 	Inherits: ^Cannon
-	Report: 105mm_v1.wav, 105mm_v2.wav, 105mm_v3.wav
+	Report: 105mm_v1.ogg, 105mm_v2.ogg, 105mm_v3.ogg
 	ReloadDelay: 80
 	Range: 8c0
 	Report: glnch4.aud
@@ -88,7 +86,7 @@ RPGTower:
 
 155mm:
 	Inherits: ^ArtilleryWeapon
-	Report: 150mm_v1.wav, 150mm_v2.wav, 150mm_v3.wav
+	Report: 150mm_v1.ogg, 150mm_v2.ogg, 150mm_v3.ogg
 	ReloadDelay: 110
 	Range: 18c0
 	MinRange: 5c0
@@ -101,21 +99,21 @@ RPGTower:
 	Warhead@1Dam: SpreadDamage
 		Damage: 250
 	Warhead@2Eff: CreateEffect
-		Explosions: fireexplosion #artexplo01, artexplo02, artexplo03, artexplo04 #apexplosion01
+		Explosions: fireexplosion
 		ExplosionPalette: effect
-		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
+		ImpactSounds: Tank_hit_HE_v1.ogg, Tank_hit_HE_v2.ogg, Tank_hit_HE_v3.ogg
 		ValidTargets: Ground, DeadInfantry
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@5Eff: CreateEffect
 		Explosions: pboom1, pboom2, pboom3
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav #expnew13.aud
+		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
 Jugg90mm:
 	Inherits: ^ArtilleryWeapon
-	Report: mortar_shoot_v1.wav, mortar_shoot_v2.wav, mortar_shoot_v3.wav
+	Report: 90mm_v1.ogg, 90mm_v2.ogg, 90mm_v3.ogg
 	ReloadDelay: 150
 	Range: 18c0
 	MinRange: 5c0
@@ -129,15 +127,15 @@ Jugg90mm:
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
 	Warhead@2Eff: CreateEffect
-		Explosions: fireexplosion #artexplo01, artexplo02, artexplo03, artexplo04
+		Explosions: fireexplosion
 		ExplosionPalette: effect
-		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav #expnew14.aud
+		ImpactSounds: Tank_hit_HE_v1.ogg, Tank_hit_HE_v2.ogg, Tank_hit_HE_v3.ogg
 		ValidTargets: Ground, DeadInfantry
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@5Eff: CreateEffect
 		Explosions: pboom1, pboom2, pboom3
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_v1.wav, tank_hit_v2.wav, tank_hit_v3.wav, tank_hit_v4.wav, tank_hit_v5.wav #expnew13.aud
+		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -168,7 +166,7 @@ Grenade:
 	Warhead@2Eff: CreateEffect
 		Explosions: heexplosion01
 		ExplosionPalette: effect
-		ImpactSounds: explosion01.wav, explosion02.wav
+		ImpactSounds: explosion01.ogg, explosion02.ogg
 		ValidTargets: Ground, Trees, DeadInfantry
 	Warhead@5Eff: CreateEffect
 		Explosions: grenexplo1
@@ -205,7 +203,7 @@ EliteCadreGrenade:
 	Warhead@2Eff: CreateEffect
 		Explosions: heexplosion01
 		ExplosionPalette: effect
-		ImpactSounds: explosion01.wav, explosion02.wav
+		ImpactSounds: explosion01.ogg, explosion02.ogg
 		ValidTargets: Ground, Trees, DeadInfantry
 	Warhead@5Eff: CreateEffect
 		Explosions: grenexplo1

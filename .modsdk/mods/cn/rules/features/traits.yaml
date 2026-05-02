@@ -120,6 +120,7 @@
 		ExitByBudding: true
 		AggregateHealth: true
 		IncludeMasterInAggregate: true
+		ShareSlaveExperience: true
 		SlavesHaveFreeWill: false
 		SlaveDisposalOnKill: KillSlaves
 		SlaveDisposalOnOwnerChange: GiveSlavesToAttacker

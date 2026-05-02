@@ -48,6 +48,9 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Display order for the lobby options panel.")]
 		public readonly int IonStormDisplayOrder = 0;
 
+		[Desc("Category for the ion storm option in the lobby.")]
+		public readonly string IonStormCategory = null;
+
 		// ── Timing ───────────────────────────────────────────────────
 		[Desc("Minimum ticks in Clear state before a storm begins.")]
 		public readonly int MinClearDuration = 4500;
@@ -81,7 +84,7 @@ namespace OpenRA.Mods.CN.Traits
 			yield return new LobbyBooleanOption(map, "ionstorms",
 				IonStormLabel, IonStormDescription,
 				IonStormVisible, IonStormDisplayOrder,
-				IonStormDefault, IonStormLocked);
+				IonStormDefault, IonStormLocked, IonStormCategory);
 		}
 
 		public override object Create(ActorInitializer init) { return new WeatherController(init, this); }

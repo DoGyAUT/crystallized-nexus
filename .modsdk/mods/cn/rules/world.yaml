@@ -36,13 +36,13 @@
 		WindDirection: 12
 		ShouldPrespawn: true
 	RandomMapAmbientSound@ForestWind:
-		SoundFiles: wind1.wav, wind2.wav, wind3.wav, wind4.wav
+		SoundFiles: wind1.ogg, wind2.ogg, wind3.ogg, wind4.ogg
 		Delay: 150, 450
 		Interval: 100, 500
 		VolumeModifier: 1.0
 		MaxActiveSounds: 20
 	RandomMapAmbientSound@WaterWaves:
-		SoundFiles: waterwave1.wav, waterwave2.wav, waterwave3.wav, waterwave4.wav, waterwave5.wav, waterwave6.wav, waterwave7.wav, waterwave8.wav
+		SoundFiles: waterwave1.ogg, waterwave2.ogg, waterwave3.ogg, waterwave4.ogg, waterwave5.ogg, waterwave6.ogg, waterwave7.ogg, waterwave8.ogg
 		TerrainTypes: Water
 		Delay: 150, 450
 		Interval: 100, 500
@@ -190,6 +190,36 @@ World:
 				TerrainType: RedTiberium
 				AllowedTerrainTypes: Clear, Rough, DirtRoad
 				MaxDensity: 12
+	LobbyOptionCategory@setup:
+		Category: setup
+		Title: Game Setup
+		DisplayOrder: 1
+	LobbyOptionCategory@starting:
+		Category: starting
+		Title: Starting Conditions
+		DisplayOrder: 2
+	LobbyOptionCategory@rules:
+		Category: rules
+		Title: Map Rules
+		DisplayOrder: 3
+	LobbyOptionCategory@events:
+		Category: events
+		Title: World Events
+		DisplayOrder: 4
+	LobbyOptionCategory@performance:
+		Category: performance
+		Title: Performance
+		DisplayOrder: 5
+	LobbyOptionCategory@advanced:
+		Category: advanced
+		Title: Advanced
+		DisplayOrder: 9
+	RandomTransformsNearResourcesManager:
+		CheckboxDisplayOrder: 1
+		CheckboxCategory: performance
+	TerrainDeformationOptions:
+		CheckboxDisplayOrder: 2
+		CheckboxCategory: performance
 	BridgeLayer:
 	CustomTerrainDebugOverlay:
 	ResourceClaimLayer:
@@ -197,16 +227,23 @@ World:
 	ExitsDebugOverlayManager:
 	SubterraneanActorLayer:
 	JumpjetActorLayer:
+		ReturnToGroundLayerOnIdle: false
 	MapCreeps:
 		CheckboxVisible: False
+		CheckboxCategory: rules
 	SpawnMapActors:
 	MapBuildRadius:
 		AllyBuildRadiusCheckboxDisplayOrder: 4
+		AllyBuildRadiusCheckboxCategory: rules
 		BuildRadiusCheckboxDisplayOrder: 5
+		BuildRadiusCheckboxCategory: rules
 	MapOptions:
-		ShortGameCheckboxDisplayOrder: 2
+		ShortGameCheckboxDisplayOrder: 3
+		ShortGameCheckboxCategory: rules
 		TechLevelDropdownDisplayOrder: 2
+		TechLevelDropdownCategory: setup
 		GameSpeedDropdownDisplayOrder: 1
+		GameSpeedDropdownCategory: setup
 	CreateMapPlayers:
 	StartingUnits@MCV.gdi:
 		Class: none
@@ -268,7 +305,10 @@ World:
 		OuterSupportRadius: 5
 	MapStartingLocations:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 6
+		SeparateTeamSpawnsCheckboxCategory: rules
 	SpawnStartingUnits:
+		DropdownDisplayOrder: 2
+		DropdownCategory: starting
 	CrateSpawner:
 		Minimum: 1
 		Maximum: 6
@@ -277,6 +317,7 @@ World:
 		ValidGround: Clear, Rough, Road, DirtRoad, Tiberium, BlueTiberium, RedTiberium
 		InitialSpawnDelay: 1500
 		CheckboxDisplayOrder: 1
+		CheckboxCategory: events
 	PathFinder:
 	ValidateOrder:
 	DebugPauseState:
@@ -291,7 +332,8 @@ World:
 	ScriptTriggers:
 	CellTriggerOverlay:
 	TimeLimitManager:
-		TimeLimitDisplayOrder: 2
+		TimeLimitDisplayOrder: 3
+		TimeLimitDropdownCategory: setup
 	ColorPickerManager:
 		PreviewActor: gharv.colorpicker
 		FactionPreviewActors:
@@ -309,6 +351,8 @@ World:
 	ExternalCondition@IONSTORM:
 		Condition: ionstorm
 	WeatherController:
+		IonStormDisplayOrder: 2
+		IonStormCategory: events
 		MinClearDuration: 4500
 		MaxClearDuration: 12000
 		WarningDuration: 375

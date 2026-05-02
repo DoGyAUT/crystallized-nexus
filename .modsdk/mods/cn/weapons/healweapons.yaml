@@ -27,6 +27,7 @@ Repair:
 		ValidTargets: Repair
 	Warhead@2Dam: TargetDamage
 		ValidTargets: Repair
+		DamageTypes: RepairArmor
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect

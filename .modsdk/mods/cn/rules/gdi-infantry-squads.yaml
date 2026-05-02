@@ -1,72 +1,54 @@
 GASOL.Member:
-	Inherits: ^Soldier
-	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits: GASOL
 	Inherits@SQUAD: ^MobSquadMember
+	-MobSpawnerMaster:
 	-SelectionDecorations:
-	Voiced:
-		VoiceSet: Marine
-	CNHealth:
-		HP: 125
-	Armor:
-		Type: Light
-	Mobile:
-		Speed: 71
-	Armament@PRIMARY:
-		Weapon: GMinigun
-		RequiresCondition: !rank-elite
-	Armament@ELITE:
-		Weapon: M1Carbine
-		RequiresCondition: rank-elite
-	AttackFrontal:
-		FacingTolerance: 0
-	WithSplitAttackPaletteInfantryBody:
-		DefaultAttackSequence: attack
-	RevealsShroud:
-		Range: 5c0
-	BotCapabilities:
-		Capabilities: Infantry, AntiInfantry
-#	SoundOnDamageTransition:
-#		DamagedSounds: gdi1_f1.aud, gdi1_f2.aud, gdi1_f3.aud, gdi1_f4.aud, gdi1_f5.aud, gdi1_f6.aud, gdi1_f7.aud, gdi1_f8.aud, gdi1_f9.aud, gdi1_f10.aud, gdi1_f11.aud, gdi1_f12.aud, gdi1_f13.aud, gdi1_f14.aud
+	-Buildable:
+	-UpdatesPlayerStatistics:
+	-ProducibleWithLevel:
+	-BotCapabilities:
+	RenderSprites:
+		Image: GASOL
+
+GASOLR3.Member:
+	Inherits: GASOL.Member
+	ProducibleWithLevel:
+		Prerequisites: techlevel.low
+		InitialLevels: 5
+	RenderSprites:
+		Image: GASOL
 
 E2.Member:
-	Inherits: ^Soldier
-	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits: E2
 	Inherits@SQUAD: ^MobSquadMember
+	-MobSpawnerMaster:
 	-SelectionDecorations:
-	Voiced:
-		VoiceSet: Discthrower
+	-Buildable:
+	-UpdatesPlayerStatistics:
+	-ProducibleWithLevel:
+	-BotCapabilities:
 	RenderSprites:
 		Image: E2
-	CNHealth:
-		HP: 150
-	Armor:
-		Type: Light
-	Mobile:
-		Speed: 56
-	Armament:
-		Weapon: Grenade
-		LocalOffset: 0,0,785
-		FireDelay: 5
-	TakeCover:
-		ProneOffset: 160,128,-555
-	AttackFrontal:
-		FacingTolerance: 0
-	WithSplitAttackPaletteInfantryBody:
-		DefaultAttackSequence: attack
-	RevealsShroud:
-		Range: 7c0
-	BotCapabilities:
-		Capabilities: Infantry, AntiArmor
-#	SoundOnDamageTransition:
-#		DamagedSounds: gdi2_f1.aud, gdi2_f2.aud, gdi2_f3.aud, gdi2_f4.aud, gdi2_f5.aud, gdi2_f6.aud, gdi2_f7.aud, gdi2_f8.aud
+
+E2R3.Member:
+	Inherits: E2.Member
+	ProducibleWithLevel:
+		Prerequisites: techlevel.low
+		InitialLevels: 5
+	RenderSprites:
+		Image: E2
 
 GASPOTTER.Member:
 	Inherits: ^Soldier
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Inherits@SQUAD: ^MobSquadMember
 	-SelectionDecorations:
 	Voiced:
 		VoiceSet: Spotter
+	Valued:
+		Cost: 500
 	RenderSprites:
 		Image: GASPOTTER
 	CNHealth:
@@ -84,7 +66,11 @@ GASPOTTER.Member:
 	WithSplitAttackPaletteInfantryBody:
 		DefaultAttackSequence: attack
 	RevealsShroud:
-		Range: 5c0
+		Range: 10c0
+	DetectCloaked:
+		Range: 8c0
+		DetectionTypes: cloak, forest-cover
+	RenderDetectionCircle:
 	Cloak@SELF:
 		InitialDelay: 90
 		CloakDelay: 90
@@ -98,5 +84,17 @@ GASPOTTER.Member:
 		ValidDamageStates: Critical
 	BotCapabilities:
 		Capabilities: Infantry, AntiInfantry, Cloaked
-#	SoundOnDamageTransition:
-#		DamagedSounds: spotter_f1.aud, spotter_f2.aud, spotter_f3.aud
+
+JUMPJET.Member:
+	Inherits: JUMPJET
+	Inherits@SQUAD: ^MobSquadMember
+	-MobSpawnerMaster:
+	-SelectionDecorations:
+	-Buildable:
+	-UpdatesPlayerStatistics:
+	-ProducibleWithLevel:
+	-AppearsOnRadar:
+	-AppearsOnRadar@ENEMY:
+	-BotCapabilities:
+	RenderSprites:
+		Image: JUMPJET

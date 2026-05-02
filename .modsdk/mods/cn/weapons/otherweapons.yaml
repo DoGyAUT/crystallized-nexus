@@ -45,7 +45,7 @@ Bomb:
 	Warhead@2Eff: CreateEffect
 		Explosions: artexplo01, artexplo02, artexplo03, artexplo04
 		ExplosionPalette: effect
-		ImpactSounds: Tank_hit_HE_v1.wav, Tank_hit_HE_v2.wav, Tank_hit_HE_v3.wav
+		ImpactSounds: Tank_hit_HE_v1.ogg, Tank_hit_HE_v2.ogg, Tank_hit_HE_v3.ogg
 		ValidTargets: Ground, Trees, Air
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
@@ -255,7 +255,7 @@ IonStormStrike:
 	Warhead@3Efx: CreateEffect
 		ImpactActors: false
 		Explosions: sonic_impact
-		ImpactSounds: thunderhit1.wav
+		ImpactSounds: thunderhit1.ogg
 	Warhead@4Thunder: CreateEffect
 		ImpactActors: false
 		Explosions: bolt1, bolt2, bolt3, bolt4
@@ -278,7 +278,7 @@ IonStormAmbientBolt:
 	Warhead@3Efx: CreateEffect
 		ImpactActors: false
 		Explosions: sonic_impact
-		ImpactSounds: thunder1.wav, thunder2.wav, thunder3.wav, thunder4.wav
+		ImpactSounds: thunder1.ogg, thunder2.ogg, thunder3.ogg, thunder4.ogg
 	Warhead@4Thunder: CreateEffect
 		ImpactActors: false
 		Explosions: bolt1, bolt2, bolt3, bolt4

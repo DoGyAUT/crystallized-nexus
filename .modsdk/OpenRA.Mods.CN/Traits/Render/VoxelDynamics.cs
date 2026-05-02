@@ -147,7 +147,7 @@ namespace OpenRA.Mods.CN.Traits
 				return;
 
 			int pitchSign, rollSign;
-			if (e.Attacker != null && !e.Attacker.Disposed && e.Attacker.IsInWorld)
+			if (e.Attacker != null && !e.Attacker.Disposed && e.Attacker.IsInWorld && e.Attacker.OccupiesSpace != null)
 			{
 				var delta = self.CenterPosition - e.Attacker.CenterPosition;
 

@@ -33,9 +33,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				// Find the squad we should attach to
 				if (squad.AttachedTo == null || !squad.AttachedTo.IsValid)
 				{
-					squad.AttachedTo = squad.SquadManager.Squads
-						.FirstOrDefault(s => s.IsValid &&
-							(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush));
+					var attachable = squad.SquadManager.Squads
+						.Where(s => s.IsValid &&
+							(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush))
+						.ToArray();
+
+					squad.AttachedTo = attachable.FirstOrDefault(s => s.IsWaitingForArtillery) ??
+						attachable.FirstOrDefault();
 				}
 
 				if (squad.AttachedTo != null)
@@ -87,9 +91,28 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			if (!squad.AttachedTo.IsWaitingForArtillery)
+			{
+				var waitingAssault = squad.SquadManager.Squads
+					.FirstOrDefault(s => s.IsValid &&
+						(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush) &&
+						s.IsWaitingForArtillery);
+
+				if (waitingAssault != null)
+					squad.AttachedTo = waitingAssault;
+			}
+
 			var attachedLeader = squad.AttachedTo.CenterUnit();
 			if (attachedLeader == null)
 				return;
+
+			var coordinatedTarget = FindCoordinatedTarget(squad);
+			if (coordinatedTarget != null)
+			{
+				squad.SetActorToTarget(coordinatedTarget);
+				squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryBombardState());
+				return;
+			}
 
 			// Check if any enemy is within our attack scan radius
 			var target = squad.SquadManager.FindClosestEnemy(
@@ -136,6 +159,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			foreach (var unit in squad.OrderableUnits)
 				squad.Bot.QueueOrder(new Order("Move", unit,
 					Target.FromCell(squad.World, hangBackCell), false));
+		}
+
+		static Actor FindCoordinatedTarget(CNSquad squad)
+		{
+			var attached = squad.AttachedTo;
+			if (attached == null || !attached.IsWaitingForArtillery)
+				return null;
+
+			var target = attached.CoordinatedAssaultTarget;
+			if (target != null && attached.SquadManager.IsLiveEnemyActor(target) && IsDefenseStructure(target))
+				return target;
+
+			return FindDefenseNearTarget(squad, attached.TargetActor, squad.SquadManager.Info.AttackScanRadius);
 		}
 
 		public void Deactivate(CNSquad squad) { }

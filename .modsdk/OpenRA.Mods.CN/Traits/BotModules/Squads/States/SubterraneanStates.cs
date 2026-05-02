@@ -42,7 +42,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			return squad.OrderableUnits.Any(IsSubmerged);
 		}
-
 	}
 
 	// ===========================================================================
@@ -137,12 +136,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubAssaultAttackState : CNStateBase, ICNState
 	{
-		int stuckTicks;
 		const int MaxStuckTicks = 8;
+
+		int stuckTicks;
 
 		public void Activate(CNSquad squad)
 		{
 			stuckTicks = 0;
+
 			// Surface all units by issuing a stop
 			foreach (var unit in squad.OrderableUnits)
 				squad.Bot.QueueOrder(new Order("Stop", unit, false));
@@ -190,8 +191,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class SubAssaultReburrowState : CNStateBase, ICNState
 	{
 		bool retreatIssued;
+		CPos retreatCell;
 
-		public void Activate(CNSquad squad) { retreatIssued = false; }
+		public void Activate(CNSquad squad)
+		{
+			retreatIssued = false;
+			retreatCell = CPos.Zero;
+		}
 
 		public void Tick(CNSquad squad)
 		{
@@ -200,14 +206,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (!retreatIssued)
 			{
-				// Move to base — subterranean locomotor re-burrows automatically
-				GoToRandomOwnBuilding(squad);
+				// Move to base — subterranean locomotor re-burrows automatically.
+				retreatCell = squad.SquadManager.GetRandomBaseCenter();
+				foreach (var unit in squad.OrderableUnits)
+					squad.Bot.QueueOrder(new Order("Move", unit,
+						Target.FromCell(squad.World, retreatCell), false));
+
 				retreatIssued = true;
 			}
 
-			// Wait until all units have burrowed (are traveling underground), then go Idle.
-			// They will surface at the base on their own.
-			if (SubterraneanHelpers.AllSubmerged(squad))
+			var retreatPos = squad.World.Map.CenterOfCell(retreatCell);
+			var homeRange = WDist.FromCells(8);
+
+			var allHome = squad.OrderableUnits.All(u =>
+				(u.CenterPosition - retreatPos).Length <= homeRange.Length);
+
+			// Wait until the squad actually returns home instead of immediately
+			// retargeting as soon as it burrows.
+			if (allHome)
 				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultIdleState());
 		}
 
@@ -246,8 +262,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubTransportLoadState : CNStateBase, ICNState
 	{
-		int loadWaitTicks;
 		const int MaxLoadWaitTicks = 10;
+
+		int loadWaitTicks;
 
 		public void Activate(CNSquad squad) { loadWaitTicks = 0; }
 
@@ -305,7 +322,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	/// <summary>
 	/// Burrow: move to ambush position behind enemy lines while submerged.
-	/// Target position: near enemy Construction Yard, on the side away from our base.
+	/// Target position: near a critical enemy building, on the side away from our base.
 	/// </summary>
 	sealed class SubTransportBurrowState : CNStateBase, ICNState
 	{
@@ -370,35 +387,84 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		static WPos? FindAmbushPosition(CNSquad squad)
 		{
 			var world = squad.World;
-			var player = squad.Bot.Player;
-
-			// Find enemy Construction Yard
-			var enemyCY = world.ActorsHavingTrait<Building>()
-				.Where(a => !a.IsDead &&
-							a.IsInWorld &&
-							squad.SquadManager.IsLiveEnemyActor(a) &&
-							a.CanBeViewedByPlayer(player) &&
-							a.Info.HasTraitInfo<BuildingInfo>())
-				.MinByOrDefault(a => (a.CenterPosition - (squad.CenterUnit()?.CenterPosition ?? WPos.Zero)).LengthSquared);
-
-			if (enemyCY == null)
+			var source = squad.CenterUnit();
+			if (source == null)
 				return null;
 
-			// Ambush position: enemy CY + offset away from our base center
+			var target = FindAmbushTarget(squad, source);
+			if (target == null)
+				return null;
+
+			// Ambush position: target + offset away from our base center.
 			var ourBase = world.Map.CenterOfCell(squad.SquadManager.GetRandomBaseCenter());
-			var enemyPos = enemyCY.CenterPosition;
+			var enemyPos = target.CenterPosition;
 
 			// Direction from our base to enemy base
 			var dirToEnemy = enemyPos - ourBase;
 			if (dirToEnemy == WVec.Zero)
 				return enemyPos;
 
-			// Offset: 5 cells past the enemy CY, away from our base
+			// Offset: 5 cells past the target, away from our base
 			var normalized = dirToEnemy * 1024 / dirToEnemy.Length;
 			var ambushOffset = new WVec(normalized.X, normalized.Y, 0) *
 				WDist.FromCells(5).Length / 1024;
 
 			return enemyPos + ambushOffset;
+		}
+
+		static Actor FindAmbushTarget(CNSquad squad, Actor source)
+		{
+			var preferredCaps = squad.PreferredTargetCapabilities != null &&
+				squad.PreferredTargetCapabilities.Length > 0
+					? squad.PreferredTargetCapabilities
+					: new[] { "Superweapon", "Tech", "Production", "Economy", "Power" };
+
+			return squad.SquadManager.GetCachedEnemyBuildings()
+				.Where(a => HasAnyCapability(a, preferredCaps) && !HasCapability(a, "Defense"))
+				.OrderBy(a => ScoreAmbushTarget(squad, source, a, preferredCaps))
+				.FirstOrDefault()
+				?? squad.SquadManager.GetCachedEnemyBuildings()
+					.Where(a => !HasCapability(a, "Defense"))
+					.MinByOrDefault(a => (a.CenterPosition - source.CenterPosition).LengthSquared);
+		}
+
+		static int ScoreAmbushTarget(CNSquad squad, Actor source, Actor target, string[] preferredCaps)
+		{
+			var score = (int)((source.CenterPosition - target.CenterPosition).LengthSquared / 65536);
+
+			for (var i = 0; i < preferredCaps.Length; i++)
+				if (HasCapability(target, preferredCaps[i]))
+				{
+					score -= (preferredCaps.Length - i) * 300;
+					break;
+				}
+
+			foreach (var actor in squad.World.FindActorsInCircle(target.CenterPosition, WDist.FromCells(7)))
+			{
+				if (!squad.SquadManager.IsLiveEnemyActor(actor))
+					continue;
+
+				if (HasCapability(actor, "Defense"))
+					score += actor.Info.HasTraitInfo<BuildingInfo>() ? 600 : 180;
+				else if (actor.Info.HasTraitInfo<AttackBaseInfo>())
+					score += 120;
+			}
+
+			return score;
+		}
+
+		static bool HasAnyCapability(Actor actor, string[] capabilities)
+		{
+			foreach (var capability in capabilities)
+				if (HasCapability(actor, capability))
+					return true;
+
+			return false;
+		}
+
+		static bool HasCapability(Actor actor, string capability)
+		{
+			return actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains(capability) ?? false;
 		}
 	}
 
@@ -407,12 +473,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubTransportSurfaceState : CNStateBase, ICNState
 	{
-		int waitTicks;
 		const int SurfaceWaitTicks = 2;
+
+		int waitTicks;
 
 		public void Activate(CNSquad squad)
 		{
 			waitTicks = 0;
+
 			// Stop carriers to trigger surfacing
 			foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
 				squad.Bot.QueueOrder(new Order("Stop", carrier, false));
@@ -445,8 +513,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class SubTransportReturnState : CNStateBase, ICNState
 	{
 		bool returnIssued;
+		CPos returnCell;
 
-		public void Activate(CNSquad squad) { returnIssued = false; }
+		public void Activate(CNSquad squad)
+		{
+			returnIssued = false;
+			returnCell = CPos.Zero;
+		}
 
 		public void Tick(CNSquad squad)
 		{
@@ -455,14 +528,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (!returnIssued)
 			{
-				GoToRandomOwnBuilding(squad);
+				returnCell = squad.SquadManager.GetRandomBaseCenter();
+				foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
+					squad.Bot.QueueOrder(new Order("Move", carrier,
+						Target.FromCell(squad.World, returnCell), false));
+
 				returnIssued = true;
 			}
 
 			// Dissolve once all carriers are back near base and surfaced
-			var allHome = squad.CarrierUnits
-				.Where(u => !u.IsDead)
-				.All(u => !SubterraneanHelpers.IsSubmerged(u));
+			var returnPos = squad.World.Map.CenterOfCell(returnCell);
+			var homeRange = WDist.FromCells(8);
+
+			var carriers = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
+			var allHome = carriers.Count > 0 &&
+				carriers.All(u => !SubterraneanHelpers.IsSubmerged(u) &&
+					(u.CenterPosition - returnPos).Length <= homeRange.Length);
 
 			if (allHome && returnIssued)
 				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportDoneState());

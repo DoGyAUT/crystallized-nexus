@@ -165,40 +165,42 @@ Player:
 			ArtilleryDefense: 5
 			Special: 5
 		BuildingFractions:
-			gapowr: 20
-			napowr: 20
-			gapile: 10
-			nahand: 10
+			gapowr: 16
+			napowr: 16
+			naapwr: 8
+			gapile: 8
+			nahand: 8
 			gaweap: 10
 			naweap: 10
+			gahpad: 6
+			nahpad: 6
+			gadept: 4
 			garadr: 4
-			gaarmory: 6
 			naradr: 4
-			gahpad: 10
-			nahpad: 10
-			gadept: 6
-			gatech: 4
-			natech: 4
-			napyra: 4
-			nastlh: 6
-			gaplug: 4
-			gaplug2: 4
-			gaplug3: 4
-			gaplug4: 4
-			natmpl: 4
-			namisl: 4
-			nawast: 4
-			gamg: 60
-			gagat: 40
-			gacan: 30
-			gasam: 40
-			gasen: 30
-			gamortar: 30
-			nalasr: 50
-			nagat: 40
-			naflamer: 40
-			nasam: 40
-			naobel: 20
+			gaarmory: 4
+			gatech: 3
+			natech: 3
+			napyra: 3
+			nastlh: 3
+			gaplug: 2
+			gaplug2: 2
+			gaplug3: 2
+			gaplug4: 2
+			natmpl: 3
+			namisl: 2
+			nawast: 3
+			gamg: 14
+			gagat: 8
+			gacan: 8
+			gasam: 8
+			gasen: 5
+			gamortar: 5
+			nalasr: 14
+			nagat: 8
+			naflamer: 10
+			nasam: 8
+			naobel: 5
+			napuls: 4
 
 	CombatAnalysisBotModule:
 		RequiresCondition: enable-cn-ai
@@ -247,8 +249,8 @@ Player:
 			engineer: 2
 			nengineer: 2
 		UnitDelays:
-			engineer: 37500
-			nengineer: 37500
+			engineer: 1500
+			nengineer: 1500
 
 	UnitBuilderBotModule@Tech:
 		RequiresCondition: enable-cn-ai
@@ -270,6 +272,12 @@ Player:
 					Types: Ground, Building
 					Attractiveness: 100
 					CheckRadius: 3c0
+				Consideration@HealthLoss:
+					Against: Enemy
+					Types: Ground, Building
+					Attractiveness: 50
+					TargetMetric: HealthLoss
+					CheckRadius: 3c0
 			Nuke:
 				OrderName: NukePowerInfoOrder
 				MinimumAttractiveness: 20
@@ -280,6 +288,12 @@ Player:
 					Types: Ground, Building
 					Attractiveness: 100
 					CheckRadius: 4c0
+				Consideration@HealthLoss:
+					Against: Enemy
+					Types: Ground, Building
+					Attractiveness: 50
+					TargetMetric: HealthLoss
+					CheckRadius: 4c0
 			DropPods:
 				OrderName: DropPodsPowerInfoOrder
 				MinimumAttractiveness: 20
@@ -289,6 +303,12 @@ Player:
 					Against: Enemy
 					Types: Ground, Infantry, Vehicle
 					Attractiveness: 100
+					CheckRadius: 2c0
+				Consideration@HealthLoss:
+					Against: Enemy
+					Types: Ground, Infantry, Vehicle
+					Attractiveness: 30
+					TargetMetric: HealthLoss
 					CheckRadius: 2c0
 			EMP:
 				OrderName: AttackOrderPowerInfoOrder
@@ -359,6 +379,7 @@ Player:
 		RequiresCondition: enable-cn-ai
 		CapturingActorTypes: engineer, nengineer
 		CapturableActorTypes: cahosp, caarmr, caaray
+		MinimumCaptureDelay: 125
 		MaximumCaptureTargetOptions: 25
 
 	CNSquadManagerBotModule:
@@ -384,8 +405,8 @@ Player:
 				ThreatBonusesPerUnit:
 					Infantry: 3
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: -6
-					ArmorDefense: -3
+					InfantryDefense: 4
+					ArmorDefense: -4
 				Slots:
 					Walkers:
 						Count: 3
@@ -406,8 +427,7 @@ Player:
 				ThreatBonusesPerUnit:
 					Vehicle: 4
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: -3
-					ArmorDefense: -4
+					InfantryDefense: 6
 				Slots:
 					Tanks:
 						Count: 2
@@ -429,7 +449,7 @@ Player:
 				Slots:
 					AA:
 						Count: 3
-						AllowedTypes: hvr, 4tnk, e2
+						AllowedTypes: hvr, 4tnk
 			GDI_Rush_ScoutMechs:
 				Role: Rush
 				Priority: 102
@@ -440,8 +460,8 @@ Player:
 					Infantry: 20
 					Harvester: 15
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: -7
-					ArmorDefense: -6
+					InfantryDefense: 4
+					ArmorDefense: -3
 				Slots:
 					Walkers:
 						Count: 4
@@ -458,7 +478,8 @@ Player:
 				ThreatBonusesPerUnit:
 					Infantry: 2
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: -12
+					InfantryDefense: -7
+					ArmorDefense: 8
 					ArtilleryDefense: -6
 				Slots:
 					Riflemen:
@@ -488,8 +509,7 @@ Player:
 				ThreatBonusesPerUnit:
 					Vehicle: 3
 				ThreatBonusesGlobalPerUnit:
-					ArmorDefense: -7
-					Special: -4
+					InfantryDefense: 6
 				Slots:
 					Tanks:
 						Count: 3
@@ -512,8 +532,7 @@ Player:
 					Vehicle: 3
 					Aircraft: 3
 				ThreatBonusesGlobalPerUnit:
-					ArmorDefense: -8
-					Special: -6
+					InfantryDefense: 8
 					AADefense: 2
 				Slots:
 					HeavyTanks:
@@ -537,7 +556,8 @@ Player:
 					Aircraft: 4
 					Vehicle: 2
 				ThreatBonusesGlobalPerUnit:
-					ArmorDefense: -5
+					InfantryDefense: 5
+					ArmorDefense: -2
 					AADefense: 2
 				Slots:
 					Hover:
@@ -556,8 +576,7 @@ Player:
 					Infantry: 3
 					Vehicle: 2
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: 3
-					ArmorDefense: -5
+					InfantryDefense: 6
 				Slots:
 					Sonic:
 						Count: 3
@@ -571,14 +590,11 @@ Player:
 				ThreatBonuses:
 					Vehicle: 10
 				ThreatBonusesGlobal:
-					Special: 20
+					Special: 12
 				ThreatBonusesGlobalPerUnit:
-					Defense: 5
-					ArmorDefense: 12
-					InfantryDefense: 8
-					ArtilleryDefense: 10
-					Special: 18
-					AADefense: 4
+					ArmorDefense: 6
+					ArtilleryDefense: 6
+					Special: 10
 				Slots:
 					Artillery:
 						Count: 3
@@ -593,8 +609,8 @@ Player:
 					Harvester: 25
 					Artillery: 15
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: -8
-					ArmorDefense: -8
+					InfantryDefense: -4
+					ArmorDefense: -3
 					AADefense: 1
 				Slots:
 					Carrier:
@@ -604,6 +620,32 @@ Player:
 					Passengers:
 						Count: 4
 						AllowedTypes: gasol, e2
+						IsPassenger: true
+			GDI_Orca_Airlift:
+				Role: AirTransport
+				Priority: 109
+				MaxInstances: 1
+				MinSlotsToActivate: 2
+				Factions: gdi
+				PriorityTargetCapabilities: Economy, Production, Tech, Superweapon
+				ThreatBonuses:
+					Harvester: 20
+					Artillery: 18
+					AntiAir: -20
+				ThreatBonusesPerUnit:
+					AntiAir: -4
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -6
+					ArmorDefense: 8
+					AADefense: -18
+				Slots:
+					Carrier:
+						Count: 1
+						AllowedTypes: orca_tran
+						IsAircraftCarrier: true
+					Passengers:
+						Count: 3
+						AllowedTypes: gasniper, e2, gasol
 						IsPassenger: true
 			GDI_Jumpjet_Raid:
 				Role: JumpJet
@@ -619,7 +661,8 @@ Player:
 					Infantry: 2
 				ThreatBonusesGlobalPerUnit:
 					AADefense: -14
-					InfantryDefense: -8
+					InfantryDefense: -5
+					ArmorDefense: 8
 				Slots:
 					Jumpjets:
 						Count: 6
@@ -639,6 +682,7 @@ Player:
 					Vehicle: 3
 					AntiAir: -4
 				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: 8
 					AADefense: -18
 				Slots:
 					Orca:
@@ -650,6 +694,7 @@ Player:
 				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: gdi
+				PriorityTargetCapabilities: Harvester, Superweapon, Tech, Economy, Power
 				ThreatBonuses:
 					Vehicle: 14
 					AntiAir: -20
@@ -657,7 +702,7 @@ Player:
 					Special: 18
 				ThreatBonusesGlobalPerUnit:
 					ArmorDefense: 8
-					Special: 18
+					Special: 8
 					AADefense: -24
 				Slots:
 					Bombers:
@@ -677,8 +722,8 @@ Player:
 				ThreatBonusesPerUnit:
 					Infantry: 3
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: -6
-					ArmorDefense: -3
+					InfantryDefense: 4
+					ArmorDefense: -4
 				Slots:
 					Buggies:
 						Count: 3
@@ -699,8 +744,7 @@ Player:
 				ThreatBonusesPerUnit:
 					Vehicle: 4
 				ThreatBonusesGlobalPerUnit:
-					ArmorDefense: -4
-					InfantryDefense: -3
+					InfantryDefense: 6
 				Slots:
 					Tanks:
 						Count: 2
@@ -733,12 +777,37 @@ Player:
 					Infantry: 20
 					Harvester: 15
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: -7
-					ArmorDefense: -6
+					InfantryDefense: 4
+					ArmorDefense: -3
 				Slots:
 					FastAttack:
 						Count: 5
 						AllowedTypes: bggy, bike
+			NOD_LightTank_Raid:
+				Role: Raider
+				Priority: 108
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: nod
+				PriorityTargetCapabilities: Harvester, Economy, Power
+				ThreatBonuses:
+					Vehicle: 18
+					Harvester: 20
+					Artillery: 12
+				ThreatBonusesPerUnit:
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 6
+					ArmorDefense: -3
+					AADefense: 2
+				Slots:
+					Tanks:
+						Count: 3
+						AllowedTypes: ltnk
+					Scouts:
+						Count: 2
+						AllowedTypes: bike, bggy
+						Optional: true
 			NOD_Infantry_Mob:
 				Role: Assault
 				Priority: 98
@@ -752,7 +821,8 @@ Player:
 					Infantry: 2
 					Vehicle: 2
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: -12
+					InfantryDefense: -7
+					ArmorDefense: 8
 					ArtilleryDefense: -6
 				Slots:
 					Soldiers:
@@ -762,6 +832,27 @@ Player:
 						Count: 3
 						AllowedTypes: e3
 						Optional: true
+			NOD_Shadow_Strike:
+				Role: Stealth
+				Priority: 109
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: nod
+				PriorityTargetCapabilities: Infantry, Harvester, Economy, Power, Tech
+				ThreatBonuses:
+					Infantry: 18
+					Harvester: 20
+					Cloaked: 8
+				ThreatBonusesPerUnit:
+					Infantry: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -5
+					ArmorDefense: 8
+					AADefense: 2
+				Slots:
+					Shadows:
+						Count: 4
+						AllowedTypes: shadow
 			NOD_Bike_Hunters:
 				Role: Raider
 				Priority: 111
@@ -777,8 +868,8 @@ Player:
 					Vehicle: 3
 					Aircraft: 4
 				ThreatBonusesGlobalPerUnit:
-					ArmorDefense: -6
-					InfantryDefense: -3
+					ArmorDefense: -3
+					InfantryDefense: 5
 				Slots:
 					Raiders:
 						Count: 4
@@ -795,17 +886,16 @@ Player:
 				ThreatBonusesPerUnit:
 					Vehicle: 3
 				ThreatBonusesGlobalPerUnit:
-					ArmorDefense: -7
-					Special: -5
+					InfantryDefense: 6
 				Slots:
 					Tanks:
 						Count: 4
-						AllowedTypes: ltnk, ttnk
+						AllowedTypes: ttnk
 					Screen:
 						Count: 2
 						AllowedTypes: bggy, e3
 						Optional: true
-			NOD_Elite_Cadre:
+			NOD_Elite_Infantry:
 				Role: Assault
 				Priority: 106
 				MaxInstances: 1
@@ -819,12 +909,40 @@ Player:
 					Infantry: 2
 					Vehicle: 2
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: -8
-					ArmorDefense: -5
+					InfantryDefense: -5
+					ArmorDefense: 8
 				Slots:
 					Elites:
 						Count: 5
-						AllowedTypes: nacad, shadow, acolyte
+						AllowedTypes: nacad
+					Escorts:
+						Count: 2
+						AllowedTypes: shadow, acolyte
+						Optional: true
+			NOD_Acolyte_Spearhead:
+				Role: Assault
+				Priority: 112
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: nod
+				ThreatBonuses:
+					Infantry: 24
+					Vehicle: 20
+					Cloaked: 10
+				ThreatBonusesPerUnit:
+					Infantry: 2
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -5
+					ArmorDefense: 8
+				Slots:
+					Acolytes:
+						Count: 3
+						AllowedTypes: acolyte
+					Escorts:
+						Count: 2
+						AllowedTypes: e3, nasol
+						Optional: true
 			NOD_Subtank_Ambush:
 				Role: SubterraneanAssault
 				Priority: 112
@@ -838,8 +956,7 @@ Player:
 				ThreatBonusesPerUnit:
 					Infantry: 3
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: 5
-					ArmorDefense: 5
+					InfantryDefense: 8
 					AADefense: 2
 				Slots:
 					Subterranean:
@@ -851,12 +968,13 @@ Player:
 				MaxInstances: 1
 				MinSlotsToActivate: 2
 				Factions: nod
+				PriorityTargetCapabilities: Superweapon, Tech, Production, Economy, Power
 				ThreatBonuses:
 					Harvester: 20
 					Artillery: 15
 				ThreatBonusesGlobalPerUnit:
-					InfantryDefense: 5
-					ArmorDefense: 5
+					InfantryDefense: -4
+					ArmorDefense: 8
 					Special: 8
 					AADefense: 2
 				Slots:
@@ -865,7 +983,7 @@ Player:
 						AllowedTypes: sapc
 						IsCarrier: true
 					Passengers:
-						Count: 3
+						Count: 2
 						AllowedTypes: nacad, e3, acolyte
 						IsPassenger: true
 			NOD_Howitzer_Siege:
@@ -877,14 +995,11 @@ Player:
 				ThreatBonuses:
 					Vehicle: 10
 				ThreatBonusesGlobal:
-					Special: 20
+					Special: 12
 				ThreatBonusesGlobalPerUnit:
-					Defense: 5
-					ArmorDefense: 12
-					InfantryDefense: 8
-					ArtilleryDefense: 10
-					Special: 18
-					AADefense: 4
+					ArmorDefense: 6
+					ArtilleryDefense: 6
+					Special: 10
 				Slots:
 					Artillery:
 						Count: 3
@@ -904,9 +1019,8 @@ Player:
 					Vehicle: 3
 					Aircraft: 3
 				ThreatBonusesGlobalPerUnit:
-					ArmorDefense: 4
 					AADefense: 4
-					InfantryDefense: -4
+					InfantryDefense: 8
 				Slots:
 					Stealth:
 						Count: 4
@@ -925,6 +1039,7 @@ Player:
 					Infantry: 3
 					AntiAir: -4
 				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: 8
 					AADefense: -18
 				Slots:
 					Hydra:
@@ -936,6 +1051,7 @@ Player:
 				MaxInstances: 3
 				MinSlotsToActivate: 1
 				Factions: nod
+				PriorityTargetCapabilities: Harvester, Superweapon, Tech, Economy, Power
 				ThreatBonuses:
 					Vehicle: 24
 					AntiAir: -20
@@ -943,7 +1059,7 @@ Player:
 					Special: 18
 				ThreatBonusesGlobalPerUnit:
 					ArmorDefense: 8
-					Special: 18
+					Special: 8
 					AADefense: -24
 				Slots:
 					Banshee:

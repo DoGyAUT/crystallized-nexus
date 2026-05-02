@@ -268,7 +268,8 @@ ORCA_TRAN:
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 50
-		Prerequisites: ~disabled
+		Prerequisites: ~gahpad, gadept, ~techlevel.medium
+		Description: actor-orcatran-description
 	RenderSprites:
 	Aircraft:
 		TurnSpeed: 20
@@ -284,7 +285,7 @@ ORCA_TRAN:
 		Type: Light
 	Cargo:
 		Types: Infantry
-		MaxWeight: 5
+		MaxWeight: 12
 		UnloadVoice: Move
 		EjectOnDeath: true
 		AfterUnloadDelay: 40

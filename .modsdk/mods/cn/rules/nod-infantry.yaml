@@ -25,10 +25,6 @@ NASOL:
 		Speed: 71
 	Armament@PRIMARY:
 		Weapon: NMinigun
-		RequiresCondition: !rank-elite
-	Armament@ELITE:
-		Weapon: M1Carbine
-		RequiresCondition: rank-elite
 	AttackFrontal:
 		Voice: Attack
 		FacingTolerance: 0
@@ -50,7 +46,9 @@ NASOLR3:
 	Inherits: NASOL
 	ProducibleWithLevel:
 		Prerequisites: techlevel.low
-		InitialLevels: 3
+		InitialLevels: 5
+	MobSpawnerMaster:
+		Actors: NASOLR3.Member, NASOLR3.Member, NASOLR3.Member, NASOLR3.Member
 	-Buildable:
 
 E3:
@@ -104,7 +102,9 @@ E3R3:
 	Inherits: E3
 	ProducibleWithLevel:
 		Prerequisites: techlevel.low
-		InitialLevels: 3
+		InitialLevels: 5
+	MobSpawnerMaster:
+		Actors: E3R3.Member, E3R3.Member
 	-Buildable:
 
 NENGINEER:

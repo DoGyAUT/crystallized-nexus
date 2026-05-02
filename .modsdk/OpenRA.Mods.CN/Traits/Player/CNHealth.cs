@@ -96,11 +96,13 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			get
 			{
-				if (HP == MaxHP)
-					return DamageState.Undamaged;
-
 				if (HP <= 0)
 					return DamageState.Dead;
+
+				if (HP == MaxHP)
+					return secondaryHealthLayers != null && secondaryHealthLayers.Any(l => l.NeedsRepair)
+						? DamageState.Light
+						: DamageState.Undamaged;
 
 				if (HP * 100L < MaxHP * 25L)
 					return DamageState.Critical;

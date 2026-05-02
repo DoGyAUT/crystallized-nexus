@@ -52,6 +52,14 @@ missile:
 		ZOffset: 1023
 		Offset: 0, 0, 64
 
+missile_small:
+	idle:
+		Filename: missile02.shp
+		Length: 1
+		Facings: 64
+		ZOffset: 1023
+		Offset: 0, 0, 64
+	
 zodiacbomb:
 	idle:
 		Filename: zodiacbomb.shp

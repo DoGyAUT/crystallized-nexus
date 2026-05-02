@@ -20,6 +20,26 @@
 		HP: 50
 	Armor:
 		Type: None
+	ExternalCondition@FORESTCOVER:
+		Condition: forest-cover
+	Cloak@FORESTCOVER:
+		RequiresCondition: forest-cover && !inside-tunnel && !airborne
+		InitialDelay: 10
+		CloakDelay: 60
+		UncloakOn: Attack, Unload, Infiltrate, Demolish, Damage, Heal, SupportPower
+		CloakType: forest-cover
+		CloakedAlpha: 0.45
+	DamageMultiplier@FORESTCOVER:
+		RequiresCondition: forest-cover && !inside-tunnel && !airborne
+		Modifier: 75
+	WithDecoration@FORESTCOVER:
+		RequiresCondition: forest-cover && !inside-tunnel && !airborne
+		Position: BottomLeft
+		Margin: 3, 4
+		Image: buff
+		Sequence: forest-cover
+		Palette: ra
+		ValidRelationships: Ally, Enemy, Neutral
 	Valued:
 		Cost: 10
 	RevealsShroud:

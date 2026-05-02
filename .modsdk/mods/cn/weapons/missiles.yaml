@@ -1,6 +1,8 @@
 Bazooka:
 	Inherits: ^DefaultMissile
-	Report: missile_v1.wav, missile_v2.wav
+	Report: missile_v1.ogg, missile_v2.ogg
+	Projectile: Missile
+		Image: missile_small
 	Warhead@1Dam: SpreadDamage
 		Damage: 30
 
@@ -29,7 +31,7 @@ Mammoth2Tusk:
 	Inherits: ^DefaultMissile
 	ReloadDelay: 80
 	Range: 8c768
-	Report: missile_v1.wav, missile_v2.wav
+	Report: missile_v1.ogg, missile_v2.ogg
 	ValidTargets: Ground, Air
 	Burst: 4
 	BurstDelays: 10
@@ -44,7 +46,7 @@ BikeMissile:
 	Range: 5c0
 	Burst: 2
 	BurstDelays: 10
-	Report: missile_v1.wav, missile_v2.wav
+	Report: missile_v1.ogg, missile_v2.ogg
 	ValidTargets: Ground, Air
 	Warhead@1Dam: SpreadDamage
 		Damage: 40
@@ -64,7 +66,7 @@ Dragon:
 Hellfire:
 	Inherits: ^DefaultMissile
 	ReloadDelay: 50
-	Report: missile_v1.wav, missile_v2.wav
+	Report: missile_v1.ogg, missile_v2.ogg
 	Burst: 2
 	ValidTargets: Ground
 	Warhead@1Dam: SpreadDamage

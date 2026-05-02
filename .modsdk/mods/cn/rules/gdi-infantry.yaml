@@ -33,10 +33,6 @@ GASOL:
 	Armament@PRIMARY:
 		Weapon: GMinigun
 		LocalOffset: 0,0,785
-		RequiresCondition: !rank-elite
-	Armament@ELITE:
-		Weapon: M1Carbine
-		RequiresCondition: rank-elite
 	MobSpawnerMaster:
 		Actors: GASOL.Member, GASOL.Member, GASOL.Member
 		DisableRespawning: true
@@ -57,7 +53,9 @@ GASOLR3:
 		Image: GASOL
 	ProducibleWithLevel:
 		Prerequisites: techlevel.low
-		InitialLevels: 3
+		InitialLevels: 5
+	MobSpawnerMaster:
+		Actors: GASOLR3.Member, GASOLR3.Member, GASOLR3.Member
 	-Buildable:
 
 E2:
@@ -115,7 +113,9 @@ E2R3:
 		Image: E2
 	ProducibleWithLevel:
 		Prerequisites: techlevel.low
-		InitialLevels: 3
+		InitialLevels: 5
+	MobSpawnerMaster:
+		Actors: E2R3.Member, E2R3.Member, E2R3.Member
 	-Buildable:
 
 ENGINEER:
@@ -214,7 +214,7 @@ GASNIPER:
 		Prerequisites: ~gapile, garadr, ~techlevel.medium
 		Description: actor-e1.description
 	Valued:
-		Cost: 120
+		Cost: 500
 	Tooltip:
 		Name: actor-e1.name
 	UpdatesPlayerStatistics:
@@ -235,7 +235,7 @@ GASNIPER:
 		Voice: Attack
 		AssaultMoveCondition: assault-move
 	Armament@PRIMARY:
-		Weapon: Sniper
+		Weapon: Sniper_large
 		LocalOffset: 260,0,680
 	Cloak@SELF:
 		InitialDelay: 90
@@ -267,6 +267,7 @@ JUMPJET:
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits@SQUAD: ^MobSquadMaster
 	Valued:
 		Cost: 600
 	Tooltip:
@@ -283,6 +284,7 @@ JUMPJET:
 	Mobile:
 		Speed: 71
 		Locomotor: jumpjet
+		TurnsWhileMoving: true
 	CNHealth:
 		HP: 120
 	Armor:
@@ -359,6 +361,9 @@ JUMPJET:
 		RequiresCondition: airborne
 	GrantConditionOnJumpjetLayer:
 		Condition: airborne
+	MobSpawnerMaster:
+		Actors: JUMPJET.Member, JUMPJET.Member
+		DisableRespawning: true
 	BotCapabilities:
 		Capabilities: Infantry, AntiInfantry, Jumpjet
 

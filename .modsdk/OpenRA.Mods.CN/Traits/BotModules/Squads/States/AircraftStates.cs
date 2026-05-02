@@ -65,10 +65,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (leadAircraft == null)
 				return FindClosestEnemyBuilding(squad) ?? FindClosestEnemyUnit(squad);
 
-			var fallbackBuilding = FindClosestEnemyBuilding(squad);
-			if (fallbackBuilding != null)
-				return fallbackBuilding;
-
 			Actor bestTarget = null;
 			var bestScore = int.MaxValue;
 
@@ -95,11 +91,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			return squad.SquadManager.Squads
 				.Where(s => s != squad &&
-				            s.IsOperational &&
-				            s.Type != CNSquadType.Transport &&
-				            s.Type != CNSquadType.SubterraneanTransport &&
-				            s.Type != CNSquadType.Support &&
-				            s.Type != CNSquadType.AircraftSupport)
+					s.IsOperational &&
+					s.Type != CNSquadType.Transport &&
+					s.Type != CNSquadType.AirTransport &&
+					s.Type != CNSquadType.SubterraneanTransport &&
+					s.Type != CNSquadType.Support &&
+					s.Type != CNSquadType.Air &&
+					s.Type != CNSquadType.AircraftAttack &&
+					s.Type != CNSquadType.AircraftSupport)
 				.OrderByDescending(s => s.TemplateInfo?.Priority ?? 0)
 				.ThenByDescending(s => s.Units.Count)
 				.FirstOrDefault();
@@ -190,7 +189,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (target.Info.HasTraitInfo<BuildingInfo>())
 				score -= 120;
 
+			score += ScoreTemplateTargetPreference(squad, target);
 			score += ScoreAircraftThreatAtTarget(squad, aircraft, target);
+			return score;
+		}
+
+		static int ScoreTemplateTargetPreference(CNSquad squad, Actor target)
+		{
+			var caps = target.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			if (caps == null || squad.TemplateInfo == null)
+				return 0;
+
+			var score = 0;
+			foreach (var (tag, value) in squad.TemplateInfo.ThreatBonuses)
+				if (caps.Contains(tag))
+					score -= value * 20;
+
 			return score;
 		}
 
@@ -232,6 +246,48 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			return foundAircraft;
+		}
+
+		protected static bool QueueSupportMoveOrRearm(CNSquad squad, CPos? stagingCell, Actor followCenter)
+		{
+			var issuedOrder = false;
+			var stagingPos = stagingCell.HasValue ? squad.World.Map.CenterOfCell(stagingCell.Value) : WPos.Zero;
+			var stagingRange = WDist.FromCells(SupportStagingRadiusCells).Length;
+
+			foreach (var unit in squad.OrderableUnits)
+			{
+				if (!unit.Info.HasTraitInfo<AircraftInfo>())
+					continue;
+
+				if (IsRearming(unit))
+					continue;
+
+				if (NeedsRearm(unit))
+				{
+					squad.Bot.QueueOrder(new Order("ReturnToBase", unit, false));
+					issuedOrder = true;
+					continue;
+				}
+
+				if (!unit.IsIdle)
+					continue;
+
+				if (followCenter != null)
+				{
+					squad.Bot.QueueOrder(new Order("Move", unit, Target.FromActor(followCenter), false));
+					issuedOrder = true;
+					continue;
+				}
+
+				if (!stagingCell.HasValue ||
+					(unit.CenterPosition - stagingPos).Length <= stagingRange)
+					continue;
+
+				squad.Bot.QueueOrder(new Order("Move", unit, Target.FromCell(squad.World, stagingCell.Value), false));
+				issuedOrder = true;
+			}
+
+			return issuedOrder;
 		}
 	}
 
@@ -309,6 +365,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					issuedAttack = true;
 					continue;
 				}
+
 				if (!CanAttackTarget(unit, squad.TargetActor))
 					continue;
 
@@ -347,18 +404,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			var stagingCell = FindSupportStagingCell(squad, squad.AttachedTo);
-			if (stagingCell.HasValue)
-			{
-				var stagingPos = squad.World.Map.CenterOfCell(stagingCell.Value);
-				foreach (var unit in squad.OrderableUnits)
-				{
-					if (!unit.Info.HasTraitInfo<AircraftInfo>() || NeedsRearm(unit) || !unit.IsIdle)
-						continue;
-
-					if ((unit.CenterPosition - stagingPos).Length > WDist.FromCells(SupportStagingRadiusCells).Length)
-						squad.Bot.QueueOrder(new Order("Move", unit, Target.FromCell(squad.World, stagingCell.Value), false));
-				}
-			}
+			QueueSupportMoveOrRearm(squad, stagingCell, null);
 
 			squad.FuzzyStateMachine.ChangeState(squad, new AircraftSupportAttackState());
 		}
@@ -383,54 +429,37 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			Actor target = null;
-			if (squad.AttachedTo.IsTargetValid)
-				target = squad.AttachedTo.TargetActor;
+			var leadAircraft = squad.OrderableUnits
+				.FirstOrDefault(u => u.Info.HasTraitInfo<AircraftInfo>() && !u.IsDead && u.IsInWorld);
+			if (leadAircraft == null)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new AircraftReturnState(new AircraftSupportIdleState()));
+				return;
+			}
 
-			target ??= FindSupportAircraftTarget(squad, squad.AttachedTo);
-			target ??= squad.SquadManager.FindClosestEnemy(squad.AttachedTo.CenterUnit());
+			var target = FindSupportAircraftTarget(squad, squad.AttachedTo);
+			var nearbyEnemy = squad.SquadManager.FindClosestEnemy(squad.AttachedTo.CenterUnit());
+			if (target == null &&
+				nearbyEnemy != null &&
+				CanAttackTarget(leadAircraft, nearbyEnemy) &&
+				ScoreAircraftThreatAtTarget(squad, leadAircraft, nearbyEnemy) <= MaxAcceptableAircraftThreatScore)
+				target = nearbyEnemy;
+
 			if (target == null)
 			{
 				var stagingCell = FindSupportStagingCell(squad, squad.AttachedTo);
-				if (!stagingCell.HasValue)
-					return;
+				squad.SetActorToTarget(null);
 
-				var stagingPos = squad.World.Map.CenterOfCell(stagingCell.Value);
-
-				foreach (var unit in squad.OrderableUnits)
-				{
-					if (!unit.Info.HasTraitInfo<AircraftInfo>())
-						continue;
-					if (NeedsRearm(unit))
-						continue;
-					if (!unit.IsIdle)
-						continue;
-
-					if ((unit.CenterPosition - stagingPos).Length <= WDist.FromCells(SupportStagingRadiusCells).Length)
-						continue;
-
-					squad.Bot.QueueOrder(new Order("Move", unit, Target.FromCell(squad.World, stagingCell.Value), false));
-				}
-
+				QueueSupportMoveOrRearm(squad, stagingCell, null);
 				return;
 			}
 
 			squad.SetActorToTarget(target);
 
-			var leadAircraft = squad.OrderableUnits
-				.FirstOrDefault(u => u.Info.HasTraitInfo<AircraftInfo>() && !u.IsDead && u.IsInWorld);
-			if (leadAircraft != null &&
-				ScoreAircraftThreatAtTarget(squad, leadAircraft, target) > MaxAcceptableAircraftThreatScore)
+			if (ScoreAircraftThreatAtTarget(squad, leadAircraft, target) > MaxAcceptableAircraftThreatScore)
 			{
-				foreach (var unit in squad.OrderableUnits)
-				{
-					if (!unit.Info.HasTraitInfo<AircraftInfo>() || NeedsRearm(unit) || !unit.IsIdle)
-						continue;
-
-					var followCenter = squad.AttachedTo.CenterUnit();
-					if (followCenter != null)
-						squad.Bot.QueueOrder(new Order("Move", unit, Target.FromActor(followCenter), false));
-				}
+				squad.SetActorToTarget(null);
+				QueueSupportMoveOrRearm(squad, null, squad.AttachedTo.CenterUnit());
 
 				return;
 			}
@@ -447,6 +476,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					issuedAttack = true;
 					continue;
 				}
+
 				if (!CanAttackTarget(unit, target))
 					continue;
 

@@ -70,6 +70,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// --- Type-specific fields ---
 		public WDist ArtilleryHangBackRange;  // Artillery: how far behind frontline to stay
 		public CNSquad AttachedTo;            // ArtilleryAssault/Support: squad to follow
+		public bool IsWaitingForArtillery;    // Assault: hold position while artillery clears defenses
+		public Actor CoordinatedAssaultTarget;
 		public string[] PreferredTargetCapabilities; // BotCapabilities tags to prioritize as targets (Raider, Stealth, SubAssault, ...)
 
 		// --- Mob-Awareness ---

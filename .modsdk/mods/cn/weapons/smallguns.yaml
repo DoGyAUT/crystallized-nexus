@@ -76,7 +76,7 @@ VulcanTower:
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -96,7 +96,7 @@ VulcanTower2:
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -126,7 +126,7 @@ AssaultCannon:
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -149,7 +149,7 @@ HeavyAssaultCannon:
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -171,7 +171,7 @@ RaiderCannon:
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -194,7 +194,7 @@ GattlingCannon:
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -212,7 +212,7 @@ HarpyClaw:
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -247,7 +247,7 @@ Marksmanrifle:
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure
 
@@ -267,6 +267,26 @@ Sniper:
 	Warhead@3Eff: CreateEffect
 		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
 		ExplosionPalette: effect
-		ImpactSounds: tank_hit_bounce_1.wav, tank_hit_bounce_2.wav, tank_hit_bounce_3.wav, tank_hit_bounce_4.wav, tank_hit_bounce_5.wav
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
+
+Sniper_large:
+	Inherits: ^Sniper
+	ReloadDelay: 110
+	Range: 11c0
+	Report: sniperrifle1.ogg
+	Warhead@1Dam: SpreadDamage
+		Spread: 36
+		Damage: 250
+	Warhead@2Eff: CreateEffect
+		Explosions: piff
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3EffWater: CreateEffect
+		Explosions: water_piff
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Structure

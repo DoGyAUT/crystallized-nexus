@@ -17,6 +17,47 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Warheads
 {
+	[TraitLocation(SystemActors.World)]
+	[Desc("Exposes terrain deformation as a lobby option.")]
+	public class TerrainDeformationOptionsInfo : TraitInfo, ILobbyOptions
+	{
+		public const string OptionId = "terraindeformation";
+
+		[Desc("Descriptive label for the terrain deformation checkbox in the lobby.")]
+		public readonly string CheckboxLabel = "Terrain Deformation";
+
+		[Desc("Tooltip description for the terrain deformation checkbox in the lobby.")]
+		public readonly string CheckboxDescription = "Allow explosions to deform terrain and retile nearby ramps.";
+
+		[Desc("Default value of the terrain deformation checkbox in the lobby.")]
+		public readonly bool CheckboxEnabled = true;
+
+		[Desc("Prevent the terrain deformation state from being changed in the lobby.")]
+		public readonly bool CheckboxLocked = false;
+
+		[Desc("Whether to display the terrain deformation checkbox in the lobby.")]
+		public readonly bool CheckboxVisible = true;
+
+		[Desc("Display order for the terrain deformation checkbox in the lobby.")]
+		public readonly int CheckboxDisplayOrder = 10;
+
+		[Desc("Options category in which to display the terrain deformation checkbox in the lobby.")]
+		public readonly string CheckboxCategory = null;
+
+		public static bool Enabled(World world)
+		{
+			return world.LobbyInfo.GlobalSettings.OptionOrDefault(OptionId, true);
+		}
+
+		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
+		{
+			yield return new LobbyBooleanOption(map, OptionId,
+				CheckboxLabel, CheckboxDescription, CheckboxVisible, CheckboxDisplayOrder, CheckboxEnabled, CheckboxLocked, CheckboxCategory);
+		}
+
+		public override object Create(ActorInitializer init) { return new object(); }
+	}
+
 	[Desc("Changes terrain height around an impact, simulating Tiberian Sun-style terrain deformation.")]
 	public class TerrainDeformationWarhead : Warhead
 	{
@@ -95,6 +136,9 @@ namespace OpenRA.Mods.CN.Warheads
 
 			var firedBy = args.SourceActor;
 			var world = firedBy.World;
+
+			if (!TerrainDeformationOptionsInfo.Enabled(world))
+				return;
 
 			if (world.Map.Grid.MaximumTerrainHeight == 0)
 				return;

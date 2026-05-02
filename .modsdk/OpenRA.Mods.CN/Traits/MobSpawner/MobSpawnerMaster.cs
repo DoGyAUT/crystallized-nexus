@@ -95,6 +95,7 @@ namespace OpenRA.Mods.CN.Traits
 			public IHealth Health;
 			public GainsExperience GainsExperience;
 			public int LastTrackedExperience;
+			public CPos LastMoveDestination;
 		}
 
 		public new MobSpawnerMasterInfo Info { get; }
@@ -179,10 +180,13 @@ namespace OpenRA.Mods.CN.Traits
 			{
 				se.GainsExperience = slave.TraitOrDefault<GainsExperience>();
 
-				// Newly spawned slave inherits the squad's current experience level so it doesn't
+				// Newly spawned slave inherits the squad's current rank so it doesn't
 				// start at rank 0 when the rest of the squad has already levelled up.
-				if (se.GainsExperience != null && masterXP != null && masterXP.Experience > 0)
-					se.GainsExperience.GiveExperience(masterXP.Experience, true);
+				if (se.GainsExperience != null && masterXP != null && masterXP.Level > 0)
+				{
+					se.GainsExperience.GiveLevels(masterXP.Level, true);
+					se.LastTrackedExperience = se.GainsExperience.Experience;
+				}
 			}
 		}
 
@@ -344,11 +348,16 @@ namespace OpenRA.Mods.CN.Traits
 
 				var gained = se.GainsExperience.Experience - se.LastTrackedExperience;
 				if (gained > 0)
-				{
-					// Give the XP to the master and strip it from the slave.
 					masterXP.GiveExperience(gained);
-					se.GainsExperience.GiveExperience(-gained);
-				}
+			}
+
+			foreach (var se in slaveEntries)
+			{
+				if (!se.IsValid || !se.Actor.IsInWorld || se.GainsExperience == null)
+					continue;
+
+				if (se.GainsExperience.Level < masterXP.Level)
+					se.GainsExperience.GiveLevels(masterXP.Level - se.GainsExperience.Level, true);
 
 				se.LastTrackedExperience = se.GainsExperience.Experience;
 			}
@@ -550,7 +559,7 @@ namespace OpenRA.Mods.CN.Traits
 			if (targets == null || !targets.Any())
 				return;
 
-			var location = self.World.Map.CellContaining(targets.First().CenterPosition);
+			var location = GetSlaveMoveLocation(self, targets.First());
 
 			foreach (var se in slaveEntries)
 			{
@@ -560,10 +569,11 @@ namespace OpenRA.Mods.CN.Traits
 				if (se.Actor.Location == location)
 					continue;
 
-				if (!se.SpawnerSlave.IsMoving)
+				if (!se.SpawnerSlave.IsMoving || se.LastMoveDestination != location)
 				{
 					se.SpawnerSlave.Stop(se.Actor);
 					se.SpawnerSlave.Move(se.Actor, location);
+					se.LastMoveDestination = location;
 				}
 			}
 		}
@@ -574,7 +584,7 @@ namespace OpenRA.Mods.CN.Traits
 			if (targets == null || !targets.Any())
 				return;
 
-			var location = self.World.Map.CellContaining(targets.First().CenterPosition);
+			var location = GetSlaveMoveLocation(self, targets.First());
 
 			if (lastAttackMoveLocation == location)
 				return;
@@ -610,6 +620,21 @@ namespace OpenRA.Mods.CN.Traits
 				GatherStraySlaves(self);
 		}
 
+		CPos GetSlaveMoveLocation(Actor self, in Target target)
+		{
+			var mobile = self.TraitOrDefault<Mobile>();
+			if (mobile != null)
+			{
+				if (mobile.ToCell.Layer != 0)
+					return mobile.ToCell;
+
+				if (mobile.FromCell.Layer != 0)
+					return mobile.FromCell;
+			}
+
+			return self.World.Map.CellContaining(target.CenterPosition);
+		}
+
 		void GatherStraySlaves(Actor self)
 		{
 			foreach (var se in slaveEntries)
@@ -624,6 +649,7 @@ namespace OpenRA.Mods.CN.Traits
 					continue;
 
 				se.SpawnerSlave.Move(se.Actor, self.Location);
+				se.LastMoveDestination = self.Location;
 			}
 		}
 

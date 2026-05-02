@@ -356,7 +356,7 @@ TTNK:
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
-		Cost: 800
+		Cost: 1000
 	Tooltip:
 		Name: actor-ttnk.name
 		RequiresCondition: !deployed
@@ -370,7 +370,7 @@ TTNK:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
-		Prerequisites: ~naweap, ~techlevel.low
+		Prerequisites: ~naweap, natech, ~techlevel.medium
 		Description: actor-ttnk.description
 	Mobile:
 		TurnSpeed: 20
@@ -418,8 +418,8 @@ TTNK:
 		UndeployOnPickup: true
 		Facing: 640
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySounds: subdril1.aud
-		UndeploySounds: subdril1.aud
+		DeploySounds: drilldwn.aud
+		UndeploySounds: drillup.aud
 		Voice: Move
 	EntersTunnels:
 		RequireForceMoveCondition: !undeployed
@@ -592,8 +592,8 @@ NHWTZ:
 		UndeployOnMove: true
 		UndeployOnPickup: true
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySounds: nhwtzdeploy1.wav
-		UndeploySounds: nhwtzundeploy1.wav
+		DeploySounds: nhwtzdeploy1.ogg
+		UndeploySounds: nhwtzundeploy1.ogg
 		Voice: Move
 		CanDeployOnRamps: True
 	EntersTunnels:
@@ -850,11 +850,15 @@ SAPC:
 		Condition: submerged
 		SubterraneanTransitionImage: dig
 		SubterraneanTransitionSequence: idle
-		SubterraneanTransitionSound: subdril1.aud
+		SubterraneanTransitionSound: drilldwn.aud
 	Carryable:
 		RequiresCondition: !submerged
 	WithDecoration@UNDERGROUND:
 		RequiresCondition: inside-tunnel || submerged
+	DamagedByTerrain@VEINS:
+		RequiresCondition: !inside-tunnel && !submerged
+	LeavesTrails@VEINS:
+		RequiresCondition: !inside-tunnel && !submerged
 	AnnounceOnSeen:
 		PingRadar: True
 		Notification: SubterraneanUnitDetected
@@ -930,11 +934,15 @@ SUBTANK:
 		Condition: submerged
 		SubterraneanTransitionImage: dig
 		SubterraneanTransitionSequence: idle
-		SubterraneanTransitionSound: subdril1.aud
+		SubterraneanTransitionSound: drilldwn.aud
 	Carryable:
 		RequiresCondition: !submerged
 	WithDecoration@UNDERGROUND:
 		RequiresCondition: inside-tunnel || submerged
+	DamagedByTerrain@VEINS:
+		RequiresCondition: !inside-tunnel && !submerged
+	LeavesTrails@VEINS:
+		RequiresCondition: !inside-tunnel && !submerged
 	AnnounceOnSeen:
 		PingRadar: True
 		Notification: SubterraneanUnitDetected
