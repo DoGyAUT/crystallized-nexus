@@ -1,0 +1,74 @@
+name: Continuous Integration
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux (.NET 8.0)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Remove System .NET
+        run: sudo apt-get remove -y dotnet* || true
+
+      - name: Clone Repository
+        uses: actions/checkout@v4
+
+      - name: Install .NET 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Prepare Environment
+        working-directory: .modsdk
+        run: |
+          . mod.config;
+          awk '/\r$/ { exit(1); }' mod.config || (printf "Invalid mod.config format. File must be saved using unix-style (LF, not CRLF or CR) line endings.\n"; exit 1);
+
+      - name: Check Code
+        working-directory: .modsdk
+        run: |
+          make check
+          make check-packaging-scripts
+
+      - name: Check Mod
+        working-directory: .modsdk
+        run: |
+          sudo apt-get install -y lua5.1
+          make check-scripts
+          make TREAT_WARNINGS_AS_ERRORS=true test
+
+  windows:
+    name: Windows (.NET 8.0)
+    runs-on: windows-2022
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+
+      - name: Install .NET 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Check Code
+        shell: powershell
+        working-directory: .modsdk
+        run: |
+          dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
+          .\make.ps1 check
+
+      - name: Check Mods
+        shell: powershell
+        working-directory: .modsdk
+        run: |
+          choco install lua --version 5.1.5.52
+          $ENV:Path = $ENV:Path + ";C:\Program Files (x86)\Lua\5.1\"
+          $ENV:TREAT_WARNINGS_AS_ERRORS = "true"
+          .\make.ps1 check-scripts
+          .\make.ps1 test
