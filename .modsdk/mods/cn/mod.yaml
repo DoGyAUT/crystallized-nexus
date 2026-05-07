@@ -1,6 +1,6 @@
 Metadata:
 	Title: mod-title
-	Version: bleed
+	Version: cn-20260507a
 	Website: https://www.openra.net
 	WebIcon32: https://www.openra.net/images/icons/ts_32x32.png
 	WindowTitle: mod-windowtitle
@@ -77,7 +77,11 @@ MapFolders:
 	~^SupportDir|maps/cn/bleed: User
 
 Rules:
-	cn|rules/ai.yaml
+	cn|rules/ai/bots.yaml
+	cn|rules/ai/economy.yaml
+	cn|rules/ai/support.yaml
+	cn|rules/ai/squads.yaml
+	cn|rules/ai/strategy.yaml
 	cn|rules/general.yaml
 	cn|rules/misc.yaml
 	cn|rules/player.yaml
