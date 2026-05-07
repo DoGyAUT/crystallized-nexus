@@ -33,7 +33,7 @@ jobs:
       - name: Check Code
         working-directory: .modsdk
         run: |
-          make check
+          make all
           make check-packaging-scripts
 
       - name: Check Mod
@@ -63,7 +63,7 @@ jobs:
           if (-not ((dotnet nuget list source) -match 'https://api.nuget.org/v3/index.json')) {
             dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
           }
-          .\make.ps1 check
+          .\make.ps1 all
 
       - name: Check Mods
         shell: powershell
