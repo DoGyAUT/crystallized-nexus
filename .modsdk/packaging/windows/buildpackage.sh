@@ -104,13 +104,13 @@ function build_platform()
 	if [ "${PACKAGING_OVERWRITE_MOD_VERSION}" == "True" ]; then
 		set_mod_version "${TAG}" "${BUILTDIR}/mods/${MOD_ID}/mod.yaml"
 	else
-		MOD_VERSION=$(grep 'Version:' "mods/${MOD_ID}/mod.yaml" | awk '{print $2}')
+		MOD_VERSION=$(grep 'Version:' "${BUILTDIR}/mods/${MOD_ID}/mod.yaml" | awk '{print $2}')
 		echo "Mod version ${MOD_VERSION} will remain unchanged.";
 	fi
 
-	TAG_TYPE="${TAG%%-*}"
-	TAG_VERSION="${TAG#*-}"
-	BACKWARDS_TAG="${TAG_VERSION}-${TAG_TYPE}"
+	VERSION_PARTS=$(printf '%s' "${TAG}" | sed 's/^[^0-9]*//; s/[^0-9][^0-9]*/./g; s/^\.*//; s/\.*$//')
+	IFS=. read -r VERSION_MAJOR VERSION_MINOR VERSION_PATCH VERSION_BUILD <<< "${VERSION_PARTS}"
+	BACKWARDS_TAG="${VERSION_MAJOR:-0}.${VERSION_MINOR:-0}.${VERSION_PATCH:-0}.${VERSION_BUILD:-0}"
 
 	# Create multi-resolution icon
 	convert "${ARTWORK_DIR}/icon_16x16.png" "${ARTWORK_DIR}/icon_24x24.png" "${ARTWORK_DIR}/icon_32x32.png" "${ARTWORK_DIR}/icon_48x48.png" "${ARTWORK_DIR}/icon_256x256.png" "${BUILTDIR}/${MOD_ID}.ico"
