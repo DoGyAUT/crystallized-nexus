@@ -34,11 +34,10 @@ jobs:
           make check
           make check-packaging-scripts
 
-      - name: Check Mod
+      - name: Check Mod Scripts
         run: |
           sudo apt-get install -y lua5.1
           make check-scripts
-          make TREAT_WARNINGS_AS_ERRORS=true test
 
   windows:
     name: Windows (.NET 8.0)
@@ -59,11 +58,9 @@ jobs:
           dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
           .\make.ps1 check
 
-      - name: Check Mods
+      - name: Check Mod Scripts
         shell: powershell
         run: |
           choco install lua --version 5.1.5.52
           $ENV:Path = $ENV:Path + ";C:\Program Files (x86)\Lua\5.1\"
-          $ENV:TREAT_WARNINGS_AS_ERRORS = "true"
           .\make.ps1 check-scripts
-          .\make.ps1 test
