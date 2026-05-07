@@ -19,6 +19,39 @@
 		BlueTint: 1.19
 		Intensity: 0.9
 	TintPostProcessEffect:
+	WaterReflectionRenderer:
+		TerrainTypes: Water
+		AdditionalTemplates: 297, 300, 567, 570
+		ReflectionOffsetY: -38
+		Alpha: 0.22
+		Distortion: 2.5
+		WaveScale: 0.045
+		WaveSpeed: 0.06
+		Shimmer: 0.035
+		CliffOcclusionTemplates: 60, 61, 62, 63, 78, 79, 80, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 298, 301, 568, 571
+	WaterOverlayRenderer:
+		TerrainTypes: Water
+		AdditionalTemplates: 297, 300, 567, 570
+		CliffOcclusionTemplates: 60, 61, 62, 63, 78, 79, 80, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 298, 301, 568, 571
+		ClearTintRed: 1.0
+		ClearTintGreen: 1.0
+		ClearTintBlue: 1.04
+		ClearAlpha: 0.55
+		ClearShimmer: 0.045
+		ClearDistortion: 4.5
+		ClearWaveScale: 0.038
+		ClearWaveSpeed: 0.05
+		StormTintRed: 0.55
+		StormTintGreen: 1.05
+		StormTintBlue: 0.72
+		StormAlpha: 0.72
+		StormShimmer: 0.08
+		StormDistortion: 7.5
+		StormPulse: 0.12
+		StormWaveScale: 0.062
+		StormWaveSpeed: 0.13
+#	WaterEffectReflectionRenderer:
+#		TerrainTypes: Water
 	CloudSpawner@Clouds:
 		Image: clouds
 		Sequences: cloud1, cloud2, cloud3, cloud4, cloud5, cloud6
@@ -38,16 +71,24 @@
 	RandomMapAmbientSound@ForestWind:
 		SoundFiles: wind1.ogg, wind2.ogg, wind3.ogg, wind4.ogg
 		Delay: 150, 450
-		Interval: 100, 500
+		Interval: 100, 250
 		VolumeModifier: 1.0
-		MaxActiveSounds: 20
+		MaxActiveSounds: 30
 	RandomMapAmbientSound@WaterWaves:
 		SoundFiles: waterwave1.ogg, waterwave2.ogg, waterwave3.ogg, waterwave4.ogg, waterwave5.ogg, waterwave6.ogg, waterwave7.ogg, waterwave8.ogg
 		TerrainTypes: Water
 		Delay: 150, 450
-		Interval: 100, 500
+		Interval: 100, 250
 		VolumeModifier: 1.0
-		MaxActiveSounds: 10
+		MaxActiveSounds: 20
+	TerrainAnimationOverlay@WaterRipples:
+		TerrainTypes: Water
+		Image: water_waves
+		Sequences: glitter
+		Palette: effect
+		Interval: 18, 42
+		InitialDelay: 50
+		VisibleThroughFog: false
 	ResourceAnimationOverlay@TiberiumSparkle:
 		ResourceTypes: Tiberium, BlueTiberium, RedTiberium
 		Image: sparkle

@@ -47,7 +47,7 @@ namespace OpenRA.Mods.CN.Effects
 
 		IEnumerable<IRenderable> IEffect.Render(WorldRenderer r)
 		{
-			if (world.ShroudObscures(position))
+			if (!Game.Settings.Graphics.CloudShadows || world.ShroudObscures(position))
 				return SpriteRenderable.None;
 
 			var renderables = animation.Render(position, r.Palette(palette));

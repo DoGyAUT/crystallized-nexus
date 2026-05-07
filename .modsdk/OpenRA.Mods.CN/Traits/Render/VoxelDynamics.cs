@@ -18,6 +18,11 @@ namespace OpenRA.Mods.CN.Traits
 		WRot GetExtraRotation();
 	}
 
+	public interface IVoxelExtraOffset
+	{
+		WVec GetExtraOffset();
+	}
+
 	[Desc("Provides impact-tilt and acceleration-tilt for voxel units. " +
 		"Add CNWithVoxelBody/Turret/Barrel instead of their vanilla counterparts.")]
 	public class VoxelDynamicsInfo : ConditionalTraitInfo
@@ -56,6 +61,16 @@ namespace OpenRA.Mods.CN.Traits
 			"Tilts on speed change only, returns to neutral at constant speed.")]
 		public readonly int AccelerationPitchScale = 0;
 
+		[Desc("Pitch from altitude changes during horizontal flight (scale 0-500). 0 = disabled. " +
+			"Climbing pitches the nose up, descending pitches it down.")]
+		public readonly int AltitudePitchScale = 0;
+
+		[Desc("Maximum visual pitch from altitude changes in WAngle units.")]
+		public readonly int MaxAltitudePitch = 48;
+
+		[Desc("How many WAngle units the altitude pitch may change per tick.")]
+		public readonly int AltitudePitchSpeed = 6;
+
 		[Desc("Invert the acceleration pitch direction. Use for hover/aircraft that lean forward when accelerating.")]
 		public readonly bool InvertPitch = false;
 
@@ -73,10 +88,35 @@ namespace OpenRA.Mods.CN.Traits
 			"Useful for bikes and hovercraft that should visibly lean during sustained curves.")]
 		public readonly bool ContinuousTurnRoll = false;
 
+		[Desc("Ambient hover pitch wobble in WAngle units. 0 = disabled.")]
+		public readonly int HoverWobblePitch = 0;
+
+		[Desc("Ambient hover roll wobble in WAngle units. 0 = disabled.")]
+		public readonly int HoverWobbleRoll = 0;
+
+		[Desc("Ambient hover visual offset in WDist. 0 = disabled.")]
+		public readonly WDist HoverWobbleOffset = WDist.Zero;
+
+		[Desc("Ambient hover wobble speed in WAngle units per tick. 0 = disabled.")]
+		public readonly int HoverWobbleSpeed = 0;
+
 		public override object Create(ActorInitializer init) { return new VoxelDynamics(init.Self, this); }
 	}
 
-	public class VoxelDynamics : ConditionalTrait<VoxelDynamicsInfo>, IVoxelExtraRotation, ITick, INotifyDamage, INotifyAttack
+	public sealed class VoxelDynamicsPreviewInit : RuntimeFlagInit, ISingleInstanceInit
+	{
+		public readonly IVoxelExtraRotation Rotation;
+		public readonly IVoxelExtraOffset Offset;
+
+		public VoxelDynamicsPreviewInit(IVoxelExtraRotation rotation, IVoxelExtraOffset offset)
+		{
+			Rotation = rotation;
+			Offset = offset;
+		}
+	}
+
+	public class VoxelDynamics : ConditionalTrait<VoxelDynamicsInfo>, IVoxelExtraRotation, IVoxelExtraOffset,
+		ITick, INotifyDamage, INotifyAttack, IActorPreviewInitModifier
 	{
 		// Ring buffer: smooth velocity over 8 ticks to handle OpenRA's per-subcell movement
 		const int VelSamples = 8;
@@ -94,6 +134,10 @@ namespace OpenRA.Mods.CN.Traits
 		int lastFwd100;    // previous smoothed forward velocity for acceleration calculation
 		int lastYawDelta;  // previous yaw delta for turn acceleration calculation
 		WAngle lastYaw;
+		int altitudePitch;
+		int wobblePitch;
+		int wobbleRoll;
+		WVec wobbleOffset;
 		bool posInitialized;
 
 		public VoxelDynamics(Actor self, VoxelDynamicsInfo info)
@@ -187,6 +231,8 @@ namespace OpenRA.Mods.CN.Traits
 				lastFwd100 = 0;
 				lastYawDelta = 0;
 				posInitialized = true;
+				UpdateHoverWobble(self);
+				UpdateAltitudePitch(self, currentPos);
 				return;
 			}
 
@@ -238,6 +284,9 @@ namespace OpenRA.Mods.CN.Traits
 				}
 			}
 
+			UpdateHoverWobble(self);
+			UpdateAltitudePitch(self, currentPos);
+
 			// Decay impact target toward zero
 			if (impactHoldRemaining > 0)
 				impactHoldRemaining--;
@@ -262,16 +311,92 @@ namespace OpenRA.Mods.CN.Traits
 			if (targetRoll100 == 0 && Math.Abs(roll100) < 50 && Math.Abs(rollVel) < 10) { roll100 = 0; rollVel = 0; }
 		}
 
+		void UpdateAltitudePitch(Actor self, in WPos currentPos)
+		{
+			var aircraft = self.TraitOrDefault<Aircraft>();
+			if (IsTraitDisabled || Info.AltitudePitchScale == 0 || Info.MaxAltitudePitch == 0 ||
+				(aircraft != null && aircraft.AtLandAltitude))
+			{
+				altitudePitch = 0;
+				return;
+			}
+
+			var oldest = posHistory[posHistoryIndex];
+			var delta = currentPos - oldest;
+			var horizontal = delta.HorizontalLength;
+			var desiredPitch = 0;
+
+			if (horizontal > 64 && delta.Z != 0)
+			{
+				// Positive Z means climbing; positive pitch is nose-up for the rendered voxel body.
+				desiredPitch = Math.Clamp(delta.Z * Info.AltitudePitchScale / horizontal,
+					-Info.MaxAltitudePitch, Info.MaxAltitudePitch);
+			}
+
+			var speed = Math.Max(1, Info.AltitudePitchSpeed);
+			var diff = desiredPitch - altitudePitch;
+			altitudePitch += Math.Abs(diff) <= speed ? diff : Math.Sign(diff) * speed;
+		}
+
+		void UpdateHoverWobble(Actor self)
+		{
+			var aircraft = self.TraitOrDefault<Aircraft>();
+			if (IsTraitDisabled || (aircraft != null && aircraft.AtLandAltitude) || Info.HoverWobbleSpeed == 0 ||
+				(Info.HoverWobblePitch == 0 && Info.HoverWobbleRoll == 0 && Info.HoverWobbleOffset == WDist.Zero))
+			{
+				wobblePitch = 0;
+				wobbleRoll = 0;
+				wobbleOffset = WVec.Zero;
+				return;
+			}
+
+			var phase = new WAngle(self.World.WorldTick * Info.HoverWobbleSpeed + (int)(self.ActorID * 173));
+			var phase2 = phase + new WAngle(341);
+			var phase3 = phase + new WAngle(683);
+
+			wobblePitch = Info.HoverWobblePitch * phase.Sin() / 1024;
+			wobbleRoll = Info.HoverWobbleRoll * phase2.Sin() / 1024;
+
+			var offsetLength = Info.HoverWobbleOffset.Length;
+			if (offsetLength == 0)
+			{
+				wobbleOffset = WVec.Zero;
+				return;
+			}
+
+			wobbleOffset = new WVec(
+				offsetLength * phase.Cos() / 1024,
+				offsetLength * phase2.Sin() / 1024,
+				offsetLength * phase3.Sin() / 2048);
+		}
+
 		/// <summary>
 		/// Returns extra rotation in WORLD space (not body space).
 		/// The caller must combine this with body orientation correctly.
 		/// </summary>
 		public WRot GetExtraRotation()
 		{
+			if (!Game.Settings.Graphics.VoxelDynamics)
+				return new WRot(new WAngle(Info.RollOffset), new WAngle(Info.PitchOffset), WAngle.Zero);
+
 			return new WRot(
-				new WAngle(roll100 / 100 + Info.RollOffset),
-				new WAngle(pitch100 / 100 + Info.PitchOffset),
+				new WAngle(roll100 / 100 + wobbleRoll + Info.RollOffset),
+				new WAngle(pitch100 / 100 + altitudePitch + wobblePitch + Info.PitchOffset),
 				WAngle.Zero);
+		}
+
+		public WVec GetExtraOffset()
+		{
+			if (!Game.Settings.Graphics.VoxelDynamics)
+				return WVec.Zero;
+
+			return wobbleOffset;
+		}
+
+		void IActorPreviewInitModifier.ModifyActorPreviewInit(Actor self, TypeDictionary inits)
+		{
+			if (!inits.Contains<VoxelDynamicsPreviewInit>())
+				inits.Add(new VoxelDynamicsPreviewInit(this, this));
 		}
 	}
 }
