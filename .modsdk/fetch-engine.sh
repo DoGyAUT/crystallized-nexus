@@ -76,7 +76,7 @@ if [ "${AUTOMATIC_ENGINE_MANAGEMENT}" = "True" ]; then
 
 	# HACK: Remove bogus lint check that the Example mod can't possibly pass
 	# because to do so it would need to define a lot of excess things surrounding resources.
-	rm ${ENGINE_DIRECTORY}/OpenRA.Mods.Common/Lint/CheckFluentReferences.cs
+	rm -f ${ENGINE_DIRECTORY}/OpenRA.Mods.Common/Lint/CheckFluentReferences.cs
 
 	echo "Compiling engine..."
 	cd "${ENGINE_DIRECTORY}" || exit 1
@@ -87,4 +87,3 @@ fi
 echo "Automatic engine management is disabled."
 echo "Please manually update the engine to version ${ENGINE_VERSION}."
 exit 1
-

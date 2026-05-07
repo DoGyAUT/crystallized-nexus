@@ -369,7 +369,7 @@ if ($command -eq "all" -or $command -eq "clean" -or $command -eq "check")
 
 		# HACK: Remove bogus lint check that the Example mod can't possibly pass
 		# because to do so it would need to define a lot of excess things surrounding resources.
-		rm $env:ENGINE_DIRECTORY/OpenRA.Mods.Common/Lint/CheckFluentReferences.cs
+		Remove-Item "$env:ENGINE_DIRECTORY/OpenRA.Mods.Common/Lint/CheckFluentReferences.cs" -ErrorAction Ignore
 
 		cd $env:ENGINE_DIRECTORY
 		Invoke-Expression ".\make.cmd version $env:ENGINE_VERSION"
