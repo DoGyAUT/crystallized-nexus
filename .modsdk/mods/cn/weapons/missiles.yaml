@@ -65,14 +65,47 @@ Dragon:
 
 Hellfire:
 	Inherits: ^DefaultMissile
-	ReloadDelay: 50
+	ReloadDelay: 80
+	Range: 8c0
 	Report: missile_v1.ogg, missile_v2.ogg
 	Burst: 2
-	ValidTargets: Ground
+	ValidTargets: Ground, Air
+	InvalidTargets: Infantry
+	Projectile: Missile
+		MinimumLaunchAngle: -96
+		MaximumLaunchAngle: 32
+		HorizontalRateOfTurn: 32
+		VerticalRateOfTurn: 64
+		CruiseAltitude: 3c0
+	Warhead@1Dam: SpreadDamage
+		Spread: 72
+		Damage: 70
+		ValidTargets: Ground, Air
+		InvalidTargets: Infantry
+
+Hellstorm:
+	Inherits: ^DefaultMissile
+	ReloadDelay: 80
+	Range: 14c0
+	Report: launcher01.aud, launcher02.aud, launcher03.aud, launcher04.aud
+	Burst: 2
+	BurstDelays: 20
+	ValidTargets: Ground, Air
+	InvalidTargets: Infantry
+	Projectile: Missile
+		MinimumLaunchAngle: -96
+		MaximumLaunchAngle: 32
+		HorizontalRateOfTurn: 32
+		VerticalRateOfTurn: 64
+		CruiseAltitude: 4c0
+		MaximumLaunchSpeed: 0c356
+		MinimumLaunchSpeed: 0c356
+		Speed: 0c512
 	Warhead@1Dam: SpreadDamage
 		Spread: 72
 		Damage: 150
 		ValidTargets: Ground, Air
+		InvalidTargets: Infantry
 
 RedEye2:
 	Inherits: ^DefaultMissile

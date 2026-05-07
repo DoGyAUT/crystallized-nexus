@@ -50,7 +50,7 @@ ClusterMissile:
 
 SuicideBomb:
 	Inherits@DefaultWahead: ^ExplosionWarhead
-	Range: 0c512
+	Range: 4c0
 	TargetActorCenter: true
 	Report: hunter2.aud
 	Projectile: InstantHit

@@ -64,6 +64,7 @@ Speech:
 		SpyKilledMissionFailed: 01-n284
 		SpyLostMissionFailed: 01-n210
 		StartGame: 00-i200
+		StealthUnitDetected: 00-i172
 		GameLoaded: 00-i200
 		GameSaved:
 		StructureSold: 00-i228

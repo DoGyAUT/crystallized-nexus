@@ -1,0 +1,242 @@
+Player:
+	CNBotProfileBotModule@adaptive:
+		AdaptiveFallbackProfile: Expansion
+		AdaptiveMinimumIntentHoldTicks: 3000
+		AdaptiveEmergencyTurtleDangerThreshold: 650
+		AdaptiveSteamrollerEarliestTick: 6500
+		AdaptiveSteamrollerUnitThreshold: 26
+		AdaptiveTechCashThreshold: 3800
+		EcoBudgets:
+			Rush: 14
+			Turtle: 30
+			Tech: 22
+			Expansion: 34
+			Steamroller: 24
+		TechBudgets:
+			Rush: 12
+			Turtle: 16
+			Tech: 30
+			Expansion: 18
+			Steamroller: 18
+		DefenseBudgets:
+			Rush: 10
+			Turtle: 34
+			Tech: 24
+			Expansion: 20
+			Steamroller: 12
+		ProductionBudgets:
+			Rush: 36
+			Turtle: 18
+			Tech: 24
+			Expansion: 22
+			Steamroller: 40
+		HarvesterTargetPercents:
+			Rush: 95
+			Turtle: 125
+			Tech: 105
+			Expansion: 125
+			Steamroller: 115
+		MidTechTicks:
+			Rush: 3200
+			Turtle: 6000
+			Tech: 3000
+			Expansion: 4000
+			Steamroller: 4200
+		LateTechTicks:
+			Rush: 9000
+			Turtle: 11500
+			Tech: 7800
+			Expansion: 9000
+			Steamroller: 8000
+	CNBotProfileBotModule@rush:
+		MidTechTicks:
+			Rush: 3200
+		LateTechTicks:
+			Rush: 9000
+	CNBotProfileBotModule@turtle:
+		MidTechTicks:
+			Turtle: 6000
+		LateTechTicks:
+			Turtle: 11500
+	CNBotProfileBotModule@tech:
+		MidTechTicks:
+			Tech: 3000
+		LateTechTicks:
+			Tech: 7800
+	CNBotProfileBotModule@expansion:
+		MidTechTicks:
+			Expansion: 4000
+		LateTechTicks:
+			Expansion: 9000
+	CNBotProfileBotModule@steamroller:
+		MidTechTicks:
+			Steamroller: 4200
+		LateTechTicks:
+			Steamroller: 8000
+	CNBotProfileBotModule@eco:
+		MidTechTicks:
+			Expansion: 4000
+		LateTechTicks:
+			Expansion: 9000
+
+	CNBaseBuilderBotModule@cn:
+		BasePlanClusters:
+			gproc: Eco
+			nproc: Eco
+			gapowr: Core
+			napowr: Core
+			naapwr: Core
+			gasilo: Core
+			gapile: Production
+			nahand: Production
+			gaweap: Production
+			naweap: Production
+			gahpad: Production
+			nahpad: Production
+			garadr: Tech
+			naradr: Tech
+			gaarmory: Tech
+			gadept: Tech
+			gatech: Tech
+			natech: Tech
+			gaplug: Tech
+			gaplug2: Tech
+			gaplug3: Tech
+			gaplug4: Tech
+			natmpl: Tech
+			namisl: Tech
+			napyra: Tech
+			nastlh: Tech
+			nawast: Tech
+			gamg: DefensePerimeter
+			gagat: DefensePerimeter
+			gacan: DefensePerimeter
+			gasam: DefensePerimeter
+			gasen: DefensePerimeter
+			gamortar: DefensePerimeter
+			nalasr: DefensePerimeter
+			nagat: DefensePerimeter
+			naflamer: DefensePerimeter
+			nasam: DefensePerimeter
+			naobel: DefensePerimeter
+			napuls: DefensePerimeter
+		ExpansionBuildingFractions:
+			gapile: 9
+			nahand: 9
+			gaweap: 10
+			naweap: 10
+			gahpad: 6
+			nahpad: 6
+		TechBuildingFractions:
+			gapile: 8
+			nahand: 8
+			gaweap: 11
+			naweap: 11
+			gahpad: 9
+			nahpad: 9
+			garadr: 8
+			naradr: 8
+			gaarmory: 8
+			gadept: 7
+			gatech: 9
+			natech: 9
+			gaplug: 7
+			natmpl: 8
+			namisl: 5
+			napyra: 5
+		SteamrollerBuildingFractions:
+			gapile: 13
+			nahand: 13
+			gaweap: 20
+			naweap: 20
+			gahpad: 12
+			nahpad: 12
+			gadept: 5
+			garadr: 5
+			naradr: 5
+			gatech: 5
+			natech: 5
+			gaplug: 4
+			natmpl: 5
+		ExpansionDefenseRoleLimits:
+			Total: 22
+			InfantryDefense: 7
+			ArmorDefense: 8
+			AADefense: 7
+			ArtilleryDefense: 4
+			Special: 2
+		TechDefenseRoleLimits:
+			Total: 26
+			InfantryDefense: 9
+			ArmorDefense: 9
+			AADefense: 9
+			ArtilleryDefense: 5
+			Special: 3
+		SteamrollerDefenseRoleLimits:
+			Total: 16
+			InfantryDefense: 5
+			ArmorDefense: 6
+			AADefense: 5
+			ArtilleryDefense: 3
+			Special: 2
+		RushBuildingFractions:
+			gapile: 13
+			nahand: 13
+			gaweap: 15
+			naweap: 15
+			gahpad: 7
+			nahpad: 7
+		RushDefenseRoleLimits:
+			Total: 18
+			InfantryDefense: 7
+			ArmorDefense: 6
+			AADefense: 4
+			ArtilleryDefense: 2
+			Special: 1
+		RushNewProductionCashThreshold: 3200
+		RushNewProductionChance: 80
+		RushMinimumExcessPower: 15
+		RushMaximumExcessPower: 60
+		EcoNewProductionCashThreshold: 5500
+		EcoNewProductionChance: 55
+		EcoInititalMinimumRefineryCount: 2
+		TurtleNewProductionCashThreshold: 3800
+		TurtleNewProductionChance: 75
+		TurtleInititalMinimumRefineryCount: 2
+		TurtleMinimumExcessPower: 70
+		TurtleMaximumExcessPower: 250
+		TechNewProductionCashThreshold: 3500
+		TechNewProductionChance: 65
+		SteamrollerNewProductionCashThreshold: 2200
+		SteamrollerNewProductionChance: 95
+		ExpansionInititalMinimumRefineryCount: 2
+		ExpansionNewProductionCashThreshold: 4500
+		ExpansionNewProductionChance: 55
+		ExpansionMinimumExcessPower: 35
+		ExpansionMaximumExcessPower: 220
+		TechInititalMinimumRefineryCount: 2
+		TechMinimumExcessPower: 40
+		TechMaximumExcessPower: 240
+		SteamrollerInititalMinimumRefineryCount: 2
+		SteamrollerMinimumExcessPower: 45
+		SteamrollerMaximumExcessPower: 260
+
+	CNUnitBuilderBotModule@Combat:
+		EcoProductionMinCashRequirement: 500
+		EcoDesiredCashReserve: 1400
+		EcoAdditionalCashReservePerQueue: 150
+		RushProductionMinCashRequirement: 180
+		RushDesiredCashReserve: 350
+		RushAdditionalCashReservePerQueue: 60
+		TurtleProductionMinCashRequirement: 250
+		TurtleDesiredCashReserve: 450
+		TurtleAdditionalCashReservePerQueue: 75
+		ExpansionProductionMinCashRequirement: 450
+		ExpansionDesiredCashReserve: 1200
+		ExpansionAdditionalCashReservePerQueue: 140
+		TechProductionMinCashRequirement: 260
+		TechDesiredCashReserve: 700
+		TechAdditionalCashReservePerQueue: 90
+		SteamrollerProductionMinCashRequirement: 100
+		SteamrollerDesiredCashReserve: 150
+		SteamrollerAdditionalCashReservePerQueue: 35

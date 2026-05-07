@@ -71,11 +71,9 @@ NACNST:
 		Sequence: idle-smoke2
 		Palette: player25alpha
 	WithMakeOverlay@SMOKE1:
-		RequiresCondition: !build-incomplete
 		Sequence: make-smoke1
 		Palette: player25alpha
 	WithMakeOverlay@SMOKE2:
-		RequiresCondition: !build-incomplete
 		Sequence: make-smoke2
 		Palette: player25alpha
 	ActorLostNotification:
@@ -497,6 +495,7 @@ NAHPAD:
 	Reservable:
 	RepairsUnits:
 		HpPerStep: 1000
+		RepairDamageTypes: RepairArmor
 		PauseOnCondition: empdisable
 		PlayerExperience: 5
 		StartRepairingNotification: Repairing

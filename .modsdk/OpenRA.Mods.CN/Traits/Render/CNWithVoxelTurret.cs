@@ -38,13 +38,29 @@ namespace OpenRA.Mods.CN.Traits
 			if (!EnabledByDefault)
 				yield break;
 
+			var body = init.Actor.TraitInfo<BodyOrientationInfo>();
 			var t = init.Actor.TraitInfos<TurretedInfo>()
 				.First(tt => tt.Turret == Turret);
 
 			var model = cache.GetModelSequence(image, Sequence);
 			var turretOffset = t.PreviewPosition(init, orientation);
 			var turretOrientation = t.PreviewOrientation(init, orientation, facings);
-			yield return new ModelAnimation(model, turretOffset, turretOrientation, () => false, () => 0, ShowShadow);
+			var dynamics = init.GetOrDefault<VoxelDynamicsPreviewInit>();
+			yield return new ModelAnimation(model,
+				() => turretOffset() + (dynamics != null ? dynamics.Offset.GetExtraOffset() : WVec.Zero),
+				() =>
+				{
+					var rot = turretOrientation();
+					if (dynamics == null)
+						return rot;
+
+					var extra = dynamics.Rotation.GetExtraRotation();
+					var bodyOri = body.QuantizeOrientation(orientation(), facings);
+					var bodyTilted = new WRot(extra.Roll, extra.Pitch, WAngle.Zero).Rotate(bodyOri);
+					var turretRelYaw = rot.Yaw - bodyOri.Yaw;
+					return WRot.FromYaw(turretRelYaw).Rotate(bodyTilted);
+				},
+				() => false, () => 0, ShowShadow);
 		}
 	}
 

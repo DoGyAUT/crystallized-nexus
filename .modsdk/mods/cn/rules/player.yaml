@@ -47,7 +47,6 @@ Player:
 		Group: Tech
 		DisplayOrder: 5
 		BuildDurationModifier: 120
-		LowPowerSlowdown: 2
 		QueuedAudio: BuildTech
 		ReadyAudio: TechComplete
 	PlaceBuilding:
@@ -97,6 +96,14 @@ Player:
 		DisplayOrder: 7
 		Category: rules
 		Prerequisites: global-factundeploy
+	LobbyPrerequisiteCheckbox@DESTROYABLEBRIDGES:
+		ID: destroyablebridges
+		Label: checkbox-destroyable-bridges.label
+		Description: checkbox-destroyable-bridges.description
+		Enabled: True
+		DisplayOrder: 8
+		Category: rules
+		Prerequisites: global-destroyable-bridges
 	FrozenActorLayer:
 	DamageNotifier:
 		ValidTargets: Building

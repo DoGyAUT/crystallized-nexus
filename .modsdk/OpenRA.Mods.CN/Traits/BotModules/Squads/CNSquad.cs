@@ -53,6 +53,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public readonly CNSquadType Type;
 		public readonly string TemplateName;
 		public readonly CNTeamTemplateInfo TemplateInfo;
+		public readonly int CreatedTick;
 
 		internal readonly IBot Bot;
 		internal readonly World World;
@@ -118,6 +119,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			Type = type;
 			TemplateName = templateName;
 			TemplateInfo = templateInfo;
+			CreatedTick = World.WorldTick;
 			PreferredTargetCapabilities = templateInfo?.PriorityTargetCapabilities;
 			FuzzyStateMachine = new CNStateMachine();
 			Target = Target.Invalid;

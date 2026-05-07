@@ -9,6 +9,10 @@ checkbox-redeployable-mcvs =
     .label = Redeployable MCVs
     .description = Allows Construction Yards to be undeployed
 
+checkbox-destroyable-bridges =
+    .label = Destroyable Bridges
+    .description = Allows bridges to be damaged and destroyed
+
 notification-insufficient-funds = Insufficient funds.
 notification-new-construction-options = New construction options.
 notification-cannot-deploy-here = Cannot deploy here.
@@ -267,7 +271,6 @@ actor-ntpyra-name = Nod Pyramid
 actor-ufo-name = Scrin Ship
 
 ## civilian-vehicles.yaml
-actor-4tnk-name = Mammoth Tank
 meta-truck-name = Truck
 actor-icbm-name = Ballistic Missile Launcher
 actor-bus-name = School Bus
@@ -298,6 +301,19 @@ meta-railway-name = Railway
 meta-gate-description = Automated gate that opens for allied units.
 
 ## gdi-infantry.yaml
+actor-gasol =
+    .name = Marine
+    .description =
+    General-purpose infantry.
+       Strong vs Infantry
+       Weak vs Vehicles and Aircraft
+
+actor-engineer =
+    .name = Engineer
+    .description =
+    Infiltrates and captures enemy structures.
+       Unarmed
+
 actor-e2 =
     .name = Disc Thrower
     .description =
@@ -319,6 +335,14 @@ actor-jumpjet =
        Weak vs Vehicles
 
 actor-jumpjet-husk-name = Jump Jet Infantry
+
+actor-gasniper =
+    .name = Sniper
+    .description =
+    General-purpose infantry.
+       Strong vs Infantry
+       Weak vs Vehicles and Aircraft
+
 
 actor-ghost =
     .name = Ghost Stalker
@@ -485,11 +509,25 @@ actor-smech =
        Strong vs Infantry and Light armor
        Weak vs Vehicles and Aircraft
 
+actor-gtmtnk =
+    .name = Archon
+    .description =
+    General purpose armored tank.
+       Strong vs Vehicles
+       Weak vs Infantry and Aircraft
+
 actor-mmch =
     .name = Titan
     .description =
     General purpose mechanized walker.
        Strong vs Vehicles
+       Weak vs Infantry and Aircraft
+
+
+actor-4tnk-name = Mammoth Tank
+    .description =
+    Heavy armored tank armed with dual cannons and missiles.
+       Strong vs Vehicles and Aircraft
        Weak vs Infantry and Aircraft
 
 actor-hmec =
@@ -539,12 +577,40 @@ actor-waypoint-name = (waypoint for scripted behavior)
 actor-camera-name = (reveals area to owner)
 
 ## nod-infantry.yaml
+actor-nasol =
+    .name = Rookie
+    .description =
+    General-purpose infantry.
+       Strong vs Infantry
+       Weak vs Vehicles and Aircraft
+
 actor-e3 =
     .name = Rocket Infantry
     .description =
     Anti-tank infantry.
        Strong vs Vehicles, Aircraft and Buildings
        Weak vs Infantry
+
+actor-nacad =
+    .name = Elite Cadre
+    .description =
+    General-purpose elite infantry.
+       Strong vs Infantry and Light Armor
+       Weak vs Vehicles and Aircraft
+
+actor-shadow =
+    .name = Shadow Trooper
+    .description =
+    Cloaked anti-infantry sniper.
+       Strong vs Infantry
+       Weak vs Vehicles and Aircraft
+
+actor-acolyte =
+    .name = Acolyte
+    .description =
+    High tech anti-ground infantry.
+       Strong vs Ground units
+       Weak vs Aircraft
 
 actor-cyborg =
     .name = Cyborg Infantry
@@ -694,6 +760,13 @@ actor-bike =
        Strong vs Vehicles
        Weak vs Infantry and Aircraft
 
+actor-ltnk =
+    .name = Scorpion Tank
+    .description =
+    General purpose armored tank.
+       Strong vs Vehicles
+       Weak vs Infantry and Aircraft
+
 actor-ttnk =
     .name = Tick Tank
     .deployed-name = Tick Tank (deployed)
@@ -755,19 +828,6 @@ actor-sgen =
     Able to cloak units once deployed.
        Unarmed
 
-## shared-infantry.yaml
-actor-e1 =
-    .name = Light Infantry
-    .description =
-    General-purpose infantry.
-       Strong vs Infantry
-       Weak vs Vehicles and Aircraft
-
-actor-engineer =
-    .name = Engineer
-    .description =
-    Infiltrates and captures enemy structures.
-       Unarmed
 
 ## shared-structures.yaml
 actor-gacnst =
@@ -829,14 +889,32 @@ actor-veinhole-name = Veinhole
 meta-tibflora-name = Tiberian Flora
 
 ## Civilian Tech
+actor-caaray =
+    .name = Civilian Array
+    .captured-desc = Reveals the whole map.
+    .capturable-desc = Capture to reveal the map.
 actor-cahosp =
     .name = Civilian Hospital
     .captured-desc = Provides infantry with self-healing.
     .capturable-desc = Capture to enable self-healing for infantry.
+actor-caarmr =
+    .name = Civilian Armory
+    .captured-desc = Allows new units to be produced as veterans.
+    .capturable-desc = Capture to produce new units as veterans.
 
-## ai.yaml
+## bots.yaml
 bot-cn-ai =
-    .name = CN Test AI
+   .name = Adaptive CN AI
+bot-cn-rush =
+   .name = Rush CN AI
+bot-cn-turtle =
+   .name = Turtle CN AI
+bot-cn-tech =
+   .name = Tech CN AI
+bot-cn-expansion =
+   .name = Expansion CN AI
+bot-cn-steamroller =
+   .name = Steamroller CN AI
 
 ## map-generators.yaml
 map-generator-ts = Map Generator

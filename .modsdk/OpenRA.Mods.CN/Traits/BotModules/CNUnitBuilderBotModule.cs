@@ -65,6 +65,36 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Additional reserve per available production queue to avoid spending to zero across many factories.")]
 		public readonly int AdditionalCashReservePerQueue = 200;
 
+		public readonly int EcoProductionMinCashRequirement = -1;
+		public readonly int RushProductionMinCashRequirement = -1;
+		public readonly int TurtleProductionMinCashRequirement = -1;
+		public readonly int TechProductionMinCashRequirement = -1;
+		public readonly int ExpansionProductionMinCashRequirement = -1;
+		public readonly int SteamrollerProductionMinCashRequirement = -1;
+
+		public readonly int EcoDesiredCashReserve = -1;
+		public readonly int RushDesiredCashReserve = -1;
+		public readonly int TurtleDesiredCashReserve = -1;
+		public readonly int TechDesiredCashReserve = -1;
+		public readonly int ExpansionDesiredCashReserve = -1;
+		public readonly int SteamrollerDesiredCashReserve = -1;
+
+		public readonly int EcoAdditionalCashReservePerQueue = -1;
+		public readonly int RushAdditionalCashReservePerQueue = -1;
+		public readonly int TurtleAdditionalCashReservePerQueue = -1;
+		public readonly int TechAdditionalCashReservePerQueue = -1;
+		public readonly int ExpansionAdditionalCashReservePerQueue = -1;
+		public readonly int SteamrollerAdditionalCashReservePerQueue = -1;
+
+		[Desc("Only produce fallback units when at least one matching capturable target exists.")]
+		public readonly bool RequireCapturableTargets = false;
+
+		[Desc("Actor types that satisfy RequireCapturableTargets. Empty means any capturable target.")]
+		public readonly HashSet<string> CapturableActorTypes = [];
+
+		[Desc("Should visibility be considered when searching for capturable targets?")]
+		public readonly bool CheckCaptureTargetsForVisibility = true;
+
 		public override object Create(ActorInitializer init) => new CNUnitBuilderBotModule(init.Self, this);
 	}
 
@@ -92,6 +122,7 @@ namespace OpenRA.Mods.CN.Traits
 		readonly Dictionary<string, int> templateRecentBuildTicks = new(StringComparer.OrdinalIgnoreCase);
 
 		CNSquadManagerBotModule squadManager;
+		CNBotProfileBotModule profileModule;
 		PlayerResources playerResources;
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
@@ -109,6 +140,8 @@ namespace OpenRA.Mods.CN.Traits
 		protected override void Created(Actor self)
 		{
 			squadManager = self.Owner.PlayerActor.TraitsImplementing<CNSquadManagerBotModule>()
+				.FirstOrDefault();
+			profileModule = self.Owner.PlayerActor.TraitsImplementing<CNBotProfileBotModule>()
 				.FirstOrDefault();
 			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
 			requestPause = self.Owner.PlayerActor
@@ -151,7 +184,10 @@ namespace OpenRA.Mods.CN.Traits
 				return;
 			}
 
-			if (playerResources.GetCashAndResources() < Info.ProductionMinCashRequirement)
+			if (Info.RequireCapturableTargets && !HasCapturableTarget())
+				return;
+
+			if (playerResources.GetCashAndResources() < GetActiveProductionMinCashRequirement())
 				return;
 
 			if (Info.IdleBaseUnitsMaximum > 0 && idleUnitCount >= Info.IdleBaseUnitsMaximum)
@@ -725,19 +761,88 @@ namespace OpenRA.Mods.CN.Traits
 		int GetDesiredReserve(ILookup<string, ProductionQueue> queuesByCategory)
 		{
 			var queueCount = queuesByCategory.SelectMany(g => g).Count();
-			return Info.DesiredCashReserve + queueCount * Info.AdditionalCashReservePerQueue;
+			return GetActiveDesiredCashReserve() + queueCount * GetActiveAdditionalCashReservePerQueue();
 		}
 
 		bool HasBudgetFor(ActorInfo actorInfo, int committedCost, ILookup<string, ProductionQueue> queuesByCategory)
 		{
 			var cost = actorInfo.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
 			return playerResources.GetCashAndResources() >=
-				Info.ProductionMinCashRequirement + GetDesiredReserve(queuesByCategory) + committedCost + cost;
+				GetActiveProductionMinCashRequirement() + GetDesiredReserve(queuesByCategory) + committedCost + cost;
 		}
 
 		bool HasReservationBudget(ActorInfo actorInfo, int committedCost, ILookup<string, ProductionQueue> queuesByCategory)
 		{
 			return HasBudgetFor(actorInfo, committedCost, queuesByCategory);
+		}
+
+		BotProfile ActiveProfile => profileModule != null && !profileModule.IsTraitDisabled
+			? profileModule.ActiveProfile
+			: BotProfile.Adaptive;
+
+		int GetActiveProductionMinCashRequirement()
+		{
+			var v = ActiveProfile switch
+			{
+				BotProfile.Eco => Info.EcoProductionMinCashRequirement,
+				BotProfile.Rush => Info.RushProductionMinCashRequirement,
+				BotProfile.Turtle => Info.TurtleProductionMinCashRequirement,
+				BotProfile.Tech => Info.TechProductionMinCashRequirement,
+				BotProfile.Expansion => Info.ExpansionProductionMinCashRequirement >= 0 ? Info.ExpansionProductionMinCashRequirement : Info.EcoProductionMinCashRequirement,
+				BotProfile.Steamroller => Info.SteamrollerProductionMinCashRequirement,
+				_ => -1
+			};
+
+			return v >= 0 ? v : Info.ProductionMinCashRequirement;
+		}
+
+		int GetActiveDesiredCashReserve()
+		{
+			var v = ActiveProfile switch
+			{
+				BotProfile.Eco => Info.EcoDesiredCashReserve,
+				BotProfile.Rush => Info.RushDesiredCashReserve,
+				BotProfile.Turtle => Info.TurtleDesiredCashReserve,
+				BotProfile.Tech => Info.TechDesiredCashReserve,
+				BotProfile.Expansion => Info.ExpansionDesiredCashReserve >= 0 ? Info.ExpansionDesiredCashReserve : Info.EcoDesiredCashReserve,
+				BotProfile.Steamroller => Info.SteamrollerDesiredCashReserve,
+				_ => -1
+			};
+
+			return v >= 0 ? v : Info.DesiredCashReserve;
+		}
+
+		int GetActiveAdditionalCashReservePerQueue()
+		{
+			var v = ActiveProfile switch
+			{
+				BotProfile.Eco => Info.EcoAdditionalCashReservePerQueue,
+				BotProfile.Rush => Info.RushAdditionalCashReservePerQueue,
+				BotProfile.Turtle => Info.TurtleAdditionalCashReservePerQueue,
+				BotProfile.Tech => Info.TechAdditionalCashReservePerQueue,
+				BotProfile.Expansion => Info.ExpansionAdditionalCashReservePerQueue >= 0 ? Info.ExpansionAdditionalCashReservePerQueue : Info.EcoAdditionalCashReservePerQueue,
+				BotProfile.Steamroller => Info.SteamrollerAdditionalCashReservePerQueue,
+				_ => -1
+			};
+
+			return v >= 0 ? v : Info.AdditionalCashReservePerQueue;
+		}
+
+		bool HasCapturableTarget()
+		{
+			return world.Actors.Any(a =>
+			{
+				if (a.IsDead || !a.IsInWorld || a.Owner == player)
+					return false;
+
+				if (Info.CapturableActorTypes.Count > 0 && !Info.CapturableActorTypes.Contains(a.Info.Name))
+					return false;
+
+				if (Info.CheckCaptureTargetsForVisibility && !a.CanBeViewedByPlayer(player))
+					return false;
+
+				return a.Info.HasTraitInfo<CapturableInfo>();
+			});
 		}
 
 		bool TemplateAppliesToFaction(CNTeamTemplateInfo template)

@@ -103,7 +103,7 @@ DSHP:
 		LandingSounds: dropdwn1.aud
 		IdealSeparation: 1275
 		CruiseAltitude: 12c512
-		AltitudeVelocity: 256
+		AltitudeVelocity: 128
 		MoveIntoShroud: true
 	CNHealth:
 		HP: 200
@@ -121,6 +121,7 @@ ORCA_F1:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsVTOL
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -141,26 +142,59 @@ ORCA_F1:
 		Speed: 186
 		TakeoffSounds: orcaup1.aud
 		LandingSounds: orcadwn1.aud
-		AltitudeVelocity: 128
+		AltitudeVelocity: 96
+		Pitch: -32
+		PitchSpeed: 2
+		Roll: 90
+		RollSpeed: 15
 		CanSlide: false
 		TakeOffOnResupply: true
+		IdealSeparation: 1c512
 	CNHealth:
-		HP: 250
+		HP: 150
 	Armor:
 		Type: Light
-	Armament:
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Medium
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
+	Armament@Missiles:
+		Name: missiles
 		Weapon: Hellfire
 		PauseOnCondition: !ammo
+		MuzzleSequence: muzzle_rockets
+		MuzzlePalette: effect
+		LocalOffset: 300,-180,220, 300,180,220
+	Armament@Gun:
+		Name: gun
+		Weapon: OrcaCannon
+		PauseOnCondition: !ammo
+		MuzzleSequence: muzzle_gun
+		MuzzlePalette: effect
+		LocalOffset: 1000,0,220
 	AttackAircraft:
+		Armaments: missiles, gun
 		FacingTolerance: 80
 		PersistentTargeting: false
 		Voice: Attack
 		PauseOnCondition: empdisable
-		AttackType: Hover
 	AmmoPool:
-		Ammo: 5
+		Name: missiles
+		Armaments: missiles
+		Ammo: 6
 		AmmoCondition: ammo
-	RenderSprites:
 	SpawnActorOnDeath:
 		Actor: ORCA_F1.Husk
 		RequiresCondition: !empdisable
@@ -169,13 +203,16 @@ ORCA_F1:
 		RequiresCondition: empdisable
 	Rearmable:
 		RearmActors: gahpad, nahpad
+		AmmoPools: missiles, flares
 	WithAmmoPipsDecoration:
 		Position: BottomLeft
 		RequiresSelection: true
 		Margin: 4, 5
+		AmmoPools: missiles
 		FullSequence: pip-ammo
 		EmptySequence: pip-ammoempty
 		Palette: pips
+	WithMuzzleOverlay:
 	BotCapabilities:
 		Capabilities: Aircraft, AntiArmor
 
@@ -183,6 +220,7 @@ ORCA_B:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsVTOL
 	Valued:
 		Cost: 1600
 	Tooltip:
@@ -209,10 +247,31 @@ ORCA_B:
 		LandingSounds: orcadwn1.aud
 		CanHover: false
 		CanSlide: false
+		Pitch: -32
+		PitchSpeed: 2
+		Roll: 90
+		RollSpeed: 15
+		IdealSeparation: 2c0
 	CNHealth:
-		HP: 500
+		HP: 200
 	Armor:
 		Type: Medium
+	SecondaryHealth@ARMOR:
+		MaxHP: 300
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Armament:
 		Weapon: Bomb
 		PauseOnCondition: !ammo
@@ -226,7 +285,6 @@ ORCA_B:
 		ReloadCount: 5
 		ReloadDelay: 200
 		AmmoCondition: ammo
-	RenderSprites:
 	Hovers@CRUISING:
 		RequiresCondition: cruising
 	SpawnActorOnDeath:
@@ -237,10 +295,12 @@ ORCA_B:
 		RequiresCondition: empdisable
 	Rearmable:
 		RearmActors: gahpad, nahpad
+		AmmoPools: primary, flares
 	WithAmmoPipsDecoration:
 		Position: BottomLeft
 		RequiresSelection: true
 		Margin: 4, 5
+		AmmoPools: primary
 		PipCount: 2
 		FullSequence: pip-ammo
 		EmptySequence: pip-ammoempty
@@ -257,6 +317,7 @@ ORCA_B:
 ORCA_TRAN:
 	Inherits: ^EMPableAircraft
 	Inherits@CARGOPIPS: ^CargoPips
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsVTOL
 	Valued:
 		Cost: 1200
 	Tooltip:
@@ -270,7 +331,8 @@ ORCA_TRAN:
 		BuildPaletteOrder: 50
 		Prerequisites: ~gahpad, gadept, ~techlevel.medium
 		Description: actor-orcatran-description
-	RenderSprites:
+	Selectable:
+		Bounds: 905, 1448
 	Aircraft:
 		TurnSpeed: 20
 		Speed: 84
@@ -278,7 +340,11 @@ ORCA_TRAN:
 		Crushes: crate, infantry
 		TakeoffSounds: orcaup1.aud
 		LandingSounds: orcadwn1.aud
-		IdealSeparation: 1275
+		IdealSeparation: 1c512
+		Pitch: -32
+		PitchSpeed: 2
+		Roll: 90
+		RollSpeed: 15
 	CNHealth:
 		HP: 200
 	Armor:
@@ -298,10 +364,11 @@ ORCA_TRAN:
 	WithAircraftLandingEffect:
 		Image: dropland
 	BotCapabilities:
-		Capabilities: Aircraft, Transport
+		Capabilities: Aircraft, Transporter
 
 TRNSPORT:
 	Inherits: ^EMPableAircraft
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsVTOL
 	Valued:
 		Cost: 750
 	Tooltip:
@@ -331,7 +398,6 @@ TRNSPORT:
 		HP: 175
 	Armor:
 		Type: Light
-	RenderSprites:
 	Selectable:
 		Bounds: 1327, 1930, 0, -482
 	SpawnActorOnDeath:
@@ -344,3 +410,97 @@ TRNSPORT:
 		Image: caryland
 	BotCapabilities:
 		Capabilities: Aircraft, VehicleTransport
+
+HORNET:
+	Inherits: ^EMPableAircraft
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsAircraft
+	Valued:
+		Cost: 1500
+	Tooltip:
+		Name: actor-hornet.name
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Air
+		BuildPaletteOrder: 50
+		Prerequisites: ~gahpad, gatech
+		Description: actor-scrin.description
+	Selectable:
+		Bounds: 905, 1448
+	Voiced:
+		VoiceSet: Orca
+	Aircraft:
+		CruiseAltitude: 8c0
+		TurnSpeed: 15
+		Speed: 200
+		IdleTurnSpeed: 6
+		IdleSpeed: 100
+		TakeoffSounds: dropup1.aud
+		LandingSounds: dropdwn1.aud
+		CanHover: false
+		CanSlide: false
+		Pitch: 0
+		PitchSpeed: 2
+		Roll: 160
+		RollSpeed: 10
+		IdealSeparation: 2c012
+	CNHealth:
+		HP: 200
+	Armor:
+		Type: Light
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Medium
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
+	Armament:
+		Weapon: Hellstorm
+		PauseOnCondition: !ammo
+	AttackAircraft:
+		Voice: Attack
+		FacingTolerance: 80
+		PersistentTargeting: false
+		PauseOnCondition: empdisable
+	AmmoPool:
+		Ammo: 4
+		ReloadCount: 1
+		AmmoCondition: ammo
+	SpawnActorOnDeath:
+		Actor: HORNET.Husk
+		RequiresCondition: !empdisable
+	SpawnActorOnDeath@EMP:
+		Actor: HORNET.Husk.EMP
+		RequiresCondition: empdisable
+	Rearmable:
+		RearmActors: gahpad, nahpad
+		AmmoPools: primary, flares
+	WithAmmoPipsDecoration:
+		Position: BottomLeft
+		RequiresSelection: true
+		Margin: 4, 5
+		AmmoPools: primary
+		PipCount: 3
+		FullSequence: pip-ammo
+		EmptySequence: pip-ammoempty
+		Palette: pips
+	AppearsOnRadar:
+		ValidRelationships: Ally
+	AppearsOnRadar@ENEMY:
+		UseLocation: true
+		ValidRelationships: Neutral, Enemy
+		RequiresCondition: !rank-elite
+	BotCapabilities:
+		Capabilities: Aircraft, AntiArmor

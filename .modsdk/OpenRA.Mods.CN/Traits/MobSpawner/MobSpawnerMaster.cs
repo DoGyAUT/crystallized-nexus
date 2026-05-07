@@ -40,6 +40,9 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("If true, slaves can act independently (no forced movement/targeting from master).")]
 		public readonly bool SlavesHaveFreeWill = false;
 
+		[Desc("If true, killed slaves are not replaced after the initial spawn.")]
+		public readonly bool DisableRespawning = false;
+
 		[Desc("Aggregate slave HP into the master's health bar (C&C Generals-style mob).")]
 		public readonly bool AggregateHealth = true;
 
@@ -307,7 +310,7 @@ namespace OpenRA.Mods.CN.Traits
 		void ITick.Tick(Actor self)
 		{
 			// Respawn timer
-			if (spawnReplaceTicks > 0 && !IsTraitDisabled)
+			if (spawnReplaceTicks > 0 && !IsTraitDisabled && !Info.DisableRespawning)
 			{
 				spawnReplaceTicks--;
 
@@ -429,7 +432,7 @@ namespace OpenRA.Mods.CN.Traits
 
 			UpdateProtectedCondition(self);
 
-			if (spawnReplaceTicks <= 0)
+			if (!Info.DisableRespawning && spawnReplaceTicks <= 0)
 				spawnReplaceTicks = Info.RespawnTicks;
 		}
 
@@ -459,24 +462,10 @@ namespace OpenRA.Mods.CN.Traits
 
 		void INotifyExitedCargo.OnExitedCargo(Actor self, Actor transport)
 		{
-			var cargo = transport.TraitOrDefault<Cargo>();
-			if (cargo == null)
-				return;
-
-			self.World.AddFrameEndTask(w =>
-			{
-				foreach (var se in slaveEntries)
-				{
-					if (!se.IsValid || se.Actor.IsInWorld)
-						continue;
-
-					var passenger = se.Actor.TraitOrDefault<Passenger>();
-					if (passenger == null || passenger.Transport != transport)
-						continue;
-
-					cargo.Unload(transport, se.Actor);
-				}
-			});
+			// Slaves are loaded into the transport individually (via OnEnteredCargo), so the
+			// Cargo activity ejects them on its own — no manual unload needed here.
+			// When the transport is killed, Cargo.Killed handles all passengers directly;
+			// calling cargo.Unload here too would add each slave to World twice → ArgumentException.
 		}
 
 		// --- Position aggregation (nexus mode only) ---

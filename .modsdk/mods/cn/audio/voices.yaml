@@ -349,6 +349,7 @@ Predator:
 		Move: predator_m1, predator_m2, predator_m3, predator_m4, predator_m5, predator_m6, predator_m7
 		Action: predator_a1, predator_a2, predator_a3, predator_a4, predator_a5, predator_a6, predator_a7, predator_a8, predator_a9, predator_a10, predator_a11, predator_a12, predator_a13
 		Attack: predator_a1, predator_a2, predator_a3, predator_a4, predator_a5, predator_a6, predator_a7, predator_a8, predator_a9, predator_a10, predator_a11, predator_a12, predator_a13
+		Unload: predator_m1
 
 Nharv:
 	Voices:
@@ -367,6 +368,7 @@ SAPC:
 		Select: sapc_s1, sapc_s2, sapc_s3, sapc_s4, sapc_s5, sapc_s6, sapc_s7, sapc_s8, sapc_s9, sapc_s10
 		Move: sapc_m1, sapc_m2, sapc_m3, sapc_m4, sapc_m5, sapc_m6, sapc_m7, sapc_m8, sapc_m9, sapc_m10
 		Action: sapc_a1, sapc_a2, sapc_a3, sapc_a4, sapc_a5, sapc_a6
+		Unload: sapc_m1
 
 Devil:
 	Voices:
@@ -374,7 +376,7 @@ Devil:
 		Move: ftnk_m1, ftnk_m2, ftnk_m3, ftnk_m4, ftnk_m5, ftnk_m6, ftnk_m7, ftnk_m8
 		Attack: ftnk_a1, ftnk_a2, ftnk_a3, ftnk_a4, ftnk_a5, ftnk_a6, ftnk_a7, ftnk_a8, ftnk_a9, ftnk_a10, ftnk_a11, ftnk_a12
 
-Scoprion:
+Scorpion:
 	Voices:
 		Select: scorpion_s1, scorpion_s2, scorpion_s3, scorpion_s4, scorpion_s5, scorpion_s6, scorpion_T1, scorpion_T2, scorpion_T3
 		Move: scorpion_m1, scorpion_m2, scorpion_m3, scorpion_m4, scorpion_m5, scorpion_m6, scorpion_m7, scorpion_m8, scorpion_m9

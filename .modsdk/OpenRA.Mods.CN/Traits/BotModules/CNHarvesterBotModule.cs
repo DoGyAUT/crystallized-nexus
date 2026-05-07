@@ -128,6 +128,7 @@ namespace OpenRA.Mods.Common.Traits
 		ResourceClaimLayer claimLayer;
 		IBotRequestUnitProduction[] requestUnitProduction;
 		CNResourceMapBotModule resourceMapModule;
+		CNBotProfileBotModule profileModule;
 
 		int scanForLowEffectHarvestersTicks;
 		int scanForIdleHarvestersTicks;
@@ -192,6 +193,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (firstTick)
 			{
 				resourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
+				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				firstTick = false;
 			}
 
@@ -238,7 +240,7 @@ namespace OpenRA.Mods.Common.Traits
 			var target = Info.InitialHarvesters;
 
 			if (resourceMapModule == null)
-				return Math.Max(target, refineryCount);
+				return ApplyStrategyHarvesterTarget(Math.Max(target, refineryCount), refineryCount);
 
 			var fieldDemand = 0;
 			for (var i = 0; i < resourceMapModule.GetIndicesLength(); i++)
@@ -277,7 +279,17 @@ namespace OpenRA.Mods.Common.Traits
 			// Keep one small spare above the current worked-field demand, but do not let
 			// refinery count alone explode the harvester population.
 			target = Math.Max(target, fieldDemand + (refineryCount > 0 ? 1 : 0));
+			target = ApplyStrategyHarvesterTarget(target, refineryCount);
 			return Math.Min(target, refineryCap);
+		}
+
+		int ApplyStrategyHarvesterTarget(int target, int refineryCount)
+		{
+			var percent = profileModule?.CurrentStrategy.HarvesterTargetPercent ?? 100;
+			if (percent != 100)
+				target = Exts.IntegerDivisionRoundingAwayFromZero(target * Math.Max(1, percent), 100);
+
+			return Math.Max(refineryCount, target);
 		}
 
 		void FindAndOrderLowEffectHarvesterOnResourceMap(IBot bot)
@@ -305,7 +317,7 @@ namespace OpenRA.Mods.Common.Traits
 				attraction >>= 1;
 
 				if (baseIndice.PlayerRefineryCount <= 0 && lackHarvs > 0)
-					lackHarvs = 1;
+					lackHarvs = 2;
 
 				if (baseIndice.EnemyBaseCount > 0 || baseIndice.EnemyUnitCount > 0)
 					attraction -= indiceSideLengthSquare << 4;

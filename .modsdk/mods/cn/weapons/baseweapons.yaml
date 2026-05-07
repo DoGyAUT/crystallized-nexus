@@ -238,7 +238,7 @@
 	Report: scrin5b.aud
 	ValidTargets: Ground
 	Warhead@1Dam: SpreadDamage
-		ValidTargets: Ground
+		ValidTargets: Ground, Air
 	Warhead@2Eff: CreateEffect
 		Explosions: large_explosion
 		ExplosionPalette: apolra2

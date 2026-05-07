@@ -12,7 +12,7 @@ GASOL:
 	Valued:
 		Cost: 120
 	Tooltip:
-		Name: actor-e1.name
+		Name: actor-gasol.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Voiced:
@@ -106,7 +106,6 @@ E2:
 #	SoundOnDamageTransition:
 #		DamagedSounds: gdi2_f1.aud, gdi2_f2.aud, gdi2_f3.aud, gdi2_f4.aud, gdi2_f5.aud, gdi2_f6.aud, gdi2_f7.aud, gdi2_f8.aud
 
-
 E2R3:
 	Inherits: E2
 	RenderSprites:
@@ -198,7 +197,7 @@ MEDIC:
 	Passenger:
 		CustomPipType: red
 	BotCapabilities:
-		Capabilities: Infantry
+		Capabilities: Infantry, Medic
 #	SoundOnDamageTransition:
 #		DamagedSounds: medic_f1.aud, medic_f2.aud, medic_f3.aud, medic_f4.aud
 
@@ -216,7 +215,7 @@ GASNIPER:
 	Valued:
 		Cost: 500
 	Tooltip:
-		Name: actor-e1.name
+		Name: actor-gasniper.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Voiced:
@@ -399,3 +398,4 @@ JUMPJET.Husk:
 		RequiresCondition: water-death
 		FallbackSequence: die-splash
 	Interactable:
+	WithShadow:

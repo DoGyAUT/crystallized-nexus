@@ -316,16 +316,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.SetActorToTarget(enemy);
 			}
 
-			if (squad.Type == CNSquadType.Assault && squad.TargetActor.Info.HasTraitInfo<BuildingInfo>())
-			{
-				squad.FuzzyStateMachine.ChangeState(squad, new AssaultStagingState());
-				return;
-			}
-
 			if (squad.Type == CNSquadType.Rush)
 			{
 				var rushTarget = FindRushTarget(squad, squad.TargetActor);
 				squad.SetActorToTarget(rushTarget);
+			}
+
+			if (squad.SquadManager.ShouldHoldForAttackWave(squad))
+			{
+				squad.SquadManager.GatherAttackWave(squad);
+				return;
+			}
+
+			if (squad.Type == CNSquadType.Assault && squad.TargetActor.Info.HasTraitInfo<BuildingInfo>())
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new AssaultStagingState());
+				return;
 			}
 
 			// Issue move order and hand off to AttackMoveState for regrouping + engagement

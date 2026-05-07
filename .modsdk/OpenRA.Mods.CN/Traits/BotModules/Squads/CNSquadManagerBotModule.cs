@@ -10,11 +10,12 @@
 #endregion
 
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules.Squads.States;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.CN.Traits.BotModules.Squads.States;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -85,6 +86,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		[Desc("If true, units in active squads of this template can be poached by higher-priority templates.")]
 		public readonly bool Poachable = false;
+
+		[Desc("When set, limits MaxInstances based on how many of this building type the player owns. " +
+			"Effective MaxInstances = min(MaxInstances, max(1, buildingCount * UnitsPerBuilding / unitsPerSquad)) when buildingCount > 0, else 0.")]
+		public readonly string ScaleWithBuilding = null;
+
+		[Desc("Number of units from this squad that each ScaleWithBuilding instance can support. " +
+			"Used only when ScaleWithBuilding is set.")]
+		public readonly int UnitsPerBuilding = 1;
 
 		[Desc("Priority bonus when a visible enemy unit has the given capability tag (respects shroud). " +
 			"Example: Aircraft: 50 adds +50 when a visible enemy has BotCapabilities: Aircraft.")]
@@ -162,6 +171,51 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		[Desc("How many cells support squads stay behind their attached squad.")]
 		public readonly int SupportFollowRangeCells = 10;
+
+		[Desc("Per-role priority modifiers while the active strategy profile is Expansion/Eco.")]
+		public readonly FrozenDictionary<string, int> EcoRolePriorityModifiers = null;
+
+		[Desc("Per-role priority modifiers while the active strategy profile is Rush.")]
+		public readonly FrozenDictionary<string, int> RushRolePriorityModifiers = null;
+
+		[Desc("Per-role priority modifiers while the active strategy profile is Turtle.")]
+		public readonly FrozenDictionary<string, int> TurtleRolePriorityModifiers = null;
+
+		[Desc("Per-role priority modifiers while the active strategy profile is Expansion.")]
+		public readonly FrozenDictionary<string, int> ExpansionRolePriorityModifiers = null;
+
+		[Desc("Per-role priority modifiers while the active strategy profile is Tech.")]
+		public readonly FrozenDictionary<string, int> TechRolePriorityModifiers = null;
+
+		[Desc("Per-role priority modifiers while the active strategy profile is Steamroller.")]
+		public readonly FrozenDictionary<string, int> SteamrollerRolePriorityModifiers = null;
+
+		[Desc("Target role shares while the active strategy profile is Rush.")]
+		public readonly FrozenDictionary<string, int> RushRoleTargetShares = null;
+
+		[Desc("Target role shares while the active strategy profile is Turtle.")]
+		public readonly FrozenDictionary<string, int> TurtleRoleTargetShares = null;
+
+		[Desc("Target role shares while the active strategy profile is Expansion.")]
+		public readonly FrozenDictionary<string, int> ExpansionRoleTargetShares = null;
+
+		[Desc("Target role shares while the active strategy profile is Tech.")]
+		public readonly FrozenDictionary<string, int> TechRoleTargetShares = null;
+
+		[Desc("Target role shares while the active strategy profile is Steamroller.")]
+		public readonly FrozenDictionary<string, int> SteamrollerRoleTargetShares = null;
+
+		[Desc("Minimum total units in attack-wave roles before attack squads leave base. Keys are BotProfile names.")]
+		public readonly FrozenDictionary<string, int> AttackWaveMinUnits = null;
+
+		[Desc("Maximum ticks a newly created attack squad waits for its profile's attack wave.")]
+		public readonly FrozenDictionary<string, int> AttackWaveMaxHoldTicks = null;
+
+		[Desc("For Steamroller, grow AttackWaveMinUnits by this interval in world ticks. 0 = disabled.")]
+		public readonly int SteamrollerAttackWaveMinUnitGrowthInterval = 0;
+
+		[Desc("For Steamroller, add this many units to AttackWaveMinUnits per growth interval.")]
+		public readonly int SteamrollerAttackWaveMinUnitGrowthAmount = 0;
 
 		[Desc("Enemy target types to never attack.")]
 		public readonly BitSet<TargetableType> IgnoredEnemyTargetTypes;
@@ -246,6 +300,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		// Nemesis system
 		CombatAnalysisBotModule combatAnalysis;
+		CNBotProfileBotModule profileModule;
 
 		CPos initialBaseCenter;
 
@@ -272,6 +327,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			combatAnalysis = Player.PlayerActor
 				.TraitsImplementing<CombatAnalysisBotModule>()
 				.FirstOrDefault();
+			profileModule = Player.PlayerActor
+				.TraitsImplementing<CNBotProfileBotModule>()
+				.FirstOrDefault(t => t.IsTraitEnabled());
 
 			foreach (var (_, template) in Info.Teams)
 			{
@@ -459,6 +517,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public Dictionary<string, int> GetCurrentDemand(Dictionary<string, int> existingByType = null)
 		{
+			RebuildOrderedTeams();
+
 			var demand = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
 			foreach (var squad in Squads)
@@ -490,7 +550,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					continue;
 
 				var activeCount = templateCounts.GetValueOrDefault(templateName);
-				var missingInstances = Math.Max(0, template.MaxInstances - activeCount);
+				var missingInstances = Math.Max(0, GetEffectiveMaxInstances(template) - activeCount);
 				if (missingInstances <= 0)
 					continue;
 
@@ -516,6 +576,23 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return demand;
 		}
 
+		int GetEffectiveMaxInstances(CNTeamTemplateInfo template)
+		{
+			if (template.ScaleWithBuilding == null)
+				return template.MaxInstances;
+
+			var buildingCount = GetCachedOwnBuildings().Count(a => a.Info.Name == template.ScaleWithBuilding);
+			if (buildingCount <= 0)
+				return 0;
+
+			var unitsPerSquad = template.Slots.Values.Where(s => !s.Optional).Sum(s => s.Count);
+			var scaledMax = unitsPerSquad > 0
+				? Math.Max(1, buildingCount * template.UnitsPerBuilding / unitsPerSquad)
+				: template.MaxInstances;
+
+			return Math.Min(template.MaxInstances, scaledMax);
+		}
+
 		public int GetTemplateUnitCap(string typeName)
 		{
 			if (string.IsNullOrEmpty(typeName))
@@ -537,7 +614,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 						if (!string.Equals(allowedType, typeName, StringComparison.OrdinalIgnoreCase))
 							continue;
 
-						cap += slot.Count * template.MaxInstances;
+						cap += slot.Count * GetEffectiveMaxInstances(template);
 						break;
 					}
 				}
@@ -620,6 +697,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (idleUnits.Count == 0)
 				return;
 
+			RebuildOrderedTeams();
+
 			var claimedThisPass = new HashSet<Actor>();
 			var availableByType = BuildAvailableUnitsByType(idleUnits, claimedThisPass);
 
@@ -630,7 +709,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			{
 				if (!TemplateAppliesToFaction(template))
 					continue;
-				if (templateCounts.GetValueOrDefault(templateName) >= template.MaxInstances)
+				if (templateCounts.GetValueOrDefault(templateName) >= GetEffectiveMaxInstances(template))
 					continue;
 
 				var assignments = TryFillSlots(template, availableByType, claimedThisPass);
@@ -865,6 +944,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int EffectivePriority(CNTeamTemplateInfo template)
 		{
 			var bonus = 0;
+			bonus += GetProfileRolePriorityModifier(template.Role);
+			bonus += GetProfileRoleTargetShareModifier(template.Role);
+
 			foreach (var (tag, value) in template.ThreatBonuses)
 				if (activeVisibleThreatTags.Contains(tag))
 					bonus += value;
@@ -878,6 +960,151 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				if (activeGlobalThreatCounts.TryGetValue(tag, out var gCount))
 					bonus += value * gCount;
 			return template.Priority + bonus;
+		}
+
+		int GetProfileRolePriorityModifier(CNSquadType role)
+		{
+			var map = ActiveProfile() switch
+			{
+				BotProfile.Rush => Info.RushRolePriorityModifiers,
+				BotProfile.Turtle => Info.TurtleRolePriorityModifiers,
+				BotProfile.Tech => Info.TechRolePriorityModifiers,
+				BotProfile.Steamroller => Info.SteamrollerRolePriorityModifiers,
+				BotProfile.Expansion or BotProfile.Eco => Info.ExpansionRolePriorityModifiers ?? Info.EcoRolePriorityModifiers,
+				_ => null
+			};
+
+			return TryGetRoleValue(map, role, out var value) ? value : 0;
+		}
+
+		int GetProfileRoleTargetShareModifier(CNSquadType role)
+		{
+			var shares = GetProfileRoleTargetShares();
+			if (shares == null || shares.Count == 0)
+				return 0;
+
+			if (!TryGetRoleValue(shares, role, out var targetShare))
+				targetShare = 0;
+
+			var activeTemplateSquads = Squads.Count(s => s.IsValid && s.IsTemplateBacked);
+			if (activeTemplateSquads == 0)
+				return targetShare > 0 ? Math.Min(30, targetShare) : -10;
+
+			var activeRoleSquads = Squads.Count(s => s.IsValid && s.IsTemplateBacked && s.Type == role);
+			if (targetShare <= 0)
+				return activeTemplateSquads >= 3 ? -35 : -10;
+
+			var desiredSquads = Math.Max(1, (activeTemplateSquads + 1) * targetShare / 100);
+			if (activeRoleSquads < desiredSquads)
+				return Math.Min(50, (desiredSquads - activeRoleSquads) * 18 + targetShare / 3);
+
+			var currentShare = activeRoleSquads * 100 / activeTemplateSquads;
+			if (currentShare > targetShare + 10)
+				return -Math.Min(60, (currentShare - targetShare) * 2);
+
+			return Math.Min(12, targetShare / 4);
+		}
+
+		FrozenDictionary<string, int> GetProfileRoleTargetShares()
+		{
+			return ActiveProfile() switch
+			{
+				BotProfile.Rush => Info.RushRoleTargetShares,
+				BotProfile.Turtle => Info.TurtleRoleTargetShares,
+				BotProfile.Tech => Info.TechRoleTargetShares,
+				BotProfile.Steamroller => Info.SteamrollerRoleTargetShares,
+				BotProfile.Expansion or BotProfile.Eco => Info.ExpansionRoleTargetShares,
+				_ => null
+			};
+		}
+
+		BotProfile ActiveProfile()
+		{
+			profileModule ??= Player.PlayerActor
+				.TraitsImplementing<CNBotProfileBotModule>()
+				.FirstOrDefault(t => t.IsTraitEnabled());
+
+			return profileModule?.ActiveProfile ?? BotProfile.Adaptive;
+		}
+
+		static bool TryGetRoleValue(FrozenDictionary<string, int> map, CNSquadType role, out int value)
+		{
+			value = 0;
+			return map != null &&
+				(map.TryGetValue(role.ToString(), out value) ||
+				 map.TryGetValue(role.ToString().ToLowerInvariant(), out value));
+		}
+
+		public bool ShouldHoldForAttackWave(CNSquad squad)
+		{
+			if (squad == null || !squad.IsOperational || !IsAttackWaveRole(squad.Type))
+				return false;
+
+			var minUnits = GetAttackWaveMinUnits();
+			if (minUnits <= 0 || AttackWaveUnitCount() >= minUnits)
+				return false;
+
+			var maxHoldTicks = GetProfileInt(Info.AttackWaveMaxHoldTicks, 0);
+			if (maxHoldTicks <= 0)
+				return true;
+
+			return World.WorldTick - squad.CreatedTick < maxHoldTicks;
+		}
+
+		public void GatherAttackWave(CNSquad squad)
+		{
+			if (squad == null || !squad.IsValid)
+				return;
+
+			var rally = World.Map.CenterOfCell(GetRandomBaseCenter());
+			squad.Bot.QueueOrder(new Order("Move", null, Target.FromPos(rally), false,
+				groupedActors: squad.OrderableUnits.ToArray()));
+		}
+
+		int AttackWaveUnitCount()
+		{
+			var count = 0;
+			foreach (var squad in Squads)
+			{
+				if (!squad.IsValid || !squad.IsOperational || !IsAttackWaveRole(squad.Type))
+					continue;
+
+				count += squad.OrderableUnits.Count();
+			}
+
+			return count;
+		}
+
+		int GetAttackWaveMinUnits()
+		{
+			var minUnits = GetProfileInt(Info.AttackWaveMinUnits, 0);
+			if (minUnits <= 0 || ActiveProfile() != BotProfile.Steamroller ||
+				Info.SteamrollerAttackWaveMinUnitGrowthInterval <= 0 ||
+				Info.SteamrollerAttackWaveMinUnitGrowthAmount <= 0)
+				return minUnits;
+
+			return minUnits +
+				World.WorldTick / Info.SteamrollerAttackWaveMinUnitGrowthInterval *
+				Info.SteamrollerAttackWaveMinUnitGrowthAmount;
+		}
+
+		int GetProfileInt(FrozenDictionary<string, int> values, int fallback)
+		{
+			if (values == null)
+				return fallback;
+
+			var profile = ActiveProfile();
+			return values.TryGetValue(profile.ToString(), out var value) ||
+				values.TryGetValue(profile.ToString().ToLowerInvariant(), out value)
+					? value
+					: fallback;
+		}
+
+		static bool IsAttackWaveRole(CNSquadType role)
+		{
+			return role == CNSquadType.Assault ||
+				role == CNSquadType.Rush ||
+				role == CNSquadType.ArtilleryAssault;
 		}
 
 		void UpdateThreatTags()

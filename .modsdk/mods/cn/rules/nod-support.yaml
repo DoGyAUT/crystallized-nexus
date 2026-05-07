@@ -209,6 +209,10 @@ NAOBEL:
 		Palette: player
 		IsPlayerPalette: true
 		Sequence: idle-lights
+#	WithWaterReflection:
+#		RequiresCondition: !build-incomplete
+#		Offset: 0,0,-860
+#		WaterProbeRadius: 2
 	Power:
 		Amount: -150
 	BotCapabilities:

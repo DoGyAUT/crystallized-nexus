@@ -33,9 +33,19 @@ namespace OpenRA.Mods.CN.Traits
 			ActorPreviewInitializer init, RenderVoxelsInfo rv, string image, Func<WRot> orientation, int facings, PaletteReference p)
 		{
 			var body = init.Actor.TraitInfo<BodyOrientationInfo>();
+			var dynamics = init.GetOrDefault<VoxelDynamicsPreviewInit>();
 			var model = cache.GetModelSequence(image, Sequence);
-			yield return new ModelAnimation(model, () => Offset,
-				() => body.QuantizeOrientation(orientation(), facings),
+			yield return new ModelAnimation(model,
+				() => Offset + (dynamics != null ? dynamics.Offset.GetExtraOffset() : WVec.Zero),
+				() =>
+				{
+					var baseOrientation = body.QuantizeOrientation(orientation(), facings);
+					if (dynamics == null)
+						return baseOrientation;
+
+					var extra = dynamics.Rotation.GetExtraRotation();
+					return new WRot(extra.Roll, extra.Pitch, WAngle.Zero).Rotate(baseOrientation);
+				},
 				() => false, () => 0, ShowShadow);
 		}
 	}
@@ -54,7 +64,7 @@ namespace OpenRA.Mods.CN.Traits
 
 			var model = rv.Renderer.ModelCache.GetModelSequence(rv.Image, info.Sequence);
 			modelAnimation = new ModelAnimation(model,
-				() => info.Offset,
+				() => info.Offset + (dynamics != null ? dynamics.GetExtraOffset() : WVec.Zero),
 				() =>
 				{
 					var baseOrientation = body.QuantizeOrientation(self.Orientation);

@@ -115,6 +115,12 @@ CAARMR:
 	Inherits@shape: ^4x4Shape
 	Tooltip:
 		Name: actor-caarmr-name
+	TooltipDescription@ally:
+		Description: actor-caarmr.captured-desc
+		ValidRelationships: Ally
+	TooltipDescription@other:
+		Description: actor-caarmr.capturable-desc
+		ValidRelationships: Neutral, Enemy
 	Building:
 		Footprint: xxxx xxxx xxxx xxxx
 		Dimensions: 4, 4
@@ -145,6 +151,12 @@ CAARAY:
 	Inherits@shape: ^2x2Shape
 	Tooltip:
 		Name: actor-caaray-name
+	TooltipDescription@ally:
+		Description: actor-caaray.captured-desc
+		ValidRelationships: Ally
+	TooltipDescription@other:
+		Description: actor-caaray.capturable-desc
+		ValidRelationships: Neutral, Enemy
 	Building:
 		Footprint: xx xx
 		Dimensions: 2, 2

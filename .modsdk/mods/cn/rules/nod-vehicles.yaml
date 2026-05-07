@@ -287,7 +287,7 @@ LTNK:
 	Tooltip:
 		Name: actor-ltnk.name
 	Voiced:
-		VoiceSet: Scoprion
+		VoiceSet: Scorpion
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Buildable:
@@ -366,7 +366,7 @@ TTNK:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Voiced:
-		VoiceSet: Scoprion
+		VoiceSet: Scorpion
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
@@ -482,12 +482,10 @@ TTNK:
 		RequiresCondition: deployed
 	CNWithVoxelBarrel@1DEPLOYED:
 		Armament: deployedprimary
-		Turret: deployed
 		RequiresCondition: deployed
 	CNWithVoxelBarrel@2DEPLOYED:
 		Armament: deployedsecondary
 		Sequence: barrel2
-		Turret: deployed
 		RequiresCondition: deployed
 	Armament@DEPLOYEDprimary:
 		Name: deployedprimary
@@ -619,7 +617,6 @@ NHWTZ:
 	CNWithVoxelTurret@deployed:
 		Sequence: deployed_turret
 		Turret: deployed
-		Recoils: False
 		RequiresCondition: deployed
 	CNWithVoxelBarrel:
 		Sequence: deployed_barrel

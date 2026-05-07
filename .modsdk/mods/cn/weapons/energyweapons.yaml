@@ -107,18 +107,19 @@ CyCannon:
 Proton:
 	Inherits: ^EnergyBlast
 	Inherits@FLASH: ^FlashSmallW
-	Range: 5c0
+	Range: 10c0
 	Burst: 5
-	BurstDelays: 3
+	BurstDelays: 10
+	ValidTargets: Ground, Air
 	Projectile: Bullet
-		Speed: 341
+		Speed: 650
 		Blockable: false
 		Shadow: true
-		Inaccuracy: 128
+		Inaccuracy: 256
 		Image: dualproton
 	Warhead@1Dam: SpreadDamage
 		Spread: 128
-		Damage: 50
+		Damage: 80
 	Warhead@2Eff: CreateEffect
 		Explosions: protexp_medium
 		ExplosionPalette: effect

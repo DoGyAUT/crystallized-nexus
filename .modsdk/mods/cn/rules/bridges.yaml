@@ -7,10 +7,14 @@ CABHUT:
 		Dimensions: 1, 1
 	BridgeHut:
 		NeighbourOffsets: -1,-1, -1,0, -1,1, 0,-1, 0,1, 1,-1, 1,0, 1,1
+	GrantConditionOnPrerequisite@DESTROYABLEBRIDGES:
+		Condition: bridge-destroyable
+		Prerequisites: global-destroyable-bridges
 	RenderSprites:
 		Palette: player
 	Targetable:
 		TargetTypes: C4
+		RequiresCondition: bridge-destroyable
 	-IsometricSelectable:
 	-IsometricSelectionDecorations:
 	Interactable:
@@ -45,6 +49,10 @@ CABHUT:
 	Targetable:
 		TargetTypes: Ground, Building, Bridge
 		RequiresForceFire: true
+		RequiresCondition: bridge-destroyable
+	GrantConditionOnPrerequisite@DESTROYABLEBRIDGES:
+		Condition: bridge-destroyable
+		Prerequisites: global-destroyable-bridges
 	CNHealth:
 		HP: 500
 	Armor:

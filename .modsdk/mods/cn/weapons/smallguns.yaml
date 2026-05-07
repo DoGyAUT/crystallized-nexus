@@ -18,7 +18,7 @@ NMinigun:
 
 M1Carbine:
 	Inherits: ^MG
-	Report: infgun3.aud
+	Report: infgun3.aud, gostgun1.aud, slvkgun1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 120
 
@@ -108,6 +108,34 @@ JumpCannon:
 	Report: jumpjet1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
+
+OrcaCannon:
+	Inherits: ^MGBullet
+	ReloadDelay: 20
+	Range: 7c0
+	Burst: 10
+	BurstDelays: 4
+	Report: tsgun4.aud
+	ValidTargets: Ground, Air
+	Projectile: Bullet
+		Image: 
+		Palette: effect
+		Inaccuracy: 1c0
+		ContrailLength: 3
+		ContrailStartWidth: 32
+		ContrailEndWidth: 0c16
+	Warhead@1Dam: SpreadDamage
+		Damage: 100
+	Warhead@2Eff: CreateEffect
+		Explosions: gatpiff_single
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3Eff: CreateEffect
+		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Structure
 
 AssaultCannon:
 	Inherits: ^MG

@@ -251,7 +251,6 @@ IonStormStrike:
 	Warhead@2Smu: LeaveSmudge
 		SmudgeType: LargeScorch
 		InvalidTargets: Vehicle, Building, Wall
-		ImpactActors: false
 	Warhead@3Efx: CreateEffect
 		ImpactActors: false
 		Explosions: sonic_impact
@@ -274,7 +273,6 @@ IonStormAmbientBolt:
 	Warhead@2Smu: LeaveSmudge
 		SmudgeType: MediumScorch
 		InvalidTargets: Vehicle, Building, Wall
-		ImpactActors: false
 	Warhead@3Efx: CreateEffect
 		ImpactActors: false
 		Explosions: sonic_impact

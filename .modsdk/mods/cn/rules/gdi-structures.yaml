@@ -496,6 +496,7 @@ GAHPAD:
 	Reservable:
 	RepairsUnits:
 		HpPerStep: 1000
+		RepairDamageTypes: RepairArmor
 		PauseOnCondition: empdisable
 		PlayerExperience: 5
 		StartRepairingNotification: Repairing
@@ -679,7 +680,8 @@ GAARMORY:
 		BuildPaletteOrder: 85
 		Prerequisites: anypower, garadr, ~structures.gdi, ~techlevel.medium
 		Description: actor-gaarmory.description
-		Cost: 500
+	Valued:
+		Cost: 1000
 	Tooltip:
 		Name: actor-gaarmory.name
 	Building:

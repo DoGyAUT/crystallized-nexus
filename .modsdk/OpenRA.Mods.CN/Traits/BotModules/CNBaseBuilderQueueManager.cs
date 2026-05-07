@@ -40,6 +40,7 @@ namespace OpenRA.Mods.Common.Traits
 		int cachedBuildings;
 		int minimumExcessPower;
 		int defensePlacementAttempt;
+		int refineryPlacementCooldownTicks;
 		CPos? baseCenterKeepsFailing = null;
 
 		bool itemQueuedThisTick = false;
@@ -68,13 +69,16 @@ namespace OpenRA.Mods.Common.Traits
 			playerResources = pr;
 			resourceLayer = rl;
 			Category = category;
-			minimumExcessPower = baseBuilder.Info.MinimumExcessPower;
+			minimumExcessPower = baseBuilder.GetActiveMinimumExcessPower();
 			if (baseBuilder.Info.NavalProductionTypes.Count == 0)
 				waterState = WaterCheck.DontCheck;
 		}
 
 		public void Tick(IBot bot, ILookup<string, ProductionQueue> queuesByCategory)
 		{
+			if (refineryPlacementCooldownTicks > 0)
+				refineryPlacementCooldownTicks--;
+
 			// If we can't place any structures, give a nudge to BaseExpansionModules and hope it gets fixed.
 			if (failCount >= baseBuilder.Info.MaximumFailedPlacementAttempts)
 			{
@@ -146,9 +150,9 @@ namespace OpenRA.Mods.Common.Traits
 			var excessPowerBonus =
 				baseBuilder.Info.ExcessPowerIncrement *
 				(playerBuildings.Length / baseBuilder.Info.ExcessPowerIncreaseThreshold.Clamp(1, int.MaxValue));
-			minimumExcessPower =
-				(baseBuilder.Info.MinimumExcessPower + excessPowerBonus)
-					.Clamp(baseBuilder.Info.MinimumExcessPower, baseBuilder.Info.MaximumExcessPower);
+			var profileMin = baseBuilder.GetActiveMinimumExcessPower();
+			var profileMax = baseBuilder.GetActiveMaximumExcessPower();
+			minimumExcessPower = (profileMin + excessPowerBonus).Clamp(profileMin, profileMax);
 
 			// PERF: Queue only one actor at a time per category
 			itemQueuedThisTick = false;
@@ -331,6 +335,36 @@ namespace OpenRA.Mods.Common.Traits
 				return [resourceLoc];
 
 			return fieldCells;
+		}
+
+		CPos[] SelectRefineryResourceCells(IReadOnlyList<CPos> resources, CPos baseLoc, CPos? existingRefineryLoc = null, CPos? requestedResourceLoc = null)
+		{
+			var maxChecks = Math.Max(baseBuilder.Info.MaxResourceCellsToCheck, 1);
+
+			if (requestedResourceLoc != null)
+				return resources
+					.OrderBy(c => (c - requestedResourceLoc.Value).LengthSquared)
+					.Take(maxChecks)
+					.ToArray();
+
+			var localCells = resources
+				.OrderByDescending(c => CountPassableOrthogonalNeighbors(c) * 10 - (c - baseLoc).LengthSquared / 8)
+				.Take(maxChecks);
+
+			if (existingRefineryLoc == null)
+				return localCells.ToArray();
+
+			// Additional refineries should spread out, but not at the cost of ignoring
+			// nearby open field cells that can support a second refinery in the same base.
+			var spreadCells = resources
+				.OrderByDescending(c => (c - existingRefineryLoc.Value).LengthSquared)
+				.Take(maxChecks);
+
+			return localCells
+				.Concat(spreadCells)
+				.Distinct()
+				.Take(Math.Max(maxChecks, 16))
+				.ToArray();
 		}
 
 		IEnumerable<CPos> GetRefineryCandidateCellsForField(CPos baseLoc, ActorInfo actorInfo, BuildingInfo bi, IReadOnlyList<CPos> fieldCells)
@@ -539,17 +573,23 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						// Defense placement uses a bounded sampled search. A miss can simply
 						// mean this phase did not include a valid cell, not that the base is
-						// truly stuck. Retry later with a different phase, then fall back to
-						// normal base placement so completed defenses cannot block the queue.
+						// truly stuck. Retry later with a different phase, then allow the
+						// normal failure path to cancel instead of dropping defenses inside
+						// the structured base grid.
 						defensePlacementAttempt++;
 						if (defensePlacementAttempt < baseBuilder.Info.MaximumFailedPlacementAttempts)
 							return true;
 
-						(location, baseCenterKeepsFailing, actorVariant) =
-							ChooseBuildLocation(currentBuilding.Item, true, BuildingType.Building);
-
-						if (location == null)
-							defensePlacementAttempt = 0;
+						defensePlacementAttempt = 0;
+					}
+					else if (type == BuildingType.Refinery && AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings) > 0)
+					{
+						// A refinery with no accessible tiberium spot should not jam the entire build
+						// queue — the bot should still build power, barracks, defenses, etc.
+						// Cancel it and start a cooldown before the economy check tries again.
+						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
+						refineryPlacementCooldownTicks = baseBuilder.Info.StructureProductionResumeDelay;
+						return false;
 					}
 				}
 
@@ -656,10 +696,154 @@ namespace OpenRA.Mods.Common.Traits
 			return available.RandomOrDefault(world.LocalRandom);
 		}
 
+		// Returns the power surplus the bot would have if all currently powered-down buildings
+		// were re-enabled. PowerDownBotModule suspends power draw by zeroing IPowerModifier,
+		// so playerPower.ExcessPower is artificially inflated while buildings are offline.
+		// Using this value for power-build decisions ensures the bot targets enough capacity
+		// to run everything simultaneously, breaking the power-down / no-build cycle.
+		int GetEffectiveExcessPower()
+		{
+			if (playerPower == null)
+				return int.MaxValue;
+
+			var pdm = player.PlayerActor.TraitsImplementing<PowerDownBotModule>()
+				.FirstOrDefault(m => m.IsTraitEnabled());
+
+			if (pdm == null)
+				return playerPower.ExcessPower;
+
+			var suppressedDraw = 0;
+			foreach (var building in playerBuildings)
+			{
+				if (!pdm.Info.PowerDownTypes.Contains(building.Info.Name))
+					continue;
+
+				var modifier = building.TraitsImplementing<IPowerModifier>()
+					.Aggregate(100, (acc, m) => acc * m.GetPowerModifier() / 100);
+
+				if (modifier >= 100)
+					continue;
+
+				var fullDraw = building.Info.TraitInfos<PowerInfo>()
+					.Where(p => p.EnabledByDefault)
+					.Sum(p => p.Amount);
+
+				if (fullDraw >= 0)
+					continue;
+
+				suppressedDraw += fullDraw * (100 - modifier) / 100;
+			}
+
+			return playerPower.ExcessPower + suppressedDraw;
+		}
+
 		bool HasSufficientPowerForActor(ActorInfo actorInfo)
 		{
 			return playerPower == null || actorInfo.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault)
-				.Sum(p => p.Amount) + playerPower.ExcessPower >= baseBuilder.Info.MinimumExcessPower;
+				.Sum(p => p.Amount) + GetEffectiveExcessPower() >= baseBuilder.GetActiveMinimumExcessPower();
+		}
+
+		// Pre-flight check: returns true if at least one reachable resource field has a viable
+		// building spot for the given refinery actor, and is not yet saturated by the cluster limit.
+		// Uses terrain-only checks (no actor occupancy) to avoid false negatives from harvesters
+		// or units temporarily blocking candidate cells. Actual placement handles the full check.
+		bool HasViableRefineryField(ActorInfo refineryActorInfo)
+		{
+			if (resourceLayer == null)
+				return true;
+
+			var bi = refineryActorInfo.TraitInfoOrDefault<BuildingInfo>();
+			if (bi == null)
+				return true;
+
+			var baseCenter = baseBuilder.ResourceConyardCenter ?? baseBuilder.GetRandomBaseCenter();
+			var effectiveMaxRadius = baseBuilder.GetEffectiveMaxBaseRadius(playerBuildings.Length);
+
+			var resourceSearchRadius = Math.Max(effectiveMaxRadius, baseBuilder.Info.SellRefineryNoResourceDistance * 2);
+			IEnumerable<CPos> nearbyResources = world.Map
+				.FindTilesInAnnulus(baseCenter, baseBuilder.Info.MinBaseRadius, resourceSearchRadius)
+				.Where(c => baseBuilder.ResourceMapModule != null
+					? baseBuilder.ResourceMapModule.Info.ValuableResourceTypes.Contains(resourceLayer.GetResource(c).Type)
+					: resourceLayer.GetResource(c).Type != null);
+
+			if (baseBuilder.PathFinder != null && baseBuilder.HarvesterLocomotorsList.Length > 0)
+				nearbyResources = nearbyResources.Where(c =>
+					baseBuilder.HarvesterLocomotorsList.All(l =>
+						baseBuilder.PathFinder.PathMightExistForLocomotorBlockedByImmovable(l, baseCenter, c)));
+
+			if (baseBuilder.HarvesterLocomotorsList.Length > 0)
+				nearbyResources = nearbyResources.Where(c => CountPassableOrthogonalNeighbors(c) >= 3);
+
+			var nearbyResourceList = nearbyResources.ToList();
+			if (nearbyResourceList.Count == 0)
+				return false;
+
+			var existingRefineryLocs = baseBuilder.RefineryBuildings.Actors
+				.Where(a => !a.IsDead)
+				.Select(a => a.Location)
+				.ToList();
+
+			// Apply the cluster saturation filter.
+			if (baseBuilder.Info.MaxRefineriesPerCluster > 0 && existingRefineryLocs.Count > 0)
+			{
+				var clusterRadiusSq = baseBuilder.Info.RefineryClusterRadius * baseBuilder.Info.RefineryClusterRadius;
+				nearbyResourceList = nearbyResourceList
+					.Where(r => existingRefineryLocs.Count(loc => (loc - r).LengthSquared <= clusterRadiusSq) < baseBuilder.Info.MaxRefineriesPerCluster)
+					.ToList();
+			}
+
+			if (nearbyResourceList.Count == 0)
+				return false;
+
+			// Terrain-only viability check — no actor occupancy, so harvesters can't cause false negatives.
+			// Mirrors the anchor logic in GetRefineryCandidateCellsForField but skips CanPlaceBuilding.
+			bool IsTerrainViable(CPos cell) =>
+				world.Map.Contains(cell) &&
+				world.Map.Ramp[cell] == 0 &&
+				bi.TerrainTypes.Contains(world.Map.GetTerrainInfo(cell).Type);
+
+			var closestRefineryLoc = existingRefineryLocs.Count > 0
+				? existingRefineryLocs.OrderBy(loc => (loc - baseCenter).LengthSquared).First()
+				: (CPos?)null;
+			var sampleCells = SelectRefineryResourceCells(nearbyResourceList, baseCenter, closestRefineryLoc);
+
+			foreach (var r in sampleCells)
+			{
+				var fieldSample = GetFieldSampleCells(nearbyResourceList, r);
+				if (fieldSample == null || fieldSample.Length == 0)
+					continue;
+
+				var minX = fieldSample.Min(c => c.X);
+				var maxX = fieldSample.Max(c => c.X);
+				var minY = fieldSample.Min(c => c.Y);
+				var maxY = fieldSample.Max(c => c.Y);
+				var midX = (minX + maxX) / 2;
+				var midY = (minY + maxY) / 2;
+
+				// Check the four sides of this field cluster for terrain-viable placement spots.
+				var sideAnchors = new[]
+				{
+					new CPos(minX - bi.Dimensions.X - 1, midY),
+					new CPos(maxX + 1, midY),
+					new CPos(midX, minY - bi.Dimensions.Y - 1),
+					new CPos(midX, maxY + 1)
+				};
+
+				foreach (var anchor in sideAnchors)
+				{
+					foreach (var cell in world.Map.FindTilesInAnnulus(anchor, 0, 4))
+					{
+						if (!IsTerrainViable(cell)) continue;
+						if (!bi.IsCloseEnoughToBase(world, player, refineryActorInfo, cell)) continue;
+						return true;
+					}
+				}
+			}
+
+			// If the bot still needs its minimum refineries, allow queueing even when
+			// the field is too far for a perfect tiberium-adjacent placement. Placement
+			// will use a BaseGrid fallback toward the field instead of cancelling.
+			return existingRefineryLocs.Count < baseBuilder.GetActiveInititalMinimumRefineryCount();
 		}
 
 		ActorInfo ChooseBuildingToBuild(ProductionQueue queue)
@@ -670,8 +854,10 @@ namespace OpenRA.Mods.Common.Traits
 			var power = GetProducibleBuilding(baseBuilder.Info.PowerTypes, buildableThings,
 				a => a.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault).Sum(p => p.Amount));
 
-			// First priority is to get out of a low power situation
-			if (playerPower != null && playerPower.ExcessPower < minimumExcessPower &&
+			// First priority is to get out of a low power situation.
+			// Use effective excess power so powered-down buildings' suppressed draw is accounted for.
+			var effectiveExcessPower = GetEffectiveExcessPower();
+			if (playerPower != null && effectiveExcessPower < minimumExcessPower &&
 				power != null && power.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault).Sum(p => p.Amount) > 0)
 			{
 				AIUtils.BotDebug("{0} decided to build {1}: Priority override (low power)", queue.Actor.Owner, power.Name);
@@ -679,13 +865,26 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Next is to build up a strong economy
-			if (baseBuilder.ShouldExpandEconomy())
+			if (baseBuilder.ShouldExpandEconomy() && refineryPlacementCooldownTicks <= 0)
 			{
 				var refinery = GetProducibleBuilding(baseBuilder.Info.RefineryTypes, buildableThings);
 				if (refinery != null && HasSufficientPowerForActor(refinery))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (refinery)", queue.Actor.Owner, refinery.Name);
-					return refinery;
+					// Pre-flight: skip queuing if no buildable spot exists near a reachable resource field.
+					// The very first refinery is exempt — it uses base-center fallback placement regardless.
+					var hasExistingRefinery = AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings) > 0;
+					if (!hasExistingRefinery || HasViableRefineryField(refinery))
+					{
+						baseBuilder.RefineryExpansionBlocked = false;
+						AIUtils.BotDebug("{0} decided to build {1}: Priority override (refinery)", queue.Actor.Owner, refinery.Name);
+						return refinery;
+					}
+					else
+					{
+						// No viable spot for a second refinery — signal that expansion is blocked so
+						// PauseUnitProduction doesn't hold units hostage waiting for an impossible refinery.
+						baseBuilder.RefineryExpansionBlocked = true;
+					}
 				}
 
 				if (power != null && refinery != null && !HasSufficientPowerForActor(refinery))
@@ -693,6 +892,10 @@ namespace OpenRA.Mods.Common.Traits
 					AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 					return power;
 				}
+			}
+			else if (!baseBuilder.ShouldExpandEconomy())
+			{
+				baseBuilder.RefineryExpansionBlocked = false;
 			}
 
 			// Build walls around protected structures
@@ -712,8 +915,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Make sure that we can spend as fast as we are earning
-			if (baseBuilder.Info.NewProductionCashThreshold > 0 && baseBuilder.ShouldAddProduction()
-				&& world.LocalRandom.Next(100) < baseBuilder.Info.NewProductionChance)
+			if (baseBuilder.GetActiveNewProductionCashThreshold() > 0 && baseBuilder.ShouldAddProduction()
+				&& world.LocalRandom.Next(100) < baseBuilder.GetActiveNewProductionChance())
 			{
 				var production = GetProducibleBuilding(baseBuilder.Info.ProductionTypes, buildableThings);
 				if (production != null && HasSufficientPowerForActor(production))
@@ -730,7 +933,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Only consider building this if there is enough water inside the base perimeter and there are close enough adjacent buildings
-			if (waterState == WaterCheck.EnoughWater && baseBuilder.Info.NewProductionCashThreshold > 0
+			if (waterState == WaterCheck.EnoughWater && baseBuilder.GetActiveNewProductionCashThreshold() > 0
 				&& baseBuilder.ShouldAddProduction()
 				&& AIUtils.IsAreaAvailable<GivesBuildableArea>(world, player, world.Map, baseBuilder.Info.CheckForWaterRadius, baseBuilder.Info.WaterTerrainTypes))
 			{
@@ -769,7 +972,8 @@ namespace OpenRA.Mods.Common.Traits
 			var totalDefenseCount = 0;
 			Dictionary<string, int> tagDefenseCounts = null;
 			Dictionary<DefenseRole, int> roleDefenseCounts = null;
-			if (baseBuilder.Info.DefenseRoleLimits != null && baseBuilder.Info.DefenseRoleLimits.Count > 0
+			var activeDefLimits = baseBuilder.GetActiveDefenseRoleLimits();
+			if (activeDefLimits != null && activeDefLimits.Count > 0
 				&& baseBuilder.Info.DefenseTypes.Count > 0)
 			{
 				tagDefenseCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -810,6 +1014,13 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			var plannedDefense = ChoosePlannedDefense(buildableThings, totalDefenseCount, roleDefenseCounts);
+			if (plannedDefense != null)
+			{
+				AIUtils.BotDebug("{0} planned defense: building {1}", player, plannedDefense.Name);
+				return plannedDefense;
+			}
+
 			// Build everything else. Prefer the structure with the largest deficit relative
 			// to its desired base fraction instead of accepting the first random match.
 			ActorInfo bestFractionActor = null;
@@ -819,8 +1030,9 @@ namespace OpenRA.Mods.Common.Traits
 			var bestFractionDeficit = int.MinValue;
 			var baseBuildingCount = Math.Max(1, playerBuildings.Length);
 			var buildableByName = buildableThings.ToDictionary(b => b.Name);
+			var activeFractions = baseBuilder.GetActiveBuildingFractions();
 
-			foreach (var frac in baseBuilder.Info.BuildingFractions)
+			foreach (var frac in activeFractions)
 			{
 				var name = frac.Key;
 
@@ -832,6 +1044,9 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Can we build this structure?
 				if (!buildableByName.TryGetValue(name, out var actor))
+					continue;
+
+				if (baseBuilder.Info.DefenseTypes.Contains(name))
 					continue;
 
 				// Check the number of this structure and its variants
@@ -847,7 +1062,7 @@ namespace OpenRA.Mods.Common.Traits
 				// DefenseRoleLimits: scale-based cap relative to base size (replaces hard limits for defenses)
 				if (tagDefenseCounts != null && baseBuilder.Info.DefenseTypes.Contains(name))
 				{
-					if (baseBuilder.Info.DefenseRoleLimits.TryGetValue("Total", out var totalLimit) &&
+					if (activeDefLimits.TryGetValue("Total", out var totalLimit) &&
 						totalDefenseCount * 100 >= totalLimit * playerBuildings.Length)
 						continue;
 
@@ -858,7 +1073,7 @@ namespace OpenRA.Mods.Common.Traits
 						var hitLimit = false;
 						foreach (var tag in actorCaps)
 						{
-							if (baseBuilder.Info.DefenseRoleLimits.TryGetValue(tag, out var tagLimit) &&
+							if (activeDefLimits.TryGetValue(tag, out var tagLimit) &&
 								tagDefenseCounts.TryGetValue(tag, out var tagCnt) &&
 								tagCnt * 100 >= tagLimit * playerBuildings.Length)
 							{ hitLimit = true; break; }
@@ -870,7 +1085,7 @@ namespace OpenRA.Mods.Common.Traits
 						// Fallback: DefenseRoles-based check for actors without BotCapabilities.
 						var role = GetDefenseRoleFromActor(actor);
 						if (role != DefenseRole.Default &&
-							baseBuilder.Info.DefenseRoleLimits.TryGetValue(role.ToString(), out var roleLimit) &&
+							activeDefLimits.TryGetValue(role.ToString(), out var roleLimit) &&
 							roleDefenseCounts != null && roleDefenseCounts.TryGetValue(role, out var roleCnt) &&
 							roleCnt * 100 >= roleLimit * playerBuildings.Length)
 							continue;
@@ -907,7 +1122,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (bestFractionActor != null)
 			{
 				// Will this put us into low power?
-				if (playerPower != null && (playerPower.ExcessPower < minimumExcessPower || !HasSufficientPowerForActor(bestFractionActor)))
+				if (playerPower != null && (effectiveExcessPower < minimumExcessPower || !HasSufficientPowerForActor(bestFractionActor)))
 				{
 					// Try building a power plant instead
 					if (power != null && power.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault).Sum(pi => pi.Amount) > 0)
@@ -935,7 +1150,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>
 		/// Returns the best defense building to build reactively based on the highest-threat role.
-		/// Respects DefenseRoleLimits and BuildingFractions; returns null if no eligible building exists.
+		/// Respects DefenseRoleLimits; returns null if no eligible building exists.
 		/// </summary>
 		ActorInfo ChooseReactiveDefense(
 			IEnumerable<ActorInfo> buildableThings,
@@ -962,15 +1177,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (candidates.Count == 0)
 				return null;
 
+			var reactiveDefLimits = baseBuilder.GetActiveDefenseRoleLimits();
+
 			// Check total defense limit first
-			if (baseBuilder.Info.DefenseRoleLimits != null &&
-				baseBuilder.Info.DefenseRoleLimits.TryGetValue("Total", out var totalLimit) &&
+			if (reactiveDefLimits != null &&
+				reactiveDefLimits.TryGetValue("Total", out var totalLimit) &&
 				totalDefenseCount * 100 >= totalLimit * playerBuildings.Length)
 				return null;
 
 			// Check role limit
-			if (baseBuilder.Info.DefenseRoleLimits != null &&
-				baseBuilder.Info.DefenseRoleLimits.TryGetValue(roleStr, out var roleLimit) &&
+			if (reactiveDefLimits != null &&
+				reactiveDefLimits.TryGetValue(roleStr, out var roleLimit) &&
 				roleDefenseCounts != null &&
 				roleDefenseCounts.TryGetValue(role, out var roleCnt) &&
 				roleCnt * 100 >= roleLimit * playerBuildings.Length)
@@ -978,14 +1195,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var actorInfo in candidates)
 			{
-				var count = CountExistingAndQueuedBuilding(actorInfo.Name);
-
-				// Don't exceed the building's desired fraction even when reacting
-				if (baseBuilder.Info.BuildingFractions != null &&
-					baseBuilder.Info.BuildingFractions.TryGetValue(actorInfo.Name, out var frac) &&
-					count * 100 > frac * playerBuildings.Length)
-					continue;
-
 				if (!HasSufficientPowerForActor(actorInfo))
 					continue;
 
@@ -993,6 +1202,57 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return null;
+		}
+
+		ActorInfo ChoosePlannedDefense(
+			IEnumerable<ActorInfo> buildableThings,
+			int totalDefenseCount,
+			Dictionary<DefenseRole, int> roleDefenseCounts)
+		{
+			var activeDefLimits = baseBuilder.GetActiveDefenseRoleLimits();
+			if (activeDefLimits == null || activeDefLimits.Count == 0 || baseBuilder.Info.DefenseTypes.Count == 0)
+				return null;
+
+			var baseBuildingCount = Math.Max(1, playerBuildings.Length);
+			if (activeDefLimits.TryGetValue("Total", out var totalLimit) &&
+				totalDefenseCount * 100 >= totalLimit * baseBuildingCount)
+				return null;
+
+			ActorInfo bestActor = null;
+			var bestDeficit = int.MinValue;
+			var bestTypeCount = int.MaxValue;
+
+			foreach (var actorInfo in buildableThings.Where(a => baseBuilder.Info.DefenseTypes.Contains(a.Name)))
+			{
+				var role = GetDefenseRoleFromActor(actorInfo);
+				if (role == DefenseRole.Default)
+					continue;
+
+				if (!activeDefLimits.TryGetValue(role.ToString(), out var roleLimit))
+					continue;
+
+				var roleCount = 0;
+				roleDefenseCounts?.TryGetValue(role, out roleCount);
+				if (roleCount * 100 >= roleLimit * baseBuildingCount)
+					continue;
+
+				if (!HasSufficientPowerForActor(actorInfo))
+					continue;
+
+				var typeCount = CountExistingAndQueuedBuilding(actorInfo.Name);
+				var deficit = roleLimit * baseBuildingCount - roleCount * 100;
+				if (deficit < bestDeficit)
+					continue;
+
+				if (deficit == bestDeficit && typeCount >= bestTypeCount)
+					continue;
+
+				bestActor = actorInfo;
+				bestDeficit = deficit;
+				bestTypeCount = typeCount;
+			}
+
+			return bestActor;
 		}
 
 		DefenseRole GetDefenseRoleFromActor(ActorInfo actorInfo)
@@ -1045,7 +1305,7 @@ namespace OpenRA.Mods.Common.Traits
 					&& sameTypeBuildingsForSpacing.Any(loc => (cell - loc).LengthSquared < minSpacingSq))
 					return false;
 
-				if (globalBuildingInfos == null)
+				if (globalBuildingInfos == null || type == BuildingType.Refinery)
 					return true;
 
 				var globalSpacing = baseBuilder.Info.GlobalMinSpacing;
@@ -1068,92 +1328,120 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-			// Find the buildable cell that is closest to pos and centered around center
-			(CPos? Location, CPos Center, int Variant) FindPos(CPos center, CPos target, int minRange, int maxRange)
+			bool IsValuableResourceCell(CPos cell)
+			{
+				if (resourceLayer == null || !world.Map.Contains(cell))
+					return false;
+
+				var resourceType = resourceLayer.GetResource(cell).Type;
+				if (resourceType == null)
+					return false;
+
+				return baseBuilder.ResourceMapModule == null ||
+					baseBuilder.ResourceMapModule.Info.ValuableResourceTypes.Contains(resourceType);
+			}
+
+			bool IsTooCloseToValuableResources(CPos cell, BuildingInfo candidateBuildingInfo, int padding)
+			{
+				if (padding <= 0 || candidateBuildingInfo == null)
+					return false;
+
+				var minX = cell.X - padding;
+				var maxX = cell.X + candidateBuildingInfo.Dimensions.X - 1 + padding;
+				var minY = cell.Y - padding;
+				var maxY = cell.Y + candidateBuildingInfo.Dimensions.Y - 1 + padding;
+
+				for (var y = minY; y <= maxY; y++)
+				{
+					for (var x = minX; x <= maxX; x++)
+					{
+						if (IsValuableResourceCell(new CPos(x, y)))
+							return true;
+					}
+				}
+
+				return false;
+			}
+
+			bool IsAlignedToBaseGrid(CPos cell, BuildingInfo candidateBuildingInfo, CPos gridAnchor)
+			{
+				if (layout != BaseBuildingLayout.BaseGrid || candidateBuildingInfo == null)
+					return false;
+
+				var gridPadding = Math.Max(0, minSpacing);
+				var gx = Math.Max(1, candidateBuildingInfo.Dimensions.X + gridPadding);
+				var gy = Math.Max(1, candidateBuildingInfo.Dimensions.Y + gridPadding);
+				return ((cell.X - gridAnchor.X) % gx + gx) % gx == 0
+					&& ((cell.Y - gridAnchor.Y) % gy + gy) % gy == 0;
+			}
+
+			int ScoreBaseGridAlignment(CPos cell, BuildingInfo candidateBuildingInfo, CPos gridAnchor)
+			{
+				if (layout != BaseBuildingLayout.BaseGrid)
+					return 0;
+
+				return IsAlignedToBaseGrid(cell, candidateBuildingInfo, gridAnchor) ? -30 : 120;
+			}
+
+			CPos? FindNearestReachableResource(CPos origin, int maxRange)
+			{
+				if (resourceLayer == null)
+					return null;
+
+				foreach (var cell in world.Map.FindTilesInAnnulus(origin, baseBuilder.Info.MinBaseRadius, maxRange)
+					.Where(IsValuableResourceCell)
+					.Where(c => baseBuilder.HarvesterLocomotorsList.Length == 0 || CountPassableOrthogonalNeighbors(c) >= 2)
+					.Where(c => baseBuilder.PathFinder == null || baseBuilder.HarvesterLocomotorsList.Length == 0 ||
+						baseBuilder.HarvesterLocomotorsList.All(l =>
+							baseBuilder.PathFinder.PathMightExistForLocomotorBlockedByImmovable(l, origin, c)))
+					.OrderBy(c => (c - origin).LengthSquared))
+					return cell;
+
+				return null;
+			}
+
+			// Find the buildable cell that is closest to pos and centered around center.
+			// BaseGrid prefers a shared footprint-aware base raster, then falls back to compact placement.
+			(CPos? Location, CPos Center, int Variant) FindPos(CPos center, CPos target, CPos gridAnchor, int minRange, int maxRange)
 			{
 				var actorVariant = 0;
 				var buildingVariantInfo = actorInfo.TraitInfoOrDefault<PlaceBuildingVariantsInfo>();
 				var variantActorInfo = actorInfo;
 				var vbi = bi;
 
-				// PERF: With 8 bots placing buildings simultaneously, materializing and sorting
-				// the full ~2000-cell annulus (radius 25) per call dominates bot_tick.
-				// FindTilesInAnnulus yields cells ring-by-ring (inner→outer), so capping at
-				// 256 covers the base interior. Grid layout keeps the full range because its
-				// Where filter already limits what gets materialized for sorting.
-				const int FindPosLimit = 256;
-				var allCells = layout == BaseBuildingLayout.Grid
-					? world.Map.FindTilesInAnnulus(center, minRange, maxRange)
-					: world.Map.FindTilesInAnnulus(center, minRange, maxRange).Take(FindPosLimit);
-
-				// Apply layout-specific cell ordering
-				var sameTypeBuildings = playerBuildings
-					.Where(a => a.Info.Name == actorType)
-					.Select(a => a.Location)
-					.ToList();
-
-				IEnumerable<CPos> cells;
-				if (layout == BaseBuildingLayout.Compact)
-					cells = allCells.OrderBy(c => (c - center).LengthSquared);
-				else if (layout == BaseBuildingLayout.Clustered && sameTypeBuildings.Count > 0)
-					cells = allCells.OrderBy(c => sameTypeBuildings.Min(loc => (c - loc).LengthSquared));
-				else if (layout == BaseBuildingLayout.Grid)
+				if (layout == BaseBuildingLayout.Random && center != target && buildingVariantInfo?.Actors != null)
 				{
-					// Anchor the grid to the first placed building of this type so that
-					// subsequent placements align to the same raster. Falls back to center.
-					var gridAnchor = sameTypeBuildings.Count > 0 ? sameTypeBuildings[0] : center;
-					var gx = Math.Max(1, baseBuilder.Info.GridSpacingX);
-					var gy = Math.Max(1, baseBuilder.Info.GridSpacingY);
-					cells = allCells
-						.Where(c => ((c.X - gridAnchor.X) % gx + gx) % gx == 0
-							&& ((c.Y - gridAnchor.Y) % gy + gy) % gy == 0)
-						.OrderBy(c => (c - target).LengthSquared);
-				}
-				else
-					cells = allCells;
-
-				// Sort by distance to target if we have one
-				if (layout == BaseBuildingLayout.Random && center != target)
-				{
-					cells = cells.OrderBy(c => (c - target).LengthSquared);
-
-					// Rotate building if we have a Facings in buildingVariantInfo.
-					// If we don't have Facings in buildingVariantInfo, use a random variant
-					if (buildingVariantInfo?.Actors != null)
+					if (buildingVariantInfo.Facings != null)
 					{
-						if (buildingVariantInfo.Facings != null)
+						var vector = world.Map.CenterOfCell(target) - world.Map.CenterOfCell(center);
+						if (vector.Length > 0)
 						{
-							var vector = world.Map.CenterOfCell(target) - world.Map.CenterOfCell(center);
-
-							// The rotation Y point to upside vertically, so -Y = Y(rotation)
-							var desireFacing = new WAngle(WAngle.ArcSin((int)((long)Math.Abs(vector.X) * 1024 / vector.Length)).Angle);
+							var desiredFacing = new WAngle(WAngle.ArcSin((int)((long)Math.Abs(vector.X) * 1024 / vector.Length)).Angle);
 							if (vector.X > 0 && vector.Y >= 0)
-								desireFacing = new WAngle(512) - desireFacing;
+								desiredFacing = new WAngle(512) - desiredFacing;
 							else if (vector.X < 0 && vector.Y >= 0)
-								desireFacing = new WAngle(512) + desireFacing;
+								desiredFacing = new WAngle(512) + desiredFacing;
 							else if (vector.X < 0 && vector.Y < 0)
-								desireFacing = -desireFacing;
+								desiredFacing = -desiredFacing;
 
-							for (int i = 0, e = 1024; i < buildingVariantInfo.Facings.Length; i++)
+							for (var i = 0; i < buildingVariantInfo.Facings.Length; i++)
 							{
-								var minDelta = Math.Min((desireFacing - buildingVariantInfo.Facings[i]).Angle, (buildingVariantInfo.Facings[i] - desireFacing).Angle);
-								if (e > minDelta)
-								{
-									e = minDelta;
+								var minDelta = Math.Min(
+									(desiredFacing - buildingVariantInfo.Facings[i]).Angle,
+									(buildingVariantInfo.Facings[i] - desiredFacing).Angle);
+								if (i == 0 || minDelta < Math.Min(
+									(desiredFacing - buildingVariantInfo.Facings[actorVariant]).Angle,
+									(buildingVariantInfo.Facings[actorVariant] - desiredFacing).Angle))
 									actorVariant = i;
-								}
 							}
 						}
-						else
-							actorVariant = world.LocalRandom.Next(buildingVariantInfo.Actors.Length + 1);
 					}
-				}
-				else
-				{
-					cells = cells.Shuffle(world.LocalRandom);
-
-					if (buildingVariantInfo?.Actors != null)
+					else
 						actorVariant = world.LocalRandom.Next(buildingVariantInfo.Actors.Length + 1);
+				}
+				else if (buildingVariantInfo?.Actors != null)
+				{
+					actorVariant = world.LocalRandom.Next(buildingVariantInfo.Actors.Length + 1);
 				}
 
 				if (actorVariant != 0)
@@ -1162,24 +1450,73 @@ namespace OpenRA.Mods.Common.Traits
 					vbi = variantActorInfo.TraitInfoOrDefault<BuildingInfo>();
 				}
 
-				foreach (var cell in cells)
+				(CPos? Location, CPos Center, int Variant) TryFindPos(BaseBuildingLayout activeLayout)
 				{
-					if (!world.CanPlaceBuilding(cell, variantActorInfo, vbi, null))
-						continue;
+					const int FindPosLimit = 256;
+					var allCells = activeLayout == BaseBuildingLayout.Grid || activeLayout == BaseBuildingLayout.BaseGrid
+						? world.Map.FindTilesInAnnulus(center, minRange, maxRange)
+						: world.Map.FindTilesInAnnulus(center, minRange, maxRange).Take(FindPosLimit);
 
-					if (distanceToBaseIsImportant && !vbi.IsCloseEnoughToBase(world, player, variantActorInfo, cell))
-						continue;
+					var sameTypeBuildings = playerBuildings
+						.Where(a => a.Info.Name == actorType)
+						.Select(a => a.Location)
+						.ToList();
 
-					if (!RespectsGeneralBuildingSpacing(cell, vbi))
-						continue;
+					IEnumerable<CPos> cells;
+					if (activeLayout == BaseBuildingLayout.Compact)
+						cells = allCells.OrderBy(c => (c - center).LengthSquared);
+					else if (activeLayout == BaseBuildingLayout.Clustered && sameTypeBuildings.Count > 0)
+						cells = allCells.OrderBy(c => sameTypeBuildings.Min(loc => (c - loc).LengthSquared))
+							.ThenBy(c => (c - target).LengthSquared);
+					else if (activeLayout == BaseBuildingLayout.Grid || activeLayout == BaseBuildingLayout.BaseGrid)
+					{
+						var anchor = activeLayout == BaseBuildingLayout.Grid && sameTypeBuildings.Count > 0
+							? sameTypeBuildings[0]
+							: gridAnchor;
+						var gridPadding = Math.Max(0, minSpacing);
+						var gx = Math.Max(1, vbi.Dimensions.X + gridPadding);
+						var gy = Math.Max(1, vbi.Dimensions.Y + gridPadding);
+						cells = allCells
+							.Where(c => ((c.X - anchor.X) % gx + gx) % gx == 0
+								&& ((c.Y - anchor.Y) % gy + gy) % gy == 0)
+							.OrderBy(c => (c - target).LengthSquared);
+					}
+					else if (activeLayout == BaseBuildingLayout.Random && center != target)
+						cells = allCells.OrderBy(c => (c - target).LengthSquared);
+					else if (activeLayout == BaseBuildingLayout.Random)
+						cells = allCells.Shuffle(world.LocalRandom);
+					else
+						cells = allCells;
 
-					return (cell, center, actorVariant);
+					foreach (var cell in cells)
+					{
+						if (!world.CanPlaceBuilding(cell, variantActorInfo, vbi, null))
+							continue;
+
+						if (distanceToBaseIsImportant && !vbi.IsCloseEnoughToBase(world, player, variantActorInfo, cell))
+							continue;
+
+						if (!RespectsGeneralBuildingSpacing(cell, vbi))
+							continue;
+
+						return (cell, center, actorVariant);
+					}
+
+					return (null, center, 0);
 				}
 
-				return (null, center, 0);
+				var result = TryFindPos(layout);
+				return result.Location.HasValue || layout != BaseBuildingLayout.BaseGrid
+					? result
+					: TryFindPos(BaseBuildingLayout.Compact);
 			}
 
 			var baseCenter = baseBuilder.GetRandomBaseCenter();
+			var planCenter = baseBuilder.GetBasePlanCenterForActor(
+				actorInfo,
+				baseCenter,
+				type == BuildingType.Defense,
+				type == BuildingType.Refinery);
 
 			// Cache once — GetEffectiveMaxBaseRadius() scans all world buildings otherwise.
 			var effectiveMaxRadius = baseBuilder.GetEffectiveMaxBaseRadius(playerBuildings.Length);
@@ -1187,16 +1524,63 @@ namespace OpenRA.Mods.Common.Traits
 			// If this building type has a NearBuilding override, shift the search center
 			// toward the average position of all existing buildings of that type.
 			// Falls back to baseCenter when no instances exist yet.
-			var effectiveCenter = baseCenter;
+			var effectiveCenter = planCenter;
 			if (layoutEntry?.NearBuilding != null)
 			{
+				CVec ClusterGroupOffset(int groupIndex, int spacing)
+				{
+					if (groupIndex <= 0)
+						return CVec.Zero;
+
+					var ring = (groupIndex + 7) / 8;
+					var distance = Math.Max(1, spacing) * ring;
+					var direction = (groupIndex - 1) % 8;
+					return direction switch
+					{
+						0 => new CVec(distance, 0),
+						1 => new CVec(-distance, 0),
+						2 => new CVec(0, distance),
+						3 => new CVec(0, -distance),
+						4 => new CVec(distance, distance),
+						5 => new CVec(-distance, distance),
+						6 => new CVec(distance, -distance),
+						_ => new CVec(-distance, -distance)
+					};
+				}
+
 				var nearInstances = playerBuildings
 					.Where(b => b.Info.Name == layoutEntry.NearBuilding)
+					.OrderBy(b => b.ActorID)
 					.ToList();
 				if (nearInstances.Count > 0)
-					effectiveCenter = new CPos(
-						(int)nearInstances.Average(b => b.Location.X),
-						(int)nearInstances.Average(b => b.Location.Y));
+				{
+					var clusterGroupSize = Math.Max(0, layoutEntry.ClusterGroupSize);
+					if (clusterGroupSize > 0 && layoutEntry.NearBuilding == actorType)
+					{
+						var groupIndex = nearInstances.Count / clusterGroupSize;
+						var groupStart = groupIndex * clusterGroupSize;
+						if (groupStart < nearInstances.Count)
+						{
+							nearInstances = nearInstances
+								.Skip(groupStart)
+								.Take(clusterGroupSize)
+								.ToList();
+						}
+						else
+						{
+							var spacing = Math.Max(1, layoutEntry.ClusterGroupSpacing);
+							effectiveCenter = planCenter + ClusterGroupOffset(groupIndex, spacing);
+							nearInstances.Clear();
+						}
+					}
+
+					if (nearInstances.Count > 0)
+					{
+						effectiveCenter = new CPos(
+							(int)nearInstances.Average(b => b.Location.X),
+							(int)nearInstances.Average(b => b.Location.Y));
+					}
+				}
 			}
 
 			switch (type)
@@ -1231,6 +1615,9 @@ namespace OpenRA.Mods.Common.Traits
 					var sameDefenseBuildings = playerBuildings
 						.Where(a => a.Info.Name == actorType)
 						.Select(a => a.Location).ToList();
+					var allDefenseBuildings = playerBuildings
+						.Where(a => baseBuilder.Info.DefenseTypes.Contains(a.Info.Name))
+						.Select(a => a.Location).ToList();
 
 					// Determine role-specific search area and sort order
 					var role = GetDefenseRoleFromActor(actorInfo);
@@ -1245,12 +1632,37 @@ namespace OpenRA.Mods.Common.Traits
 					IEnumerable<CPos> sortedDefenseCells;
 					var placementThreats = baseBuilder.GetDefensePlacementThreats(defenseCenter, role);
 					long DefenseScore(CPos cell) => baseBuilder.ScoreDefensePlacement(cell, defenseCenter, targetCell, placementThreats);
+					var defMinSpacing = role == DefenseRole.AADefense || role == DefenseRole.InfantryDefense
+						? baseBuilder.Info.DefenseOuterMinSpacing
+						: baseBuilder.Info.DefenseInnerMinSpacing;
+					var defMinSpacingSq = defMinSpacing * defMinSpacing;
+					long FormationScore(CPos cell, int preferredRadius)
+					{
+						var score = DefenseScore(cell);
+
+						if (preferredRadius > 0)
+							score -= Math.Abs((cell - defenseCenter).Length - preferredRadius) * 12L;
+
+						if (allDefenseBuildings.Count == 0)
+							return score;
+
+						var nearestDefenseSq = allDefenseBuildings.Min(loc => (cell - loc).LengthSquared);
+						var softSpacing = Math.Max(4, defMinSpacing + 2);
+						var softSpacingSq = softSpacing * softSpacing;
+						if (nearestDefenseSq < softSpacingSq)
+							score -= (softSpacingSq - nearestDefenseSq) * 18L;
+						else
+							score += Math.Min(nearestDefenseSq, 100);
+
+						return score;
+					}
+
 					IEnumerable<CPos> DefenseCandidateCells(CPos center, CPos target, int minRange, int maxRange, bool outerFirst = true)
 					{
 						minRange = Math.Max(0, minRange);
 						maxRange = Math.Max(minRange, maxRange);
 						var limit = Math.Max(1, baseBuilder.Info.DefensePlacementCandidateLimit);
-						var maxCandidates = Math.Max(24, limit * 4);
+						var maxCandidates = Math.Max(64, limit * 8);
 						var result = new List<CPos>(maxCandidates);
 						var seen = new HashSet<CPos>();
 						var dx = target.X - center.X;
@@ -1258,8 +1670,6 @@ namespace OpenRA.Mods.Common.Traits
 						var denom = Math.Max(Math.Abs(dx), Math.Abs(dy));
 						var px = dy == 0 ? 0 : -Math.Sign(dy);
 						var py = dx == 0 ? 0 : Math.Sign(dx);
-						var offsets = new[] { 0, -2, 2, -4, 4 };
-						var phase = Math.Abs(defensePlacementAttempt % 3);
 
 						void TryAdd(CPos cell)
 						{
@@ -1284,15 +1694,24 @@ namespace OpenRA.Mods.Common.Traits
 									yield return r;
 						}
 
+						IEnumerable<int> LateralOffsets(int radius)
+						{
+							yield return 0;
+
+							var maxOffset = Math.Max(4, radius / 2);
+							for (var offset = 2; offset <= maxOffset; offset += 2)
+							{
+								yield return -offset;
+								yield return offset;
+							}
+						}
+
 						foreach (var radius in Radii())
 						{
-							if ((radius + phase) % 3 == 1)
-								continue;
-
 							if (denom > 0)
 							{
 								var main = new CPos(center.X + dx * radius / denom, center.Y + dy * radius / denom);
-								foreach (var offset in offsets)
+								foreach (var offset in LateralOffsets(radius))
 									TryAdd(main + new CVec(px * offset, py * offset));
 							}
 
@@ -1359,11 +1778,10 @@ namespace OpenRA.Mods.Common.Traits
 								baseBuilder.Info.MinimumDefenseRadius, midRadius);
 							sortedDefenseCells = sameDefenseBuildings.Count > 0
 								? LimitDefenseCandidates(defenseCells, DefenseScore)
-									.OrderByDescending(DefenseScore)
+									.OrderByDescending(c => FormationScore(c, midRadius))
 									.ThenByDescending(c => sameDefenseBuildings.Min(loc => (c - loc).LengthSquared))
 								: LimitDefenseCandidates(defenseCells, DefenseScore)
-									.OrderByDescending(DefenseScore)
-									.ThenBy(c => world.LocalRandom.Next());
+									.OrderByDescending(c => FormationScore(c, midRadius));
 							break;
 						}
 
@@ -1373,7 +1791,7 @@ namespace OpenRA.Mods.Common.Traits
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								innerRadius > 0 ? innerRadius : baseBuilder.Info.MinimumDefenseRadius, outerRadius);
 							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
-								.OrderByDescending(DefenseScore)
+								.OrderByDescending(c => FormationScore(c, outerRadius))
 								.ThenBy(c => (c - targetCell).LengthSquared);
 							break;
 						}
@@ -1418,7 +1836,7 @@ namespace OpenRA.Mods.Common.Traits
 							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
 								.OrderByDescending(c =>
 									uncoveredPositions.Count(bPos => (bPos - c).LengthSquared <= coverageRadiusCellsSq))
-								.ThenByDescending(DefenseScore);
+								.ThenByDescending(c => FormationScore(c, outerRadius));
 							break;
 						}
 
@@ -1428,7 +1846,7 @@ namespace OpenRA.Mods.Common.Traits
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								baseBuilder.Info.MinimumDefenseRadius, midRadius);
 							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
-								.OrderByDescending(DefenseScore)
+								.OrderByDescending(c => FormationScore(c, midRadius))
 								.ThenByDescending(c => (c - targetCell).LengthSquared);
 							break;
 						}
@@ -1440,7 +1858,7 @@ namespace OpenRA.Mods.Common.Traits
 								outerRadius - 2 > baseBuilder.Info.MinimumDefenseRadius ? outerRadius - 2 : baseBuilder.Info.MinimumDefenseRadius,
 								outerRadius);
 							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
-								.OrderByDescending(DefenseScore)
+								.OrderByDescending(c => FormationScore(c, outerRadius))
 								.ThenBy(c => (c - targetCell).LengthSquared);
 							break;
 						}
@@ -1448,51 +1866,30 @@ namespace OpenRA.Mods.Common.Traits
 						default:
 						{
 							// Original inner/outer logic for unassigned defense types
-							var useInnerLine = false;
-							if (innerRadius > 0)
-							{
-								var allDefense = playerBuildings
-									.Where(a => baseBuilder.Info.DefenseTypes.Contains(a.Info.Name)).ToList();
-								var innerCount = allDefense.Count(a => (a.Location - baseCenter).Length <= innerRadius);
-								var totalCount = allDefense.Count + 1;
-								var targetInnerCount = totalCount * baseBuilder.Info.DefenseInnerRatio / 100;
-								useInnerLine = innerCount < targetInnerCount;
-							}
+							var useInnerLine = innerRadius > 0 && allDefenseBuildings.Count == 0;
 
 							defenseCells = useInnerLine
 								? DefenseCandidateCells(baseCenter, targetCell, baseBuilder.Info.MinimumDefenseRadius, innerRadius, false)
 								: DefenseCandidateCells(defenseCenter, targetCell,
 									innerRadius > 0 ? innerRadius : baseBuilder.Info.MinimumDefenseRadius, outerRadius);
 
-							var defLayout = useInnerLine ? baseBuilder.Info.DefenseInnerLayout : baseBuilder.Info.DefenseOuterLayout;
-							if (defLayout == BaseBuildingLayout.Clustered && sameDefenseBuildings.Count > 0)
-								sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
-									.OrderBy(c => sameDefenseBuildings.Min(loc => (c - loc).LengthSquared));
-							else if (defLayout == BaseBuildingLayout.Compact)
-								sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
-									.OrderBy(c => (c - baseCenter).LengthSquared);
-							else
-								sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
-									.OrderByDescending(DefenseScore)
-									.ThenBy(c => (c - targetCell).LengthSquared);
+							var preferredRadius = useInnerLine ? innerRadius : outerRadius;
+							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
+								.OrderByDescending(c => FormationScore(c, preferredRadius))
+								.ThenBy(c => useInnerLine ? (c - baseCenter).LengthSquared : (c - targetCell).LengthSquared);
 
 							break;
 						}
 					}
 
-					// Role-specific spacing: AA and AntiInf use outer spacing, others use their own
-					var defMinSpacing = role == DefenseRole.AADefense || role == DefenseRole.InfantryDefense
-						? baseBuilder.Info.DefenseOuterMinSpacing
-						: baseBuilder.Info.DefenseInnerMinSpacing;
-					var defMinSpacingSq = defMinSpacing * defMinSpacing;
-
 					foreach (var cell in sortedDefenseCells)
 					{
 						if (!world.CanPlaceBuilding(cell, defVariantActorInfo, defVbi, null)) continue;
 						if (!defVbi.IsCloseEnoughToBase(world, player, defVariantActorInfo, cell)) continue;
+						if (IsTooCloseToValuableResources(cell, defVbi, baseBuilder.Info.DefenseResourceAvoidanceRadius)) continue;
 
-						if (defMinSpacing > 0 && sameDefenseBuildings.Count > 0
-							&& sameDefenseBuildings.Any(loc => (cell - loc).LengthSquared < defMinSpacingSq))
+						if (defMinSpacing > 0 && allDefenseBuildings.Count > 0
+							&& allDefenseBuildings.Any(loc => (cell - loc).LengthSquared < defMinSpacingSq))
 							continue;
 
 						if (playerBuildingInfos != null)
@@ -1528,14 +1925,15 @@ namespace OpenRA.Mods.Common.Traits
 				case BuildingType.Refinery:
 
 					var requestRef = baseBuilder.RequestedRefineries.Count > 0 ? baseBuilder.RequestedRefineries.Keys.First() : null;
+					var resourceBaseCenter = failCount > 0 ? baseCenter :
+						(requestRef != null ? baseBuilder.RequestedRefineries[requestRef].ConyardLoc : (baseBuilder.ResourceConyardCenter ?? baseCenter));
+					var requestedResourceLoc = requestRef != null
+						? baseBuilder.RequestedRefineries[requestRef].ResourceLoc
+						: (CPos?)null;
 
 					// Try and place the refinery near a resource field
 					if (resourceLayer != null)
 					{
-						// If we have failed to place to the requested refinery point, try and place it near the base center
-						var resourceBaseCenter = failCount > 0 ? baseCenter :
-							(requestRef != null ? baseBuilder.RequestedRefineries[requestRef].ConyardLoc : (baseBuilder.ResourceConyardCenter ?? baseCenter));
-
 						// If we have a ResourceMapModule, only consider the resource types it considers valuable
 						// Otherwise consider any resource type
 						var nearbyResources = world.Map
@@ -1567,30 +1965,11 @@ namespace OpenRA.Mods.Common.Traits
 							? baseBuilder.RefineryBuildings.Actors.Where(a => !a.IsDead)?.ClosestToIgnoringPath(world.Map.CenterOfCell(resourceBaseCenter))
 							: null;
 
-						CPos[] resourcesShouldCheck = null;
-
-						if (closestRefinery == null)
-						{
-							// For the first refinery: score each resource cell purely by LOCAL accessibility —
-							// open orthogonal neighbours (cliff-proximity) and how many resource cells are
-							// in the immediate area (field density). No BFS from the conyard: that starting
-							// point is biased toward whichever field happens to be closest to the base,
-							// which is exactly the wrong heuristic when a nearby field is cliff-locked.
-							resourcesShouldCheck = nearbyResources
-								.OrderByDescending(c => CountPassableOrthogonalNeighbors(c) * 10 - (c - resourceBaseCenter).LengthSquared / 8)
-								.Take(baseBuilder.Info.MaxResourceCellsToCheck)
-								.ToArray();
-						}
-						else if (requestRef != null)
-						{
-							resourcesShouldCheck = nearbyResources.OrderBy(c => (c - baseBuilder.RequestedRefineries[requestRef].ResourceLoc).LengthSquared)
-								.Take(baseBuilder.Info.MaxResourceCellsToCheck)
-								.ToArray();
-						}
-						else
-							resourcesShouldCheck = nearbyResources.OrderByDescending(c => (c - closestRefinery.Location).LengthSquared)
-								.Take(baseBuilder.Info.MaxResourceCellsToCheck)
-								.ToArray();
+						var resourcesShouldCheck = SelectRefineryResourceCells(
+							nearbyResources,
+							resourceBaseCenter,
+							closestRefinery?.Location,
+							requestedResourceLoc);
 
 						var existingRefineries = baseBuilder.RefineryBuildings.Actors
 							.Where(a => !a.IsDead)
@@ -1621,8 +2000,9 @@ namespace OpenRA.Mods.Common.Traits
 							}
 
 							var sampledResourceCells = GetFieldSampleCells(nearbyResources, r);
+							var refineryCandidateLimit = layout == BaseBuildingLayout.BaseGrid ? 24 : 12;
 							var candidateCells = GetRefineryCandidateCellsForField(resourceBaseCenter, actorInfo, bi, sampledResourceCells)
-								.Take(12)
+								.Take(refineryCandidateLimit)
 								.ToArray();
 
 							foreach (var loc in candidateCells)
@@ -1724,7 +2104,8 @@ namespace OpenRA.Mods.Common.Traits
 								// are sufficient to reject cliff-locked placements without pathfinder cost.
 								int? harvesterPathLength = null;
 
-								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledResourceCells, harvesterPathLength);
+								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledResourceCells, harvesterPathLength)
+									+ ScoreBaseGridAlignment(loc, bi, resourceBaseCenter);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
 							}
@@ -1741,8 +2122,9 @@ namespace OpenRA.Mods.Common.Traits
 						foreach (var r in resourcesShouldCheck)
 						{
 							var sampledRelaxed = GetFieldSampleCells(nearbyResources, r);
+							var relaxedCandidateLimit = layout == BaseBuildingLayout.BaseGrid ? 12 : 6;
 							var candidatesRelaxed = GetRefineryCandidateCellsForField(resourceBaseCenter, actorInfo, bi, sampledRelaxed)
-								.Take(6)
+								.Take(relaxedCandidateLimit)
 								.ToArray();
 
 							foreach (var loc in candidatesRelaxed)
@@ -1776,7 +2158,8 @@ namespace OpenRA.Mods.Common.Traits
 								if (!HasOpenRefineryApproach(actorInfo, loc, bi.Dimensions, r))
 									continue;
 
-								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, null);
+								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, null)
+									+ ScoreBaseGridAlignment(loc, bi, resourceBaseCenter);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
 							}
@@ -1793,8 +2176,18 @@ namespace OpenRA.Mods.Common.Traits
 					if (baseBuilder.RequestedRefineries.Count > 0)
 						baseBuilder.RequestedRefineries.Remove(requestRef);
 
-					// Try and find a free spot somewhere else in the base
-					return FindPos(baseCenter, baseCenter, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
+					var existingRefineryCount = AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings);
+					var requiredRefineryCount = Math.Max(1, baseBuilder.GetActiveInititalMinimumRefineryCount());
+					if (existingRefineryCount < requiredRefineryCount)
+					{
+						var resourceFallbackRadius = Math.Max(effectiveMaxRadius, baseBuilder.Info.SellRefineryNoResourceDistance * 2);
+						var fallbackTarget = requestedResourceLoc
+							?? FindNearestReachableResource(resourceBaseCenter, resourceFallbackRadius)
+							?? baseCenter;
+						return FindPos(baseCenter, fallbackTarget, baseCenter, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
+					}
+
+					return (null, null, 0);
 
 				case BuildingType.Building:
 				{
@@ -1859,7 +2252,7 @@ namespace OpenRA.Mods.Common.Traits
 						return (null, null, 0);
 					}
 
-					return FindPos(effectiveCenter, effectiveCenter, baseBuilder.Info.MinBaseRadius,
+					return FindPos(effectiveCenter, effectiveCenter, baseCenter, baseBuilder.Info.MinBaseRadius,
 						distanceToBaseIsImportant ? effectiveMaxRadius : world.Map.Grid.MaximumTileSearchRange);
 				}
 			}

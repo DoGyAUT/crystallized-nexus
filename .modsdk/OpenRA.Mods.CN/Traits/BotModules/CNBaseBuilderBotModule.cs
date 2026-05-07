@@ -18,7 +18,9 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public enum BaseBuildingLayout { Random, Grid, Clustered, Compact, Coverage }
+	public enum BaseBuildingLayout { Random, Grid, BaseGrid, Clustered, Compact, Coverage }
+
+	public enum CNBasePlanCluster { Core, Eco, Production, Tech, DefensePerimeter, Outpost }
 
 	public enum DefenseRole
 	{
@@ -49,6 +51,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("If set, place this building near the average location of all existing buildings of this named type.",
 			"Falls back to base center when none exist yet. Set to the same type for self-clustering.")]
 		public readonly string NearBuilding = null;
+
+		[Desc("Maximum number of same-type buildings to place in one self-cluster. 0 = unlimited.")]
+		public readonly int ClusterGroupSize = 0;
+
+		[Desc("Distance in cells between self-cluster groups when ClusterGroupSize is enabled.")]
+		public readonly int ClusterGroupSpacing = 6;
 	}
 
 	[TraitLocation(SystemActors.Player)]
@@ -158,15 +166,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum spacing in cells between ANY two buildings regardless of type. 0 = disabled.")]
 		public readonly int GlobalMinSpacing = 0;
 
-		[Desc("Grid layout: horizontal cell spacing between buildings.")]
-		public readonly int GridSpacingX = 2;
-
-		[Desc("Grid layout: vertical cell spacing between buildings.")]
-		public readonly int GridSpacingY = 2;
-
 		[FieldLoader.LoadUsing(nameof(LoadBuildingLayouts))]
 		[Desc("Per-building-type layout overrides.")]
 		public readonly Dictionary<string, CNBuildingLayoutEntry> BuildingLayouts = [];
+
+		[Desc("Optional per-building baseplan cluster overrides. Keys are actor type names, values are CNBasePlanCluster names.")]
+		public readonly FrozenDictionary<string, CNBasePlanCluster> BasePlanClusters = null;
 
 		static object LoadBuildingLayouts(MiniYaml yaml)
 		{
@@ -246,21 +251,15 @@ namespace OpenRA.Mods.Common.Traits
 			"Set to 0 to disable (all defense placed in enemy direction).")]
 		public readonly int DefenseInnerRadius = 0;
 
-		[Desc("Percentage (0-100) of defense buildings to place in the inner line. " +
-			"The rest go to the outer line. Only used when DefenseInnerRadius > 0.")]
-		public readonly int DefenseInnerRatio = 50;
-
-		[Desc("Layout mode for defense buildings placed in the inner line.")]
-		public readonly BaseBuildingLayout DefenseInnerLayout = BaseBuildingLayout.Compact;
-
 		[Desc("Minimum spacing for defense buildings in the inner line.")]
 		public readonly int DefenseInnerMinSpacing = 2;
 
-		[Desc("Layout mode for defense buildings placed in the outer line (toward enemy).")]
-		public readonly BaseBuildingLayout DefenseOuterLayout = BaseBuildingLayout.Clustered;
-
 		[Desc("Minimum spacing for defense buildings in the outer line.")]
 		public readonly int DefenseOuterMinSpacing = 3;
+
+		[Desc("Minimum padding between defense building footprints and valuable resource cells.",
+			"Reserves field edges for refinery placement.")]
+		public readonly int DefenseResourceAvoidanceRadius = 4;
 
 		[Desc("If true, the AI remembers recent attacks and biases future defense placement toward repeated danger areas.")]
 		public readonly bool EnableDefenseDangerMemory = true;
@@ -309,6 +308,59 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Chance to build another production building if there is too much cash.")]
 		public readonly int NewProductionChance = 50;
+
+		// --- Per-profile BuildingFractions overrides (null = use base BuildingFractions) ---
+		public readonly FrozenDictionary<string, int> EcoBuildingFractions = null;
+		public readonly FrozenDictionary<string, int> RushBuildingFractions = null;
+		public readonly FrozenDictionary<string, int> TurtleBuildingFractions = null;
+		public readonly FrozenDictionary<string, int> TechBuildingFractions = null;
+		public readonly FrozenDictionary<string, int> ExpansionBuildingFractions = null;
+		public readonly FrozenDictionary<string, int> SteamrollerBuildingFractions = null;
+
+		// --- Per-profile DefenseRoleLimits overrides (null = use base DefenseRoleLimits) ---
+		public readonly FrozenDictionary<string, int> EcoDefenseRoleLimits = null;
+		public readonly FrozenDictionary<string, int> RushDefenseRoleLimits = null;
+		public readonly FrozenDictionary<string, int> TurtleDefenseRoleLimits = null;
+		public readonly FrozenDictionary<string, int> TechDefenseRoleLimits = null;
+		public readonly FrozenDictionary<string, int> ExpansionDefenseRoleLimits = null;
+		public readonly FrozenDictionary<string, int> SteamrollerDefenseRoleLimits = null;
+
+		// --- Per-tech-stage BuildingFractions overrides (null = use base BuildingFractions) ---
+		public readonly FrozenDictionary<string, int> EarlyBuildingFractions = null;
+		public readonly FrozenDictionary<string, int> MidBuildingFractions = null;
+		public readonly FrozenDictionary<string, int> LateBuildingFractions = null;
+
+		// --- Per-profile scalar overrides (-1 = use base value) ---
+		public readonly int EcoNewProductionCashThreshold = -1;
+		public readonly int RushNewProductionCashThreshold = -1;
+		public readonly int TurtleNewProductionCashThreshold = -1;
+		public readonly int TechNewProductionCashThreshold = -1;
+		public readonly int ExpansionNewProductionCashThreshold = -1;
+		public readonly int SteamrollerNewProductionCashThreshold = -1;
+		public readonly int EcoNewProductionChance = -1;
+		public readonly int RushNewProductionChance = -1;
+		public readonly int TurtleNewProductionChance = -1;
+		public readonly int TechNewProductionChance = -1;
+		public readonly int ExpansionNewProductionChance = -1;
+		public readonly int SteamrollerNewProductionChance = -1;
+		public readonly int EcoMinimumExcessPower = -1;
+		public readonly int RushMinimumExcessPower = -1;
+		public readonly int TurtleMinimumExcessPower = -1;
+		public readonly int TechMinimumExcessPower = -1;
+		public readonly int ExpansionMinimumExcessPower = -1;
+		public readonly int SteamrollerMinimumExcessPower = -1;
+		public readonly int EcoMaximumExcessPower = -1;
+		public readonly int RushMaximumExcessPower = -1;
+		public readonly int TurtleMaximumExcessPower = -1;
+		public readonly int TechMaximumExcessPower = -1;
+		public readonly int ExpansionMaximumExcessPower = -1;
+		public readonly int SteamrollerMaximumExcessPower = -1;
+		public readonly int EcoInititalMinimumRefineryCount = -1;
+		public readonly int RushInititalMinimumRefineryCount = -1;
+		public readonly int TurtleInititalMinimumRefineryCount = -1;
+		public readonly int TechInititalMinimumRefineryCount = -1;
+		public readonly int ExpansionInititalMinimumRefineryCount = -1;
+		public readonly int SteamrollerInititalMinimumRefineryCount = -1;
 
 		[Desc("Radius in cells around a factory scanned for rally points by the AI.")]
 		public readonly int RallyPointScanRadius = 8;
@@ -432,6 +484,10 @@ namespace OpenRA.Mods.Common.Traits
 		bool veinsChecked;
 		bool cachedVeinsExist;
 		public Dictionary<Actor, (CPos ConyardLoc, CPos ResourceLoc)> RequestedRefineries = [];
+
+		// Set by QueueManager when HasViableRefineryField returns false: no buildable spot exists
+		// for a second refinery, so PauseUnitProduction must not hold units hostage indefinitely.
+		public bool RefineryExpansionBlocked { get; set; }
 		readonly Dictionary<CPos, DefenseDangerHotspot> defenseDangerMemory = [];
 		readonly Dictionary<string, DefenseRole> defenseThreatRoleCache = [];
 
@@ -456,6 +512,12 @@ namespace OpenRA.Mods.Common.Traits
 		int nextDefenseDangerMemoryRecordTick;
 		int nextDefenseCenterUpdateTick;
 		bool firstTick = true;
+		CNBotProfileBotModule profileModule;
+
+		BotProfile ActiveProfile => profileModule?.ActiveProfile ?? BotProfile.Adaptive;
+		TechStage ActiveTechStage => profileModule?.ActiveTechStage ?? TechStage.Early;
+
+		public PlayerResources PlayerResources => playerResources;
 
 		IReadOnlyList<Actor> cachedPlayerBuildings = [];
 		int cachedPlayerBuildingsTick = -1;
@@ -486,6 +548,196 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return cachedPlayerBuildings;
+		}
+
+		// --- Profile + tech-stage aware getters ---
+		// BuildingFractions: merge TechStage overlay first, then Profile overlay on top.
+		public FrozenDictionary<string, int> GetActiveBuildingFractions()
+		{
+			var stageOverride = ActiveTechStage switch
+			{
+				TechStage.Early => Info.EarlyBuildingFractions,
+				TechStage.Mid   => Info.MidBuildingFractions,
+				TechStage.Late  => Info.LateBuildingFractions,
+				_               => null
+			};
+			var profileOverride = ActiveProfile switch
+			{
+				BotProfile.Eco    => Info.EcoBuildingFractions,
+				BotProfile.Rush   => Info.RushBuildingFractions,
+				BotProfile.Turtle => Info.TurtleBuildingFractions,
+				BotProfile.Tech => Info.TechBuildingFractions,
+				BotProfile.Expansion => Info.ExpansionBuildingFractions ?? Info.EcoBuildingFractions,
+				BotProfile.Steamroller => Info.SteamrollerBuildingFractions,
+				_                 => null
+			};
+
+			// Fast path: no overrides at all.
+			if ((stageOverride == null || stageOverride.Count == 0) &&
+			    (profileOverride == null || profileOverride.Count == 0))
+				return Info.BuildingFractions;
+
+			// Merge: base → stage → profile (each layer wins over the previous).
+			var merged = Info.BuildingFractions != null
+				? new System.Collections.Generic.Dictionary<string, int>(Info.BuildingFractions)
+				: [];
+
+			if (stageOverride != null)
+				foreach (var kv in stageOverride)
+					merged[kv.Key] = kv.Value;
+
+			if (profileOverride != null)
+				foreach (var kv in profileOverride)
+					merged[kv.Key] = kv.Value;
+
+			return merged.ToFrozenDictionary();
+		}
+
+		public FrozenDictionary<string, int> GetActiveDefenseRoleLimits()
+		{
+			var profileOverride = ActiveProfile switch
+			{
+				BotProfile.Eco    => Info.EcoDefenseRoleLimits,
+				BotProfile.Rush   => Info.RushDefenseRoleLimits,
+				BotProfile.Turtle => Info.TurtleDefenseRoleLimits,
+				BotProfile.Tech => Info.TechDefenseRoleLimits,
+				BotProfile.Expansion => Info.ExpansionDefenseRoleLimits ?? Info.EcoDefenseRoleLimits,
+				BotProfile.Steamroller => Info.SteamrollerDefenseRoleLimits,
+				_                 => null
+			};
+			return (profileOverride != null && profileOverride.Count > 0) ? profileOverride : Info.DefenseRoleLimits;
+		}
+
+		public int GetActiveNewProductionCashThreshold()
+		{
+			var v = ActiveProfile switch
+			{
+				BotProfile.Eco    => Info.EcoNewProductionCashThreshold,
+				BotProfile.Rush   => Info.RushNewProductionCashThreshold,
+				BotProfile.Turtle => Info.TurtleNewProductionCashThreshold,
+				BotProfile.Tech => Info.TechNewProductionCashThreshold,
+				BotProfile.Expansion => Info.ExpansionNewProductionCashThreshold >= 0 ? Info.ExpansionNewProductionCashThreshold : Info.EcoNewProductionCashThreshold,
+				BotProfile.Steamroller => Info.SteamrollerNewProductionCashThreshold,
+				_                 => -1
+			};
+			return v >= 0 ? v : Info.NewProductionCashThreshold;
+		}
+
+		public int GetActiveNewProductionChance()
+		{
+			var v = ActiveProfile switch
+			{
+				BotProfile.Eco    => Info.EcoNewProductionChance,
+				BotProfile.Rush   => Info.RushNewProductionChance,
+				BotProfile.Turtle => Info.TurtleNewProductionChance,
+				BotProfile.Tech => Info.TechNewProductionChance,
+				BotProfile.Expansion => Info.ExpansionNewProductionChance >= 0 ? Info.ExpansionNewProductionChance : Info.EcoNewProductionChance,
+				BotProfile.Steamroller => Info.SteamrollerNewProductionChance,
+				_                 => -1
+			};
+			return v >= 0 ? v : Info.NewProductionChance;
+		}
+
+		public int GetActiveMinimumExcessPower()
+		{
+			var v = ActiveProfile switch
+			{
+				BotProfile.Eco    => Info.EcoMinimumExcessPower,
+				BotProfile.Rush   => Info.RushMinimumExcessPower,
+				BotProfile.Turtle => Info.TurtleMinimumExcessPower,
+				BotProfile.Tech => Info.TechMinimumExcessPower,
+				BotProfile.Expansion => Info.ExpansionMinimumExcessPower >= 0 ? Info.ExpansionMinimumExcessPower : Info.EcoMinimumExcessPower,
+				BotProfile.Steamroller => Info.SteamrollerMinimumExcessPower,
+				_                 => -1
+			};
+			return v >= 0 ? v : Info.MinimumExcessPower;
+		}
+
+		public int GetActiveMaximumExcessPower()
+		{
+			var v = ActiveProfile switch
+			{
+				BotProfile.Eco    => Info.EcoMaximumExcessPower,
+				BotProfile.Rush   => Info.RushMaximumExcessPower,
+				BotProfile.Turtle => Info.TurtleMaximumExcessPower,
+				BotProfile.Tech => Info.TechMaximumExcessPower,
+				BotProfile.Expansion => Info.ExpansionMaximumExcessPower >= 0 ? Info.ExpansionMaximumExcessPower : Info.EcoMaximumExcessPower,
+				BotProfile.Steamroller => Info.SteamrollerMaximumExcessPower,
+				_                 => -1
+			};
+			return v >= 0 ? v : Info.MaximumExcessPower;
+		}
+
+		public int GetActiveInititalMinimumRefineryCount()
+		{
+			var v = ActiveProfile switch
+			{
+				BotProfile.Eco    => Info.EcoInititalMinimumRefineryCount,
+				BotProfile.Rush   => Info.RushInititalMinimumRefineryCount,
+				BotProfile.Turtle => Info.TurtleInititalMinimumRefineryCount,
+				BotProfile.Tech => Info.TechInititalMinimumRefineryCount,
+				BotProfile.Expansion => Info.ExpansionInititalMinimumRefineryCount >= 0 ? Info.ExpansionInititalMinimumRefineryCount : Info.EcoInititalMinimumRefineryCount,
+				BotProfile.Steamroller => Info.SteamrollerInititalMinimumRefineryCount,
+				_                 => -1
+			};
+			return v >= 0 ? v : Info.InititalMinimumRefineryCount;
+		}
+
+		public CNBasePlanCluster GetBasePlanClusterForActor(ActorInfo actorInfo, bool isDefense, bool isRefinery)
+		{
+			if (actorInfo == null)
+				return CNBasePlanCluster.Core;
+
+			if (Info.BasePlanClusters != null &&
+				Info.BasePlanClusters.TryGetValue(actorInfo.Name, out var configuredCluster))
+				return configuredCluster;
+
+			if (isRefinery || Info.RefineryTypes.Contains(actorInfo.Name))
+				return CNBasePlanCluster.Eco;
+
+			if (isDefense || Info.DefenseTypes.Contains(actorInfo.Name))
+				return CNBasePlanCluster.DefensePerimeter;
+
+			if (Info.ProductionTypes.Contains(actorInfo.Name) || Info.NavalProductionTypes.Contains(actorInfo.Name))
+				return CNBasePlanCluster.Production;
+
+			if (Info.TechTypes.Contains(actorInfo.Name))
+				return CNBasePlanCluster.Tech;
+
+			return CNBasePlanCluster.Core;
+		}
+
+		public CPos GetBasePlanCenterForActor(ActorInfo actorInfo, CPos fallbackCenter, bool isDefense, bool isRefinery)
+		{
+			return GetBasePlanCenter(GetBasePlanClusterForActor(actorInfo, isDefense, isRefinery), fallbackCenter);
+		}
+
+		public CPos GetBasePlanCenter(CNBasePlanCluster cluster, CPos fallbackCenter)
+		{
+			return cluster switch
+			{
+				CNBasePlanCluster.Eco => AverageBuildingLocation(Info.RefineryTypes) ?? ResourceConyardCenter ?? fallbackCenter,
+				CNBasePlanCluster.Production => AverageBuildingLocation(Info.ProductionTypes) ?? fallbackCenter,
+				CNBasePlanCluster.Tech => AverageBuildingLocation(Info.TechTypes) ?? AverageBuildingLocation(Info.ProductionTypes) ?? fallbackCenter,
+				CNBasePlanCluster.DefensePerimeter => DefenseCenter == default ? fallbackCenter : DefenseCenter,
+				CNBasePlanCluster.Outpost => ResourceConyardCenter ?? fallbackCenter,
+				_ => AverageBuildingLocation(Info.ConstructionYardTypes) ?? fallbackCenter
+			};
+		}
+
+		CPos? AverageBuildingLocation(IEnumerable<string> typeNames)
+		{
+			var typeSet = typeNames as ISet<string> ?? typeNames.ToHashSet();
+			var buildings = GetCachedPlayerBuildings()
+				.Where(b => typeSet.Contains(b.Info.Name))
+				.ToArray();
+
+			if (buildings.Length == 0)
+				return null;
+
+			return new CPos(
+				(int)buildings.Average(b => b.Location.X),
+				(int)buildings.Average(b => b.Location.Y));
 		}
 
 		readonly CNBaseBuilderQueueManager[] builders;
@@ -551,13 +803,14 @@ namespace OpenRA.Mods.Common.Traits
 			DefenseCenter = newLocation;
 		}
 
-		bool IBotRequestPauseUnitProduction.PauseUnitProduction => !IsTraitDisabled && !HasMinimalRefineryCount();
+		bool IBotRequestPauseUnitProduction.PauseUnitProduction => !IsTraitDisabled && !HasMinimalRefineryCount() && !RefineryExpansionBlocked;
 
 		void IBotTick.BotTick(IBot bot)
 		{
 			if (firstTick)
 			{
 				ResourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
+				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				firstTick = false;
 			}
 
@@ -1055,17 +1308,18 @@ namespace OpenRA.Mods.Common.Traits
 
 		int OptimalRefineryCount() =>
 			GetTargetRefineryCount();
-		bool HasMinimalRefineryCount() =>
-			AIUtils.CountActorByCommonName(RefineryBuildings) >= Info.InititalMinimumRefineryCount;
+		public bool HasMinimalRefineryCount() =>
+			AIUtils.CountActorByCommonName(RefineryBuildings) >= GetActiveInititalMinimumRefineryCount();
 
 		public int GetTargetRefineryCount()
 		{
 			var productions = AIUtils.CountActorByCommonName(ProductionBuildings);
 			var constructionYards = AIUtils.CountActorByCommonName(ConstructionYardBuildings);
 
+			var activeMinRefinery = GetActiveInititalMinimumRefineryCount();
 			var target = productions > 0
-				? Info.InititalMinimumRefineryCount + Info.AdditionalMinimumRefineryCount
-				: Info.InititalMinimumRefineryCount;
+				? activeMinRefinery + Info.AdditionalMinimumRefineryCount
+				: activeMinRefinery;
 
 			if (productions > 1)
 				target += (productions - 1) / 2;
@@ -1079,17 +1333,18 @@ namespace OpenRA.Mods.Common.Traits
 			var supportedCapacity = GetSupportedRefineryCapacity();
 			target = Math.Min(target, supportedCapacity);
 
-			return Math.Max(Info.InititalMinimumRefineryCount, target);
+			return Math.Max(activeMinRefinery, target);
 		}
 
 		public bool HasEconomicFloat()
 		{
+			var threshold = GetActiveNewProductionCashThreshold();
 			var cash = playerResources.GetCashAndResources();
-			if (cash < Info.NewProductionCashThreshold)
+			if (cash < threshold)
 				return false;
 
 			var productions = Math.Max(1, AIUtils.CountActorByCommonName(ProductionBuildings));
-			return cash >= Info.NewProductionCashThreshold + productions * 1000;
+			return cash >= threshold + productions * 1000;
 		}
 
 		public bool HasStoragePressure()
@@ -1356,11 +1611,25 @@ namespace OpenRA.Mods.Common.Traits
 
 		void SellUselessRefinery(IBot bot)
 		{
-			// Sell one refinery each time. Perserve at least one refinery
+			// Sell one refinery each time. Preserve at least one refinery.
 			var refineries = world.ActorsHavingTrait<Refinery>().Where(a => a.Owner == player).ToArray();
 
-			if (refineries.Length <= Info.InititalMinimumRefineryCount + Info.AdditionalMinimumRefineryCount)
+			if (refineries.Length <= GetActiveInititalMinimumRefineryCount() + Info.AdditionalMinimumRefineryCount)
 				return;
+
+			// A refinery is active if a harvester is currently docked/reserved at its dock,
+			// or if a player-owned harvester is within SellRefineryNoResourceDistance cells
+			// (i.e. on its way back or harvesting the nearby field).
+			bool IsRefineryActive(Actor refinery)
+			{
+				if (refinery.TraitsImplementing<IDockHost>().Any(host => host.ReservationCount > 0))
+					return true;
+
+				var radiusSq = Info.SellRefineryNoResourceDistance * Info.SellRefineryNoResourceDistance;
+				return world.ActorsHavingTrait<Harvester>()
+					.Any(h => h.Owner == player && !h.IsDead && h.IsInWorld
+						&& (h.Location - refinery.Location).LengthSquared <= radiusSq);
+			}
 
 			for (var i = 0; i < refineries.Length; i++)
 			{
@@ -1368,8 +1637,16 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if ((refineries[i].Location - refineries[j].Location).LengthSquared <= Info.SellRefineryTooCloseCellDistance * Info.SellRefineryTooCloseCellDistance)
 					{
-						bot.QueueOrder(new Order("Sell", refineries[i], Target.FromActor(refineries[i]), false));
-						return;
+						// Prefer selling the inactive one; skip the pair if both are active.
+						var sellTarget = !IsRefineryActive(refineries[i]) ? refineries[i]
+						               : !IsRefineryActive(refineries[j]) ? refineries[j]
+						               : null;
+
+						if (sellTarget != null)
+						{
+							bot.QueueOrder(new Order("Sell", sellTarget, Target.FromActor(sellTarget), false));
+							return;
+						}
 					}
 				}
 			}
@@ -1381,6 +1658,9 @@ namespace OpenRA.Mods.Common.Traits
 			var bestScore = 0;
 			foreach (var refinery in refineries)
 			{
+				if (IsRefineryActive(refinery))
+					continue;
+
 				if (!IsFiniteRefineryExhausted(refinery) && !IsFiniteRefineryLowValue(refinery))
 					continue;
 

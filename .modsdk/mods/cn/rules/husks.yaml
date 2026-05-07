@@ -305,6 +305,29 @@ TRNSPORT.Husk.EMP:
 	Inherits: TRNSPORT.Husk
 	Inherits@EMP: ^EmpVisualEffects
 
+HORNET.Husk:
+	Inherits: ^AircraftHusk
+	Tooltip:
+		Name: actor-hornet-husk-name
+	Aircraft:
+		TurnSpeed: 12
+		Speed: 168
+	CNAircraftFallsToEarth:
+		Profiles: Glide, Curve, Curve, Spiral
+		SpiralMaxSpin: 24
+	RenderSprites:
+		Image: hornet
+	RenderVoxels:
+		Image: hornet
+	SpawnActorOnDeath@GROUNDHUSK:
+		Actor: HORNET.GroundHusk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+
+HORNET.Husk.EMP:
+	Inherits: HORNET.Husk
+	Inherits@EMP: ^EmpVisualEffects
+
 SCRIN.Husk:
 	Inherits: ^AircraftHusk
 	Tooltip:
@@ -373,6 +396,11 @@ TRNSPORT.GroundHusk:
 	Inherits: ^VehicleHusk
 	RenderVoxels:
 		Image: trnsport
+
+HORNET.GroundHusk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: hornet
 
 SCRIN.GroundHusk:
 	Inherits: ^VehicleHusk

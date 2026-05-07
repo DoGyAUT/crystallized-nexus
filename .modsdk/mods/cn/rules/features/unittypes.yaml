@@ -384,6 +384,7 @@
 		Voice: Move
 		IdealSeparation: 1c424
 		MaximumPitch: 120
+		TerrainAltitudeSmoothing: 2c0
 		LandableTerrainTypes: Clear, Road, Rail, DirtRoad, Rough, Tiberium, BlueTiberium, RedTiberium, Veins
 		Crushes: crate, infantry
 		MoveIntoShroud: false
@@ -422,8 +423,17 @@
 		LightPitch: 128
 		LightYaw: 768
 		Scale: 10
-		RequiresCondition: !inside-tunnel
+	RenderSprites:
+	FormationMove:
+		Columns: 0
+		Spacing: 2
+		FrontAtTarget: true
+		ValidOrders: Move, AttackMove
 	CNWithVoxelBody:
+		RequiresCondition: !inside-tunnel
+#		ShowShadow: False
+#	WithShadow:
+	WithWaterReflection:
 	RevealOnFire:
 	HitShape:
 	FireWarheadsOnDeath:
@@ -461,9 +471,9 @@
 		LightPitch: 128
 		LightYaw: 768
 		Scale: 10
-		RequiresCondition: !inside-tunnel
 	RenderSprites:
 	WithVoxelBody:
+		RequiresCondition: !inside-tunnel
 	BodyOrientation:
 		QuantizedFacings: 0
 		CameraPitch: 85

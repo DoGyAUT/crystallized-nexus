@@ -66,9 +66,37 @@ namespace OpenRA.Mods.CN.Traits
 				.First(tt => tt.Turret == armament.Turret);
 
 			var model = cache.GetModelSequence(image, Sequence);
-			var turretOrientation = t.PreviewOrientation(init, orientation, facings);
-			WVec BarrelOffset() => body.LocalToWorld(t.Offset + LocalOffset.Rotate(turretOrientation()));
-			WRot BarrelOrientation() => LocalOrientation.Rotate(turretOrientation());
+			var rawTurretOrientation = t.PreviewOrientation(init, orientation, facings);
+			var dynamics = init.GetOrDefault<VoxelDynamicsPreviewInit>();
+
+			WRot BodyOrientation() => body.QuantizeOrientation(orientation(), facings);
+
+			WRot TurretOrientation()
+			{
+				var rot = rawTurretOrientation();
+				if (dynamics == null)
+					return rot;
+
+				var bodyOri = BodyOrientation();
+				var extra = dynamics.Rotation.GetExtraRotation();
+				var bodyTilted = new WRot(extra.Roll, extra.Pitch, WAngle.Zero).Rotate(bodyOri);
+				var turretRelYaw = rot.Yaw - bodyOri.Yaw;
+				return WRot.FromYaw(turretRelYaw).Rotate(bodyTilted);
+			}
+
+			WVec BarrelOffset()
+			{
+				if (dynamics == null)
+					return body.LocalToWorld(t.Offset + LocalOffset.Rotate(rawTurretOrientation()));
+
+				var bodyOri = BodyOrientation();
+				var extra = dynamics.Rotation.GetExtraRotation();
+				var bodyTilted = new WRot(extra.Roll, extra.Pitch, WAngle.Zero).Rotate(bodyOri);
+				return body.LocalToWorld(LocalOffset.Rotate(TurretOrientation()) + t.Offset.Rotate(bodyTilted)) +
+					dynamics.Offset.GetExtraOffset();
+			}
+
+			WRot BarrelOrientation() => LocalOrientation.Rotate(TurretOrientation());
 
 			yield return new ModelAnimation(model, BarrelOffset, BarrelOrientation, () => false, () => 0, ShowShadow);
 		}

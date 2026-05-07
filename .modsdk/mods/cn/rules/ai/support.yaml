@@ -1,0 +1,177 @@
+Player:
+	CombatAnalysisBotModule:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		WeightPerHit: 10
+		ThreatRecordInterval: 25
+		ReactThreshold: 20
+		DecayRate: 0.1
+		DecayInterval: 1000
+		NemesisWeightPerHit: 5
+		NemesisRecordInterval: 25
+		NemesisAllyWeightPerHit: 2
+		NemesisThreshold: 15
+	BuildingRepairBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+	CNRepairManagerBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RepairScanInterval: 75
+		MinimumDamageState: Light
+		MaxAssignmentsPerScan: 3
+		MobileRepairActorTypes: repair
+		MobileRepairSearchRadius: 10
+	CNBridgeRepairBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RepairScanInterval: 125
+		RepairerActorTypes: engineer, nengineer
+		BridgeHutActorTypes: cabhut
+		MinimumDamageState: Dead
+		MaximumRepairers: 2
+	CNUnitBuilderBotModule@Combat:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		UnitQueues: Infantry, Vehicle, Air
+		ProductionMinCashRequirement: 300
+		DesiredCashReserve: 500
+		AdditionalCashReservePerQueue: 75
+		UnitLimits:
+			medic: 2
+			repair: 2
+			weed: 6
+		ExtraUnitsToBuild:
+			repair: 2
+			weed: 4
+	CNUnitBuilderBotModule@Capture:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		UnitQueues: Infantry
+		ProductionMinCashRequirement: 250
+		DesiredCashReserve: 300
+		AdditionalCashReservePerQueue: 50
+		RequireCapturableTargets: true
+		CapturableActorTypes: cahosp, caarmr, caaray
+		CheckCaptureTargetsForVisibility: true
+		FallbackUnitsToBuild:
+			engineer: 5
+			nengineer: 5
+		UnitLimits:
+			engineer: 2
+			nengineer: 2
+		UnitDelays:
+			engineer: 1500
+			nengineer: 1500
+	UnitBuilderBotModule@Tech:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		UnitQueues: Tech
+		UnitsToBuild:
+			upgrade.gapowerup1: 100
+			upgrade.gapowerup2: 100
+	SupportPowerBotModule:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		Decisions:
+			IonCannon:
+				OrderName: IonCannonPowerInfoOrder
+				MinimumAttractiveness: 20
+				CoarseScanRadius: 20
+				FineScanRadius: 2
+				Consideration:
+					Against: Enemy
+					Types: Ground, Building
+					Attractiveness: 100
+					CheckRadius: 3c0
+				Consideration@HealthLoss:
+					Against: Enemy
+					Types: Ground, Building
+					Attractiveness: 50
+					TargetMetric: HealthLoss
+					CheckRadius: 3c0
+			Nuke:
+				OrderName: NukePowerInfoOrder
+				MinimumAttractiveness: 20
+				CoarseScanRadius: 20
+				FineScanRadius: 2
+				Consideration:
+					Against: Enemy
+					Types: Ground, Building
+					Attractiveness: 100
+					CheckRadius: 4c0
+				Consideration@HealthLoss:
+					Against: Enemy
+					Types: Ground, Building
+					Attractiveness: 50
+					TargetMetric: HealthLoss
+					CheckRadius: 4c0
+			DropPods:
+				OrderName: DropPodsPowerInfoOrder
+				MinimumAttractiveness: 20
+				CoarseScanRadius: 20
+				FineScanRadius: 2
+				Consideration:
+					Against: Enemy
+					Types: Ground, Infantry, Vehicle
+					Attractiveness: 100
+					CheckRadius: 2c0
+				Consideration@HealthLoss:
+					Against: Enemy
+					Types: Ground, Infantry, Vehicle
+					Attractiveness: 30
+					TargetMetric: HealthLoss
+					CheckRadius: 2c0
+			EMP:
+				OrderName: AttackOrderPowerInfoOrder
+				MinimumAttractiveness: 20
+				CoarseScanRadius: 20
+				FineScanRadius: 2
+				Consideration:
+					Against: Enemy
+					Types: Ground, Vehicle, Infantry
+					Attractiveness: 100
+					CheckRadius: 2c0
+			HunterSeeker:
+				OrderName: ProduceActorPowerInfoOrder
+				FireWithoutTarget: true
+	DeployBotModule:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		ScanInterval: 25
+		Groups:
+			Artillery:
+				ActorTypes: nhwtz, jugg
+				Mode: Artillery
+				ScanRadius: 20
+				DeployRange: 18
+				SafeRange: 5
+				DeployCooldown: 200
+			TickTank:
+				ActorTypes: ttnk
+				Mode: Stats
+				DeployRange: 6
+				SafeRange: 0
+				DeployCooldown: 150
+			EMP:
+				ActorTypes: mobilemp
+				Mode: Ability
+				ScanRadius: 15
+				DeployRange: 8
+				AbilityDuration: 100
+	CNMcvExpansionManagerBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		McvTypes: gmcv, nmcv
+		ConstructionYardTypes: gacnst, nacnst
+		McvFactoryTypes: gaweap, naweap
+		MinimumConstructionYardCount: 1
+		AdditionalConstructionYardCount: 1
+		BuildAdditionalMCVCashAmount: 9000
+		EnableStrategicOutposts: true
+		McvEnemyBaseAvoidanceRadius: 10
+		McvEnemyBaseHardAvoidanceRadius: 4
+		McvEnemyBaseRoutePenalty: 2048
+		McvSafeMoveWaypointPathCells: 12
+		CBmodeFrontlineOutpostBonus: 384
+		CBmodeOutpostPreferredProgress: 58
+		CBmodeOutpostProgressTolerance: 22
+		CBmodeOutpostCorridorWidth: 12
+		CBmodeOutpostEnemyMinRange: 18
+		CBmodeOutpostFriendlyMinRange: 12
+	CaptureManagerBotModule@test:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		CapturingActorTypes: engineer, nengineer
+		CapturableActorTypes: cahosp, caarmr, caaray
+		MinimumCaptureDelay: 125
+		MaximumCaptureTargetOptions: 25

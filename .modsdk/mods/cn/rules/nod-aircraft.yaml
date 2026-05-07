@@ -2,6 +2,7 @@ SCRIN:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsAircraft
 	Valued:
 		Cost: 1500
 	Tooltip:
@@ -18,7 +19,7 @@ SCRIN:
 	Voiced:
 		VoiceSet: Scrin
 	Aircraft:
-		CruiseAltitude: 5c0
+		CruiseAltitude: 8c0
 		TurnSpeed: 15
 		Speed: 200
 		IdleTurnSpeed: 6
@@ -27,10 +28,31 @@ SCRIN:
 		LandingSounds: dropdwn1.aud
 		CanHover: false
 		CanSlide: false
+		Pitch: 0
+		PitchSpeed: 2
+		Roll: 120
+		RollSpeed: 20
+		IdealSeparation: 1c512
 	CNHealth:
-		HP: 400
+		HP: 200
 	Armor:
 		Type: Light
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Medium
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Armament:
 		Weapon: Proton
 		PauseOnCondition: !ammo
@@ -43,7 +65,6 @@ SCRIN:
 		Ammo: 15
 		ReloadCount: 5
 		AmmoCondition: ammo
-	RenderSprites:
 	DeathSounds:
 	SpawnActorOnDeath:
 		Actor: SCRIN.Husk
@@ -53,10 +74,12 @@ SCRIN:
 		RequiresCondition: empdisable
 	Rearmable:
 		RearmActors: gahpad, nahpad
+		AmmoPools: primary, flares
 	WithAmmoPipsDecoration:
 		Position: BottomLeft
 		RequiresSelection: true
 		Margin: 4, 5
+		AmmoPools: primary
 		PipCount: 3
 		FullSequence: pip-ammo
 		EmptySequence: pip-ammoempty
@@ -74,6 +97,7 @@ HYDRA:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsVTOL
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -96,10 +120,27 @@ HYDRA:
 		Speed: 130
 		CanSlide: false
 		TakeOffOnResupply: true
+		IdealSeparation: 1c512
 	CNHealth:
-		HP: 300
+		HP: 200
 	Armor:
 		Type: Light
+	SecondaryHealth@ARMOR:
+		MaxHP: 300
+		InitialHP: -1
+		ArmorType: Medium
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
 	Armament:
 		Weapon: HarpyClaw
 		PauseOnCondition: !ammo
@@ -108,7 +149,8 @@ HYDRA:
 		PersistentTargeting: false
 		Voice: Attack
 		PauseOnCondition: empdisable
-		AttackType: Hover
+		AttackType: Shuffle
+		ShuffleRange: 4c512
 	AmmoPool:
 		Ammo: 12
 		AmmoCondition: ammo
@@ -120,7 +162,6 @@ HYDRA:
 		Offset: 85,0,598
 		Sequence: slow-rotor
 		RequiresCondition: !airborne
-	RenderSprites:
 	SpawnActorOnDeath:
 		Actor: HYDRA.Husk
 		RequiresCondition: !empdisable
@@ -129,10 +170,12 @@ HYDRA:
 		RequiresCondition: empdisable
 	Rearmable:
 		RearmActors: gahpad, nahpad
+		AmmoPools: primary, flares
 	WithAmmoPipsDecoration:
 		Position: BottomLeft
 		RequiresSelection: true
 		Margin: 4, 5
+		AmmoPools: primary
 		PipCount: 4
 		FullSequence: pip-ammo
 		EmptySequence: pip-ammoempty

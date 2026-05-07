@@ -101,3 +101,53 @@
 		RecoilRoll: 15
 		PitchOffset: -5
 		InvertPitch: true
+
+^VoxelDynamicsAircraft:
+	VoxelDynamics:
+		MaxPitch: 40
+		MaxRoll: 48
+		ImpactPitch: 12
+		ImpactRoll: 14
+		ImpactHoldTicks: 3
+		ImpactDamageTypes: SmallExplosionDeath, ExplosionDeath
+		SpringStrength: 10
+		Damping: 65
+		AccelerationPitchScale: 350
+		AltitudePitchScale: 80
+		MaxAltitudePitch: 24
+		AltitudePitchSpeed: 2
+		TurnRollScale: 300
+		ContinuousTurnRoll: true
+		RecoilPitch: 2
+		RecoilRoll: 1
+		HoverWobblePitch: 6
+		HoverWobbleRoll: 8
+		HoverWobbleOffset: 0c32
+		HoverWobbleSpeed: 3
+		PitchOffset: -2
+		InvertPitch: true
+
+^VoxelDynamicsVTOL:
+	VoxelDynamics:
+		MaxPitch: 48
+		MaxRoll: 64
+		ImpactPitch: 20
+		ImpactRoll: 24
+		ImpactHoldTicks: 3
+		ImpactDamageTypes: SmallExplosionDeath, ExplosionDeath
+		SpringStrength: 7
+		Damping: 55
+		AccelerationPitchScale: 550
+		AltitudePitchScale: 96
+		MaxAltitudePitch: 28
+		AltitudePitchSpeed: 2
+		TurnRollScale: 450
+		ContinuousTurnRoll: true
+		RecoilPitch: 4
+		RecoilRoll: 3
+		HoverWobblePitch: 24
+		HoverWobbleRoll: 32
+		HoverWobbleOffset: 0c128
+		HoverWobbleSpeed: 5
+		PitchOffset: -3
+		InvertPitch: true

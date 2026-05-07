@@ -25,7 +25,7 @@
 	AmbientSound:
 		SoundFiles: gasflow1.ogg, gasflow2.ogg
 		Delay: 150, 450
-		Interval: 500, 1000
+		Interval: 750, 1600
 
 ^Tree:
 	Inherits@1: ^SpriteActor

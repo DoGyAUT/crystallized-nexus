@@ -1,0 +1,236 @@
+Player:
+	PowerDownBotModule:
+		RequiresCondition: enable-test-ai || enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		PowerDownTypes: garadr, naradr, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, nagat
+	CNResourceMapBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		ResourceCreatorTypes: tibtre01, tibtre02, tibtre03, bigblue, bigblue3, bigred
+		ValuableResourceTypes: Tiberium, BlueTiberium, RedTiberium
+		HarvesterTypes: gharv, nharv
+		RefineryTypes: gproc, nproc
+		EnemyBaseBuildingTypes: gacnst, nacnst, gapowr, napowr, naapwr, gaarmory, gapile, nahand, gaweap, gadept, naweap, garadr, naradr, gahpad, nahpad, gatech, natech, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, nagat, naflamer, gaplug, natmpl
+	CNHarvesterBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		HarvesterTypes: gharv, nharv
+		RefineryTypes: gproc, nproc
+		InitialHarvesters: 1
+		ResourceCellsPerHarvester: 5
+		MaxHarvestersPerRefinery: 2
+		MaxHarvestersPerFiniteIndice: 1
+		MaxHarvestersPerRespawningIndice: 2
+	CNBaseBuilderBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		DefenseQueues: Support
+		MinimumExcessPower: 30
+		MaximumExcessPower: 200
+		ExcessPowerIncrement: 30
+		ExcessPowerIncreaseThreshold: 4
+		ConstructionYardTypes: gacnst, nacnst
+		RefineryTypes: gproc, nproc
+		PowerTypes: gapowr, napowr, naapwr
+		ProductionTypes: gapile, nahand, gaweap, naweap, gahpad, nahpad
+		TechTypes: garadr, naradr, gaarmory, gatech, natech, gadept, gaplug, natmpl, namisl, napyra
+		SiloTypes: gasilo
+		DefenseTypes: gamg, gagat, gasam, gacan, gasen, gamortar, nalasr, nasam, naflamer, nagat, naobel, napuls
+		MaxRefineriesPerCluster: 2
+		RefineryClusterRadius: 10
+		MaxResourceCellsToCheck: 16
+		MinFiniteFieldCellsForExtraRefinery: 18
+		SellRefineryNoResourceDistance: 18
+		ExpansionTolerate: 3, 4
+		ForceExpansionTolerate: 5, 6
+		PerExpansionTolerateOnCash: 18000
+		InititalMinimumRefineryCount: 2
+		AdditionalMinimumRefineryCount: 0
+		NewProductionCashThreshold: 4000
+		NewProductionChance: 65
+		MaximumFailedPlacementAttempts: 6
+		StructureProductionResumeDelay: 3000
+		WallTypes: gawall, nawall
+		ProtectedByWalls: gaarmory, gatech, natech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls
+		HarvesterLocomotors: tracked
+		VeinsOnlyBuildingTypes: nawast
+		VeinsOnlyResourceTypes: Veins
+		MinimumDefenseRadius: 3
+		DefenseInnerRadius: 8
+		DefenseInnerMinSpacing: 3
+		DefenseOuterMinSpacing: 4
+		EnableDefenseDangerMemory: true
+		DefenseDangerMemoryAttackWeight: 120
+		DefenseDangerMemoryBuildingAttackWeight: 160
+		DefenseDangerMemoryRecordInterval: 50
+		DefenseCenterUpdateInterval: 150
+		DefenseDangerMemoryMergeRadius: 5
+		DefenseDangerMemoryMaxEntries: 6
+		DefensePlacementMaxHotspots: 2
+		DefensePlacementCandidateLimit: 24
+		DefenseDangerMemoryMinimumWeight: 80
+		DefenseDangerMemoryDecayInterval: 250
+		DefenseDangerMemoryDecayAmount: 20
+		DefensePlacementDangerWeight: 50
+		DefensePlacementEnemyDirectionWeight: 70
+		MaximumDefenseRadius: 15
+		DynamicBaseRadius: true
+		RadiusPerBuilding: 0.4
+		MaxDynamicBaseRadius: 25
+		DefaultLayout: BaseGrid
+		DefaultMinSpacing: 1
+		GlobalMinSpacing: 1
+		BuildingLayouts:
+			gapowr:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: gapowr
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 7
+			napowr:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: napowr
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 7
+			naapwr:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: naapwr
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 7
+			gahpad:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: gahpad
+			nahpad:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: nahpad
+			gasilo:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: gasilo
+			gproc:
+				Layout: BaseGrid
+				MinSpacing: 1
+			nproc:
+				Layout: BaseGrid
+				MinSpacing: 1
+			gapile:
+				Layout: BaseGrid
+				NearBuilding: gapile
+			nahand:
+				Layout: BaseGrid
+				NearBuilding: nahand
+			gaweap:
+				Layout: BaseGrid
+				NearBuilding: gaweap
+			naweap:
+				Layout: BaseGrid
+				NearBuilding: naweap
+			gatech:
+				Layout: BaseGrid
+				NearBuilding: gaarmory
+			natech:
+				Layout: BaseGrid
+				NearBuilding: nahand
+			napyra:
+				Layout: BaseGrid
+				NearBuilding: natech
+			gaarmory:
+				Layout: BaseGrid
+				NearBuilding: gapile
+			gadept:
+				Layout: BaseGrid
+				NearBuilding: gaweap
+			garadr:
+				Layout: BaseGrid
+				NearBuilding: gaarmory
+			naradr:
+				Layout: BaseGrid
+				NearBuilding: nahand
+			nastlh:
+				Layout: Coverage
+				NearBuilding: nacnst
+		BuildingLimits:
+			gapile: 6
+			nahand: 6
+			gaweap: 6
+			naweap: 6
+			gadept: 2
+			gahpad: 10
+			nahpad: 10
+			garadr: 1
+			gaarmory: 1
+			naradr: 1
+			gatech: 1
+			natech: 1
+			napyra: 1
+			gaplug: 1
+			gaplug2: 1
+			gaplug3: 1
+			gaplug4: 1
+			natmpl: 1
+			namisl: 1
+			nawast: 2
+		DefenseRoleLimits:
+			Total: 25
+			InfantryDefense: 10
+			ArmorDefense: 8
+			AADefense: 6
+			ArtilleryDefense: 5
+			Special: 5
+		BuildingFractions:
+			gapile: 8
+			nahand: 8
+			gaweap: 10
+			naweap: 10
+			gahpad: 6
+			nahpad: 6
+			gadept: 4
+			garadr: 5
+			naradr: 5
+			gaarmory: 5
+			gatech: 4
+			natech: 4
+			napyra: 4
+			nastlh: 4
+			gaplug: 4
+			gaplug2: 4
+			gaplug3: 4
+			gaplug4: 4
+			natmpl: 4
+			namisl: 4
+			nawast: 4
+		EarlyBuildingFractions:
+		MidBuildingFractions:
+			garadr: 8
+			naradr: 8
+			gaarmory: 8
+			gadept: 7
+		LateBuildingFractions:
+			gatech: 5
+			gaplug: 4
+			gaplug2: 4
+			natmpl: 5
+			namisl: 4
+		EcoBuildingFractions:
+		RushBuildingFractions:
+			gapile: 14
+			nahand: 14
+			gaweap: 16
+			naweap: 16
+			gahpad: 8
+			nahpad: 8
+		TurtleBuildingFractions:
+		RushDefenseRoleLimits:
+			Total: 12
+			InfantryDefense: 5
+			ArmorDefense: 4
+			AADefense: 2
+			ArtilleryDefense: 1
+			Special: 1
+		TurtleDefenseRoleLimits:
+			Total: 44
+			InfantryDefense: 16
+			ArmorDefense: 14
+			AADefense: 11
+			ArtilleryDefense: 8
+			Special: 7
