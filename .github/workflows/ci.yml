@@ -60,7 +60,9 @@ jobs:
         shell: powershell
         working-directory: .modsdk
         run: |
-          dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
+          if (-not ((dotnet nuget list source) -match 'https://api.nuget.org/v3/index.json')) {
+            dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
+          }
           .\make.ps1 check
 
       - name: Check Mods
