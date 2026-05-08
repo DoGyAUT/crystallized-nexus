@@ -16,6 +16,33 @@ FileSystem: ContentInstallerFileSystem
 		~^SupportDir|Content/ts: content
 		$cn: cn
 		cn|uibits
+		cn|bits
+		cn|bits/anims
+		cn|bits/anims/explosions
+		cn|bits/anims/muzzle
+		cn|bits/anims/particles
+		cn|bits/anims/trails
+		cn|bits/anims/weapons
+		cn|bits/art
+		cn|bits/art/gdi
+		cn|bits/art/gdi/aircraft
+		cn|bits/art/gdi/infantry
+		cn|bits/art/gdi/structures
+		cn|bits/art/gdi/vehicles
+		cn|bits/art/nod
+		cn|bits/art/nod/aircraft
+		cn|bits/art/nod/infantry
+		cn|bits/art/nod/structures
+		cn|bits/art/nod/vehicles
+		cn|bits/cameos
+		cn|bits/palletes
+		cn|bits/terrain
+		cn|audio/data
+		cn|audio/data/eva
+		cn|audio/data/explosions
+		cn|audio/data/themes
+		cn|audio/data/voice
+		cn|audio/data/weapons
 	ContentPackages:
 		# Tiberian Sun
 		content|cache.mix
@@ -42,34 +69,6 @@ FileSystem: ContentInstallerFileSystem
 		content|firestorm/e01vox02.mix
 		content|firestorm/ecache01.mix
 		~content|firestorm/scores01.mix
-	# Crystallized Nexus
-		cn|bits
-		cn|bits\anims
-		cn|bits\anims\explosions
-		cn|bits\anims\muzzle
-		cn|bits\anims\particles
-		cn|bits\anims\trails
-		cn|bits\anims\weapons
-		cn|bits\art
-		cn|bits\art\gdi
-		cn|bits\art\gdi\aircraft
-		cn|bits\art\gdi\infantry
-		cn|bits\art\gdi\structures
-		cn|bits\art\gdi\vehicles
-		cn|bits\art\nod
-		cn|bits\art\nod\aircraft
-		cn|bits\art\nod\infantry
-		cn|bits\art\nod\structures
-		cn|bits\art\nod\vehicles
-		cn|bits\cameos
-		cn|bits\palletes
-		cn|bits\terrain
-		cn|audio\data
-		cn|audio\data\eva
-		cn|audio\data\explosions
-		cn|audio\data\themes
-		cn|audio\data\voice
-		cn|audio\data\weapons
 	ContentInstallerMod: cn-content
 
 MapFolders:
