@@ -16,6 +16,33 @@ FileSystem: ContentInstallerFileSystem
 		~^SupportDir|Content/ts: content
 		$cn: cn
 		cn|uibits
+	ContentPackages:
+		# Tiberian Sun
+		content|cache.mix
+		content|conquer.mix
+		content|isosnow.mix
+		content|isotemp.mix
+		content|local.mix
+		content|sidec01.mix: sidebar-gdi
+		content|sidec02.mix: sidebar-nod
+		content|sno.mix
+		content|snow.mix
+		content|sounds.mix
+		content|speech01.mix: speech-gdi
+		content|speech02.mix: speech-nod
+		content|tem.mix
+		content|temperat.mix
+		~content|scores.mix
+		# Firestorm
+		content|firestorm
+		content|firestorm/sounds01.mix
+		content|firestorm/e01sc01.mix
+		content|firestorm/e01sc02.mix
+		content|firestorm/e01vox01.mix
+		content|firestorm/e01vox02.mix
+		content|firestorm/ecache01.mix
+		~content|firestorm/scores01.mix
+		# Below are mod-provided packages that need to be loaded after the content packages so they can override content assets.
 		cn|bits
 		cn|bits/anims
 		cn|bits/anims/explosions
@@ -43,32 +70,6 @@ FileSystem: ContentInstallerFileSystem
 		cn|audio/data/themes
 		cn|audio/data/voice
 		cn|audio/data/weapons
-	ContentPackages:
-		# Tiberian Sun
-		content|cache.mix
-		content|conquer.mix
-		content|isosnow.mix
-		content|isotemp.mix
-		content|local.mix
-		content|sidec01.mix: sidebar-gdi
-		content|sidec02.mix: sidebar-nod
-		content|sno.mix
-		content|snow.mix
-		content|sounds.mix
-		content|speech01.mix: speech-gdi
-		content|speech02.mix: speech-nod
-		content|tem.mix
-		content|temperat.mix
-		~content|scores.mix
-		# Firestorm
-		content|firestorm
-		content|firestorm/sounds01.mix
-		content|firestorm/e01sc01.mix
-		content|firestorm/e01sc02.mix
-		content|firestorm/e01vox01.mix
-		content|firestorm/e01vox02.mix
-		content|firestorm/ecache01.mix
-		~content|firestorm/scores01.mix
 	ContentInstallerMod: cn-content
 
 MapFolders:
