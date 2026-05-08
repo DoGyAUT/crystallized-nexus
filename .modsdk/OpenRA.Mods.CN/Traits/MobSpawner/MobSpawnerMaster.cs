@@ -90,7 +90,8 @@ namespace OpenRA.Mods.CN.Traits
 		IDamageModifier,
 		INotifyDamage,
 		INotifyEnteredCargo,
-		INotifyExitedCargo
+		INotifyExitedCargo,
+		INotifySelected
 	{
 		class MobSpawnerSlaveEntry : BaseSpawnerSlaveEntry
 		{
@@ -639,6 +640,21 @@ namespace OpenRA.Mods.CN.Traits
 
 				se.SpawnerSlave.Move(se.Actor, self.Location);
 				se.LastMoveDestination = self.Location;
+			}
+		}
+
+		// --- Selection expansion ---
+		void INotifySelected.Selected(Actor self)
+		{
+			// When any squad member is selected, add the remaining alive slaves so the
+			// full squad appears in the selection UI regardless of box-select position.
+			foreach (var se in slaveEntries)
+			{
+				if (!se.IsValid || !se.Actor.IsInWorld)
+					continue;
+
+				if (!self.World.Selection.Contains(se.Actor))
+					self.World.Selection.Add(se.Actor);
 			}
 		}
 

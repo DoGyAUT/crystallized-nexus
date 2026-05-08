@@ -69,10 +69,7 @@
 		Type: Light
 	Targetable:
 		TargetTypes: Ground, Trees, NoAutoTarget
-	ProximityExternalCondition@FORESTCOVER:
-		Condition: forest-cover
-		Range: 1c512
-		ValidRelationships: Ally, Neutral, Enemy
+	ForestCoverSource:
 	GrantConditionOnDamageState@Small:
 		Condition: small-fire
 		ValidDamageStates: Medium

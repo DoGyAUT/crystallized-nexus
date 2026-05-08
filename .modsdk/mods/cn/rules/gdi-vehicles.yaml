@@ -200,12 +200,11 @@ APC:
 	CNWithVoxelBody@water:
 		Sequence: water
 		RequiresCondition: inwater
-	WithWaterReflection:
-		RequiresCondition: inwater
 	LeavesTrails:
 		RequiresCondition: !inside-tunnel && inwater
 		Image: wake
 		Palette: effect
+		TrailWhileStationary: True
 		TerrainTypes: Water
 		StationaryInterval: 18
 		MovingInterval: 6
@@ -277,7 +276,6 @@ HVR:
 		Voice: Attack
 		PauseOnCondition: empdisable
 	CNWithVoxelTurret
-	WithWaterReflection:
 	Hovers:
 		RequiresCondition: !empdisable
 		BobDistance: -64

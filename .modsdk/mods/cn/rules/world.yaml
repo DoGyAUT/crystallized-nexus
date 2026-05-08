@@ -19,6 +19,17 @@
 		BlueTint: 1.19
 		Intensity: 0.9
 	TintPostProcessEffect:
+#	AmbientFogRenderer:
+#		FogColor: FFFFFFB4
+#		Alpha: 0.30
+#		BaseAlpha: 0.16
+#		Scale: 0.0032
+#		DetailScale: 0.008
+#		WindAngle: 25
+#		WindSpeed: 0.018
+#		Coverage: 1.42
+#		Edge: 0.50
+#		Pulse: 0.02
 	WaterReflectionRenderer:
 		TerrainTypes: Water
 		AdditionalTemplates: 297, 300, 567, 570
@@ -359,6 +370,7 @@ World:
 		InitialSpawnDelay: 1500
 		CheckboxDisplayOrder: 1
 		CheckboxCategory: events
+	ForestCoverSystem:
 	PathFinder:
 	ValidateOrder:
 	DebugPauseState:

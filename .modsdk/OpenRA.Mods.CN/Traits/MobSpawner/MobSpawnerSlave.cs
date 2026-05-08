@@ -98,9 +98,10 @@ namespace OpenRA.Mods.CN.Traits
 			if (spawnerMaster == null || spawnerMaster.Info.SlavesHaveFreeWill)
 				return;
 
-			// Redirect selection to the master actor.
-			// -SelectionDecorations: in YAML handles hiding the decoration.
-			self.World.Selection.Add(Master);
+			// Add the master — master's INotifySelected then expands the selection
+			// to all remaining slaves. Contains-guard prevents re-entrant recursion.
+			if (!self.World.Selection.Contains(Master))
+				self.World.Selection.Add(Master);
 		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)

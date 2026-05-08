@@ -1495,7 +1495,7 @@ naobel:
 		TilesetFilenames:
 			TEMPERATE: naobel.shp
 			SNOW: naobel.shp
-		Offset: 0, -24, 430
+		Offset: 0, -24, 128
 		DepthSprite: isodepth.shp
 	idle:
 		ShadowStart: -1

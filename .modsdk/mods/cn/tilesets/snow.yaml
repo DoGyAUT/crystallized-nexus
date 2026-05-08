@@ -20109,7 +20109,7 @@ MultiBrushCollections:
 	RoughGroundPatches:
 		FromTemplates: 711, 712, 713, 714, 715, 716, 717, 718, 719, 720
 	IceFields:
-		FromTemplates: 454, 470, 486, 502, 518, 534, 550, 566, 582, 598, 614, 630
+		FromTemplates: 567
 	CivilianBuildings:
 		FromActors: ca0001,ca0002,ca0003,ca0004,ca0005,ca0006,ca0007,ca0008,ca0009,ca0010,ca0011,ca0012,ca0013,ca0014,ca0015,ca0016,ca0017,ca0018,ca0019,ca0020,ca0021
 	Obstructions:
