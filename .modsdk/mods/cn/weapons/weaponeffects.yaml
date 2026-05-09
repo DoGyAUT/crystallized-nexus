@@ -1,3 +1,17 @@
+^FlashMicroW:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: micro_flash_w
+		ExplosionPalette: effect
+
+^FlashMicroY:
+	Warhead@FLASH: CreateEffect
+		ValidTargets: Ground, Air
+		AffectsParent: true
+		Explosions: micro_flash_y
+		ExplosionPalette: effect
+
 ^FlashTinyW:
 	Warhead@FLASH: CreateEffect
 		ValidTargets: Ground, Air

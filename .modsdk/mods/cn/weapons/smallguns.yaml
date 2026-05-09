@@ -78,7 +78,7 @@ VulcanTower:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 VulcanTower2:
 	Inherits: ^MG
@@ -98,7 +98,7 @@ VulcanTower2:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 JumpCannon:
 	Inherits: ^MG
@@ -135,7 +135,7 @@ OrcaCannon:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 AssaultCannon:
 	Inherits: ^MG
@@ -156,7 +156,7 @@ AssaultCannon:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 HeavyAssaultCannon:
 	Inherits: ^MG
@@ -179,7 +179,7 @@ HeavyAssaultCannon:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 RaiderCannon:
 	Inherits: ^MG
@@ -201,7 +201,7 @@ RaiderCannon:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 GattlingCannon:
 	Inherits: ^MG
@@ -224,7 +224,7 @@ GattlingCannon:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 HarpyClaw:
 	Inherits: ^MG
@@ -242,7 +242,7 @@ HarpyClaw:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 Pistola:
 	Inherits: ^MG
@@ -277,7 +277,7 @@ Marksmanrifle:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 Sniper:
 	Inherits: ^Sniper
@@ -297,7 +297,7 @@ Sniper:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 Sniper_large:
 	Inherits: ^Sniper
@@ -317,4 +317,4 @@ Sniper_large:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building

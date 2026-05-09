@@ -250,7 +250,7 @@ NALASR:
 		Recoils: false
 	Armament:
 		Weapon: TurretLaserFire
-		LocalOffset: 1273,0,884
+		LocalOffset: 1200,0,900
 	Power:
 		Amount: -30
 	BotCapabilities:

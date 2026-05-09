@@ -343,7 +343,7 @@ Player:
 						AllowedTypes: apc
 						IsCarrier: true
 					Passengers:
-						Count: 4
+						Count: 5
 						AllowedTypes: gasol, e2
 						IsPassenger: true
 			GDI_Orca_Airlift:
@@ -369,7 +369,7 @@ Player:
 						AllowedTypes: orca_tran
 						IsAircraftCarrier: true
 					Passengers:
-						Count: 3
+						Count: 5
 						AllowedTypes: gasniper, e2, gasol
 						IsPassenger: true
 			GDI_Jumpjet_Raid:
@@ -734,7 +734,7 @@ Player:
 						AllowedTypes: sapc
 						IsCarrier: true
 					Passengers:
-						Count: 2
+						Count: 5
 						AllowedTypes: nacad, e3, acolyte
 						IsPassenger: true
 			NOD_Howitzer_Siege:

@@ -344,9 +344,27 @@ GAPILE:
 		SpawnOffset: -724,0,0
 		ExitCell: -1,2
 	ExitsDebugOverlay:
+	Cargo:
+		Types: Infantry
+		MaxWeight: 80
+		LoadRange: 5c0
+		BeforeUnloadDelay: 5
+		AfterUnloadDelay: 5
+		BetweenUnloadDelay: 2
+		EjectOnDeath: true
 	Production:
 		Produces: Infantry
 		PauseOnCondition: empdisable
+	RepairsUnits:
+		ValuePercentage: 0
+		HpPerStep: 1000
+		Interval: 25
+		PauseOnCondition: empdisable
+		StartRepairingNotification: Repairing
+		StartRepairingTextNotification: notification-repairing
+		FinishRepairingNotification: UnitRepaired
+		FinishRepairingTextNotification: notification-unit-repaired
+	RestoresInfantrySquads:
 	ProductionBar:
 		ProductionType: Infantry
 	WithIdleOverlay@LIGHTS:

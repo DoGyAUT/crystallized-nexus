@@ -12,6 +12,7 @@
 using System.Collections.Generic;
 using System.Collections.Frozen;
 using System.Linq;
+using OpenRA.Mods.CN.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -88,6 +89,18 @@ namespace OpenRA.Mods.Common.Traits
 					if (repairBuilding != null)
 					{
 						bot.QueueOrder(new Order("RepairNear", actor, Target.FromActor(repairBuilding), false));
+						assignments++;
+						continue;
+					}
+				}
+
+				var repairableInBarracks = actor.TraitOrDefault<RepairableInBarracks>();
+				if (repairableInBarracks != null)
+				{
+					var repairBuilding = repairableInBarracks.FindRepairBuilding(actor);
+					if (repairBuilding != null)
+					{
+						bot.QueueOrder(new Order("Repair", actor, Target.FromActor(repairBuilding), false));
 						assignments++;
 						continue;
 					}

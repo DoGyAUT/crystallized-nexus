@@ -381,10 +381,7 @@ namespace OpenRA.Mods.CN.Traits
 			{
 				// Bud from an existing alive member
 				var existing = slaveEntries.FirstOrDefault(s => s.IsValid && s.Actor.IsInWorld);
-				if (existing == null)
-					return;
-
-				centerPosition = existing.Actor.CenterPosition;
+				centerPosition = existing != null ? existing.Actor.CenterPosition : self.CenterPosition;
 			}
 
 			foreach (var se in slaveEntries)
@@ -413,6 +410,44 @@ namespace OpenRA.Mods.CN.Traits
 						}
 					}));
 			}
+		}
+
+		public void RestoreSquad(Actor self, Actor repairer)
+		{
+			if (IsTraitDisabled)
+				return;
+
+			var restoredSlaves = false;
+			foreach (var se in slaveEntries)
+			{
+				if (se.IsValid)
+					continue;
+
+				Replenish(self, se);
+				restoredSlaves = true;
+			}
+
+			foreach (var se in slaveEntries)
+			{
+				if (!se.IsValid)
+					continue;
+
+				HealToFull(se.Actor, se.Health, repairer);
+			}
+
+			HealToFull(self, health, repairer);
+			spawnReplaceTicks = 0;
+
+			var passenger = self.TraitOrDefault<Passenger>();
+			if (restoredSlaves && passenger?.Transport == null)
+				SpawnReplenishedSlaves(self);
+		}
+
+		static void HealToFull(Actor target, IHealth targetHealth, Actor repairer)
+		{
+			var hpToRepair = targetHealth.MaxHP - targetHealth.HP;
+			if (hpToRepair > 0)
+				targetHealth.InflictDamage(target, repairer, new Damage(-hpToRepair), false);
 		}
 
 		public override void OnSlaveKilled(Actor self, Actor slave)
@@ -448,14 +483,19 @@ namespace OpenRA.Mods.CN.Traits
 			{
 				foreach (var se in slaveEntries)
 				{
-					if (!se.IsValid || !se.Actor.IsInWorld)
+					if (!se.IsValid)
+						continue;
+
+					if (se.Actor.TraitOrDefault<Passenger>()?.Transport == transport)
 						continue;
 
 					if (!cargo.CanLoad(se.Actor))
 						continue;
 
 					se.Actor.CancelActivity();
-					w.Remove(se.Actor);
+					if (se.Actor.IsInWorld)
+						w.Remove(se.Actor);
+
 					cargo.Load(transport, se.Actor);
 				}
 			});
@@ -503,13 +543,14 @@ namespace OpenRA.Mods.CN.Traits
 
 			aggregateHealthUpdateTicks = Info.AggregateHealthUpdateDelay;
 
-			var aliveSlaves = slaveEntries.Where(s => s.IsValid && s.Actor.IsInWorld).ToArray();
+			var spawnedSlaves = slaveEntries.Where(s => s.Actor != null).ToArray();
 
-			if (aliveSlaves.Length == 0)
+			if (spawnedSlaves.Length == 0)
 				return;
 
-			var totalMaxHP = health.MaxHP + aliveSlaves.Sum(s => s.Health.MaxHP);
-			var currentHP = health.HP + aliveSlaves.Sum(s => s.Health.HP);
+			var livingSlaves = spawnedSlaves.Where(s => !s.Health.IsDead).ToArray();
+			var totalMaxHP = health.MaxHP + spawnedSlaves.Sum(s => s.Health.MaxHP);
+			var currentHP = health.HP + livingSlaves.Sum(s => s.Health.HP);
 
 			var targetHP = (int)((long)currentHP * health.MaxHP / totalMaxHP);
 			targetHP = Math.Max(targetHP, 1);

@@ -131,6 +131,8 @@
 
 ^MobSquadMember:
 	MobSpawnerSlave:
+	Passenger:
+		Weight: 0
 	RejectsOrders:
 	MobSquadSelectionDecoration:
 		UsePlayerColor: true

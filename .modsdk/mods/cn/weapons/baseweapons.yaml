@@ -19,7 +19,21 @@
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
+	Warhead@4Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 5
+		Speed: 25, 90
+		UpwardSpeed: 150, 350
+		Gravity: 40
+		Lifetime: 6, 14
+		RestLifetime: 8, 18
+		Length: 48, 96
+		Width: 1, 1
+		Inaccuracy: 32
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^Sniper:
 	Inherits@DefaultWahead: ^SniperBulletWarhead
@@ -36,6 +50,20 @@
 		ExplosionPalette: ra
 		ValidTargets: Water
 		InvalidTargets: Vehicle
+	Warhead@4Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 10
+		Speed: 25, 90
+		UpwardSpeed: 150, 350
+		Gravity: 40
+		Lifetime: 6, 14
+		RestLifetime: 8, 18
+		Length: 48, 96
+		Width: 1, 1
+		Inaccuracy: 32
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^MGBullet:
 	Inherits@DefaultWahead: ^BulletWarhead
@@ -60,6 +88,20 @@
 		ExplosionPalette: ra
 		ValidTargets: Water
 		InvalidTargets: Vehicle
+	Warhead@4Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 5
+		Speed: 25, 90
+		UpwardSpeed: 150, 350
+		Gravity: 40
+		Lifetime: 6, 14
+		RestLifetime: 8, 18
+		Length: 48, 96
+		Width: 1, 1
+		Inaccuracy: 32
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^Cannon:
 	Inherits@DefaultWahead: ^CannonWarhead
@@ -95,13 +137,21 @@
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
-#	Warhead@5Eff: CreateEffect
-#		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5, sparks6
-#		ExplosionPalette: effect
-#		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg #expnew13.aud
-#		ValidTargets: Vehicle, Cyborg
-#		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
+	Warhead@6Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 12
+		Speed: 40, 130
+		UpwardSpeed: 220, 520
+		Gravity: 44
+		Lifetime: 10, 20
+		RestLifetime: 12, 24
+		Length: 64, 128
+		Width: 1, 2
+		Inaccuracy: 40
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^ArtilleryWeapon:
 	Inherits: ^Cannon
@@ -114,6 +164,20 @@
 		ContrailLength: 20
 		ContrailStartWidth: 0c64
 		ContrailEndWidth: 0c16
+	Warhead@6Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 20
+		Speed: 55, 160
+		UpwardSpeed: 280, 640
+		Gravity: 48
+		Lifetime: 12, 24
+		RestLifetime: 14, 28
+		Length: 80, 160
+		Width: 1, 2
+		Inaccuracy: 48
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^DefaultMissile:
 	Inherits@DefaultWahead: ^MissileWarhead
@@ -145,9 +209,6 @@
 		CloseEnough: 0c384
 		CruiseAltitude: 4c0
 		TerrainHeightAware: true
-#		ContrailLength: 25
-#		ContrailStartWidth: 0c16
-#		ContrailEndWidth: 0c64
 	Warhead@1Dam: SpreadDamage
 		Damage: 25
 		ValidTargets: Ground, Air
@@ -166,12 +227,26 @@
 	Warhead@4Eff: CreateEffect
 		Explosions: pboom1, pboom2, pboom3
 		ExplosionPalette: effect
-		InvalidTargets: Ground, Structure
+		InvalidTargets: Ground, Building
 		ImpactSounds: expnew12.aud
 		ValidTargets: Air
 	Warhead@Smu: LeaveSmudge
 		SmudgeType: SmallCrater
 		InvalidTargets: Vehicle, Building, Wall
+	Warhead@5Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 18
+		Speed: 50, 150
+		UpwardSpeed: 250, 600
+		Gravity: 46
+		Lifetime: 12, 24
+		RestLifetime: 14, 28
+		Length: 72, 144
+		Width: 1, 2
+		Inaccuracy: 44
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^Railgun:
 	Inherits@DefaultWahead: ^RailgunWarhead
@@ -186,6 +261,20 @@
 	Warhead@1Dam: SpreadDamage
 		Range: 0, 32
 		Damage: 150
+	Warhead@2Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 20
+		Speed: 60, 180
+		UpwardSpeed: 300, 660
+		Gravity: 50
+		Lifetime: 12, 26
+		RestLifetime: 14, 28
+		Length: 80, 160
+		Width: 1, 2
+		Inaccuracy: 44
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^RailgunCannon:
 	Inherits@DefaultWahead: ^RailgunWarhead
@@ -225,11 +314,25 @@
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 	Warhead@5Eff: CreateEffect
 		Explosions: plasmaexpl1
 		ExplosionPalette: effect
-		ValidTargets: Vehicle, Cyborg, Structure, Infantry
+		ValidTargets: Vehicle, Cyborg, Building, Infantry
+	Warhead@6Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 14
+		Speed: 45, 140
+		UpwardSpeed: 240, 560
+		Gravity: 46
+		Lifetime: 10, 22
+		RestLifetime: 12, 26
+		Length: 68, 136
+		Width: 1, 2
+		Inaccuracy: 40
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^EnergyBlast:
 	Inherits@DefaultWahead: ^PlasmaWarhead
@@ -253,23 +356,55 @@
 	Warhead@4Smu: LeaveSmudge
 		SmudgeType: SmallScorch
 		InvalidTargets: Vehicle, Building, Wall
+	Warhead@5Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 25
+		Speed: 60, 190
+		UpwardSpeed: 300, 700
+		Gravity: 46
+		Lifetime: 14, 28
+		RestLifetime: 16, 32
+		Length: 88, 176
+		Width: 1, 3
+		Inaccuracy: 48
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^Laser:
 	Inherits@DefaultWahead: ^LaserWarhead
-	Projectile: LaserZap
+	Projectile: CNLaserZap
 		Width: 72
 		Duration: 30
 		ZOffset: 2047
-		Color: FF000080
+		Color: FFF4C8E8
 		SecondaryBeam: true
-		SecondaryBeamWidth: 180
+		SecondaryBeamWidth: 220
 		SecondaryBeamZOffset: 2047
-		SecondaryBeamColor: FF000040
+		SecondaryBeamColor: FF9A3038
+		HeatEffect: true
+		HeatLines: 3
+		HeatAmplitude: 3
+		HeatWavelength: 44
+		HeatSpeed: 14
+		HeatSegments: 12
+		HeatWidth: 1
+		HeatColor: FFE8B422
 	Warhead@1Dam: SpreadDamage
 		Damage: 250
-	Warhead@2Eff: CreateEffect
-		Explosions: sparks1, sparks2, sparks3, sparks4, sparks5
-		ExplosionPalette: effect
+	Warhead@2Sparks: SparkBurst
+		Count: 50
+		Speed: 35, 145
+		UpwardSpeed: 300, 620
+		Gravity: 52
+		Lifetime: 14, 30
+		RestLifetime: 12, 26
+		Length: 72, 144
+		Width: 1, 2
+		Inaccuracy: 48
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
 
 ^DamagingExplosion:
 	Inherits@DefaultWahead: ^SmallExplosionWarhead
@@ -294,3 +429,17 @@
 		Weapon: RedTiberiumExplosion
 		Radius: 1
 		ResourceTypes: RedTiberium
+	Warhead@Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 30
+		Speed: 70, 210
+		UpwardSpeed: 350, 750
+		Gravity: 50
+		Lifetime: 16, 32
+		RestLifetime: 18, 36
+		Length: 96, 192
+		Width: 1, 3
+		Inaccuracy: 56
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF

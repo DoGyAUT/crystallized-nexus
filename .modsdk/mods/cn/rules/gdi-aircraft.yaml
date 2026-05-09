@@ -351,7 +351,7 @@ ORCA_TRAN:
 		Type: Light
 	Cargo:
 		Types: Infantry
-		MaxWeight: 12
+		MaxWeight: 5
 		UnloadVoice: Move
 		EjectOnDeath: true
 		AfterUnloadDelay: 40

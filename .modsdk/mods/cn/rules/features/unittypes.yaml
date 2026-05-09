@@ -74,6 +74,9 @@
 	Passenger:
 		CargoType: Infantry
 		Voice: Move
+	RepairableInBarracks:
+		RepairActors: gapile, nahand
+		Voice: Move
 	HiddenUnderFog:
 	ActorLostNotification:
 		TextNotification: notification-unit-lost

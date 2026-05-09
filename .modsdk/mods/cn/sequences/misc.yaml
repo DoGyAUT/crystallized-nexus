@@ -413,6 +413,16 @@ explosion:
 		Length: 8
 		Tick: 360
 		IgnoreWorldTint: False
+	micro_flash_w:
+		Filename: clight_micro_w.png
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
+	micro_flash_y:
+		Filename: clight_micro_y.png
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		AlphaFade: False
 	tiny_flash_w:
 		Filename: clight_tiny_w.png
 		BlendMode: Additive

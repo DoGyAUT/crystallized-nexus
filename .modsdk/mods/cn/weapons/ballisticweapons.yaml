@@ -109,7 +109,7 @@ RPGTower:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 Jugg90mm:
 	Inherits: ^ArtilleryWeapon
@@ -137,7 +137,7 @@ Jugg90mm:
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
 		ValidTargets: Vehicle, Cyborg
-		InvalidTargets: Infantry, Structure
+		InvalidTargets: Infantry, Building
 
 Grenade:
 	Inherits: ^ArtilleryWeapon
@@ -172,7 +172,7 @@ Grenade:
 		Explosions: grenexplo1
 		ExplosionPalette: effect
 		ImpactSounds: expnew13.aud
-		ValidTargets: Vehicle, Cyborg, Structure
+		ValidTargets: Vehicle, Cyborg, Building
 		InvalidTargets: Infantry
 
 EliteCadreGrenade:
@@ -209,5 +209,5 @@ EliteCadreGrenade:
 		Explosions: grenexplo1
 		ExplosionPalette: effect
 		ImpactSounds: expnew13.aud
-		ValidTargets: Vehicle, Cyborg, Structure
+		ValidTargets: Vehicle, Cyborg, Building
 		InvalidTargets: Infantry

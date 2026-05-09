@@ -247,7 +247,7 @@ IonStormStrike:
 		Damage: 100
 		Falloff: 100, 50, 0
 		ValidTargets: Ground, Water, Air
-		InvalidTargets: Structure, Wall
+		InvalidTargets: Building, Wall
 	Warhead@2Smu: LeaveSmudge
 		SmudgeType: LargeScorch
 		InvalidTargets: Vehicle, Building, Wall
@@ -269,7 +269,7 @@ IonStormAmbientBolt:
 		Damage: 50
 		Falloff: 100, 50, 0
 		ValidTargets: Ground, Water, Air
-		InvalidTargets: Structure, Wall
+		InvalidTargets: Building, Wall
 	Warhead@2Smu: LeaveSmudge
 		SmudgeType: MediumScorch
 		InvalidTargets: Vehicle, Building, Wall

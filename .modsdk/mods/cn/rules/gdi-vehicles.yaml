@@ -188,7 +188,7 @@ APC:
 		MaxHeightDelta: 3
 	Cargo:
 		Types: Infantry
-		MaxWeight: 8
+		MaxWeight: 5
 		UnloadVoice: Unload
 		LoadingCondition: loading
 		EjectOnDeath: true
