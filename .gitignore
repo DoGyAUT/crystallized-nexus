@@ -419,3 +419,17 @@ FodyWeavers.xsd
 
 # Engine - managed separately via crystallized-nexus-engine repo
 engine/
+
+# Local AI assistant configuration
+.claude/
+.continue/
+.continueignore
+.continuerules
+**/.claude/
+
+# Local build verification output
+.modsdk/mods/.build-check/
+
+# Temporary GitHub/API scratch dumps
+.modsdk/mods/commits_page*.json
+.modsdk/mods/data*.json
