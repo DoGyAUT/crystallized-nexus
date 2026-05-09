@@ -850,7 +850,7 @@ JUGG:
 		Speed: 71
 		TurnSpeed: 20
 		AlwaysTurnInPlace: true
-		ImmovableCondition: !undeployed
+		ImmovableCondition: formation-move-locked || !undeployed
 		RequireForceMoveCondition: !undeployed
 		TerrainOrientationAdjustmentMargin: -1
 	RevealsShroud:

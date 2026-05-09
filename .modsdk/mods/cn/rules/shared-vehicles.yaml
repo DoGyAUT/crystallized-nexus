@@ -24,7 +24,7 @@ LPST:
 	Mobile:
 		Speed: 85
 		TurnSpeed: 20
-		ImmovableCondition: !undeployed
+		ImmovableCondition: formation-move-locked || !undeployed
 		RequireForceMoveCondition: !undeployed
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel && undeployed

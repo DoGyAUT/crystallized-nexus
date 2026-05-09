@@ -231,6 +231,7 @@
 		Action: Kill
 	Mobile:
 		PauseOnCondition: empdisable || being-captured || carried
+		ImmovableCondition: formation-move-locked
 		Locomotor: wheeled
 		TurnSpeed: 20
 		Voice: Move

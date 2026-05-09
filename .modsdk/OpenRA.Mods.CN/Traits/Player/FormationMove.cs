@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
@@ -32,16 +33,36 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Order names this trait applies to.")]
 		public readonly HashSet<string> ValidOrders = ["Move", "AttackMove"];
 
+		[Desc("Manual role bias for slot assignment. Positive values prefer front rows; negative values prefer rear rows.")]
+		public readonly int RoleBias = 0;
+
+		[Desc("Prefer durable and currently healthy actors in front rows.")]
+		public readonly bool PreferHealthyFrontliners = true;
+
+		[Desc("Prefer actors with longer weapon range in rear rows.")]
+		public readonly bool PreferLongRangeBackline = true;
+
+		[Desc("When turning more than 90 degrees, how strongly current forward position should preserve in-place ordering.",
+			"Higher values reduce crossing; lower values let role priority dominate more strongly.")]
+		public readonly int TurnPositionWeight = 4;
+
+		[Desc("Keep actors that have already arrived at their previous formation slot in place when assigning new slots.")]
+		public readonly bool LockSettledSlots = true;
+
+		[Desc("Condition granted while this actor is idle on its assigned formation cell. " +
+			"Use this in Mobile.ImmovableCondition to prevent friendly nudge displacement.")]
+		public readonly string HoldPositionCondition = "formation-move-locked";
+
 		public override object Create(ActorInitializer init) { return new FormationMove(init.Self, this); }
 	}
 
-	public class FormationMove : IResolveOrder
+	public class FormationMove : IIssueOrder, IResolveOrder, INotifyBecomingIdle, INotifyMoving
 	{
-		readonly FormationMoveInfo info;
+		const uint FormationOrderMarker = 0x464D4F56;
 
-		// Set before issuing our own formation order so ResolveOrder skips it on return,
-		// preventing infinite recursion while allowing Mobile to draw the path indicator.
-		bool pendingRedirect = false;
+		readonly FormationMoveInfo info;
+		int holdPositionToken = Actor.InvalidConditionToken;
+		CPos? lastFormationCell;
 
 		// Persistent slot index (-1 = unassigned). Retained across commands so units
 		// keep their position in the formation on small direction changes.
@@ -57,32 +78,90 @@ namespace OpenRA.Mods.CN.Traits
 			this.info = info;
 		}
 
+		IEnumerable<IOrderTargeter> IIssueOrder.Orders
+		{
+			get
+			{
+				if (info.ValidOrders.Contains("Move"))
+					yield return new FormationMoveOrderTargeter();
+			}
+		}
+
+		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
+		{
+			if (order is not FormationMoveOrderTargeter)
+				return null;
+
+			if (!target.IsValidFor(self))
+				return null;
+
+			var targetCell = self.World.Map.CellContaining(target.CenterPosition);
+			if (!TryGetFormationCell(self, targetCell, false, out var formationCell, out var slot, out var fwdCX, out var fwdCY))
+				return new Order("Move", self, target, queued);
+
+			return new Order("Move", self, Target.FromCell(self.World, formationCell), target, queued)
+			{
+				ExtraData = FormationOrderMarker,
+				ExtraLocation = PackFormationState(slot, fwdCX, fwdCY)
+			};
+		}
+
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
 		{
 			if (!info.ValidOrders.Contains(order.OrderString)) return;
 			if (!order.Target.IsValidFor(self)) return;
 
-			// Our own formation redirect arriving back — skip formation logic,
-			// let Mobile process it normally so the path indicator is drawn.
-			if (pendingRedirect) { pendingRedirect = false; return; }
+			RevokeHoldPosition(self);
+
+			// Direct formation orders already carry their final target cell. Persist the
+			// slot state here, then let Mobile / AttackMove process the order normally.
+			if (order.ExtraData == FormationOrderMarker)
+			{
+				UnpackFormationState(order.ExtraLocation, out FormationSlot, out lastFwdCX, out lastFwdCY);
+				lastFormationCell = self.World.Map.CellContaining(order.Target.CenterPosition);
+				return;
+			}
 
 			var targetCell = self.World.Map.CellContaining(order.Target.CenterPosition);
+			if (!TryGetFormationCell(self, targetCell, true, out var myCell, out var slot, out var fwdCX, out var fwdCY))
+				return;
 
-			// Gather all living, mobile, formation-capable friendly actors in the selection.
+			if (myCell == targetCell)
+				return;
+
+			// Fallback for orders that do not pass through our IIssueOrder path, such as
+			// AttackMove's grouped order generator.
+			self.World.IssueOrder(new Order(order.OrderString, self,
+				Target.FromCell(self.World, myCell), order.Target, order.Queued)
+			{
+				ExtraData = FormationOrderMarker,
+				ExtraLocation = PackFormationState(slot, fwdCX, fwdCY)
+			});
+		}
+
+		bool TryGetFormationCell(Actor self, CPos targetCell, bool persistState, out CPos formationCell,
+			out int formationSlot, out int fwdCX, out int fwdCY)
+		{
+			// Gather all living, positionable, formation-capable friendly actors in the selection.
 			var group = self.World.Selection.Actors
 				.Where(a => !a.IsDead && a.IsInWorld
 					&& a.Owner == self.Owner
 					&& a.TraitOrDefault<FormationMove>() != null
-					&& a.TraitOrDefault<Mobile>() != null)
+					&& a.OccupiesSpace is IPositionable)
 				.ToList();
 
-			if (group.Count <= 1) return;
+			formationCell = targetCell;
+			formationSlot = FormationSlot;
+			fwdCX = lastFwdCX;
+			fwdCY = lastFwdCY;
+
+			if (group.Count <= 1) return false;
 
 			// Sort deterministically — every actor in the group computes the same assignment.
 			group.Sort((a, b) => a.ActorID.CompareTo(b.ActorID));
 
 			var myIdx = group.IndexOf(self);
-			if (myIdx < 0) return;
+			if (myIdx < 0) return false;
 
 			// --- Direction (cell space) ---
 			var sumCX = 0; var sumCY = 0;
@@ -100,7 +179,6 @@ namespace OpenRA.Mods.CN.Traits
 			var cellLen = Math.Sqrt(dcx * dcx + dcy * dcy);
 
 			// Snap to nearest of 8 cell-space facings; result is always in {-1, 0, 1}.
-			int fwdCX, fwdCY;
 			if (cellLen < 0.5)
 			{
 				fwdCX = 0; fwdCY = 1;
@@ -131,6 +209,7 @@ namespace OpenRA.Mods.CN.Traits
 			var halfRows = info.FrontAtTarget ? 0.0 : (totalRows - 1) / 2.0;
 
 			var rawSlots = new CPos[group.Count];
+			var slotRows = new int[group.Count];
 			for (var slot = 0; slot < group.Count; slot++)
 			{
 				var col = slot % cols;
@@ -145,25 +224,61 @@ namespace OpenRA.Mods.CN.Traits
 				var wy = (int)Math.Round(rgtCY * colOff * info.Spacing - fwdCY * rowOff * info.Spacing,
 					MidpointRounding.AwayFromZero);
 				rawSlots[slot] = targetCell + new CVec(wx, wy);
+				slotRows[slot] = row;
 			}
 
 			// --- Slot assignment ---
 			var actorToSlot = new int[group.Count];
+			Array.Fill(actorToSlot, -1);
+			var assignedFwdCX = fwdCX;
+			var assignedFwdCY = fwdCY;
+			var actorInfos = group
+				.Select((a, ai) =>
+				{
+					var c = self.World.Map.CellContaining(a.CenterPosition);
+					var fm = a.Trait<FormationMove>();
+					return new FormationActorInfo(ai, fm,
+						assignedFwdCX * c.X + assignedFwdCY * c.Y,
+						rgtCX * c.X + rgtCY * c.Y,
+						GetFrontlineScore(a, fm.info));
+				})
+				.ToArray();
+
+			var desiredRows = new int[group.Count];
+			var rankedActors = actorInfos
+				.OrderByDescending(x => x.FrontlineScore)
+				.ThenBy(x => x.ActorIdx)
+				.ToArray();
+			for (var rank = 0; rank < rankedActors.Length; rank++)
+				desiredRows[rankedActors[rank].ActorIdx] = rank / cols;
+
+			var usedActors = new bool[group.Count];
+			var usedSlots = new bool[rawSlots.Length];
+			var assigned = 0;
+			if (info.LockSettledSlots)
+				for (var ai = 0; ai < group.Count; ai++)
+				{
+					var previousSlot = actorInfos[ai].Formation.FormationSlot;
+					if (previousSlot < 0 || previousSlot >= rawSlots.Length || usedSlots[previousSlot])
+						continue;
+
+					if (!IsSettledOnSlot(group[ai], rawSlots[previousSlot]))
+						continue;
+
+					actorToSlot[ai] = previousSlot;
+					usedActors[ai] = true;
+					usedSlots[previousSlot] = true;
+					assigned++;
+				}
 
 			if (bigTurn)
 			{
-				// Sort units by forward projection DESC (most advanced → front row).
-				// Tiebreak by ActorID for determinism.
-				var sortedByFwd = group
-					.Select((a, ai) =>
-					{
-						var c = self.World.Map.CellContaining(a.CenterPosition);
-						return (ai,
-							fwdProj: fwdCX * c.X + fwdCY * c.Y,
-							latProj: rgtCX * c.X + rgtCY * c.Y);
-					})
-					.OrderByDescending(x => x.fwdProj)
-					.ThenBy(x => x.ai)
+				// Sort units by role plus current forward projection. This lets durable
+				// frontliners lead while still keeping large reversals mostly in-place.
+				var sortedByFront = actorInfos
+					.OrderByDescending(x => x.FrontlineScore + x.ForwardProjection * info.TurnPositionWeight)
+					.ThenByDescending(x => x.ForwardProjection)
+					.ThenBy(x => x.ActorIdx)
 					.ToList();
 
 				// Assign row-by-row: within each row sort by lateral projection separately.
@@ -173,44 +288,54 @@ namespace OpenRA.Mods.CN.Traits
 				for (var row = 0; row < totalRows; row++)
 				{
 					var colsInRow = (row == totalRows - 1) ? (group.Count - row * cols) : cols;
-					var rowUnits = sortedByFwd
-						.Skip(row * cols).Take(colsInRow)
-						.OrderBy(x => x.latProj).ThenBy(x => x.ai)
+					var rowSlots = Enumerable.Range(slotCursor, colsInRow)
+						.Where(si => !usedSlots[si])
 						.ToList();
-					for (var col = 0; col < colsInRow; col++)
-						actorToSlot[rowUnits[col].ai] = slotCursor + col;
+
+					var rowUnits = sortedByFront
+						.Where(x => !usedActors[x.ActorIdx])
+						.Take(rowSlots.Count)
+						.OrderBy(x => x.LateralProjection).ThenBy(x => x.ActorIdx)
+						.ToList();
+
+					for (var col = 0; col < rowUnits.Count; col++)
+					{
+						actorToSlot[rowUnits[col].ActorIdx] = rowSlots[col];
+						usedActors[rowUnits[col].ActorIdx] = true;
+						usedSlots[rowSlots[col]] = true;
+						assigned++;
+					}
+
 					slotCursor += colsInRow;
 				}
 			}
 			else
 			{
-				// Greedy nearest-slot with slot-preference: units prefer their last slot
-				// so the formation stays stable across consecutive small-turn commands.
-				var pairs = new List<(int ActorIdx, int SlotIdx, long DistSq)>(group.Count * group.Count);
+				// Greedy nearest-slot with role-row preference: units settle into sensible
+				// rows, then preserve previous slots and proximity within those rows.
+				var pairs = new List<(int ActorIdx, int SlotIdx, int RowPenalty, int SlotPenalty, long DistSq)>(group.Count * group.Count);
 				for (var ai = 0; ai < group.Count; ai++)
 					for (var si = 0; si < rawSlots.Length; si++)
 					{
 						var diff = group[ai].CenterPosition - self.World.Map.CenterOfCell(rawSlots[si]);
-						pairs.Add((ai, si, diff.LengthSquared));
+						var rowPenalty = Math.Abs(desiredRows[ai] - slotRows[si]);
+						var slotPenalty = actorInfos[ai].Formation.FormationSlot == si ? 0 : 1;
+						pairs.Add((ai, si, rowPenalty, slotPenalty, diff.LengthSquared));
 					}
 
 				pairs.Sort((a, b) =>
 				{
-					var fmA = group[a.ActorIdx].TraitOrDefault<FormationMove>();
-					var fmB = group[b.ActorIdx].TraitOrDefault<FormationMove>();
-					var prefA = (fmA != null && fmA.FormationSlot == a.SlotIdx) ? 0 : 1;
-					var prefB = (fmB != null && fmB.FormationSlot == b.SlotIdx) ? 0 : 1;
-					if (prefA != prefB) return prefA.CompareTo(prefB);
-					var cmp = a.DistSq.CompareTo(b.DistSq);
+					var cmp = a.RowPenalty.CompareTo(b.RowPenalty);
+					if (cmp != 0) return cmp;
+					cmp = a.SlotPenalty.CompareTo(b.SlotPenalty);
+					if (cmp != 0) return cmp;
+					cmp = a.DistSq.CompareTo(b.DistSq);
 					if (cmp != 0) return cmp;
 					cmp = a.ActorIdx.CompareTo(b.ActorIdx);
 					return cmp != 0 ? cmp : a.SlotIdx.CompareTo(b.SlotIdx);
 				});
 
-				var usedActors = new bool[group.Count];
-				var usedSlots = new bool[rawSlots.Length];
-				var assigned = 0;
-				foreach (var (ai, si, _) in pairs)
+				foreach (var (ai, si, _, _, _) in pairs)
 				{
 					if (usedActors[ai] || usedSlots[si]) continue;
 					actorToSlot[ai] = si;
@@ -220,11 +345,32 @@ namespace OpenRA.Mods.CN.Traits
 				}
 			}
 
-			// --- Validate this actor's slot ---
-			var myMobile = self.Trait<Mobile>();
-			var myCell = rawSlots[actorToSlot[myIdx]];
+			// Defensive fallback: unusual locked-slot combinations should not leave an
+			// actor without a target, even if the row allocator above runs out early.
+			if (assigned < group.Count)
+				for (var ai = 0; ai < group.Count; ai++)
+				{
+					if (actorToSlot[ai] >= 0)
+						continue;
 
-			if (!IsPassable(self.World, myCell, myMobile))
+					for (var si = 0; si < rawSlots.Length; si++)
+					{
+						if (usedSlots[si])
+							continue;
+
+						actorToSlot[ai] = si;
+						usedActors[ai] = true;
+						usedSlots[si] = true;
+						assigned++;
+						break;
+					}
+				}
+
+			// --- Validate this actor's slot ---
+			var myPositionable = (IPositionable)self.OccupiesSpace;
+			formationCell = rawSlots[actorToSlot[myIdx]];
+
+			if (!IsPassable(self.World, formationCell, myPositionable))
 			{
 				var reserved = new HashSet<CPos>();
 				for (var ai = 0; ai < group.Count; ai++)
@@ -232,34 +378,182 @@ namespace OpenRA.Mods.CN.Traits
 
 				var found = false;
 				for (var r = 1; r <= 5 && !found; r++)
-					foreach (var c in self.World.Map.FindTilesInAnnulus(myCell, r, r))
-						if (IsPassable(self.World, c, myMobile) && !reserved.Contains(c))
-						{ myCell = c; found = true; break; }
+					foreach (var c in self.World.Map.FindTilesInAnnulus(formationCell, r, r))
+						if (IsPassable(self.World, c, myPositionable) && !reserved.Contains(c))
+						{ formationCell = c; found = true; break; }
 
-				if (!found) myCell = targetCell;
+				if (!found) formationCell = targetCell;
 			}
 
-			// Persist slot and direction.
-			FormationSlot = actorToSlot[myIdx];
-			lastFwdCX = fwdCX;
-			lastFwdCY = fwdCY;
+			formationSlot = actorToSlot[myIdx];
+			if (persistState)
+			{
+				FormationSlot = formationSlot;
+				lastFwdCX = fwdCX;
+				lastFwdCY = fwdCY;
+			}
 
-			if (myCell == targetCell) return;
-
-			// Re-issue a formation order for self via the order system so:
-			// (a) Mobile draws the green path indicator to the correct formation cell, and
-			// (b) no double-queue stop-restart occurs (QueueActivity + IssueOrder for the
-			//     same destination was what caused units to briefly stop mid-movement).
-			// The 1-frame convergence on the click point is imperceptible at unit speeds
-			// (~0.07 cells at 2 cells/s, 30 fps) and far less disruptive than the stop.
-			pendingRedirect = true;
-			self.World.IssueOrder(new Order(order.OrderString, self,
-				Target.FromCell(self.World, myCell), order.Queued));
+			return true;
 		}
 
-		static bool IsPassable(World world, CPos cell, Mobile mobile)
+		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
-			return world.Map.Contains(cell) && mobile.CanEnterCell(cell);
+			UpdateHoldPosition(self);
+		}
+
+		void INotifyMoving.MovementTypeChanged(Actor self, MovementType type)
+		{
+			if (type.HasMovementType(MovementType.Horizontal))
+				RevokeHoldPosition(self);
+		}
+
+		void UpdateHoldPosition(Actor self)
+		{
+			if (holdPositionToken != Actor.InvalidConditionToken)
+				return;
+
+			if (string.IsNullOrEmpty(info.HoldPositionCondition) || !self.IsIdle || lastFormationCell == null)
+				return;
+
+			if (self.World.Map.CellContaining(self.CenterPosition) == lastFormationCell.Value)
+				holdPositionToken = self.GrantCondition(info.HoldPositionCondition);
+		}
+
+		void RevokeHoldPosition(Actor self)
+		{
+			if (holdPositionToken != Actor.InvalidConditionToken && self.TokenValid(holdPositionToken))
+				holdPositionToken = self.RevokeCondition(holdPositionToken);
+			else
+				holdPositionToken = Actor.InvalidConditionToken;
+		}
+
+		bool IsHoldingFormationPosition => holdPositionToken != Actor.InvalidConditionToken;
+
+		static int GetFrontlineScore(Actor actor, FormationMoveInfo info)
+		{
+			var score = info.RoleBias;
+
+			if (info.PreferHealthyFrontliners)
+			{
+				var health = actor.TraitOrDefault<IHealth>();
+				if (health != null && health.MaxHP > 0)
+				{
+					score += health.MaxHP / 10;
+					score += health.HP * 60 / health.MaxHP;
+				}
+			}
+
+			if (info.PreferLongRangeBackline)
+			{
+				var maxRange = GetRulesMaximumRange(actor);
+				score -= maxRange.Length * 12 / 1024;
+			}
+
+			return score;
+		}
+
+		static WDist GetRulesMaximumRange(Actor actor)
+		{
+			var maxRange = WDist.Zero;
+			var armamentInfos = actor.Info.TraitInfos<ArmamentInfo>().ToArray();
+
+			foreach (var attackInfo in actor.Info.TraitInfos<AttackBaseInfo>())
+				foreach (var armamentName in attackInfo.Armaments)
+					foreach (var armamentInfo in armamentInfos)
+					{
+						if (armamentInfo.Name != armamentName)
+							continue;
+
+						if (maxRange < armamentInfo.ModifiedRange)
+							maxRange = armamentInfo.ModifiedRange;
+					}
+
+			return maxRange;
+		}
+
+		static bool IsPassable(World world, CPos cell, IPositionable positionable)
+		{
+			return world.Map.Contains(cell) && positionable.CanEnterCell(cell);
+		}
+
+		static bool IsSettledOnSlot(Actor actor, CPos slotCell)
+		{
+			return actor.IsIdle && actor.World.Map.CellContaining(actor.CenterPosition) == slotCell;
+		}
+
+		static CPos PackFormationState(int slot, int fwdCX, int fwdCY)
+		{
+			return new CPos(slot, (fwdCX + 1) * 3 + fwdCY + 1);
+		}
+
+		static void UnpackFormationState(CPos state, out int slot, out int fwdCX, out int fwdCY)
+		{
+			slot = state.X;
+			fwdCX = state.Y / 3 - 1;
+			fwdCY = state.Y % 3 - 1;
+		}
+
+		readonly struct FormationActorInfo
+		{
+			public readonly int ActorIdx;
+			public readonly FormationMove Formation;
+			public readonly int ForwardProjection;
+			public readonly int LateralProjection;
+			public readonly int FrontlineScore;
+
+			public FormationActorInfo(int actorIdx, FormationMove formation, int forwardProjection,
+				int lateralProjection, int frontlineScore)
+			{
+				ActorIdx = actorIdx;
+				Formation = formation;
+				ForwardProjection = forwardProjection;
+				LateralProjection = lateralProjection;
+				FrontlineScore = frontlineScore;
+			}
+		}
+
+		sealed class FormationMoveOrderTargeter : IOrderTargeter
+		{
+			public string OrderID => "Move";
+			public int OrderPriority => 5;
+			public bool IsQueued { get; private set; }
+
+			public bool CanTarget(Actor self, in Target target, ref TargetModifiers modifiers, ref string cursor)
+			{
+				if (!self.AcceptsOrder("Move") || target.Type != TargetType.Terrain)
+					return false;
+
+				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
+				var location = self.World.Map.CellContaining(target.CenterPosition);
+				var mobile = self.TraitOrDefault<Mobile>();
+				if (mobile != null)
+				{
+					var formationMove = self.TraitOrDefault<FormationMove>();
+					if (mobile.IsTraitPaused || mobile.IsTraitDisabled
+						|| (mobile.IsImmovable && formationMove?.IsHoldingFormationPosition != true))
+						return false;
+
+					var explored = self.Owner.Shroud.IsExplored(location);
+					if (!self.World.Map.Contains(location)
+						|| (!explored && !mobile.Info.LocomotorInfo.MoveIntoShroud)
+						|| (explored && mobile.Locomotor.MovementCostForCell(location) == PathGraph.MovementCostForUnreachableCell))
+						cursor = mobile.Info.BlockedCursor;
+					else if (!explored || !mobile.Info.TerrainCursors.TryGetValue(self.World.Map.GetTerrainInfo(location).Type, out cursor))
+						cursor = mobile.Info.Cursor;
+				}
+				else
+					cursor = "move";
+
+				return true;
+			}
+
+			public bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers)
+			{
+				if (target.Type == TargetType.Actor && (target.Actor.Owner != self.Owner || self.World.Selection.Contains(target.Actor)))
+					return true;
+
+				return modifiers.HasModifier(TargetModifiers.ForceMove);
+			}
 		}
 	}
 }
