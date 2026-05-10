@@ -3,7 +3,8 @@ name: Release Packaging
 on:
   push:
     tags:
-      - 'v*'
+      - 'playtest-*'
+      - 'release-*'
   workflow_dispatch:
     inputs:
       tag:
