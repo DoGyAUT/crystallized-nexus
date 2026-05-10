@@ -250,6 +250,7 @@ GASNIPER:
 	MobSpawnerMaster:
 		Actors: GASPOTTER.Member
 		DisableRespawning: true
+		TransferMasterOnKill: false
 	WithSplitAttackPaletteInfantryBody:
 		DefaultAttackSequence: attack
 	RevealsShroud:

@@ -258,14 +258,19 @@ BIKE:
 		Weapon: BikeMissile
 		RequiresCondition: !rank-elite
 		LocalOffset: 0,-232,622, 0,233,622
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
 	Armament@ELITE:
 		Weapon: HoverMissile
 		RequiresCondition: rank-elite
 		LocalOffset: 0,-232,622, 0,233,622
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
 	AttackFrontal:
 		Voice: Attack
 		PauseOnCondition: empdisable
 		FacingTolerance: 0
+	WithMuzzleOverlay:
 	DamagedByTerrain@VEINS:
 		RequiresCondition: !inside-tunnel && !rank-elite
 	LeavesTrails@VEINS:

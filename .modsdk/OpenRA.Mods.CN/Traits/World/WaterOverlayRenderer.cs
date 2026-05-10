@@ -32,9 +32,23 @@ namespace OpenRA.Mods.CN.Traits
 			"Use for bridge/structure tiles that visually sit over water.")]
 		public readonly int[] AdditionalTemplates = [];
 
+		[Desc("Palette-index ranges (min/max pairs) identifying water pixels for the Temperate tileset.")]
+		public readonly int[] TemperateWaterPaletteIndexRanges = [];
+
+		[Desc("Palette-index ranges (min/max pairs) identifying water pixels for the Snow tileset.")]
+		public readonly int[] SnowWaterPaletteIndexRanges = [];
+
+		[Desc("Tile template IDs that should use WaterPaletteIndexRanges instead of whole-cell water quads.")]
+		public readonly int[] WaterPaletteMaskedTemplates = [];
+
 		[Desc("Tile template IDs whose sprites occlude adjacent water cells.",
 			"Water cells at the configured offsets relative to each matching tile are excluded from the shader.")]
 		public readonly int[] CliffOcclusionTemplates = [];
+
+		[Desc("Tile template IDs whose non-water pixels block the water shader.",
+			"For each listed tile, pixels NOT matching WaterPaletteIndexRanges are rendered as a passthrough,",
+			"restoring the original terrain pixels so the water effect cannot bleed onto cliff faces.")]
+		public readonly int[] CliffBlockTemplates = [];
 
 		[Desc("Cell offsets (relative to each occluding tile) to exclude from the shader.")]
 		public readonly CVec[] CliffOcclusionOffsets =
@@ -103,6 +117,8 @@ namespace OpenRA.Mods.CN.Traits
 		readonly IShader shader;
 		readonly RenderPostProcessPassTexturedShaderBindings bindings;
 		readonly ImmutableArray<CPos> cells;
+		readonly WaterSurfaceMask mask;
+		readonly WaterSurfaceMask cliffMask;
 
 		IVertexBuffer<RenderPostProcessPassTexturedVertex> buffer;
 		RenderPostProcessPassTexturedVertex[] vertices = [];
@@ -110,6 +126,10 @@ namespace OpenRA.Mods.CN.Traits
 		int ticks;
 		float intensity;
 		WeatherController weatherController;
+
+		int2 cachedTopLeft;
+		int2 cachedBottomRight;
+		int cachedVertexCount = -1;
 
 		public WaterOverlayRenderer(Actor self, WaterOverlayRendererInfo info)
 		{
@@ -119,6 +139,12 @@ namespace OpenRA.Mods.CN.Traits
 			shader = renderer.CreateShader(bindings);
 
 			var map = self.World.Map;
+			var paletteRanges = map.Tileset.ToUpperInvariant() == "SNOW"
+				? info.SnowWaterPaletteIndexRanges
+				: info.TemperateWaterPaletteIndexRanges;
+			mask = new WaterSurfaceMask(map, paletteRanges, info.WaterPaletteMaskedTemplates);
+			cliffMask = new WaterSurfaceMask(map, paletteRanges, info.CliffBlockTemplates, inverted: true, uvSentinel: 2f);
+
 			var occluded = BuildOcclusionSet(map, info.CliffOcclusionTemplates, info.CliffOcclusionOffsets);
 
 			var additionalIds = new HashSet<int>(info.AdditionalTemplates);
@@ -126,6 +152,8 @@ namespace OpenRA.Mods.CN.Traits
 				.Where(c =>
 				{
 					if (occluded.Contains(c))
+						return false;
+					if (mask.Enabled && mask.UsesTemplate(map.Tiles[c]))
 						return false;
 					if (info.TerrainTypes.Contains(map.GetTerrainInfo(c).Type))
 						return true;
@@ -135,6 +163,7 @@ namespace OpenRA.Mods.CN.Traits
 						return new[] { new CVec(1, 0), new CVec(-1, 0), new CVec(0, 1), new CVec(0, -1) }
 							.Any(d => { var n = c + d; return map.Contains(n) && info.TerrainTypes.Contains(map.GetTerrainInfo(n).Type); });
 					}
+
 					return false;
 				})
 				.ToImmutableArray();
@@ -169,15 +198,16 @@ namespace OpenRA.Mods.CN.Traits
 			intensity = weatherController?.Intensity ?? 0f;
 		}
 
-		void EnsureCapacity(int required)
+		bool EnsureCapacity(int required)
 		{
 			if (required <= vertexCapacity)
-				return;
+				return false;
 
 			buffer?.Dispose();
 			vertexCapacity = Exts.NextPowerOf2(required);
 			vertices = new RenderPostProcessPassTexturedVertex[vertexCapacity];
 			buffer = renderer.CreateVertexBuffer(bindings, vertices, true);
+			return true;
 		}
 
 		static bool IntersectsViewport(int x, int y, int halfWidth, int halfHeight, int2 topLeft, int2 bottomRight, int padding)
@@ -192,12 +222,19 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			var topLeft = wr.Viewport.TopLeft;
 			var bottomRight = wr.Viewport.BottomRight;
+
+			var required = cells.Length * 6
+				+ (mask.Enabled ? mask.MaxVertexCount : 0)
+				+ (cliffMask.Enabled ? cliffMask.MaxVertexCount : 0);
+			var bufferRecreated = EnsureCapacity(required);
+
+			if (!bufferRecreated && cachedVertexCount >= 0
+				&& topLeft == cachedTopLeft && bottomRight == cachedBottomRight)
+				return cachedVertexCount;
+
 			var halfWidth = wr.TileSize.Width / 2 + info.TilePadding;
 			var halfHeight = wr.TileSize.Height / 2 + info.TilePadding;
 			var cullPadding = (int)System.Math.Max(info.ClearDistortion, info.StormDistortion) + info.TilePadding;
-
-			var required = cells.Length * 6;
-			EnsureCapacity(required);
 
 			var i = 0;
 			var map = wr.World.Map;
@@ -207,19 +244,31 @@ namespace OpenRA.Mods.CN.Traits
 				if (!IntersectsViewport(center.X, center.Y, halfWidth, halfHeight, topLeft, bottomRight, cullPadding))
 					continue;
 
-				var left   = center.X - halfWidth;
-				var right  = center.X + halfWidth;
-				var top    = center.Y - halfHeight;
+				var left = center.X - halfWidth;
+				var right = center.X + halfWidth;
+				var top = center.Y - halfHeight;
 				var bottom = center.Y + halfHeight;
 
-				vertices[i++] = new RenderPostProcessPassTexturedVertex(left,  top,    -1, -1);
-				vertices[i++] = new RenderPostProcessPassTexturedVertex(right, top,     1, -1);
-				vertices[i++] = new RenderPostProcessPassTexturedVertex(right, bottom,  1,  1);
-				vertices[i++] = new RenderPostProcessPassTexturedVertex(right, bottom,  1,  1);
-				vertices[i++] = new RenderPostProcessPassTexturedVertex(left,  bottom, -1,  1);
-				vertices[i++] = new RenderPostProcessPassTexturedVertex(left,  top,    -1, -1);
+				vertices[i++] = new RenderPostProcessPassTexturedVertex(left, top, -1, -1);
+				vertices[i++] = new RenderPostProcessPassTexturedVertex(right, top, 1, -1);
+				vertices[i++] = new RenderPostProcessPassTexturedVertex(right, bottom, 1, 1);
+				vertices[i++] = new RenderPostProcessPassTexturedVertex(right, bottom, 1, 1);
+				vertices[i++] = new RenderPostProcessPassTexturedVertex(left, bottom, -1, 1);
+				vertices[i++] = new RenderPostProcessPassTexturedVertex(left, top, -1, -1);
 			}
 
+			if (mask.Enabled)
+				foreach (var cell in mask.Cells)
+					i = mask.AddVertices(wr, cell, vertices, i, topLeft, bottomRight, cullPadding);
+
+			if (cliffMask.Enabled)
+				foreach (var cell in cliffMask.Cells)
+					i = cliffMask.AddVertices(wr, cell, vertices, i, topLeft, bottomRight, cullPadding);
+
+			buffer.SetData(vertices, i);
+			cachedTopLeft = topLeft;
+			cachedBottomRight = bottomRight;
+			cachedVertexCount = i;
 			return i;
 		}
 
@@ -234,7 +283,6 @@ namespace OpenRA.Mods.CN.Traits
 			var width = 2f / (renderer.WorldDownscaleFactor * size.Width);
 			var height = 2f / (renderer.WorldDownscaleFactor * size.Height);
 
-			buffer.SetData(vertices, vertexCount);
 			shader.SetVec("Scroll", scroll.X, scroll.Y);
 			shader.SetVec("WorldScroll", scroll.X, scroll.Y);
 			shader.SetVec("p1", width, height);
@@ -262,6 +310,8 @@ namespace OpenRA.Mods.CN.Traits
 		void INotifyActorDisposing.Disposing(Actor self)
 		{
 			buffer?.Dispose();
+			mask?.Dispose();
+			cliffMask?.Dispose();
 			shader.Dispose();
 		}
 	}

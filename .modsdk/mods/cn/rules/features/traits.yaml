@@ -124,6 +124,7 @@
 		SlavesHaveFreeWill: false
 		SlaveDisposalOnKill: KillSlaves
 		SlaveDisposalOnOwnerChange: GiveSlavesToAttacker
+		TransferMasterOnKill: true
 	Selectable:
 		Bounds: 1365, 1365
 	HiddenUnderFog:

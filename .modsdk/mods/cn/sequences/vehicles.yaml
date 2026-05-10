@@ -288,6 +288,14 @@ hmec:
 
 bike:
 	Inherits: ^VehicleOverlays
+	muzzle:
+		Filename: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
 	icon:
 		Filename: cyclicon.shp
 

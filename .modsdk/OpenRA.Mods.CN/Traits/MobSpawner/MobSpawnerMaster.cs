@@ -8,8 +8,10 @@
 
 using System;
 using System.Linq;
+using OpenRA;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 /*
@@ -31,6 +33,14 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits
 {
+	// Runtime-only init: passes live Actor[] through TypeDictionary when spawning a replacement master.
+	// ISuppressInitExport prevents ActorReference.Save() from ever calling Save() on this.
+	// ISingleInstanceInit enables the parameter-free init.GetOrDefault<T>() overload.
+	public class MobSpawnerAdoptionInit : ValueActorInit<Actor[]>, ISuppressInitExport, ISingleInstanceInit
+	{
+		public MobSpawnerAdoptionInit(Actor[] value) : base(value) { }
+	}
+
 	[Desc("Manages a group of slave actors that form a mob. The master acts as a virtual nexus.")]
 	public class MobSpawnerMasterInfo : BaseSpawnerMasterInfo
 	{
@@ -68,6 +78,12 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("If true, XP earned by any slave is redirected to the master. " +
 			"Newly spawned slaves inherit the master's current experience so the whole squad levels together.")]
 		public readonly bool ShareSlaveExperience = false;
+
+		[Desc("If true, when the master is killed with surviving slaves, spawn a replacement master " +
+			"at a survivor's position and re-link survivors to it instead of killing the whole squad. " +
+			"Only meaningful with IncludeMasterInAggregate: true. " +
+			"Set to false for 1-master+1-slave pairs like Sniper/Spotter.")]
+		public readonly bool TransferMasterOnKill = false;
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
@@ -117,6 +133,10 @@ namespace OpenRA.Mods.CN.Traits
 		// when IDamageModifier returns 0%.
 		int pendingRedirectDamage = 0;
 
+		// Non-null when this master was created to replace a dead master (TransferMasterOnKill).
+		// Set in the constructor so SkipInitialSpawn is true before Created() runs.
+		readonly Actor[] slavesToAdopt;
+
 		IPositionable position;
 		IHealth health;
 		GainsExperience masterXP;
@@ -125,6 +145,13 @@ namespace OpenRA.Mods.CN.Traits
 			: base(init, info)
 		{
 			Info = info;
+
+			var adoptionInit = init.GetOrDefault<MobSpawnerAdoptionInit>();
+			if (adoptionInit != null)
+			{
+				slavesToAdopt = adoptionInit.Value;
+				SkipInitialSpawn = true;
+			}
 		}
 
 		protected override void Created(Actor self)
@@ -143,8 +170,13 @@ namespace OpenRA.Mods.CN.Traits
 
 			if (!IsTraitDisabled)
 			{
-				SpawnReplenishedSlaves(self);
-				hasSpawnedInitialLoad = true;
+				if (slavesToAdopt != null)
+					AdoptExistingSlaves(self, slavesToAdopt);
+				else
+				{
+					SpawnReplenishedSlaves(self);
+					hasSpawnedInitialLoad = true;
+				}
 			}
 
 			UpdateProtectedCondition(self);
@@ -470,6 +502,81 @@ namespace OpenRA.Mods.CN.Traits
 
 			if (!Info.DisableRespawning && spawnReplaceTicks <= 0)
 				spawnReplaceTicks = Info.RespawnTicks;
+		}
+
+		// --- Master transfer on kill ---
+		void AdoptExistingSlaves(Actor self, Actor[] slaves)
+		{
+			for (var i = 0; i < slaveEntries.Length && i < slaves.Length; i++)
+			{
+				var slave = slaves[i];
+				if (slave.IsDead || !slave.IsInWorld)
+					continue;
+
+				var se = slaveEntries[i];
+				se.Actor = slave;
+				se.SpawnerSlave = slave.Trait<MobSpawnerSlave>();
+				se.Health = slave.Trait<IHealth>();
+
+				if (Info.ShareSlaveExperience)
+				{
+					se.GainsExperience = slave.TraitOrDefault<GainsExperience>();
+					se.LastTrackedExperience = se.GainsExperience?.Experience ?? 0;
+				}
+
+				se.SpawnerSlave.LinkMaster(slave, self, this);
+			}
+
+			hasSpawnedInitialLoad = true;
+		}
+
+		public override void Killed(Actor self, AttackInfo e)
+		{
+			if (!Info.TransferMasterOnKill)
+			{
+				base.Killed(self, e);
+				return;
+			}
+
+			var survivors = slaveEntries
+				.Where(s => s.IsValid && s.Actor.IsInWorld)
+				.Select(s => s.Actor)
+				.ToArray();
+
+			if (survivors.Length == 0)
+			{
+				base.Killed(self, e);
+				return;
+			}
+
+			// Null out entries for survivors so INotifyActorDisposing.Disposing (BaseSpawnerMaster)
+			// does not call Dispose() on them when the old master is cleaned up.
+			foreach (var se in slaveEntries)
+				if (se.Actor != null && survivors.Contains(se.Actor))
+					se.Actor = null;
+
+			// Do NOT call base.Killed() — survivors are not killed.
+			var owner = self.Owner;
+			var masterType = self.Info.Name;
+
+			self.World.AddFrameEndTask(w =>
+			{
+				var alive = survivors.Where(a => !a.IsDead && a.IsInWorld).ToArray();
+				if (alive.Length == 0)
+					return;
+
+				var spawnCell = w.Map.CellContaining(alive[0].CenterPosition);
+				var td = new TypeDictionary
+				{
+					new OwnerInit(owner),
+					new LocationInit(spawnCell),
+					new MobSpawnerAdoptionInit(alive)
+				};
+
+				// CreateActor synchronously triggers Created() → AdoptExistingSlaves() → LinkMaster().
+				// SkipInitialSpawn=true prevents Replenish from spawning new slaves.
+				w.CreateActor(masterType, td);
+			});
 		}
 
 		// --- APC Transport ---

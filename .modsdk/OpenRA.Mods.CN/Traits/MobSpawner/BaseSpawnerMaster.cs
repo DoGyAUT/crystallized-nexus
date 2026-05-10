@@ -78,6 +78,10 @@ namespace OpenRA.Mods.CN.Traits
 		ExitInfo[] exits;
 		RallyPoint rallyPoint;
 
+		// Set to true in the constructor (before Created runs) to suppress the initial Replenish
+		// call — used when adopting existing slaves from a transferred master.
+		protected bool SkipInitialSpawn = false;
+
 		int exitRoundRobin = -1;
 
 		public BaseSpawnerMaster(ActorInitializer init, BaseSpawnerMasterInfo info)
@@ -106,10 +110,13 @@ namespace OpenRA.Mods.CN.Traits
 			exits = self.Info.TraitInfos<ExitInfo>().ToArray();
 			rallyPoint = self.TraitOrDefault<RallyPoint>();
 
-			var burst = Info.InitialActorCount == -1 ? Info.Actors.Length : Info.InitialActorCount;
-			if (!IsTraitDisabled)
-				for (var i = 0; i < burst; i++)
-					Replenish(self, SlaveEntries);
+			if (!SkipInitialSpawn)
+			{
+				var burst = Info.InitialActorCount == -1 ? Info.Actors.Length : Info.InitialActorCount;
+				if (!IsTraitDisabled)
+					for (var i = 0; i < burst; i++)
+						Replenish(self, SlaveEntries);
+			}
 		}
 
 		public void Replenish(Actor self, BaseSpawnerSlaveEntry[] slaveEntries)
