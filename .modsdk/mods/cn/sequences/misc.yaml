@@ -1881,3 +1881,139 @@ blooddecal4:
 		Offset: 0, 0, 4
 		ZRamp: 1
 		IgnoreWorldTint: false
+
+^waterfall:
+	idle:
+		Start: 1
+		Length: 7
+		Tick: 200
+		ZRamp: 1
+		ZOffset: -12
+
+wa01x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wa01x.tem
+			SNOW: wa01x.sno
+		Offset: -9, 54, -6
+
+wa02x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wa02x.tem
+			SNOW: wa02x.sno
+		Offset: -39, 39, -6
+
+wa03x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wa03x.tem
+			SNOW: wa03x.sno
+		Offset: -26, 47, -6
+
+wa04x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wa04x.tem
+			SNOW: wa04x.sno
+		Offset: -38, 37, -6
+
+wb01x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wb01x.tem
+			SNOW: wb01x.sno
+		Offset: 30, 43, -6
+
+wb02x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wb02x.tem
+			SNOW: wb02x.sno
+		Offset: 43, 38, -6
+
+wb03x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wb03x.tem
+			SNOW: wb03x.sno
+		Offset: 29, 49, -6
+
+wb04x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wb04x.tem
+			SNOW: wb04x.sno
+		Offset: 9, 56, -6
+
+wc01x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wc01x.tem
+			SNOW: wc01x.sno
+		Offset: -2, 19, -6
+
+wc02x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wc02x.tem
+			SNOW: wc02x.sno
+		Offset: 5, -6, -6
+
+wc03x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wc03x.tem
+			SNOW: wc03x.sno
+		Offset: 14, 1, -6
+
+wc04x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wc04x.tem
+			SNOW: wc04x.sno
+		Offset: -41, -5, -6
+
+wd01x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wd01x.tem
+			SNOW: wd01x.sno
+		Offset: -8, -4, -6
+
+wd02x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wd02x.tem
+			SNOW: wd02x.sno
+		Offset: -2, -9, -6
+
+wd03x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wd03x.tem
+			SNOW: wd03x.sno
+		Offset: -17, 2, -6
+
+wd04x:
+	Inherits: ^waterfall
+	idle:
+		TilesetFilenames:
+			TEMPERATE: wd04x.tem
+			SNOW: wd04x.sno
+		Offset: 2, 20, -6
