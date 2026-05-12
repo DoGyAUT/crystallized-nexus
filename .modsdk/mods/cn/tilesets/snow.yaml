@@ -23,7 +23,6 @@ Terrain:
 		TargetTypes: Ground
 	TerrainType@Bridge:
 		Type: Bridge
-		AcceptsSmudgeType: SmallScorch, MediumScorch, LargeScorch
 		Color: 5A5C5A
 		TargetTypes: Ground
 	TerrainType@Rail:

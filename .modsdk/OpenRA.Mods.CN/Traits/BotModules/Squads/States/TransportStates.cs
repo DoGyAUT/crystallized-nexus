@@ -331,13 +331,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		const int ThreatScanCells = 7;
 		const int MaxAcceptableDropScore = 1600;
 
+		// After loading, aircraft may not be immediately idle (landing animation, rearm-pad state).
+		// Re-issue the move order after this many ticks to guarantee departure.
+		const int MaxStuckTicks = 8;
+
 		CPos? dropCell;
 		Actor lastTarget;
+		int stuckTicks;
 
 		public void Activate(CNSquad squad)
 		{
 			dropCell = null;
 			lastTarget = null;
+			stuckTicks = 0;
 		}
 
 		public void Tick(CNSquad squad)
@@ -387,6 +393,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var targetPos = squad.World.Map.CenterOfCell(dropCell.Value);
 			var unloadRange = WDist.FromCells(DropArriveRangeCells);
 
+			var issuedMove = false;
 			foreach (var carrier in carriers)
 			{
 				if ((carrier.CenterPosition - targetPos).LengthSquared <= (long)unloadRange.Length * unloadRange.Length)
@@ -395,9 +402,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					return;
 				}
 
-				if (carrier.IsIdle)
+				if (carrier.IsIdle || stuckTicks >= MaxStuckTicks)
+				{
 					squad.Bot.QueueOrder(new Order("Move", carrier, Target.FromCell(squad.World, dropCell.Value), false));
+					issuedMove = true;
+				}
 			}
+
+			stuckTicks = issuedMove ? 0 : stuckTicks + 1;
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -502,7 +514,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				}
 			}
 
-			return bestScore <= MaxAcceptableDropScore ? bestCell : null;
+			return bestCell;
 		}
 
 		static int ScoreAirDropCell(CNSquad squad, Actor carrier, CPos targetCell, CPos ourBaseCell, CPos candidate)
@@ -579,8 +591,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class TransportReturnState : CNStateBase, ICNState
 	{
 		bool returnIssued;
+		int unloadAttemptTicks;
 
-		public void Activate(CNSquad squad) { returnIssued = false; }
+		public void Activate(CNSquad squad)
+		{
+			returnIssued = false;
+			unloadAttemptTicks = 0;
+		}
 
 		public void Tick(CNSquad squad)
 		{
@@ -604,8 +621,31 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				.Where(u => !u.IsDead)
 				.All(u => (u.CenterPosition - basePos).Length <= homeRange.Length);
 
-			if (allHome && returnIssued)
-				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+			if (!allHome || !returnIssued)
+				return;
+
+			// Unload any remaining cargo before dissolving so passengers aren't stranded inside.
+			var carriersWithCargo = squad.CarrierUnits
+				.Where(u => !u.IsDead && u.TraitOrDefault<Cargo>()?.IsEmpty() == false)
+				.ToList();
+
+			if (carriersWithCargo.Count > 0)
+			{
+				unloadAttemptTicks++;
+
+				// Idle carriers get the Unload order immediately.
+				// Non-idle carriers (landing animation, rearm-pad state) get it after a
+				// short grace period so we don't interrupt an ongoing unload sequence.
+				foreach (var carrier in carriersWithCargo.Where(u => u.IsIdle || unloadAttemptTicks >= 5))
+					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
+
+				if (unloadAttemptTicks >= 5)
+					unloadAttemptTicks = 0;
+
+				return;
+			}
+
+			squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
 		}
 
 		public void Deactivate(CNSquad squad) { }

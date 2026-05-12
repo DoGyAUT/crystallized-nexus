@@ -64,8 +64,15 @@ Player:
 	BotPlayerNames:
 		Names:
 			default: Atlas, Bastion, Cipher, Falcon, Nova, Orion, Sentinel, Vector
-			gdi: Nick "Havoc" Parker, Erich "Patch" Wulfe, Shai "Hotwire" Aviv, Daryl "Deadeye" Macinnis, Nigel "Gunner" Grant, Sakura "Blackwidow" Obata, Gen. James Solomon, Gen. Paul Cortez
-			nod: Kane, Anton Slavik, Gideon Raveshaw, Kilian Qatar, Seth, Marcion, Oxanna Kristos, Jade Liang, Caleb Cypher
+			gdi: Nick "Havoc" Parker, Erich "Patch" Wulfe, Shai "Hotwire" Aviv, Daryl "Deadeye" Macinnis, Nigel "Gunner" Grant, Sakura "Blackwidow" Obata, Gen. James Solomon, Gen. Paul Cortez, Michael McNeil, Jack "Butcher" Granger, Lt. Sandra Telfair, Sydney Mobius, Dr. Ignatio Mobius, Elena "Mendoza" Rivera, Brig. Gen. Shepard, Lt. Gen. Mark Jamison Locke
+			nod: Kane, Anton Slavik, Gideon Raveshaw, Kilian Qatar, Seth, Brother Marcion, Oxanna Kristos, Jade Liang, Caleb Cypher, General Vega, Hassan, Ajay, Alexa Kovacs, Carlos Mendoza, Volkov, LEGION, Confessor Cabad
+		BotTypeLabels:
+			cn: Adaptive
+			cn-rush: Rush
+			cn-turtle: Turtle
+			cn-tech: Tech
+			cn-expansion: Expansion
+			cn-steamroller: Steamroller
 	ConquestVictoryConditions:
 	PowerManager:
 		SpeechNotification: LowPower

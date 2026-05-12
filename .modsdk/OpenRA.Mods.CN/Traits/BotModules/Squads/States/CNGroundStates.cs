@@ -301,8 +301,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Tick(CNSquad squad)
 		{
-			if (!squad.IsOperational)
+			if (!squad.IsValid)
 				return;
+			if (!squad.IsOperational)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
+				return;
+			}
 
 			if (!squad.IsTargetValid)
 			{
@@ -363,8 +368,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Tick(CNSquad squad)
 		{
-			if (!squad.IsOperational)
+			if (!squad.IsValid)
 				return;
+			if (!squad.IsOperational)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
+				return;
+			}
 
 			if (!squad.IsTargetValid)
 			{
@@ -458,8 +468,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Tick(CNSquad squad)
 		{
-			if (!squad.IsOperational)
+			if (!squad.IsValid)
 				return;
+			if (!squad.IsOperational)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
+				return;
+			}
 
 			if (!squad.IsTargetValid)
 			{
@@ -503,16 +518,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			// Regroup: stop leader so stragglers can catch up.
-			// Minimum 3 cells so small squads (2–4 units) aren't permanently stuck regrouping.
-			var regroupCells = Math.Max(3, squad.Units.Count / 3);
+			// Regroup: stop leader only when the squad is genuinely split (< 2/3 packed).
+			// Wider radius and looser threshold mean minor stragglers don't halt the group.
+			var regroupCells = Math.Max(4, squad.Units.Count / 2);
 			var regroupRadius = WDist.FromCells(regroupCells);
 			var nearPack = squad.World
 				.FindActorsInCircle(leader.CenterPosition, regroupRadius)
 				.Where(squad.Units.Contains)
 				.ToHashSet();
 
-			if (nearPack.Count < squad.Units.Count)
+			if (nearPack.Count < squad.Units.Count * 2 / 3)
 			{
 				squad.Bot.QueueOrder(new Order("Stop", leader, false));
 				var stragglers = squad.OrderableUnits.Where(a => !nearPack.Contains(a)).ToArray();
@@ -522,7 +537,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 			else
 			{
-				// All together — switch to direct attack if enemies are close
+				// Majority together — switch to direct attack if enemies are close
 				var nearEnemy = squad.SquadManager.FindClosestEnemy(leader,
 					WDist.FromCells(squad.SquadManager.Info.AttackScanRadius));
 				nearEnemy ??= FindNearbyEnemyBuilding(squad, leader.CenterPosition,
@@ -568,8 +583,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Tick(CNSquad squad)
 		{
-			if (!squad.IsOperational)
+			if (!squad.IsValid)
 				return;
+			if (!squad.IsOperational)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
+				return;
+			}
 
 			if (!squad.IsTargetValid)
 			{
@@ -579,7 +599,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				var squadCenter = squad.CenterPosition();
 				var next = squad.World
 					.FindActorsInCircle(squadCenter, WDist.FromCells(squad.SquadManager.Info.AttackScanRadius))
-					.Where(a => squad.SquadManager.IsPreferredEnemyUnit(a))
+					.Where(a => squad.SquadManager.IsPreferredEnemyUnit(a) && !a.Info.HasTraitInfo<LineBuildInfo>())
 					.MinByOrDefault(a => (a.CenterPosition - squadCenter).LengthSquared);
 
 				// Step 1b: when pushing into a base, widen the local building scan so the squad

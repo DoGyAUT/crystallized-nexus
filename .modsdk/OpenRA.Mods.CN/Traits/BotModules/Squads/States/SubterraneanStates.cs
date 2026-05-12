@@ -42,6 +42,59 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			return squad.OrderableUnits.Any(IsSubmerged);
 		}
+
+		public static bool HasCapability(Actor actor, string capability)
+		{
+			return actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains(capability) ?? false;
+		}
+
+		/// <summary>
+		/// Returns the cell to burrow toward for a deep-insertion attack.
+		/// Computes the centroid of all non-defense enemy buildings and pushes
+		/// slightly past it, away from our base — so units surface in the heart
+		/// of the enemy base rather than at the defended perimeter.
+		/// </summary>
+		public static CPos FindDeepInsertionCell(CNSquad squad, Actor source)
+		{
+			long sumX = 0, sumY = 0;
+			var count = 0;
+
+			foreach (var b in squad.SquadManager.GetCachedEnemyBuildings())
+			{
+				if (HasCapability(b, "Defense"))
+					continue;
+
+				sumX += b.CenterPosition.X;
+				sumY += b.CenterPosition.Y;
+				count++;
+			}
+
+			WPos targetPos;
+			if (count > 0)
+			{
+				targetPos = new WPos((int)(sumX / count), (int)(sumY / count), 0);
+			}
+			else
+			{
+				// Only defenses known — surface at the original target if still valid
+				if (squad.IsTargetValid)
+					return squad.World.Map.CellContaining(squad.TargetActor.CenterPosition);
+
+				return source.Location;
+			}
+
+			// Push a few cells further past the centroid, deeper into enemy territory
+			var ourBase = squad.World.Map.CenterOfCell(squad.SquadManager.GetRandomBaseCenter());
+			var dir = targetPos - ourBase;
+			if (dir != WVec.Zero)
+			{
+				var normalized = dir * 1024 / dir.Length;
+				var offset = new WVec(normalized.X, normalized.Y, 0) * WDist.FromCells(4).Length / 1024;
+				targetPos = targetPos + offset;
+			}
+
+			return squad.World.Map.CellContaining(targetPos);
+		}
 	}
 
 	// ===========================================================================
@@ -87,9 +140,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubAssaultApproachState : CNStateBase, ICNState
 	{
-		bool orderIssued;
+		// Give up and retreat if still burrowing after this many ticks
+		const int MaxApproachTicks = 500;
 
-		public void Activate(CNSquad squad) { orderIssued = false; }
+		// Surface when within this distance of the deep insertion point
+		static readonly WDist ArrivalRadius = WDist.FromCells(2);
+
+		bool orderIssued;
+		CPos destinationCell;
+		int approachTicks;
+
+		public void Activate(CNSquad squad)
+		{
+			orderIssued = false;
+			destinationCell = CPos.Zero;
+			approachTicks = 0;
+		}
 
 		public void Tick(CNSquad squad)
 		{
@@ -106,24 +172,35 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (center == null)
 				return;
 
-			// Check if we're close enough to surface and attack
-			var distToTarget = (center.CenterPosition - squad.TargetActor.CenterPosition).Length;
-			var attackRange = WDist.FromCells(squad.SquadManager.Info.AttackScanRadius);
-
-			if (distToTarget <= attackRange.Length)
+			if (!orderIssued)
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultAttackState());
+				// Burrow toward the centroid of non-defense enemy buildings so units
+				// surface deep inside the base rather than at the defended perimeter.
+				destinationCell = SubterraneanHelpers.FindDeepInsertionCell(squad, center);
+
+				foreach (var unit in squad.OrderableUnits)
+					squad.Bot.QueueOrder(new Order("Move", unit,
+						Target.FromCell(squad.World, destinationCell), false));
+
+				orderIssued = true;
+			}
+
+			approachTicks++;
+			if (approachTicks > MaxApproachTicks)
+			{
+				// Can't reach insertion point in time — retreat
+				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultReburrowState());
 				return;
 			}
 
-			// Issue Move order once (locomotor handles burrowing)
-			if (!orderIssued)
+			// Surface once we're close to the deep insertion position
+			var destPos = squad.World.Map.CenterOfCell(destinationCell);
+			if ((center.CenterPosition - destPos).Length <= ArrivalRadius.Length)
 			{
-				var targetCell = squad.World.Map.CellContaining(squad.TargetActor.CenterPosition);
-				foreach (var unit in squad.OrderableUnits)
-					squad.Bot.QueueOrder(new Order("Move", unit,
-						Target.FromCell(squad.World, targetCell), false));
-				orderIssued = true;
+				// Clear the preset target so AttackState re-finds the nearest enemy
+				// from the deep position rather than marching back to the perimeter.
+				squad.SetActorToTarget(null);
+				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultAttackState());
 			}
 		}
 
@@ -136,13 +213,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubAssaultAttackState : CNStateBase, ICNState
 	{
-		const int MaxStuckTicks = 8;
+		const int MaxStuckTicks = 25;
+		const int MaxSurfaceWaitTicks = 50;
 
 		int stuckTicks;
+		int surfaceWaitTicks;
 
 		public void Activate(CNSquad squad)
 		{
 			stuckTicks = 0;
+			surfaceWaitTicks = 0;
 
 			// Surface all units by issuing a stop
 			foreach (var unit in squad.OrderableUnits)
@@ -154,7 +234,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			// Flee if critically damaged
 			if (ShouldFlee(squad))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultReburrowState());
@@ -163,6 +242,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (!squad.IsTargetValid)
 			{
+				// Re-acquire the nearest valuable target from the current deep position.
+				// This handles the post-insertion case where the preset target was cleared.
+				var center = squad.CenterUnit();
+				if (center != null)
+				{
+					Actor newTarget = null;
+					if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
+						newTarget = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
+					newTarget ??= CNSquadHelper.FindUnprotectedTarget(squad);
+
+					if (newTarget != null)
+					{
+						squad.SetActorToTarget(newTarget);
+						stuckTicks = 0;
+						return;
+					}
+				}
+
 				stuckTicks++;
 				if (stuckTicks > MaxStuckTicks)
 					squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultIdleState());
@@ -171,11 +268,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			stuckTicks = 0;
 
-			// Units still surfacing — wait
+			// Wait for units to surface, with a guard against being stuck burrowed
 			if (SubterraneanHelpers.AnySubmerged(squad))
+			{
+				surfaceWaitTicks++;
+				if (surfaceWaitTicks > MaxSurfaceWaitTicks)
+					squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultReburrowState());
 				return;
+			}
 
-			// Attack the specific target — no AttackMove so defenses along the way are ignored.
+			surfaceWaitTicks = 0;
+
 			foreach (var unit in squad.OrderableUnits)
 				if (!BusyAttack(unit))
 					squad.Bot.QueueOrder(new Order("Attack", unit, squad.Target, false));
@@ -340,6 +443,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				var ambushPos = FindAmbushPosition(squad);
 				if (ambushPos == null)
 				{
+					// No valid target — unload any passengers before returning to idle.
+					foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead && u.TraitOrDefault<Cargo>()?.IsEmpty() == false))
+						squad.Bot.QueueOrder(new Order("Unload", carrier, false));
 					squad.FuzzyStateMachine.ChangeState(squad, new SubTransportIdleState());
 					return;
 				}
@@ -545,8 +651,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				carriers.All(u => !SubterraneanHelpers.IsSubmerged(u) &&
 					(u.CenterPosition - returnPos).Length <= homeRange.Length);
 
-			if (allHome && returnIssued)
-				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportDoneState());
+			if (!allHome || !returnIssued)
+				return;
+
+			var carriersWithCargo = carriers
+				.Where(u => u.TraitOrDefault<Cargo>()?.IsEmpty() == false)
+				.ToList();
+			if (carriersWithCargo.Count > 0)
+			{
+				foreach (var carrier in carriersWithCargo.Where(u => u.IsIdle))
+					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
+				return;
+			}
+
+			squad.FuzzyStateMachine.ChangeState(squad, new SubTransportDoneState());
 		}
 
 		public void Deactivate(CNSquad squad) { }

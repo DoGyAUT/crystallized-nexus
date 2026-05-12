@@ -161,7 +161,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BaseBuildingLayout DefaultLayout = BaseBuildingLayout.Random;
 
 		[Desc("Default minimum spacing between buildings of the same type (cells).")]
-		public readonly int DefaultMinSpacing = 1;
+		public readonly int SameTypeMinSpacing = 1;
 
 		[Desc("Minimum spacing in cells between ANY two buildings regardless of type. 0 = disabled.")]
 		public readonly int GlobalMinSpacing = 0;

@@ -22,6 +22,10 @@ namespace OpenRA.Mods.CN.Traits
 		public readonly FrozenDictionary<string, ImmutableArray<string>> Names =
 			FrozenDictionary<string, ImmutableArray<string>>.Empty;
 
+		[Desc("Optional short labels appended as '(label)' per bot type. Key is the bot Type string.")]
+		public readonly FrozenDictionary<string, string> BotTypeLabels =
+			FrozenDictionary<string, string>.Empty;
+
 		public override object Create(ActorInitializer init) { return new BotPlayerNames(this); }
 	}
 
@@ -60,8 +64,14 @@ namespace OpenRA.Mods.CN.Traits
 
 			var baseName = names[(seedOffset + botOffset) % names.Length];
 			var cycle = botOffset / names.Length;
+			var fullName = cycle == 0 ? baseName : $"{baseName} {cycle + 1}";
 
-			return cycle == 0 ? baseName : $"{baseName} {cycle + 1}";
+			if (info.BotTypeLabels.Count > 0
+				&& info.BotTypeLabels.TryGetValue(player.BotType ?? string.Empty, out var typeLabel)
+				&& !string.IsNullOrEmpty(typeLabel))
+				fullName = $"{fullName} ({typeLabel})";
+
+			return fullName;
 		}
 
 		bool TryGetNames(string faction, out ImmutableArray<string> names)

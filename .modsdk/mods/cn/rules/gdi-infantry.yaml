@@ -332,6 +332,8 @@ JUMPJET:
 	Targetable@AIRBORNE:
 		TargetTypes: Air
 		RequiresCondition: airborne
+	WithWaterReflection:
+		RequiresCondition: airborne
 	SpawnActorOnDeath@airborne:
 		Actor: JUMPJET.Husk
 		RequiresCondition: airborne

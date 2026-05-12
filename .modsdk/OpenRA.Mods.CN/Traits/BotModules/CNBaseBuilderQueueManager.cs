@@ -41,6 +41,7 @@ namespace OpenRA.Mods.Common.Traits
 		int minimumExcessPower;
 		int defensePlacementAttempt;
 		int refineryPlacementCooldownTicks;
+		int defensePlacementCooldownTicks;
 		CPos? baseCenterKeepsFailing = null;
 
 		bool itemQueuedThisTick = false;
@@ -78,6 +79,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (refineryPlacementCooldownTicks > 0)
 				refineryPlacementCooldownTicks--;
+			if (defensePlacementCooldownTicks > 0)
+				defensePlacementCooldownTicks--;
 
 			// If we can't place any structures, give a nudge to BaseExpansionModules and hope it gets fixed.
 			if (failCount >= baseBuilder.Info.MaximumFailedPlacementAttempts)
@@ -601,6 +604,8 @@ namespace OpenRA.Mods.Common.Traits
 						AIUtils.BotDebug($"{player} has nowhere to place {currentBuilding.Item}");
 						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
 						lastFailedBuilding = currentBuilding.Item;
+						if (type == BuildingType.Defense)
+							defensePlacementCooldownTicks = 120;
 						if (baseBuilder.BaseExpansionModules == null)
 						{
 							cachedBuildings = baseBuilder.GetCachedPlayerBuildings().Count;
@@ -873,7 +878,8 @@ namespace OpenRA.Mods.Common.Traits
 					// Pre-flight: skip queuing if no buildable spot exists near a reachable resource field.
 					// The very first refinery is exempt — it uses base-center fallback placement regardless.
 					var hasExistingRefinery = AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings) > 0;
-					if (!hasExistingRefinery || HasViableRefineryField(refinery))
+					var hasRequestedExpansionRefinery = baseBuilder.RequestedRefineries.Count > 0;
+					if (!hasExistingRefinery || hasRequestedExpansionRefinery || HasViableRefineryField(refinery))
 					{
 						baseBuilder.RefineryExpansionBlocked = false;
 						AIUtils.BotDebug("{0} decided to build {1}: Priority override (refinery)", queue.Actor.Owner, refinery.Name);
@@ -1003,22 +1009,25 @@ namespace OpenRA.Mods.Common.Traits
 				: ca != null && ca.HasActiveThreat()
 					? ca.GetHighestThreatRole()
 					: DefenseRole.Default;
-			if (reactiveRole != DefenseRole.Default)
+			if (defensePlacementCooldownTicks <= 0)
 			{
-				var reactiveDefense = ChooseReactiveDefense(buildableThings, reactiveRole, totalDefenseCount, roleDefenseCounts);
-				if (reactiveDefense != null)
+				if (reactiveRole != DefenseRole.Default)
 				{
-					AIUtils.BotDebug("{0} reactive defense: building {1} (threat role: {2})",
-						player, reactiveDefense.Name, reactiveRole);
-					return reactiveDefense;
+					var reactiveDefense = ChooseReactiveDefense(buildableThings, reactiveRole, totalDefenseCount, roleDefenseCounts);
+					if (reactiveDefense != null)
+					{
+						AIUtils.BotDebug("{0} reactive defense: building {1} (threat role: {2})",
+							player, reactiveDefense.Name, reactiveRole);
+						return reactiveDefense;
+					}
 				}
-			}
 
-			var plannedDefense = ChoosePlannedDefense(buildableThings, totalDefenseCount, roleDefenseCounts);
-			if (plannedDefense != null)
-			{
-				AIUtils.BotDebug("{0} planned defense: building {1}", player, plannedDefense.Name);
-				return plannedDefense;
+				var plannedDefense = ChoosePlannedDefense(buildableThings, totalDefenseCount, roleDefenseCounts);
+				if (plannedDefense != null)
+				{
+					AIUtils.BotDebug("{0} planned defense: building {1}", player, plannedDefense.Name);
+					return plannedDefense;
+				}
 			}
 
 			// Build everything else. Prefer the structure with the largest deficit relative
@@ -1259,9 +1268,14 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var caps = actorInfo.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
 			if (caps != null)
+			{
+				var result = DefenseRole.Default;
 				foreach (var tag in caps)
 					if (Enum.TryParse<DefenseRole>(tag, true, out var r) && r != DefenseRole.Default)
-						return r;
+						result = r;
+				if (result != DefenseRole.Default)
+					return result;
+			}
 
 			return baseBuilder.Info.DefenseRoles
 				.FirstOrDefault(kv => kv.Value.Contains(actorInfo.Name)).Key;
@@ -1277,7 +1291,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Determine layout for this building type
 			var layout = baseBuilder.Info.DefaultLayout;
-			var minSpacing = baseBuilder.Info.DefaultMinSpacing;
+			var minSpacing = baseBuilder.Info.SameTypeMinSpacing;
 			if (baseBuilder.Info.BuildingLayouts.TryGetValue(actorType, out var layoutEntry))
 			{
 				layout = layoutEntry.Layout;
@@ -1583,6 +1597,14 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			// Bias the search toward the chosen ConYard (baseCenter).
+			// effectiveCenter averages existing buildings, which are overwhelmingly
+			// near spawn. If the chosen ConYard is an expansion base more than
+			// effectiveMaxRadius cells away, the annulus never reaches it at all —
+			// every building ends up at spawn. Switch to baseCenter in that case.
+			if ((effectiveCenter - baseCenter).LengthSquared > effectiveMaxRadius * effectiveMaxRadius)
+				effectiveCenter = baseCenter;
+
 			switch (type)
 			{
 				case BuildingType.Defense:
@@ -1612,6 +1634,24 @@ namespace OpenRA.Mods.Common.Traits
 					var innerRadius = baseBuilder.Info.DefenseInnerRadius;
 					var outerRadius = baseBuilder.Info.MaximumDefenseRadius;
 					var midRadius = innerRadius > 0 ? (innerRadius + outerRadius) / 2 : outerRadius;
+
+					// If defenseCenter (e.g. recorded attacker position) is farther than MaximumDefenseRadius
+					// from every ConYard, candidates generated around it will all fail IsCloseEnoughToBase.
+					// Fall back to baseCenter so placements stay within base adjacency range.
+					if (defenseCenter != baseCenter)
+					{
+						var outerRadiusSq = outerRadius * outerRadius;
+						var anyNear = false;
+						foreach (var cy in baseBuilder.ConstructionYardBuildings.Actors)
+						{
+							if (cy.IsDead || !cy.IsInWorld) continue;
+							if ((cy.Location - defenseCenter).LengthSquared <= outerRadiusSq) { anyNear = true; break; }
+						}
+
+						if (!anyNear)
+							defenseCenter = baseCenter;
+					}
+
 					var sameDefenseBuildings = playerBuildings
 						.Where(a => a.Info.Name == actorType)
 						.Select(a => a.Location).ToList();
@@ -1891,26 +1931,6 @@ namespace OpenRA.Mods.Common.Traits
 						if (defMinSpacing > 0 && allDefenseBuildings.Count > 0
 							&& allDefenseBuildings.Any(loc => (cell - loc).LengthSquared < defMinSpacingSq))
 							continue;
-
-						if (playerBuildingInfos != null)
-						{
-							var globalSpacing = baseBuilder.Info.GlobalMinSpacing;
-							var hasLayoutOverride = baseBuilder.Info.BuildingLayouts.ContainsKey(actorType);
-							var tooClose = false;
-							var nRight = cell.X + defVbi.Dimensions.X;
-							var nBottom = cell.Y + defVbi.Dimensions.Y;
-							foreach (var (existing, existingBi) in playerBuildingInfos)
-							{
-								if (hasLayoutOverride && existing.Info.Name == actorType) continue;
-								var eRight = existing.Location.X + existingBi.Dimensions.X;
-								var eBottom = existing.Location.Y + existingBi.Dimensions.Y;
-								var gapX = Math.Max(0, Math.Max(existing.Location.X - nRight, cell.X - eRight));
-								var gapY = Math.Max(0, Math.Max(existing.Location.Y - nBottom, cell.Y - eBottom));
-								if (Math.Max(gapX, gapY) < globalSpacing) { tooClose = true; break; }
-							}
-
-							if (tooClose) continue;
-						}
 
 						return (cell, defenseCenter, defVariant);
 					}
@@ -2238,6 +2258,7 @@ namespace OpenRA.Mods.Common.Traits
 						{
 							if (!world.CanPlaceBuilding(cell, actorInfo, bi, null)) continue;
 							if (!bi.IsCloseEnoughToBase(world, player, actorInfo, cell)) continue;
+							if (!RespectsGeneralBuildingSpacing(cell, bi)) continue;
 							var score = uncoveredPositions.Count(bPos => (bPos - cell).LengthSquared <= coverageRadiusSq);
 							if (score > bestScore)
 							{

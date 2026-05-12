@@ -99,6 +99,8 @@ namespace OpenRA.Mods.Common.Traits
 			public readonly Parachutable Parachutable;
 			public readonly Mobile Mobile;
 			public int NoResourcesCooldown { get; set; }
+			public CPos LastKnownPosition { get; set; }
+			public int StationaryTicks { get; set; }
 
 			public HarvesterTraitWrapper(Actor actor)
 			{
@@ -107,8 +109,12 @@ namespace OpenRA.Mods.Common.Traits
 				DockClientManager = actor.Trait<DockClientManager>();
 				Parachutable = actor.TraitOrDefault<Parachutable>();
 				Mobile = actor.TraitOrDefault<Mobile>();
+				LastKnownPosition = actor.Location;
 			}
 		}
+
+		const int StuckHarvesterThreshold = 200;
+		const int StuckNearRefineryRadius = 3;
 
 		readonly World world;
 		readonly Player player;
@@ -416,7 +422,23 @@ namespace OpenRA.Mods.Common.Traits
 
 			harvestersNeedingOrders.Clear();
 			foreach (var h in harvesters)
-				harvestersNeedingOrders.Push(h.Value);
+			{
+				var wrapper = h.Value;
+				if (wrapper.Actor.IsIdle)
+				{
+					wrapper.StationaryTicks = 0;
+					wrapper.LastKnownPosition = wrapper.Actor.Location;
+				}
+				else if (wrapper.Actor.Location == wrapper.LastKnownPosition)
+					wrapper.StationaryTicks += Info.ScanForIdleHarvestersInterval;
+				else
+				{
+					wrapper.StationaryTicks = 0;
+					wrapper.LastKnownPosition = wrapper.Actor.Location;
+				}
+
+				harvestersNeedingOrders.Push(wrapper);
+			}
 		}
 
 		bool HarvestIfAble(IBot bot, HarvesterTraitWrapper h)
@@ -424,7 +446,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (h.Actor.IsDead || !h.Actor.IsInWorld || h.Mobile == null)
 				return false;
 
-			if (!h.Actor.IsIdle)
+			var isStuck = false;
+			if (!h.Actor.IsIdle && h.StationaryTicks >= StuckHarvesterThreshold)
+			{
+				isStuck = true;
+				foreach (var refinery in refineries.Actors)
+				{
+					if (refinery.IsDead || !refinery.IsInWorld)
+						continue;
+					if ((h.Actor.Location - refinery.Location).LengthSquared <= StuckNearRefineryRadius * StuckNearRefineryRadius)
+					{
+						isStuck = false;
+						break;
+					}
+				}
+			}
+
+			if (!h.Actor.IsIdle && !isStuck)
 			{
 				if (h.Actor.CurrentActivity is not CNFindAndDeliverResources act || !act.LastSearchFailed)
 					return false;
@@ -438,6 +476,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (h.Parachutable != null && h.Parachutable.IsInAir)
 				return false;
+
+			if (isStuck)
+			{
+				AIUtils.BotDebug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. Re-issuing harvest order.");
+				h.StationaryTicks = 0;
+			}
 
 			// Clear stale assignment before scoring so this harvester doesn't penalise its own old refinery.
 			harvesterRefineryAssignment.Remove(h.Actor);

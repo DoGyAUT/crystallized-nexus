@@ -105,17 +105,17 @@ Player:
 			Defense: 10
 			Support: 5
 		AttackWaveMinUnits:
-			Rush: 12
+			Turtle: 8
 			Expansion: 10
-			Tech: 12
-			Steamroller: 26
+			Tech: 14
+			Steamroller: 18
 		AttackWaveMaxHoldTicks:
-			Rush: 1400
+			Turtle: 2500
 			Expansion: 1200
-			Tech: 1500
-			Steamroller: 3600
+			Tech: 2000
+			Steamroller: 5000
 		SteamrollerAttackWaveMinUnitGrowthInterval: 6000
-		SteamrollerAttackWaveMinUnitGrowthAmount: 8
+		SteamrollerAttackWaveMinUnitGrowthAmount: 0
 		Teams:
 			# GDI ground reaction core
 			GDI_BaseGuard_AntiInfantry:
@@ -222,7 +222,7 @@ Player:
 						Count: 1
 						AllowedTypes: gasniper
 						Optional: true
-			GDI_Mixed_Armor:
+			GDI_Medium_Armor:
 				Role: Assault
 				Priority: 115
 				MaxInstances: 2
@@ -237,8 +237,29 @@ Player:
 					InfantryDefense: 6
 				Slots:
 					Tanks:
-						Count: 3
-						AllowedTypes: gtmtnk, mmch, 4tnk
+						Count: 4
+						AllowedTypes: gtmtnk
+					Screen:
+						Count: 2
+						AllowedTypes: smech
+						Optional: true
+			GDI_Medium_Walker:
+				Role: Assault
+				Priority: 115
+				MaxInstances: 2
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Vehicle: 22
+					AntiInfantry: 8
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 6
+				Slots:
+					Tanks:
+						Count: 4
+						AllowedTypes: mmch
 					Screen:
 						Count: 2
 						AllowedTypes: smech
@@ -261,18 +282,35 @@ Player:
 					AADefense: 2
 				Slots:
 					HeavyTanks:
-						Count: 3
+						Count: 4
 						AllowedTypes: 4tnk
+			GDI_Heavy_Walker:
+				Role: Assault
+				Priority: 125
+				MaxInstances: 1
+				MinSlotsToActivate: 1
+				Factions: gdi
+				ThreatBonuses:
+					Vehicle: 25
+					Aircraft: 18
+					AntiAir: 10
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+					Aircraft: 3
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 8
+					AADefense: 2
+				Slots:
 					Walker:
-						Count: 1
+						Count: 2
 						AllowedTypes: hmec
-						Optional: true
 			GDI_Hover_Hunters:
 				Role: Hover
 				Priority: 112
 				MaxInstances: 3
 				MinSlotsToActivate: 1
 				Factions: gdi
+				PriorityTargetCapabilities: Economy, Production, Power
 				ThreatBonuses:
 					Aircraft: 30
 					Vehicle: 18
@@ -304,7 +342,7 @@ Player:
 					InfantryDefense: 6
 				Slots:
 					Sonic:
-						Count: 3
+						Count: 4
 						AllowedTypes: sonic
 			GDI_Juggernaut_Siege:
 				Role: ArtilleryAssault
@@ -312,6 +350,7 @@ Player:
 				MaxInstances: 3
 				MinSlotsToActivate: 1
 				Factions: gdi
+				PriorityTargetCapabilities: Defense, Economy, Production, Power
 				ThreatBonuses:
 					Vehicle: 10
 				ThreatBonusesGlobal:
@@ -327,7 +366,7 @@ Player:
 			GDI_APC_Raid:
 				Role: Transport
 				Priority: 106
-				MaxInstances: 1
+				MaxInstances: 2
 				MinSlotsToActivate: 2
 				Factions: gdi
 				ThreatBonuses:
@@ -398,8 +437,6 @@ Player:
 				MaxInstances: 3
 				MinSlotsToActivate: 1
 				Factions: gdi
-				ScaleWithBuilding: gahpad
-				UnitsPerBuilding: 2
 				ThreatBonuses:
 					Vehicle: 25
 					Artillery: 20
@@ -421,9 +458,7 @@ Player:
 				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: gdi
-				ScaleWithBuilding: gahpad
-				UnitsPerBuilding: 2
-				PriorityTargetCapabilities: Harvester, Superweapon, Tech, Economy, Power
+				PriorityTargetCapabilities: Defense, Superweapon, Tech, Economy, Power
 				ThreatBonuses:
 					Vehicle: 14
 					AntiAir: -20
@@ -435,7 +470,7 @@ Player:
 					AADefense: -24
 				Slots:
 					Bombers:
-						Count: 2
+						Count: 3
 						AllowedTypes: orca_b
 			GDI_Hornets:
 				Role: AircraftAttack
@@ -443,9 +478,7 @@ Player:
 				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: gdi
-				ScaleWithBuilding: gahpad
-				UnitsPerBuilding: 2
-				PriorityTargetCapabilities: Harvester, Superweapon, Tech, Economy, Power
+				PriorityTargetCapabilities: Defense, Superweapon, Tech, Economy, Power
 				ThreatBonuses:
 					Vehicle: 10
 					Aircraft: 10
@@ -537,7 +570,7 @@ Player:
 			NOD_LightTank_Raid:
 				Role: Raider
 				Priority: 108
-				MaxInstances: 2
+				MaxInstances: 3
 				MinSlotsToActivate: 1
 				Factions: nod
 				PriorityTargetCapabilities: Harvester, Economy, Power
@@ -589,7 +622,7 @@ Player:
 				MaxInstances: 1
 				MinSlotsToActivate: 1
 				Factions: nod
-				PriorityTargetCapabilities: Infantry, Harvester, Economy, Power, Tech
+				PriorityTargetCapabilities: Infantry, Harvester, Economy, Power
 				ThreatBonuses:
 					Infantry: 18
 					Harvester: 20
@@ -623,7 +656,7 @@ Player:
 					InfantryDefense: 5
 				Slots:
 					Raiders:
-						Count: 4
+						Count: 6
 						AllowedTypes: bike
 			NOD_TickTank_Line:
 				Role: Assault
@@ -631,6 +664,7 @@ Player:
 				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: nod
+				PriorityTargetCapabilities: Vehicle, Economy, Power
 				ThreatBonuses:
 					Vehicle: 24
 					AntiInfantry: 8
@@ -649,7 +683,7 @@ Player:
 			NOD_Elite_Infantry:
 				Role: Assault
 				Priority: 106
-				MaxInstances: 1
+				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: nod
 				ThreatBonuses:
@@ -673,7 +707,7 @@ Player:
 			NOD_Acolyte_Spearhead:
 				Role: Assault
 				Priority: 112
-				MaxInstances: 1
+				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: nod
 				ThreatBonuses:
@@ -697,7 +731,7 @@ Player:
 			NOD_Subtank_Ambush:
 				Role: SubterraneanAssault
 				Priority: 112
-				MaxInstances: 3
+				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: nod
 				PriorityTargetCapabilities: Harvester, Economy, Production, Tech, Superweapon
@@ -716,7 +750,7 @@ Player:
 			NOD_SAPC_Ambush:
 				Role: SubterraneanTransport
 				Priority: 108
-				MaxInstances: 1
+				MaxInstances: 2
 				MinSlotsToActivate: 2
 				Factions: nod
 				PriorityTargetCapabilities: Superweapon, Tech, Production, Economy, Power
@@ -743,6 +777,7 @@ Player:
 				MaxInstances: 3
 				MinSlotsToActivate: 1
 				Factions: nod
+				PriorityTargetCapabilities: Defense, Superweapon, Tech, Production, Economy, Power
 				ThreatBonuses:
 					Vehicle: 10
 				ThreatBonusesGlobal:
@@ -753,12 +788,12 @@ Player:
 					Special: 10
 				Slots:
 					Artillery:
-						Count: 3
+						Count: 4
 						AllowedTypes: nhwtz
 			NOD_StealthTank_Picks:
 				Role: Stealth
 				Priority: 111
-				MaxInstances: 3
+				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: nod
 				PriorityTargetCapabilities: Harvester, Superweapon, Tech, Economy, Power
@@ -779,11 +814,9 @@ Player:
 			NOD_Hydra_Gunships:
 				Role: AircraftSupport
 				Priority: 104
-				MaxInstances: 4
+				MaxInstances: 3
 				MinSlotsToActivate: 1
 				Factions: nod
-				ScaleWithBuilding: nahpad
-				UnitsPerBuilding: 2
 				ThreatBonuses:
 					Infantry: 25
 					Harvester: 12
@@ -801,11 +834,9 @@ Player:
 			NOD_Banshee_Strike:
 				Role: AircraftAttack
 				Priority: 103
-				MaxInstances: 3
+				MaxInstances: 2
 				MinSlotsToActivate: 1
 				Factions: nod
-				ScaleWithBuilding: nahpad
-				UnitsPerBuilding: 2
 				PriorityTargetCapabilities: Harvester, Superweapon, Tech, Economy, Power
 				ThreatBonuses:
 					Vehicle: 24
