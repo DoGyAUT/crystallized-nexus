@@ -22,6 +22,10 @@ namespace OpenRA.Mods.CN.Traits
 		public readonly FrozenDictionary<string, ImmutableArray<string>> Names =
 			FrozenDictionary<string, ImmutableArray<string>>.Empty;
 
+		[Desc("Optional short labels appended as '(label)' per bot type. Key is the bot Type string.")]
+		public readonly FrozenDictionary<string, string> BotTypeLabels =
+			FrozenDictionary<string, string>.Empty;
+
 		public override object Create(ActorInitializer init) { return new BotPlayerNames(this); }
 	}
 
@@ -44,10 +48,11 @@ namespace OpenRA.Mods.CN.Traits
 			if (!TryGetNames(player.Faction.InternalName, out var names) || names.IsDefaultOrEmpty)
 				return null;
 
-			var seedOffset = PositiveModulo(StableHash(
+			var hash = StableHash(
 				player.World.LobbyInfo.GlobalSettings.RandomSeed,
 				player.Faction.InternalName,
-				player.BotType ?? string.Empty), names.Length);
+				player.BotType ?? string.Empty);
+			var seedOffset = ((hash % names.Length) + names.Length) % names.Length;
 
 			var factionBots = player.World.Players
 				.Where(p => p.IsBot && !p.NonCombatant && p.Playable && p.Faction.InternalName == player.Faction.InternalName)
@@ -60,8 +65,12 @@ namespace OpenRA.Mods.CN.Traits
 
 			var baseName = names[(seedOffset + botOffset) % names.Length];
 			var cycle = botOffset / names.Length;
+			var fullName = cycle == 0 ? baseName : $"{baseName} {cycle + 1}";
 
-			return cycle == 0 ? baseName : $"{baseName} {cycle + 1}";
+			if (info.BotTypeLabels.TryGetValue(player.BotType ?? string.Empty, out var typeLabel))
+				fullName = $"{fullName} ({typeLabel})";
+
+			return fullName;
 		}
 
 		bool TryGetNames(string faction, out ImmutableArray<string> names)
@@ -76,30 +85,13 @@ namespace OpenRA.Mods.CN.Traits
 			return false;
 		}
 
-		static int PositiveModulo(int value, int divisor)
-		{
-			var remainder = value % divisor;
-			return remainder < 0 ? remainder + divisor : remainder;
-		}
-
 		static int StableHash(int seed, string faction, string botType)
 		{
 			unchecked
 			{
 				var hash = seed;
-				hash = HashString(hash, faction);
-				hash = HashString(hash, botType);
-				return hash;
-			}
-		}
-
-		static int HashString(int hash, string value)
-		{
-			unchecked
-			{
-				foreach (var c in value)
-					hash = (hash * 16777619) ^ c;
-
+				foreach (var c in faction) hash = (hash * 16777619) ^ c;
+				foreach (var c in botType) hash = (hash * 16777619) ^ c;
 				return hash;
 			}
 		}

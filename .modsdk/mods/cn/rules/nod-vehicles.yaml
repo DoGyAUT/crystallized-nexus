@@ -288,7 +288,7 @@ LTNK:
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
-		Cost: 800
+		Cost: 700
 	Tooltip:
 		Name: actor-ltnk.name
 	Voiced:
@@ -361,7 +361,7 @@ TTNK:
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
-		Cost: 1000
+		Cost: 800
 	Tooltip:
 		Name: actor-ttnk.name
 		RequiresCondition: !deployed

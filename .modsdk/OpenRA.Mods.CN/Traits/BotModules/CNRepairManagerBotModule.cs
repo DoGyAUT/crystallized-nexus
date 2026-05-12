@@ -43,11 +43,13 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly List<Actor> idleBaseUnits = [];
 		int repairScanTicks;
+		World world;
 
 		public CNRepairManagerBotModule(Actor self, CNRepairManagerBotModuleInfo info)
 			: base(info)
 		{
-			repairScanTicks = self.World.LocalRandom.Next(RepairScanInterval);
+			world = self.World;
+			repairScanTicks = world.LocalRandom.Next(RepairScanInterval);
 		}
 
 		void IBotNotifyIdleBaseUnits.UpdatedIdleBaseUnits(List<Actor> idleUnits)
@@ -58,13 +60,20 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
-			if (idleBaseUnits.Count == 0 || --repairScanTicks > 0)
+			if (--repairScanTicks > 0)
 				return;
 
 			repairScanTicks = RepairScanInterval;
 			var assignments = 0;
 
-			foreach (var actor in idleBaseUnits)
+			// Merge idle-base-units with any damaged idle infantry not yet in that list
+			// (e.g. retreated units that the squad manager is holding back for repair).
+			var repairCandidates = new HashSet<Actor>(idleBaseUnits);
+			foreach (var actor in world.ActorsHavingTrait<RepairableInBarracks>())
+				if (actor.Owner == bot.Player && !actor.IsDead && actor.IsInWorld && actor.IsIdle)
+					repairCandidates.Add(actor);
+
+			foreach (var actor in repairCandidates)
 			{
 				if (assignments >= Info.MaxAssignmentsPerScan)
 					break;

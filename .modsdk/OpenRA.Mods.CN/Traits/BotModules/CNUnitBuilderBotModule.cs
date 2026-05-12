@@ -109,11 +109,12 @@ namespace OpenRA.Mods.CN.Traits
 
 		const int FeedbackTime = 30;
 		const int MaxQueuedItemsPerQueue = 1;
-		const int ReservationStallTicks = 5 * FeedbackTime;
+		const int ReservationStallTicks = 15 * FeedbackTime;
 		const int TemplateRecentBuildWindow = 6 * FeedbackTime;
-		const int TemplateRecentBuildPenaltyStep = 175;
-		const int TemplateReservationPenalty = 900;
-		const int TemplateActiveSquadPenalty = 250;
+		const int TemplateRecentBuildPenaltyStep = 320;
+		const int TemplateReservationPenalty = 100;
+		const int TemplateActiveSquadPenalty = 600;
+		const int TemplateDeficitBonus = 500;
 
 		readonly World world;
 		readonly Player player;
@@ -594,7 +595,7 @@ namespace OpenRA.Mods.CN.Traits
 
 				var score = squadManager.GetEffectivePriority(template) * 100;
 				if (HasExistingTemplateVehicleDeficit(templateName, queue, existingByType))
-					score += 10000;
+					score += TemplateDeficitBonus;
 
 				var currentCount = CountReservedTemplateSquads(templateName);
 				score += Math.Max(0, (template.MaxInstances - currentCount) * 10);
@@ -647,7 +648,12 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			foreach (var squad in squadManager.Squads)
 			{
-				if (!squad.IsValid || !string.Equals(squad.TemplateName, templateName, StringComparison.OrdinalIgnoreCase))
+				// Boost priority for squads we will actually reinforce:
+				// forming squads (not yet operational) and home-role squads.
+				// Operational attack squads are skipped — we don't reinforce them.
+				if (!squad.IsValid ||
+					(squad.IsOperational && !squad.AllowsOperationalReinforcement) ||
+					!string.Equals(squad.TemplateName, templateName, StringComparison.OrdinalIgnoreCase))
 					continue;
 
 				foreach (var assignment in OrderedAssignments(squad.SlotAssignments))
@@ -672,7 +678,9 @@ namespace OpenRA.Mods.CN.Traits
 				return null;
 
 			foreach (var squad in squadManager.Squads
-				.Where(s => s.IsValid && string.Equals(s.TemplateName, templateName, StringComparison.OrdinalIgnoreCase))
+				.Where(s => s.IsValid &&
+					string.Equals(s.TemplateName, templateName, StringComparison.OrdinalIgnoreCase) &&
+					(!s.IsOperational || s.AllowsOperationalReinforcement))
 				.OrderBy(s => s.IsOperational ? 1 : 0)
 				.ThenByDescending(s => s.TemplateInfo != null ? squadManager.GetEffectivePriority(s.TemplateInfo) : 0))
 			{

@@ -513,18 +513,17 @@ namespace OpenRA.Mods.CN.Traits
 				if (slave.IsDead || !slave.IsInWorld)
 					continue;
 
-				var se = slaveEntries[i];
-				se.Actor = slave;
-				se.SpawnerSlave = slave.Trait<MobSpawnerSlave>();
-				se.Health = slave.Trait<IHealth>();
+				// InitializeSlaveEntry populates both BaseSpawnerSlaveEntry.SpawnerSlave and
+				// MobSpawnerSlaveEntry.SpawnerSlave. Setting only the derived field (as before)
+				// left the base field null, causing a NullReferenceException in StopSlaves().
+				InitializeSlaveEntry(slave, slaveEntries[i]);
 
-				if (Info.ShareSlaveExperience)
-				{
-					se.GainsExperience = slave.TraitOrDefault<GainsExperience>();
-					se.LastTrackedExperience = se.GainsExperience?.Experience ?? 0;
-				}
+				// Adopted slaves carry pre-existing XP; baseline from the current level
+				// so RedirectSlaveExperience does not credit it to the new master.
+				if (Info.ShareSlaveExperience && slaveEntries[i].GainsExperience != null)
+					slaveEntries[i].LastTrackedExperience = slaveEntries[i].GainsExperience.Experience;
 
-				se.SpawnerSlave.LinkMaster(slave, self, this);
+				slaveEntries[i].SpawnerSlave.LinkMaster(slave, self, this);
 			}
 
 			hasSpawnedInitialLoad = true;

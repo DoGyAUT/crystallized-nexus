@@ -75,6 +75,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public Actor CoordinatedAssaultTarget;
 		public string[] PreferredTargetCapabilities; // BotCapabilities tags to prioritize as targets (Raider, Stealth, SubAssault, ...)
 
+
 		// --- Mob-Awareness ---
 		/// <summary>True if any unit in this squad is a MobSpawnerMaster.</summary>
 		public bool HasMobs => Units.Any(a => a != null && !a.IsDead && a.IsInWorld && a.Info.HasTraitInfo<MobSpawnerMasterInfo>());
@@ -104,6 +105,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public bool HasCarrier => CarrierUnits.Any();
 
 		public bool IsTemplateBacked => TemplateInfo != null;
+
+		/// <summary>
+		/// True for roles that stay near the base (defense, protection, air support).
+		/// These squads may be reinforced while operational. Attack/away roles should
+		/// not receive single replacement units mid-mission.
+		/// </summary>
+		public bool AllowsOperationalReinforcement =>
+			Type == CNSquadType.Defense ||
+			Type == CNSquadType.ArtilleryDefense ||
+			Type == CNSquadType.Protection ||
+			Type == CNSquadType.AircraftSupport;
 
 		public CNSquad(
 			IBot bot,

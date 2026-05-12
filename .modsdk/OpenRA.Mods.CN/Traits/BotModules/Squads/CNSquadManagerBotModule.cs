@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -526,6 +526,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				if (!squad.IsValid || squad.TemplateInfo == null)
 					continue;
 
+				// Don't build replacements for operational attack squads — a lone unit
+				// crossing the map to join a fight is wasteful and easy to kill.
+				// Home-role squads (defense, protection, air support) still get top-ups.
+				if (squad.IsOperational && !squad.AllowsOperationalReinforcement)
+					continue;
+
 				foreach (var assignment in squad.SlotAssignments)
 				{
 					if (assignment.SlotInfo.IsPassenger && !SquadHasLiveCarrier(squad))
@@ -753,6 +759,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			foreach (var squad in Squads)
 			{
 				if (!squad.IsValid || squad.TemplateInfo == null)
+					continue;
+
+				if (squad.IsOperational && !squad.AllowsOperationalReinforcement)
 					continue;
 
 				prioritizedSquads.Add(squad);
@@ -1333,7 +1342,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return null;
 
 			return World.FindActorsInCircle(sourceActor.CenterPosition, radius)
-				.Where(a => IsPreferredEnemyUnit(a) && a.CanBeViewedByPlayer(Player))
+				.Where(a => IsPreferredEnemyUnit(a) &&
+				            a.CanBeViewedByPlayer(Player) &&
+				            !a.Info.HasTraitInfo<LineBuildInfo>())
 				.MinByOrDefault(a => (a.CenterPosition - sourceActor.CenterPosition).LengthSquared);
 		}
 
@@ -1345,7 +1356,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return World.FindActorsInCircle(sourceActor.CenterPosition, radius)
 				.Where(a => IsPreferredEnemyUnit(a) &&
 				            a.CanBeViewedByPlayer(Player) &&
-				            a.Owner == preferredOwner)
+				            a.Owner == preferredOwner &&
+				            !a.Info.HasTraitInfo<LineBuildInfo>())
 				.MinByOrDefault(a => (a.CenterPosition - sourceActor.CenterPosition).LengthSquared);
 		}
 
@@ -1546,6 +1558,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					continue;
 				if (actor.CurrentActivity is Enter)
 					continue;
+
+				// Leave damaged infantry alone so the repair manager can send them to heal.
+				if (actor.Info.HasTraitInfo<RepairableInBarracksInfo>())
+				{
+					var health = actor.TraitOrDefault<IHealth>();
+					if (health != null && health.DamageState > DamageState.Undamaged)
+						continue;
+				}
+
 				units.Add(actor);
 			}
 

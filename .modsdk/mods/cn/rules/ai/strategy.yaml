@@ -5,7 +5,9 @@ Player:
 		AdaptiveEmergencyTurtleDangerThreshold: 650
 		AdaptiveSteamrollerEarliestTick: 6500
 		AdaptiveSteamrollerUnitThreshold: 26
-		AdaptiveTechCashThreshold: 3800
+		AdaptiveTechCashThreshold: 6000
+		AdaptiveEcoIncomeThreshold: 300
+		AdaptiveRushUnitThreshold: 12
 		EcoBudgets:
 			Rush: 14
 			Turtle: 30
@@ -125,15 +127,15 @@ Player:
 			nahand: 9
 			gaweap: 10
 			naweap: 10
-			gahpad: 6
-			nahpad: 6
+			gahpad: 14
+			nahpad: 14
 		TechBuildingFractions:
 			gapile: 8
 			nahand: 8
 			gaweap: 11
 			naweap: 11
-			gahpad: 9
-			nahpad: 9
+			gahpad: 16
+			nahpad: 16
 			garadr: 8
 			naradr: 8
 			gaarmory: 8
@@ -149,8 +151,8 @@ Player:
 			nahand: 13
 			gaweap: 20
 			naweap: 20
-			gahpad: 12
-			nahpad: 12
+			gahpad: 20
+			nahpad: 20
 			gadept: 5
 			garadr: 5
 			naradr: 5
@@ -184,8 +186,8 @@ Player:
 			nahand: 13
 			gaweap: 15
 			naweap: 15
-			gahpad: 7
-			nahpad: 7
+			gahpad: 14
+			nahpad: 14
 		RushDefenseRoleLimits:
 			Total: 18
 			InfantryDefense: 7
@@ -195,16 +197,16 @@ Player:
 			Special: 1
 		RushNewProductionCashThreshold: 3200
 		RushNewProductionChance: 80
-		RushMinimumExcessPower: 15
-		RushMaximumExcessPower: 60
+		RushMinimumExcessPower: 10
+		RushMaximumExcessPower: 30
 		EcoNewProductionCashThreshold: 5500
 		EcoNewProductionChance: 55
 		EcoInititalMinimumRefineryCount: 2
 		TurtleNewProductionCashThreshold: 3800
 		TurtleNewProductionChance: 75
 		TurtleInititalMinimumRefineryCount: 2
-		TurtleMinimumExcessPower: 70
-		TurtleMaximumExcessPower: 250
+		TurtleMinimumExcessPower: 40
+		TurtleMaximumExcessPower: 130
 		TechNewProductionCashThreshold: 3500
 		TechNewProductionChance: 65
 		SteamrollerNewProductionCashThreshold: 2200
@@ -212,31 +214,31 @@ Player:
 		ExpansionInititalMinimumRefineryCount: 2
 		ExpansionNewProductionCashThreshold: 4500
 		ExpansionNewProductionChance: 55
-		ExpansionMinimumExcessPower: 35
-		ExpansionMaximumExcessPower: 220
+		ExpansionMinimumExcessPower: 20
+		ExpansionMaximumExcessPower: 110
 		TechInititalMinimumRefineryCount: 2
-		TechMinimumExcessPower: 40
-		TechMaximumExcessPower: 240
+		TechMinimumExcessPower: 20
+		TechMaximumExcessPower: 120
 		SteamrollerInititalMinimumRefineryCount: 2
-		SteamrollerMinimumExcessPower: 45
-		SteamrollerMaximumExcessPower: 260
+		SteamrollerMinimumExcessPower: 20
+		SteamrollerMaximumExcessPower: 130
 
 	CNUnitBuilderBotModule@Combat:
-		EcoProductionMinCashRequirement: 500
-		EcoDesiredCashReserve: 1400
-		EcoAdditionalCashReservePerQueue: 150
-		RushProductionMinCashRequirement: 180
-		RushDesiredCashReserve: 350
-		RushAdditionalCashReservePerQueue: 60
-		TurtleProductionMinCashRequirement: 250
-		TurtleDesiredCashReserve: 450
-		TurtleAdditionalCashReservePerQueue: 75
-		ExpansionProductionMinCashRequirement: 450
-		ExpansionDesiredCashReserve: 1200
-		ExpansionAdditionalCashReservePerQueue: 140
-		TechProductionMinCashRequirement: 260
-		TechDesiredCashReserve: 700
-		TechAdditionalCashReservePerQueue: 90
-		SteamrollerProductionMinCashRequirement: 100
-		SteamrollerDesiredCashReserve: 150
-		SteamrollerAdditionalCashReservePerQueue: 35
+		EcoProductionMinCashRequirement: 300
+		EcoDesiredCashReserve: 600
+		EcoAdditionalCashReservePerQueue: 70
+		RushProductionMinCashRequirement: 150
+		RushDesiredCashReserve: 280
+		RushAdditionalCashReservePerQueue: 50
+		TurtleProductionMinCashRequirement: 200
+		TurtleDesiredCashReserve: 380
+		TurtleAdditionalCashReservePerQueue: 60
+		ExpansionProductionMinCashRequirement: 280
+		ExpansionDesiredCashReserve: 550
+		ExpansionAdditionalCashReservePerQueue: 65
+		TechProductionMinCashRequirement: 220
+		TechDesiredCashReserve: 550
+		TechAdditionalCashReservePerQueue: 75
+		SteamrollerProductionMinCashRequirement: 80
+		SteamrollerDesiredCashReserve: 120
+		SteamrollerAdditionalCashReservePerQueue: 28

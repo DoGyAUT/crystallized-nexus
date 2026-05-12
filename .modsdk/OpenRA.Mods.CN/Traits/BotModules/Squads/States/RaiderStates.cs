@@ -30,8 +30,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Tick(CNSquad squad)
 		{
-			if (!squad.IsOperational)
+			if (!squad.IsValid)
 				return;
+			if (!squad.IsOperational)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
+				return;
+			}
 
 			rethinkTicks--;
 			if (rethinkTicks > 0 && squad.IsTargetValid)
@@ -80,8 +85,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Tick(CNSquad squad)
 		{
-			if (!squad.IsOperational)
+			if (!squad.IsValid)
 				return;
+			if (!squad.IsOperational)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
+				return;
+			}
 
 			if (!squad.IsTargetValid)
 			{

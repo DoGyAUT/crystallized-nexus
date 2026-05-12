@@ -40,7 +40,7 @@ Player:
 		ExpansionTolerate: 3, 4
 		ForceExpansionTolerate: 5, 6
 		PerExpansionTolerateOnCash: 18000
-		InititalMinimumRefineryCount: 2
+		InititalMinimumRefineryCount: 1
 		AdditionalMinimumRefineryCount: 0
 		NewProductionCashThreshold: 4000
 		NewProductionChance: 65
@@ -53,102 +53,78 @@ Player:
 		VeinsOnlyResourceTypes: Veins
 		MinimumDefenseRadius: 3
 		DefenseInnerRadius: 8
-		DefenseInnerMinSpacing: 3
-		DefenseOuterMinSpacing: 4
+		DefenseInnerMinSpacing: 2
+		DefenseOuterMinSpacing: 3
 		EnableDefenseDangerMemory: true
 		DefenseDangerMemoryAttackWeight: 120
 		DefenseDangerMemoryBuildingAttackWeight: 160
-		DefenseDangerMemoryRecordInterval: 50
-		DefenseCenterUpdateInterval: 150
+		DefenseDangerMemoryRecordInterval: 30
+		DefenseCenterUpdateInterval: 90
 		DefenseDangerMemoryMergeRadius: 5
-		DefenseDangerMemoryMaxEntries: 6
-		DefensePlacementMaxHotspots: 2
-		DefensePlacementCandidateLimit: 24
+		DefenseDangerMemoryMaxEntries: 10
+		DefensePlacementMaxHotspots: 4
+		DefensePlacementCandidateLimit: 32
 		DefenseDangerMemoryMinimumWeight: 80
-		DefenseDangerMemoryDecayInterval: 250
-		DefenseDangerMemoryDecayAmount: 20
-		DefensePlacementDangerWeight: 50
+		DefenseDangerMemoryDecayInterval: 180
+		DefenseDangerMemoryDecayAmount: 12
+		DefensePlacementDangerWeight: 80
 		DefensePlacementEnemyDirectionWeight: 70
-		MaximumDefenseRadius: 15
+		MaximumDefenseRadius: 17
 		DynamicBaseRadius: true
 		RadiusPerBuilding: 0.4
 		MaxDynamicBaseRadius: 25
 		DefaultLayout: BaseGrid
-		DefaultMinSpacing: 1
-		GlobalMinSpacing: 1
+		SameTypeMinSpacing: 1
+		GlobalMinSpacing: 2
 		BuildingLayouts:
 			gapowr:
 				Layout: BaseGrid
 				MinSpacing: 0
 				NearBuilding: gapowr
 				ClusterGroupSize: 4
-				ClusterGroupSpacing: 7
+				ClusterGroupSpacing: 10
 			napowr:
 				Layout: BaseGrid
 				MinSpacing: 0
 				NearBuilding: napowr
 				ClusterGroupSize: 4
-				ClusterGroupSpacing: 7
+				ClusterGroupSpacing: 10
 			naapwr:
 				Layout: BaseGrid
 				MinSpacing: 0
 				NearBuilding: naapwr
 				ClusterGroupSize: 4
-				ClusterGroupSpacing: 7
+				ClusterGroupSpacing: 10
 			gahpad:
 				Layout: BaseGrid
 				MinSpacing: 0
 				NearBuilding: gahpad
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 10
 			nahpad:
 				Layout: BaseGrid
 				MinSpacing: 0
 				NearBuilding: nahpad
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 10
 			gasilo:
 				Layout: BaseGrid
 				MinSpacing: 0
 				NearBuilding: gasilo
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 10
 			gproc:
 				Layout: BaseGrid
 				MinSpacing: 1
 			nproc:
 				Layout: BaseGrid
 				MinSpacing: 1
-			gapile:
-				Layout: BaseGrid
-				NearBuilding: gapile
-			nahand:
-				Layout: BaseGrid
-				NearBuilding: nahand
-			gaweap:
-				Layout: BaseGrid
-				NearBuilding: gaweap
-			naweap:
-				Layout: BaseGrid
-				NearBuilding: naweap
-			gatech:
-				Layout: BaseGrid
-				NearBuilding: gaarmory
-			natech:
-				Layout: BaseGrid
-				NearBuilding: nahand
-			napyra:
-				Layout: BaseGrid
-				NearBuilding: natech
-			gaarmory:
-				Layout: BaseGrid
-				NearBuilding: gapile
 			gadept:
 				Layout: BaseGrid
 				NearBuilding: gaweap
-			garadr:
-				Layout: BaseGrid
-				NearBuilding: gaarmory
-			naradr:
-				Layout: BaseGrid
-				NearBuilding: nahand
 			nastlh:
 				Layout: Coverage
-				NearBuilding: nacnst
+				MinSpacing: 15
 		BuildingLimits:
 			gapile: 6
 			nahand: 6
@@ -182,8 +158,8 @@ Player:
 			nahand: 8
 			gaweap: 10
 			naweap: 10
-			gahpad: 6
-			nahpad: 6
+			gahpad: 16
+			nahpad: 16
 			gadept: 4
 			garadr: 5
 			naradr: 5
@@ -206,7 +182,10 @@ Player:
 			gaarmory: 8
 			gadept: 7
 		LateBuildingFractions:
-			gatech: 5
+			gatech: 8
+			napyra: 8
+			natech: 8
+			nastlh: 10
 			gaplug: 4
 			gaplug2: 4
 			natmpl: 5
@@ -217,8 +196,8 @@ Player:
 			nahand: 14
 			gaweap: 16
 			naweap: 16
-			gahpad: 8
-			nahpad: 8
+			gahpad: 14
+			nahpad: 14
 		TurtleBuildingFractions:
 		RushDefenseRoleLimits:
 			Total: 12
