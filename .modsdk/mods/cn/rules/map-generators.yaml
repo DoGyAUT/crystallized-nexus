@@ -2,7 +2,7 @@
 	TSMapGenerator@ts:
 		Type: ts
 		Name: map-generator-ts
-		Tilesets: TEMPERATE, SNOW
+		Tilesets: TEMPERATE, SNOW, DESERT
 		Settings:
 			MultiChoiceOption@hidden_defaults:
 				Choice@hidden_defaults:
@@ -140,6 +140,147 @@
 			MultiChoiceOption@hidden_tileset_overrides:
 				Choice@temperat:
 					Tileset: TEMPERATE
+					Settings:
+						ForestFloorTile: 626
+						OtherGround:
+							535: 150
+							150: 250
+						LatTiler:
+							Rule@Rough:
+								AutoMain:
+								Low: 150
+								____: 150
+								___x: 152
+								__x_: 153
+								__xx: 154
+								_x__: 155
+								_x_x: 156
+								_xx_: 157
+								_xxx: 158
+								x___: 159
+								x__x: 160
+								x_x_: 161
+								x_xx: 162
+								xx__: 163
+								xx_x: 164
+								xxx_: 165
+								xxxx: 166
+							Rule@Sand:
+								AutoMain:
+								Low: 535
+								____: 535
+								___x: 537
+								__x_: 538
+								__xx: 539
+								_x__: 540
+								_x_x: 541
+								_xx_: 542
+								_xxx: 543
+								x___: 544
+								x__x: 545
+								x_x_: 546
+								x_xx: 547
+								xx__: 548
+								xx_x: 549
+								xxx_: 550
+								xxxx: 551
+							Rule@Green:
+								AutoMain:
+								Low: 626
+								____: 626
+								___x: 628
+								__x_: 629
+								__xx: 630
+								_x__: 631
+								_x_x: 632
+								_xx_: 633
+								_xxx: 634
+								x___: 635
+								x__x: 636
+								x_x_: 637
+								x_xx: 638
+								xx__: 639
+								xx_x: 640
+								xxx_: 641
+								xxxx: 642
+							Rule@RampEdge40:
+								AutoMain:
+								Low: 40,643,644,645
+								____: 40
+								___x: 40
+								__x_: 644
+								__xx: 644
+								_x__: 40
+								_x_x: 40
+								_xx_: 644
+								_xxx: 644
+								x___: 643
+								x__x: 643
+								x_x_: 645
+								x_xx: 645
+								xx__: 643
+								xx_x: 643
+								xxx_: 645
+								xxxx: 645
+							Rule@RampEdge41:
+								AutoMain:
+								Low: 41,646,647,648
+								____: 41
+								___x: 646
+								__x_: 41
+								__xx: 646
+								_x__: 647
+								_x_x: 648
+								_xx_: 647
+								_xxx: 648
+								x___: 41
+								x__x: 646
+								x_x_: 41
+								x_xx: 646
+								xx__: 647
+								xx_x: 648
+								xxx_: 647
+								xxxx: 648
+							Rule@RampEdge42:
+								AutoMain:
+								Low: 42,649,650,651
+								____: 42
+								___x: 42
+								__x_: 649
+								__xx: 649
+								_x__: 42
+								_x_x: 42
+								_xx_: 649
+								_xxx: 649
+								x___: 650
+								x__x: 650
+								x_x_: 651
+								x_xx: 651
+								xx__: 650
+								xx_x: 650
+								xxx_: 651
+								xxxx: 651
+							Rule@RampEdge43:
+								AutoMain:
+								Low: 43,652,653,654
+								____: 43
+								___x: 653
+								__x_: 43
+								__xx: 653
+								_x__: 652
+								_x_x: 654
+								_xx_: 652
+								_xxx: 654
+								x___: 43
+								x__x: 653
+								x_x_: 43
+								x_xx: 653
+								xx__: 652
+								xx_x: 654
+								xxx_: 652
+								xxxx: 654
+				Choice@desert:
+					Tileset: DESERT
 					Settings:
 						ForestFloorTile: 626
 						OtherGround:
@@ -933,6 +1074,12 @@
 					Settings:
 						WaterCliffs: True
 						WaterRoughness: 1000
+				Choice@DesertCliffs:
+					Label: label-ts-map-generator-choice-coastlines-cliffs
+					Tileset: DESERT
+					Settings:
+						WaterCliffs: True
+						WaterRoughness: 1000
 				Choice@SnowCliffs:
 					Label: label-ts-map-generator-choice-coastlines-cliffs
 					Tileset: SNOW
@@ -943,6 +1090,11 @@
 				Choice@TemperateMixed:
 					Label: label-ts-map-generator-choice-coastlines-mixed
 					Tileset: TEMPERATE
+					Settings:
+						WaterCliffs: True
+				Choice@DesertMixed:
+					Label: label-ts-map-generator-choice-coastlines-mixed
+					Tileset: DESERT
 					Settings:
 						WaterCliffs: True
 				Choice@SnowMixed:
@@ -961,7 +1113,7 @@
 	ClearMapGenerator@clear:
 		Type: clear
 		Name: map-generator-clear
-		Tilesets: TEMPERATE, SNOW
+		Tilesets: TEMPERATE, SNOW, DESERT
 		Settings:
 			MultiChoiceOption@Tile:
 				Label: label-clear-map-generator-option-tile
@@ -995,14 +1147,29 @@
 					Tileset: TEMPERATE
 					Settings:
 						Tile: 535
+				Choice@DesertSand:
+					Label: label-clear-map-generator-choice-tile-sand
+					Tileset: DESERT
+					Settings:
+						Tile: 535
 				Choice@Green:
 					Label: label-clear-map-generator-choice-tile-green
 					Tileset: TEMPERATE
 					Settings:
 						Tile: 626
+				Choice@DesertGreen:
+					Label: label-clear-map-generator-choice-tile-green
+					Tileset: DESERT
+					Settings:
+						Tile: 626
 				Choice@TemperatePavement:
 					Label: label-clear-map-generator-choice-tile-pavement
 					Tileset: TEMPERATE
+					Settings:
+						Tile: 671
+				Choice@DesertPavement:
+					Label: label-clear-map-generator-choice-tile-pavement
+					Tileset: DESERT
 					Settings:
 						Tile: 671
 				Choice@Crystal:
