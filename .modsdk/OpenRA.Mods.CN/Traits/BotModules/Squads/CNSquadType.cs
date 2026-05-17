@@ -18,7 +18,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		Rush,                  // Early attack with small force
 		Air,                   // Air units
 		AircraftAttack,        // Air strike: attack enemy base/targets, then return to rearm
-		AircraftSupport,       // Air support: escort and assist allied squads
+		AircraftRaider,        // Air raider: priority target strike, then return to rearm
 		Naval,                 // Naval units
 		Protection,            // Reactive base defense (triggered by attack)
 
@@ -30,8 +30,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		SubterraneanAssault,   // SUBTANK: burrow approach → surface → attack → reborrow
 		SubterraneanTransport, // SAPC: burrow → behind enemy lines → unload (ambush)
 		Stealth,               // Cloaked units (STNK): priority targets, no auto-attack
-		JumpJet,               // Jump-jet infantry: grouped, over terrain, ground targets
-		Hover,                 // Hover units: can cross water/cliffs
 
 		// Support
 		Support,               // Repair vehicles / medics, follows Assault squads

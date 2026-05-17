@@ -71,8 +71,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// --- Type-specific fields ---
 		public WDist ArtilleryHangBackRange;  // Artillery: how far behind frontline to stay
 		public CNSquad AttachedTo;            // ArtilleryAssault/Support: squad to follow
-		public bool IsWaitingForArtillery;    // Assault: hold position while artillery clears defenses
-		public Actor CoordinatedAssaultTarget;
 		public string[] PreferredTargetCapabilities; // BotCapabilities tags to prioritize as targets (Raider, Stealth, SubAssault, ...)
 
 
@@ -100,22 +98,45 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			SlotAssignments
 				.Where(s => s.SlotInfo.IsPassenger)
 				.SelectMany(s => s.Passengers)
+				.Where(a => a != null && !a.IsDead)
+				.SelectMany(ExpandPassengerUnit)
+				.Distinct()
+				.Where(a => a != null && !a.IsDead);
+
+		public IEnumerable<Actor> EscortUnits =>
+			SlotAssignments
+				.Where(s => s.SlotInfo.IsEscort)
+				.SelectMany(s => s.Units)
 				.Where(a => a != null && !a.IsDead);
 
 		public bool HasCarrier => CarrierUnits.Any();
 
+		static IEnumerable<Actor> ExpandPassengerUnit(Actor actor)
+		{
+			if (actor == null || actor.IsDead)
+				yield break;
+
+			yield return actor;
+
+			var mob = actor.TraitOrDefault<MobSpawnerMaster>();
+			if (mob == null)
+				yield break;
+
+			foreach (var slave in mob.AliveSlavesInWorld)
+				yield return slave;
+		}
+
 		public bool IsTemplateBacked => TemplateInfo != null;
 
 		/// <summary>
-		/// True for roles that stay near the base (defense, protection, air support).
+		/// True for roles that stay near the base (defense, protection).
 		/// These squads may be reinforced while operational. Attack/away roles should
 		/// not receive single replacement units mid-mission.
 		/// </summary>
 		public bool AllowsOperationalReinforcement =>
 			Type == CNSquadType.Defense ||
 			Type == CNSquadType.ArtilleryDefense ||
-			Type == CNSquadType.Protection ||
-			Type == CNSquadType.AircraftSupport;
+			Type == CNSquadType.Protection;
 
 		public CNSquad(
 			IBot bot,
@@ -192,6 +213,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		/// <summary>
 		/// Validates that the current target is still alive, in-world, and reachable.
+		/// INVARIANT: the final "any in-world unit" clause is satisfied by the
+		/// carriers for transport squads — boarded passengers are alive but out of
+		/// world, so target validity must never depend on passengers being in-world.
 		/// </summary>
 		public bool IsTargetValid =>
 			TargetActor != null &&

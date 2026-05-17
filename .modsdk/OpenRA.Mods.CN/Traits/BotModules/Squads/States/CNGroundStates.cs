@@ -24,11 +24,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	abstract class CNGroundStateBase : CNStateBase
 	{
-		const int AssaultStagingMinCells = 6;
-		const int AssaultStagingMaxCells = 11;
-		const int AssaultThreatRadiusCells = 6;
-		const int CoordinatedDefenseRadiusCells = 9;
-
 		Actor leader;
 
 		/// <summary>
@@ -69,7 +64,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		protected override bool ShouldFlee(CNSquad squad)
 		{
 			return ShouldFlee(squad, enemies =>
-				!CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, enemies));
+			{
+				// Only react to enemies that are actively attacking (have an Attack or FlyAttack
+				// activity). Nearby units that are patrolling or targeting other forces should not
+				// trigger a retreat — the squad holds ground unless it is under direct fire.
+				var activeAttackers = enemies.Where(BusyAttack).ToList();
+				if (activeAttackers.Count == 0)
+					return false;
+
+				return !CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, activeAttackers);
+			});
 		}
 
 		/// <summary>
@@ -89,89 +93,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				            a.Info.HasTraitInfo<BuildingInfo>() &&
 				            !a.Info.HasTraitInfo<LineBuildInfo>())
 				.MinByOrDefault(a => (a.CenterPosition - center).LengthSquared);
-		}
-
-		protected static CPos? FindAssaultStagingCell(CNSquad squad, Actor target)
-		{
-			if (target == null)
-				return null;
-
-			var leader = squad.CenterUnit();
-			var mobile = leader?.TraitOrDefault<Mobile>();
-			if (leader == null || mobile == null)
-				return null;
-
-			var map = squad.World.Map;
-			var targetCell = map.CellContaining(target.CenterPosition);
-			var baseCell = squad.SquadManager.GetRandomBaseCenter();
-			CPos? bestCell = null;
-			var bestScore = int.MaxValue;
-
-			for (var dy = -AssaultStagingMaxCells; dy <= AssaultStagingMaxCells; dy++)
-			{
-				for (var dx = -AssaultStagingMaxCells; dx <= AssaultStagingMaxCells; dx++)
-				{
-					var distanceSquared = dx * dx + dy * dy;
-					if (distanceSquared < AssaultStagingMinCells * AssaultStagingMinCells ||
-						distanceSquared > AssaultStagingMaxCells * AssaultStagingMaxCells)
-						continue;
-
-					var candidate = targetCell + new CVec(dx, dy);
-					if (!map.Contains(candidate) || !mobile.CanEnterCell(candidate))
-						continue;
-
-					var score = ScoreAssaultStagingCell(squad, candidate, targetCell, baseCell);
-					if (score >= bestScore)
-						continue;
-
-					bestScore = score;
-					bestCell = candidate;
-				}
-			}
-
-			return bestCell;
-		}
-
-		protected static Actor FindAssaultEntryTarget(CNSquad squad, CPos stagingCell, Actor defaultTarget)
-		{
-			var stagingPos = squad.World.Map.CenterOfCell(stagingCell);
-			Actor bestTarget = null;
-			var bestScore = int.MaxValue;
-
-			foreach (var actor in squad.World.FindActorsInCircle(stagingPos, WDist.FromCells(8)))
-			{
-				if (!squad.SquadManager.IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(squad.Bot.Player))
-					continue;
-
-				if (!actor.Info.HasTraitInfo<BuildingInfo>())
-					continue;
-
-				var score = ScoreAssaultEntryTarget(squad, stagingPos, actor);
-				if (score >= bestScore)
-					continue;
-
-				bestScore = score;
-				bestTarget = actor;
-			}
-
-			return bestTarget ?? defaultTarget;
-		}
-
-		protected static Actor FindDefenseBlockingAssault(CNSquad squad, Actor target)
-		{
-			if (target != null && IsDefenseStructure(target))
-				return target;
-
-			return FindDefenseNearTarget(squad, target, CoordinatedDefenseRadiusCells);
-		}
-
-		protected static bool HasAttachedArtillery(CNSquad squad)
-		{
-			return squad.SquadManager.Squads.Any(s =>
-				s.Type == CNSquadType.ArtilleryAssault &&
-				s.IsOperational &&
-				(s.AttachedTo == squad || s.AttachedTo == null || !s.AttachedTo.IsWaitingForArtillery) &&
-				s.OrderableUnits.Any());
 		}
 
 		protected static Actor FindRushTarget(CNSquad squad, Actor defaultTarget)
@@ -214,59 +135,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			return bestTarget ?? defaultTarget;
 		}
 
-		static int ScoreAssaultStagingCell(CNSquad squad, CPos candidate, CPos targetCell, CPos baseCell)
-		{
-			var world = squad.World;
-			var candidatePos = world.Map.CenterOfCell(candidate);
-			var score = 0;
-
-			score += (candidate - targetCell).LengthSquared * 10;
-
-			var baseToCandidate = (candidate - baseCell).LengthSquared;
-			var baseToTarget = (targetCell - baseCell).LengthSquared;
-			if (baseToCandidate < baseToTarget)
-				score += (baseToTarget - baseToCandidate) * 5;
-
-			foreach (var actor in world.FindActorsInCircle(candidatePos, WDist.FromCells(AssaultThreatRadiusCells)))
-			{
-				if (!squad.SquadManager.IsLiveEnemyActor(actor))
-					continue;
-
-				var isBuilding = actor.Info.HasTraitInfo<BuildingInfo>();
-				var canAttack = actor.Info.HasTraitInfo<AttackBaseInfo>();
-
-				if (isBuilding && canAttack)
-					score += 300;
-				else if (canAttack)
-					score += 90;
-				else if (isBuilding)
-					score -= 20;
-			}
-
-			return score;
-		}
-
-		static int ScoreAssaultEntryTarget(CNSquad squad, WPos stagingPos, Actor target)
-		{
-			var score = (int)((target.CenterPosition - stagingPos).LengthSquared / 65536);
-
-			foreach (var actor in squad.World.FindActorsInCircle(target.CenterPosition, WDist.FromCells(5)))
-			{
-				if (!squad.SquadManager.IsLiveEnemyActor(actor))
-					continue;
-
-				var isBuilding = actor.Info.HasTraitInfo<BuildingInfo>();
-				var canAttack = actor.Info.HasTraitInfo<AttackBaseInfo>();
-
-				if (isBuilding && canAttack)
-					score += 220;
-				else if (canAttack)
-					score += 70;
-			}
-
-			return score;
-		}
-
 		static int ScoreRushTarget(Actor leader, Actor target)
 		{
 			if (leader == null || target == null || leader.IsDead || target.IsDead || !leader.IsInWorld || !target.IsInWorld)
@@ -297,6 +165,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class CNGroundIdleState : CNGroundStateBase, ICNState
 	{
+		// Units this close to ANY own building are considered "at base" and won't be
+		// dissolved into CNGroundFleeState when no target exists, preventing the
+		// idle→flee→random-building-move cycle that causes visible base jitter.
+		const int HomeRadiusCells = 20;
+
 		public void Activate(CNSquad squad) { }
 
 		public void Tick(CNSquad squad)
@@ -314,6 +187,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				var enemy = FindTarget(squad);
 				if (enemy == null)
 				{
+					// No visible enemy. If units are already near base, hold position
+					// rather than issuing a move-to-random-building on every update cycle.
+					var buildings = squad.SquadManager.GetCachedOwnBuildings();
+					var homeRadiusSq = (long)WDist.FromCells(HomeRadiusCells).Length *
+					                   WDist.FromCells(HomeRadiusCells).Length;
+					var allHome = squad.Units
+						.Where(u => !u.IsDead && u.IsInWorld)
+						.All(u => buildings.Any(b =>
+							(u.CenterPosition - b.CenterPosition).LengthSquared <= homeRadiusSq));
+					if (allHome)
+						return;
+
 					squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
 					return;
 				}
@@ -327,18 +212,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.SetActorToTarget(rushTarget);
 			}
 
-			if (squad.SquadManager.ShouldHoldForAttackWave(squad))
-			{
-				squad.SquadManager.GatherAttackWave(squad);
-				return;
-			}
-
-			if (squad.Type == CNSquadType.Assault && squad.TargetActor.Info.HasTraitInfo<BuildingInfo>())
-			{
-				squad.FuzzyStateMachine.ChangeState(squad, new AssaultStagingState());
-				return;
-			}
-
 			// Issue move order and hand off to AttackMoveState for regrouping + engagement
 			squad.Bot.QueueOrder(new Order("AttackMove", null, squad.Target, false,
 				groupedActors: squad.OrderableUnits.ToArray()));
@@ -346,103 +219,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		public void Deactivate(CNSquad squad) { }
-	}
-
-	sealed class AssaultStagingState : CNGroundStateBase, ICNState
-	{
-		CPos? stagingCell;
-		int waitTicks;
-		int artilleryHoldTicks;
-		const int MaxStageTicks = 6;
-		const int MaxArtilleryHoldTicks = 12;
-		const int GatherRadiusCells = 4;
-
-		public void Activate(CNSquad squad)
-		{
-			waitTicks = 0;
-			artilleryHoldTicks = 0;
-			squad.IsWaitingForArtillery = false;
-			squad.CoordinatedAssaultTarget = null;
-			stagingCell = squad.IsTargetValid ? FindAssaultStagingCell(squad, squad.TargetActor) : null;
-		}
-
-		public void Tick(CNSquad squad)
-		{
-			if (!squad.IsValid)
-				return;
-			if (!squad.IsOperational)
-			{
-				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
-				return;
-			}
-
-			if (!squad.IsTargetValid)
-			{
-				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundIdleState());
-				return;
-			}
-
-			if (!stagingCell.HasValue)
-			{
-				squad.Bot.QueueOrder(new Order("AttackMove", null, squad.Target, false,
-					groupedActors: squad.OrderableUnits.ToArray()));
-				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundAttackMoveState());
-				return;
-			}
-
-			waitTicks++;
-			var stagingPos = squad.World.Map.CenterOfCell(stagingCell.Value);
-			var gatherRadius = WDist.FromCells(GatherRadiusCells);
-			var packedCount = squad.OrderableUnits.Count(u =>
-				(u.CenterPosition - stagingPos).Length <= gatherRadius.Length);
-			var totalCount = squad.OrderableUnits.Count();
-
-			if (packedCount < totalCount)
-			{
-				foreach (var unit in squad.OrderableUnits)
-				{
-					if (!unit.IsIdle)
-						continue;
-
-					squad.Bot.QueueOrder(new Order("Move", unit, Target.FromCell(squad.World, stagingCell.Value), false));
-				}
-			}
-
-			var readyToPush = (totalCount > 0 && packedCount >= Math.Max(2, totalCount * 2 / 3)) ||
-				waitTicks >= MaxStageTicks;
-
-			if (readyToPush)
-			{
-				var defenseTarget = FindDefenseBlockingAssault(squad, squad.TargetActor);
-				if (defenseTarget != null && HasAttachedArtillery(squad) && artilleryHoldTicks < MaxArtilleryHoldTicks)
-				{
-					artilleryHoldTicks++;
-					squad.IsWaitingForArtillery = true;
-					squad.CoordinatedAssaultTarget = defenseTarget;
-
-					foreach (var unit in squad.OrderableUnits)
-						if (!unit.IsIdle && (unit.CenterPosition - stagingPos).Length <= gatherRadius.Length)
-							squad.Bot.QueueOrder(new Order("Stop", unit, false));
-
-					return;
-				}
-
-				squad.IsWaitingForArtillery = false;
-				squad.CoordinatedAssaultTarget = null;
-
-				var entryTarget = FindAssaultEntryTarget(squad, stagingCell.Value, squad.TargetActor);
-				squad.SetActorToTarget(entryTarget);
-				squad.Bot.QueueOrder(new Order("AttackMove", null, squad.Target, false,
-					groupedActors: squad.OrderableUnits.ToArray()));
-				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundAttackMoveState());
-			}
-		}
-
-		public void Deactivate(CNSquad squad)
-		{
-			squad.IsWaitingForArtillery = false;
-			squad.CoordinatedAssaultTarget = null;
-		}
 	}
 
 	// ---------------------------------------------------------------------------

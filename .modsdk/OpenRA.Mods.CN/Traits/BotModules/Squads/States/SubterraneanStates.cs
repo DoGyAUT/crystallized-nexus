@@ -112,6 +112,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			if (!squad.IsValid)
 				return;
+			if (!squad.IsOperational)
+				return;
 
 			var center = squad.CenterUnit();
 			if (center == null)
@@ -148,13 +150,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		bool orderIssued;
 		CPos destinationCell;
-		int approachTicks;
+		int approachStartTick;
 
 		public void Activate(CNSquad squad)
 		{
 			orderIssued = false;
 			destinationCell = CPos.Zero;
-			approachTicks = 0;
+			approachStartTick = squad.World.WorldTick;
 		}
 
 		public void Tick(CNSquad squad)
@@ -185,8 +187,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				orderIssued = true;
 			}
 
-			approachTicks++;
-			if (approachTicks > MaxApproachTicks)
+			if (squad.World.WorldTick - approachStartTick > MaxApproachTicks)
 			{
 				// Can't reach insertion point in time — retreat
 				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultReburrowState());
@@ -295,11 +296,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	{
 		bool retreatIssued;
 		CPos retreatCell;
+		int retreatStartTick;
+		const int MaxRetreatTicks = 900;
 
 		public void Activate(CNSquad squad)
 		{
 			retreatIssued = false;
 			retreatCell = CPos.Zero;
+			retreatStartTick = squad.World.WorldTick;
 		}
 
 		public void Tick(CNSquad squad)
@@ -327,6 +331,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Wait until the squad actually returns home instead of immediately
 			// retargeting as soon as it burrows.
 			if (allHome)
+				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultIdleState());
+			else if (squad.World.WorldTick - retreatStartTick > MaxRetreatTicks)
 				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultIdleState());
 		}
 
@@ -365,41 +371,43 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubTransportLoadState : CNStateBase, ICNState
 	{
-		const int MaxLoadWaitTicks = 10;
+		// Abort if loading hasn't completed within this many game ticks
+		// (~50 s at 15 ticks/s), matching the ground TransportLoadState budget.
+		// The previous 10-update-cycle cap was far too short for SAPC passengers
+		// to walk in and board, bouncing the squad back to idle so it never
+		// deployed.
+		const int MaxLoadTicks = 750;
 
-		int loadWaitTicks;
+		int loadStartTick;
 
-		public void Activate(CNSquad squad) { loadWaitTicks = 0; }
+		public void Activate(CNSquad squad) { loadStartTick = squad.World.WorldTick; }
 
 		public void Tick(CNSquad squad)
 		{
 			if (!squad.IsValid)
 				return;
 
-			loadWaitTicks++;
-			if (loadWaitTicks > MaxLoadWaitTicks)
-			{
-				// Timed out — give up and go back to idle
-				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportIdleState());
-				return;
-			}
-
 			var carriers = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
 			if (carriers.Count == 0)
 				return;
 
 			var passengers = squad.PassengerUnits.Where(u => !u.IsDead).ToList();
-			if (passengers.Count == 0)
+
+			// Cargo aboard is the authoritative "loaded" signal — passengers leave
+			// the world while boarded, so a passenger count cannot tell "all
+			// aboard" apart from "none assigned".
+			var anyCargo = carriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false);
+
+			if (passengers.Count == 0 && !anyCargo)
 			{
-				// No passengers — skip straight to approach
+				// No passengers assigned and nothing aboard — skip to approach.
 				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportBurrowState());
 				return;
 			}
 
-			// Check how many passengers are already loaded (they leave the world when boarding)
-			var loadedCount = passengers.Count(p => !p.IsDead && !p.IsInWorld);
+			var allLoaded = anyCargo && (passengers.Count == 0 || passengers.All(p => !p.IsInWorld));
 
-			if (loadedCount >= passengers.Count)
+			if (allLoaded || squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportBurrowState());
 				return;
@@ -430,13 +438,25 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class SubTransportBurrowState : CNStateBase, ICNState
 	{
 		bool moveIssued;
+		int burrowStartTick;
+		const int MaxBurrowTicks = 900;
 
-		public void Activate(CNSquad squad) { moveIssued = false; }
+		public void Activate(CNSquad squad)
+		{
+			moveIssued = false;
+			burrowStartTick = squad.World.WorldTick;
+		}
 
 		public void Tick(CNSquad squad)
 		{
 			if (!squad.IsValid)
 				return;
+
+			if (squad.World.WorldTick - burrowStartTick > MaxBurrowTicks)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportReturnState());
+				return;
+			}
 
 			if (!moveIssued)
 			{
@@ -455,6 +475,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 				foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
 					squad.Bot.QueueOrder(new Order("Move", carrier,
+						Target.FromCell(squad.World, targetCell), false));
+
+				// Escort subtanks tunnel alongside — their subterranean locomotor re-burrows automatically.
+				foreach (var escort in squad.EscortUnits.Where(u => !u.IsDead && u.IsInWorld))
+					squad.Bot.QueueOrder(new Order("Move", escort,
 						Target.FromCell(squad.World, targetCell), false));
 
 				moveIssued = true;
@@ -607,6 +632,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
 				squad.Bot.QueueOrder(new Order("Unload", carrier, false));
 
+			// Escort subtanks surface and attack the nearest enemy building.
+			var escortTarget = CNSquadHelper.FindUnprotectedTarget(squad);
+			if (escortTarget != null)
+			{
+				foreach (var escort in squad.EscortUnits.Where(u => !u.IsDead && u.IsInWorld))
+					squad.Bot.QueueOrder(new Order("Attack", escort, Target.FromActor(escortTarget), false));
+			}
+
 			squad.FuzzyStateMachine.ChangeState(squad, new SubTransportReturnState());
 		}
 
@@ -620,11 +653,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	{
 		bool returnIssued;
 		CPos returnCell;
+		int returnStartTick;
+		const int MaxReturnTicks = 1200;
 
 		public void Activate(CNSquad squad)
 		{
 			returnIssued = false;
 			returnCell = CPos.Zero;
+			returnStartTick = squad.World.WorldTick;
 		}
 
 		public void Tick(CNSquad squad)
@@ -632,12 +668,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
+			if (squad.World.WorldTick - returnStartTick > MaxReturnTicks)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportDoneState());
+				return;
+			}
+
 			if (!returnIssued)
 			{
 				returnCell = squad.SquadManager.GetRandomBaseCenter();
+				var returnTarget = Target.FromCell(squad.World, returnCell);
 				foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
-					squad.Bot.QueueOrder(new Order("Move", carrier,
-						Target.FromCell(squad.World, returnCell), false));
+					squad.Bot.QueueOrder(new Order("Move", carrier, returnTarget, false));
+				foreach (var escort in squad.EscortUnits.Where(u => !u.IsDead && u.IsInWorld))
+					squad.Bot.QueueOrder(new Order("Move", escort, returnTarget, false));
 
 				returnIssued = true;
 			}

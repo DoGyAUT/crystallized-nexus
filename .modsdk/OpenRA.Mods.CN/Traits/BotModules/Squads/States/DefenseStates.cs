@@ -7,6 +7,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	sealed class DefenseIdleState : CNStateBase, ICNState
 	{
+		// If all units are within this many cells of the base center, don't issue a return move.
+		const int AlreadyHomeRadiusCells = 10;
+
 		public void Activate(CNSquad squad) { }
 
 		public void Tick(CNSquad squad)
@@ -19,7 +22,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 
 			var dangerRadius = WDist.FromCells(squad.SquadManager.Info.DangerScanRadius);
-			var basePos = squad.World.Map.CenterOfCell(squad.SquadManager.GetRandomBaseCenter());
+			var buildings = squad.SquadManager.GetCachedOwnBuildings();
+			var basePos = buildings.Count > 0
+				? buildings.Select(b => b.CenterPosition).Average()
+				: squad.World.Map.CenterOfCell(squad.SquadManager.GetRandomBaseCenter());
 
 			// 1. Immediate threat near the squad itself
 			var threat = squad.World
@@ -61,7 +67,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 			else
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new DefenseReturnState());
+				// Only return to base if the squad has actually drifted away from it.
+				// Without this check the squad endlessly shuffles between random buildings.
+				var homeRadius = WDist.FromCells(AlreadyHomeRadiusCells);
+				var alreadyHome = squad.Units
+					.Where(u => !u.IsDead && u.IsInWorld)
+					.All(u => buildings.Any(b => (u.CenterPosition - b.CenterPosition).Length <= homeRadius.Length));
+
+				if (!alreadyHome)
+					squad.FuzzyStateMachine.ChangeState(squad, new DefenseReturnState());
 			}
 		}
 
@@ -93,7 +107,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			// Return home if threat moved too far from base — prevents smechs
 			// chasing raiders across the entire map
-			var basePos = squad.World.Map.CenterOfCell(squad.SquadManager.GetRandomBaseCenter());
+			var buildings = squad.SquadManager.GetCachedOwnBuildings();
+			var basePos = buildings.Count > 0
+				? buildings.Select(b => b.CenterPosition).Average()
+				: squad.World.Map.CenterOfCell(squad.SquadManager.GetRandomBaseCenter());
 			WPos targetPos;
 			try
 			{
@@ -129,8 +146,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		static void IssueAttack(CNSquad squad)
 		{
 			if (squad.Target.Type == TargetType.Invalid) return;
+
+			var attackers = squad.OrderableUnits
+				.Where(u => !u.IsDead)
+				.Where(u =>
+				{
+					var ab = u.TraitOrDefault<AttackBase>();
+					if (ab == null) return false;
+					var t = squad.Target;
+					return ab.HasAnyValidWeapons(t, false);
+				})
+				.ToArray();
+
+			if (attackers.Length == 0) return;
+
 			squad.Bot.QueueOrder(new Order("AttackMove", null, squad.Target, false,
-				groupedActors: squad.OrderableUnits.Where(u => !u.IsDead).ToArray()));
+				groupedActors: attackers));
 		}
 	}
 

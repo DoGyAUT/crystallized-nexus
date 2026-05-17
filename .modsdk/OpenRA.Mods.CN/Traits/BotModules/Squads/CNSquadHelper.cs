@@ -24,6 +24,28 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 	{
 		// --- Movement ---
 
+		/// <summary>
+		/// Movement order name appropriate for the squad's primary movement mode.
+		/// Aircraft and subterranean units use plain "Move" (AttackMove fights all
+		/// the way and disrupts flight paths / burrow runs); everything else uses
+		/// "AttackMove" so the wave can engage opportunistic targets en route.
+		/// </summary>
+		public static string GetMovementOrderName(CNSquad squad)
+		{
+			switch (squad.Type)
+			{
+				case CNSquadType.Air:
+				case CNSquadType.AirTransport:
+				case CNSquadType.AircraftAttack:
+				case CNSquadType.AircraftRaider:
+				case CNSquadType.SubterraneanAssault:
+				case CNSquadType.SubterraneanTransport:
+					return "Move";
+				default:
+					return "AttackMove";
+			}
+		}
+
 		public static void GoToRandomOwnBuilding(CNSquad squad)
 		{
 			var loc = RandomBuildingLocation(squad);

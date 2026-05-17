@@ -23,10 +23,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class RaiderIdleState : CNStateBase, ICNState
 	{
-		int rethinkTicks;
-		const int RethinkInterval = 3;
-
-		public void Activate(CNSquad squad) { rethinkTicks = 0; }
+		public void Activate(CNSquad squad) { }
 
 		public void Tick(CNSquad squad)
 		{
@@ -38,14 +35,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			rethinkTicks--;
-			if (rethinkTicks > 0 && squad.IsTargetValid)
+			// Already have a usable target — go straight to the attack run.
+			if (squad.IsTargetValid)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new RaiderAttackState());
 				return;
 			}
 
-			rethinkTicks = RethinkInterval;
 			var center = squad.CenterUnit();
 			if (center == null)
 				return;
@@ -95,8 +91,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (!squad.IsTargetValid)
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new RaiderIdleState());
-				return;
+				var nextTarget = FindNextTarget(squad);
+				if (nextTarget == null)
+				{
+					squad.FuzzyStateMachine.ChangeState(squad, new RaiderFleeState());
+					return;
+				}
+
+				squad.SetActorToTarget(nextTarget);
 			}
 
 			if (ShouldFlee(squad))
@@ -118,7 +120,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (stuckTicks > StuckThreshold)
 			{
 				squad.SetActorToTarget(null);
-				squad.FuzzyStateMachine.ChangeState(squad, new RaiderIdleState());
+				squad.FuzzyStateMachine.ChangeState(squad, new RaiderFleeState());
 				return;
 			}
 
@@ -128,6 +130,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		public void Deactivate(CNSquad squad) { }
+
+		static Actor FindNextTarget(CNSquad squad)
+		{
+			var center = squad.CenterUnit();
+			if (center == null)
+				return null;
+
+			Actor target = null;
+			if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
+				target = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
+
+			return target ?? FindClosestEnemyUnit(squad);
+		}
 
 		protected override bool ShouldFlee(CNSquad squad)
 		{
