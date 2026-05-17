@@ -8,7 +8,7 @@ NASOL:
 		Queue: Infantry
 		BuildPaletteOrder: 10
 		Prerequisites: ~nahand, ~techlevel.low
-		Description: actor-e1.description
+		Description: actor-nasol.description
 	Voiced:
 		VoiceSet: Rookie
 	Valued:
@@ -250,7 +250,7 @@ ACOLYTE:
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 60
-		Prerequisites: ~nahand, natech, ~techlevel.high
+		Prerequisites: ~nahand, napyra, ~techlevel.high
 		Description: actor-e1.description
 	Voiced:
 		VoiceSet: Acolyte

@@ -70,8 +70,6 @@ scrin:
 
 hydra:
 	Inherits: ^VehicleOverlays
-	icon:
-		Filename: hydraicon.shp
 	rotor:
 		ZOffset: 1024
 		Offset: 0, -15, 128
@@ -83,6 +81,45 @@ hydra:
 		Filename: lrotor.shp
 		Start: 4
 		Length: 8
+	muzzle_rockets:
+		Filename: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, -12, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+	muzzle_gun:
+		Combine:
+			0:
+				Filename: mgun-n.shp
+				Length: 6
+			1:
+				Filename: mgun-nw.shp
+				Length: 6
+			2:
+				Filename: mgun-w.shp
+				Length: 6
+			3:
+				Filename: mgun-sw.shp
+				Length: 6
+			4:
+				Filename: mgun-s.shp
+				Length: 6
+			5:
+				Filename: mgun-se.shp
+				Length: 6
+			6:
+				Filename: mgun-e.shp
+				Length: 6
+			7:
+				Filename: mgun-ne.shp
+				Length: 6
+		Facings: 8
+		Length: 6
+		IgnoreWorldTint: True
+	icon:
+		Filename: hydraicon.shp
 
 orca_tran:
 	Inherits: ^VehicleOverlays

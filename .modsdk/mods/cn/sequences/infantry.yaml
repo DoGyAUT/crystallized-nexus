@@ -663,17 +663,16 @@ jumpjet:
 		Length: 6
 		Start: 292
 		IgnoreWorldTint: True
-	die-twirling: # TODO: animation for falling from sky starts at 436
+	die-twirling:
 		Start: 445
 		Length: 6
 		ShadowStart: 896
 	die-falling:
 		Start: 436
 		Length: 9
-	die-flying: # TODO: animation for falling from sky starts at 436
-		Start: 445
-		Length: 6
-		ShadowStart: 896
+	die-flying:
+		Start: 436
+		Length: 9
 	die-splash:
 		Filename: h2o_exp2.shp
 		Length: *

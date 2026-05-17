@@ -6,6 +6,7 @@ mod-windowtitle = OpenRA - Tiberian Sun
 loadscreen-loading = Updating EVA installation..., Changing perspective...
 
 ## Tilesets
+tileset-desert = Desert
 tileset-snow = Snow
 tileset-temperate = Temperate
 

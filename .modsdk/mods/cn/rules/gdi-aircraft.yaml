@@ -133,7 +133,7 @@ ORCA_F1:
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 10
-		Prerequisites: ~gahpad
+		Prerequisites: ~gahpad, ~techlevel.medium
 		Description: actor-orca.description
 	Selectable:
 		Bounds: 905, 1448
@@ -232,7 +232,7 @@ ORCA_B:
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 30
-		Prerequisites: ~gahpad, gatech
+		Prerequisites: ~gahpad, gatech, ~techlevel.high
 		Description: actor-orcab.description
 	Selectable:
 		Bounds: 905, 1448
@@ -380,7 +380,7 @@ TRNSPORT:
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 60
-		Prerequisites: ~gahpad, gadept
+		Prerequisites: ~gahpad, gadept, ~techlevel.medium
 		Description: actor-trnsport.description
 	Aircraft:
 		TurnSpeed: 20
@@ -425,7 +425,7 @@ HORNET:
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 50
-		Prerequisites: ~gahpad, gatech
+		Prerequisites: ~gahpad, gatech, ~techlevel.high
 		Description: actor-scrin.description
 	Selectable:
 		Bounds: 905, 1448

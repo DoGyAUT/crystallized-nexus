@@ -15,6 +15,7 @@ tibtre01:
 		TilesetFilenames:
 			TEMPERATE: tibtre01.tem
 			SNOW: tibtre01.sno
+			DESERT: tibtre01.tem
 
 tibtre02:
 	Inherits: ^tibtree
@@ -22,6 +23,7 @@ tibtre02:
 		TilesetFilenames:
 			TEMPERATE: tibtre02.tem
 			SNOW: tibtre02.sno
+			DESERT: tibtre02.tem
 
 tibtre03:
 	Inherits: ^tibtree
@@ -29,6 +31,7 @@ tibtre03:
 		TilesetFilenames:
 			TEMPERATE: tibtre03.tem
 			SNOW: tibtre03.sno
+			DESERT: tibtre03.tem
 
 bigblue:
 	Defaults:
@@ -60,6 +63,7 @@ tree01:
 		TilesetFilenames:
 			TEMPERATE: tree01.tem
 			SNOW: tree01.sno
+			DESERT: tree01.tem
 
 tree02:
 	Inherits: ^tree
@@ -67,6 +71,7 @@ tree02:
 		TilesetFilenames:
 			TEMPERATE: tree02.tem
 			SNOW: tree02.sno
+			DESERT: tree02.tem
 
 tree03:
 	Inherits: ^tree
@@ -74,6 +79,7 @@ tree03:
 		TilesetFilenames:
 			TEMPERATE: tree03.tem
 			SNOW: tree03.sno
+			DESERT: tree03.tem
 
 tree04:
 	Inherits: ^tree
@@ -81,6 +87,7 @@ tree04:
 		TilesetFilenames:
 			TEMPERATE: tree04.tem
 			SNOW: tree04.sno
+			DESERT: tree04.tem
 
 tree05:
 	Inherits: ^tree
@@ -88,6 +95,7 @@ tree05:
 		TilesetFilenames:
 			TEMPERATE: tree05.tem
 			SNOW: tree05.sno
+			DESERT: tree05.tem
 
 tree06:
 	Inherits: ^tree
@@ -95,6 +103,7 @@ tree06:
 		TilesetFilenames:
 			TEMPERATE: tree06.tem
 			SNOW: tree06.sno
+			DESERT: tree06.tem
 
 tree07:
 	Inherits: ^tree
@@ -102,6 +111,7 @@ tree07:
 		TilesetFilenames:
 			TEMPERATE: tree07.tem
 			SNOW: tree07.sno
+			DESERT: tree07.tem
 
 tree08:
 	Inherits: ^tree
@@ -109,6 +119,7 @@ tree08:
 		TilesetFilenames:
 			TEMPERATE: tree08.tem
 			SNOW: tree08.sno
+			DESERT: tree08.tem
 
 tree09:
 	Inherits: ^tree
@@ -116,6 +127,7 @@ tree09:
 		TilesetFilenames:
 			TEMPERATE: tree09.tem
 			SNOW: tree09.sno
+			DESERT: tree09.tem
 
 tree10:
 	Inherits: ^tree
@@ -123,6 +135,7 @@ tree10:
 		TilesetFilenames:
 			TEMPERATE: tree10.tem
 			SNOW: tree10.sno
+			DESERT: tree10.tem
 
 tree11:
 	Inherits: ^tree
@@ -130,6 +143,7 @@ tree11:
 		TilesetFilenames:
 			TEMPERATE: tree11.tem
 			SNOW: tree11.sno
+			DESERT: tree11.tem
 
 tree12:
 	Inherits: ^tree
@@ -137,6 +151,7 @@ tree12:
 		TilesetFilenames:
 			TEMPERATE: tree12.tem
 			SNOW: tree12.sno
+			DESERT: tree12.tem
 
 tree13:
 	Inherits: ^tree
@@ -144,6 +159,7 @@ tree13:
 		TilesetFilenames:
 			TEMPERATE: tree13.tem
 			SNOW: tree13.sno
+			DESERT: tree13.tem
 
 tree14:
 	Inherits: ^tree
@@ -151,6 +167,7 @@ tree14:
 		TilesetFilenames:
 			TEMPERATE: tree14.tem
 			SNOW: tree14.sno
+			DESERT: tree14.tem
 
 tree15:
 	Inherits: ^tree
@@ -158,6 +175,7 @@ tree15:
 		TilesetFilenames:
 			TEMPERATE: tree15.tem
 			SNOW: tree15.sno
+			DESERT: tree15.tem
 
 tree16:
 	Inherits: ^tree
@@ -165,6 +183,7 @@ tree16:
 		TilesetFilenames:
 			TEMPERATE: tree16.tem
 			SNOW: tree16.sno
+			DESERT: tree16.tem
 
 tree17:
 	Inherits: ^tree
@@ -172,6 +191,7 @@ tree17:
 		TilesetFilenames:
 			TEMPERATE: tree17.tem
 			SNOW: tree17.sno
+			DESERT: tree17.tem
 
 tree18:
 	Inherits: ^tree
@@ -179,6 +199,7 @@ tree18:
 		TilesetFilenames:
 			TEMPERATE: tree18.tem
 			SNOW: tree18.sno
+			DESERT: tree18.tem
 
 tree19:
 	Inherits: ^tree
@@ -186,6 +207,7 @@ tree19:
 		TilesetFilenames:
 			TEMPERATE: tree19.tem
 			SNOW: tree19.sno
+			DESERT: tree19.tem
 
 tree20:
 	Inherits: ^tree
@@ -193,6 +215,7 @@ tree20:
 		TilesetFilenames:
 			TEMPERATE: tree20.tem
 			SNOW: tree20.sno
+			DESERT: tree20.tem
 
 tree21:
 	Inherits: ^tree
@@ -200,6 +223,7 @@ tree21:
 		TilesetFilenames:
 			TEMPERATE: tree21.tem
 			SNOW: tree21.sno
+			DESERT: tree21.tem
 
 tree22:
 	Inherits: ^tree
@@ -207,6 +231,7 @@ tree22:
 		TilesetFilenames:
 			TEMPERATE: tree22.tem
 			SNOW: tree22.sno
+			DESERT: tree22.tem
 
 tree23:
 	Inherits: ^tree
@@ -214,6 +239,7 @@ tree23:
 		TilesetFilenames:
 			TEMPERATE: tree23.tem
 			SNOW: tree23.sno
+			DESERT: tree23.tem
 
 tree24:
 	Inherits: ^tree
@@ -221,6 +247,7 @@ tree24:
 		TilesetFilenames:
 			TEMPERATE: tree24.tem
 			SNOW: tree24.sno
+			DESERT: tree24.tem
 
 tree25:
 	Inherits: ^tree
@@ -228,6 +255,7 @@ tree25:
 		TilesetFilenames:
 			TEMPERATE: tree25.tem
 			SNOW: tree25.sno
+			DESERT: tree25.tem
 
 bush01:
 	Inherits: ^tree
@@ -334,6 +362,7 @@ veinhole:
 		TilesetFilenames:
 			TEMPERATE: veinhole.tem
 			SNOW: veinhole.sno
+			DESERT: veinhole.tem
 		ShadowStart: 1
 		Offset: 0, -36, 1
 		ZRamp: 1
@@ -341,6 +370,7 @@ veinhole:
 		TilesetFilenames:
 			TEMPERATE: veinhole.tem
 			SNOW: veinhole.sno
+			DESERT: veinhole.tem
 		Length: 12
 		Tick: 200
 		ShadowStart: 12

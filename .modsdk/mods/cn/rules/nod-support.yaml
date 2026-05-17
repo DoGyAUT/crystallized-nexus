@@ -46,7 +46,7 @@ NAPOST:
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 150
-		Prerequisites: naapwr, ~structures.nod
+		Prerequisites: naapwr, ~structures.nod, ~techlevel.medium
 		Description: actor-napost.description
 	Valued:
 		Cost: 200
@@ -178,7 +178,7 @@ NAOBEL:
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 160
-		Prerequisites: natech, ~structures.nod, ~techlevel.high
+		Prerequisites: napyra, ~structures.nod, ~techlevel.high
 		Description: actor-naobel.description
 	Building:
 		Footprint: xx xx
@@ -389,7 +389,7 @@ NAPULS:
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 110
-		Prerequisites: naweap, natech, ~structures.nod, ~techlevel.high
+		Prerequisites: naweap, napyra, ~structures.nod, ~techlevel.superweapons
 		Description: actor-napuls.description
 	Building:
 		Footprint: xx xx

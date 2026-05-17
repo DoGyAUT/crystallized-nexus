@@ -2,6 +2,9 @@
 options-tech-level =
     .low = Low
     .medium = Medium
+    .high = High
+    .veryhigh = Very High
+    .superweapons = Superweapons
     .no-powers = No Powers
     .unrestricted = Unrestricted
 
@@ -669,6 +672,11 @@ actor-naradr =
 
 actor-natech =
     .name = Nod Tech Center
+    .description =
+    Provides access to advanced Nod technologies.
+
+actor-napyra =
+    .name = Nod Pyramid
     .description =
     Provides access to advanced Nod technologies.
 

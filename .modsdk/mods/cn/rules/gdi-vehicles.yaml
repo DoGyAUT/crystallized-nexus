@@ -232,7 +232,7 @@ HVR:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 80
-		Prerequisites: ~gaweap, garadr, ~techlevel.high
+		Prerequisites: ~gaweap, garadr, ~techlevel.medium
 		Description: actor-hvr.description
 	Mobile:
 		Speed: 99
@@ -657,7 +657,7 @@ HMEC:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 140
-		Prerequisites: ~gaweap, gatech, ~techlevel.high
+		Prerequisites: ~gaweap, gatech, ~techlevel.veryhigh
 		Description: actor-hmec.description
 	Mobile:
 		Locomotor: heavywalker

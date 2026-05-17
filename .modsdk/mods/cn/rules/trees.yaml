@@ -1,29 +1,11 @@
 TIBTRE01:
 	Inherits: ^BlossomTree
-	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.03
-		RedTint: 0.01
-		GreenTint: 0.6
-		BlueTint: 0.01
 
 TIBTRE02:
 	Inherits: ^BlossomTree
-	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.03
-		RedTint: 0.01
-		GreenTint: 0.6
-		BlueTint: 0.01
 
 TIBTRE03:
 	Inherits: ^BlossomTree
-	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.03
-		RedTint: 0.01
-		GreenTint: 0.6
-		BlueTint: 0.01
 
 BIGBLUE:
 	Inherits: ^BlossomTree
@@ -38,12 +20,6 @@ BIGBLUE:
 	SeedsResource:
 		ResourceType: BlueTiberium
 		Interval: 75
-	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.06
-		RedTint: 0.01
-		GreenTint: 0.01
-		BlueTint: 0.6
 
 BIGBLUE3:
 	Inherits: BIGBLUE
@@ -61,12 +37,6 @@ BIGRED:
 	SeedsResource:
 		ResourceType: RedTiberium
 		Interval: 50
-	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.06
-		RedTint: 0.6
-		GreenTint: 0.01
-		BlueTint: 0.01
 
 TREE01:
 	Inherits: ^Tree
@@ -225,7 +195,7 @@ VEINHOLE:
 	-RandomTransformsNearResources@TIBGREEN:
 	-RandomTransformsNearResources@TIBBLUE:
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	Tooltip:
 		Name: meta-tibflora-name
 	TerrainLightSource:

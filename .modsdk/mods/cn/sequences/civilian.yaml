@@ -304,6 +304,7 @@ ca0001:
 		TilesetFilenames:
 			TEMPERATE: ct0001.shp
 			SNOW: ca0001.shp
+			DESERT: ct0001.shp
 
 ca0002:
 	Inherits: ^ca3x3
@@ -311,6 +312,7 @@ ca0002:
 		TilesetFilenames:
 			TEMPERATE: ct0002.shp
 			SNOW: ca0002.shp
+			DESERT: ct0002.shp
 
 ca0003:
 	Inherits: ^ca2x2
@@ -318,6 +320,7 @@ ca0003:
 		TilesetFilenames:
 			TEMPERATE: ct0003.shp
 			SNOW: ca0003.shp
+			DESERT: ct0003.shp
 
 ca0004:
 	Inherits: ^ca2x2
@@ -325,6 +328,7 @@ ca0004:
 		TilesetFilenames:
 			TEMPERATE: ct0004.shp
 			SNOW: ca0004.shp
+			DESERT: ct0004.shp
 
 ca0005:
 	Inherits: ^ca1x2
@@ -332,6 +336,7 @@ ca0005:
 		TilesetFilenames:
 			TEMPERATE: ct0005.shp
 			SNOW: ca0005.shp
+			DESERT: ct0005.shp
 
 ca0006:
 	Inherits: ^ca1x2
@@ -339,6 +344,7 @@ ca0006:
 		TilesetFilenames:
 			TEMPERATE: ct0006.shp
 			SNOW: ca0006.shp
+			DESERT: ct0006.shp
 
 ca0007:
 	Inherits: ^ca1x2
@@ -346,6 +352,7 @@ ca0007:
 		TilesetFilenames:
 			TEMPERATE: ct0007.shp
 			SNOW: ca0007.shp
+			DESERT: ct0007.shp
 
 ca0008:
 	Inherits: ^ca2x3
@@ -353,6 +360,7 @@ ca0008:
 		TilesetFilenames:
 			TEMPERATE: ct0008.shp
 			SNOW: ca0008.shp
+			DESERT: ct0008.shp
 
 ca0009:
 	Inherits: ^ca2x3
@@ -360,6 +368,7 @@ ca0009:
 		TilesetFilenames:
 			TEMPERATE: ct0009.shp
 			SNOW: ca0009.shp
+			DESERT: ct0009.shp
 
 ca0010:
 	Inherits: ^ca2x2
@@ -367,6 +376,7 @@ ca0010:
 		TilesetFilenames:
 			TEMPERATE: ct0010.shp
 			SNOW: ca0010.shp
+			DESERT: ct0010.shp
 
 ca0011:
 	Inherits: ^ca1x2
@@ -374,6 +384,7 @@ ca0011:
 		TilesetFilenames:
 			TEMPERATE: ct0011.shp
 			SNOW: ca0011.shp
+			DESERT: ct0011.shp
 
 ca0012:
 	Inherits: ^ca1x2
@@ -381,6 +392,7 @@ ca0012:
 		TilesetFilenames:
 			TEMPERATE: ct0012.shp
 			SNOW: ca0012.shp
+			DESERT: ct0012.shp
 
 ca0013:
 	Inherits: ^ca2x1
@@ -388,6 +400,7 @@ ca0013:
 		TilesetFilenames:
 			TEMPERATE: ct0013.shp
 			SNOW: ca0013.shp
+			DESERT: ct0013.shp
 
 ca0014:
 	Inherits: ^ca1x1
@@ -395,6 +408,7 @@ ca0014:
 		TilesetFilenames:
 			TEMPERATE: ct0014.shp
 			SNOW: ca0014.shp
+			DESERT: ct0014.shp
 
 ca0015:
 	Inherits: ^ca1x1
@@ -402,6 +416,7 @@ ca0015:
 		TilesetFilenames:
 			TEMPERATE: ct0015.shp
 			SNOW: ca0015.shp
+			DESERT: ct0015.shp
 
 ca0016:
 	Inherits: ^ca1x1
@@ -409,6 +424,7 @@ ca0016:
 		TilesetFilenames:
 			TEMPERATE: ct0016.shp
 			SNOW: ca0016.shp
+			DESERT: ct0016.shp
 
 ca0017:
 	Inherits: ^ca1x1
@@ -416,6 +432,7 @@ ca0017:
 		TilesetFilenames:
 			TEMPERATE: ct0017.shp
 			SNOW: ca0017.shp
+			DESERT: ct0017.shp
 
 ca0018:
 	Inherits: ^ca1x2
@@ -423,6 +440,7 @@ ca0018:
 		TilesetFilenames:
 			TEMPERATE: ct0018.shp
 			SNOW: ca0018.shp
+			DESERT: ct0018.shp
 
 ca0019:
 	Inherits: ^ca1x2
@@ -430,6 +448,7 @@ ca0019:
 		TilesetFilenames:
 			TEMPERATE: ct0019.shp
 			SNOW: ca0019.shp
+			DESERT: ct0019.shp
 
 ca0020:
 	Inherits: ^ca1x2
@@ -437,6 +456,7 @@ ca0020:
 		TilesetFilenames:
 			TEMPERATE: ct0020.shp
 			SNOW: ca0020.shp
+			DESERT: ct0020.shp
 
 ca0021:
 	Inherits: ^ca1x2
@@ -444,6 +464,7 @@ ca0021:
 		TilesetFilenames:
 			TEMPERATE: ct0021.shp
 			SNOW: ca0021.shp
+			DESERT: ct0021.shp
 
 caarmr:
 	Defaults:
@@ -569,6 +590,7 @@ cabhut:
 		TilesetFilenames:
 			TEMPERATE: ctbhut.shp
 			SNOW: cabhut.shp
+			DESERT: ctbhut.shp
 		DepthSprite: isodepth.shp
 		Offset: 0, -12, 12
 		ShadowStart: 1
@@ -583,6 +605,7 @@ cacrsh01:
 		TilesetFilenames:
 			TEMPERATE: ctcrsh01.shp
 			SNOW: cacrsh01.shp
+			DESERT: ctcrsh01.shp
 
 cacrsh02:
 	Inherits: ^cacrsh
@@ -590,6 +613,7 @@ cacrsh02:
 		TilesetFilenames:
 			TEMPERATE: ctcrsh02.shp
 			SNOW: cacrsh02.shp
+			DESERT: ctcrsh02.shp
 
 cacrsh03:
 	Inherits: ^cacrsh
@@ -597,6 +621,7 @@ cacrsh03:
 		TilesetFilenames:
 			TEMPERATE: ctcrsh03.shp
 			SNOW: cacrsh03.shp
+			DESERT: ctcrsh03.shp
 
 cacrsh04:
 	Inherits: ^cacrsh
@@ -604,6 +629,7 @@ cacrsh04:
 		TilesetFilenames:
 			TEMPERATE: ctcrsh04.shp
 			SNOW: cacrsh04.shp
+			DESERT: ctcrsh04.shp
 
 cacrsh05:
 	Inherits: ^cacrsh
@@ -611,6 +637,7 @@ cacrsh05:
 		TilesetFilenames:
 			TEMPERATE: ctcrsh05.shp
 			SNOW: cacrsh05.shp
+			DESERT: ctcrsh05.shp
 
 capyr01:
 	idle:
@@ -850,6 +877,7 @@ gaoldcc1:
 		TilesetFilenames:
 			TEMPERATE: gtoldcc1.shp
 			SNOW: gaoldcc1.shp
+			DESERT: gtoldcc1.shp
 
 gaoldcc2:
 	Inherits: ^gaoldcc
@@ -857,6 +885,7 @@ gaoldcc2:
 		TilesetFilenames:
 			TEMPERATE: gtoldcc2.shp
 			SNOW: gaoldcc2.shp
+			DESERT: gtoldcc2.shp
 
 gaoldcc3:
 	Inherits: ^gaoldcc
@@ -864,6 +893,7 @@ gaoldcc3:
 		TilesetFilenames:
 			TEMPERATE: gtoldcc3.shp
 			SNOW: gaoldcc3.shp
+			DESERT: gtoldcc3.shp
 
 gaoldcc4:
 	Inherits: ^gaoldcc
@@ -871,6 +901,7 @@ gaoldcc4:
 		TilesetFilenames:
 			TEMPERATE: gtoldcc4.shp
 			SNOW: gaoldcc4.shp
+			DESERT: gtoldcc4.shp
 
 gaoldcc5:
 	Inherits: ^gaoldcc
@@ -878,6 +909,7 @@ gaoldcc5:
 		TilesetFilenames:
 			TEMPERATE: gtoldcc5.shp
 			SNOW: gaoldcc5.shp
+			DESERT: gtoldcc5.shp
 
 gaoldcc6:
 	Inherits: ^gaoldcc
@@ -885,12 +917,14 @@ gaoldcc6:
 		TilesetFilenames:
 			TEMPERATE: gtoldcc6.shp
 			SNOW: gaoldcc6.shp
+			DESERT: gtoldcc6.shp
 
 gakodk:
 	Defaults:
 		TilesetFilenames:
 			TEMPERATE: gtkodk.shp
 			SNOW: gakodk.shp
+			DESERT: gtkodk.shp
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -24, 0
 		Offset: -24, -36, 36
@@ -906,12 +940,14 @@ gakodk:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_a.shp
 			SNOW: gakodk_a.shp
+			DESERT: gtkodk_a.shp
 		Length: 12
 		Tick: 200
 	large-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_a.shp
 			SNOW: gakodk_a.shp
+			DESERT: gtkodk_a.shp
 		Length: 12
 		Tick: 200
 		IgnoreWorldTint: True
@@ -919,6 +955,7 @@ gakodk:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_a.shp
 			SNOW: gakodk_a.shp
+			DESERT: gtkodk_a.shp
 		Start: 12
 		Length: 12
 		Tick: 200
@@ -926,6 +963,7 @@ gakodk:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_a.shp
 			SNOW: gakodk_a.shp
+			DESERT: gtkodk_a.shp
 		Start: 12
 		Length: 12
 		Tick: 200
@@ -934,12 +972,14 @@ gakodk:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_b.shp
 			SNOW: gakodk_b.shp
+			DESERT: gtkodk_b.shp
 		Length: 22
 		Tick: 200
 	small-light-bright:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_b.shp
 			SNOW: gakodk_b.shp
+			DESERT: gtkodk_b.shp
 		Length: 22
 		Tick: 200
 		IgnoreWorldTint: True
@@ -947,12 +987,14 @@ gakodk:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_c.shp
 			SNOW: gakodk_c.shp
+			DESERT: gtkodk_c.shp
 		Length: 12
 		Tick: 200
 	small-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_c.shp
 			SNOW: gakodk_c.shp
+			DESERT: gtkodk_c.shp
 		Length: 12
 		Tick: 200
 		IgnoreWorldTint: True
@@ -960,6 +1002,7 @@ gakodk:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_c.shp
 			SNOW: gakodk_c.shp
+			DESERT: gtkodk_c.shp
 		Start: 12
 		Length: 12
 		Tick: 200
@@ -967,6 +1010,7 @@ gakodk:
 		TilesetFilenames:
 			TEMPERATE: gtkodk_c.shp
 			SNOW: gakodk_c.shp
+			DESERT: gtkodk_c.shp
 		Start: 12
 		Length: 12
 		Tick: 200
@@ -977,6 +1021,7 @@ gaspot:
 		TilesetFilenames:
 			TEMPERATE: gtspot.shp
 			SNOW: gaspot.shp
+			DESERT: gtspot.shp
 		DepthSprite: isodepth.shp
 		Offset: 0, -12, 12
 	idle:
@@ -992,6 +1037,7 @@ gaspot:
 		TilesetFilenames:
 			TEMPERATE: gtspot_a.shp
 			SNOW: gaspot_a.shp
+			DESERT: gtspot_a.shp
 		Length: 8
 		Tick: 200
 		IgnoreWorldTint: True
@@ -999,6 +1045,7 @@ gaspot:
 		TilesetFilenames:
 			TEMPERATE: gtspot_a.shp
 			SNOW: gaspot_a.shp
+			DESERT: gtspot_a.shp
 		Start: 8
 		Length: 8
 		Tick: 200
@@ -1007,6 +1054,7 @@ gaspot:
 		TilesetFilenames:
 			TEMPERATE: gtspotmk.shp
 			SNOW: gaspotmk.shp
+			DESERT: gtspotmk.shp
 		Length: 14
 		ShadowStart: 14
 	emp-overlay:
@@ -1032,11 +1080,13 @@ galite:
 		TilesetFilenames:
 			TEMPERATE: gtlite.shp
 			SNOW: galite.shp
+			DESERT: gtlite.shp
 		ShadowStart: 2
 	damaged-idle:
 		TilesetFilenames:
 			TEMPERATE: gtlite.shp
 			SNOW: galite.shp
+			DESERT: gtlite.shp
 		Start: 1
 		ShadowStart: 3
 	lighting:
@@ -1065,6 +1115,7 @@ namntk:
 		TilesetFilenames:
 			TEMPERATE: ntmntk.shp
 			SNOW: namntk.shp
+			DESERT: ntmntk.shp
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: 24, 0
 		Offset: 24, -24, 24
@@ -1080,12 +1131,14 @@ namntk:
 		TilesetFilenames:
 			TEMPERATE: ntmntk_a.shp
 			SNOW: namntk_a.shp
+			DESERT: ntmntk_a.shp
 		Length: 8
 		Tick: 200
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: ntmntk_a.shp
 			SNOW: namntk_a.shp
+			DESERT: ntmntk_a.shp
 		Length: 8
 		Tick: 200
 		IgnoreWorldTint: True

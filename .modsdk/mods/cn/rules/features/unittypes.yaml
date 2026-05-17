@@ -437,6 +437,10 @@
 		RequiresCondition: !inside-tunnel
 #		ShowShadow: False
 #	WithShadow:
+	FireProjectilesOnDeath:
+		Weapons: SmallDebris
+		Pieces: 3, 10
+		Range: 2c0, 5c0
 	WithWaterReflection:
 	RevealOnFire:
 	HitShape:

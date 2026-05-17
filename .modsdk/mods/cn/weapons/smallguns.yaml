@@ -106,13 +106,17 @@ JumpCannon:
 	Burst: 2
 	Range: 5c0
 	Report: jumpjet1.aud
+	ValidTargets: Ground, Air
+	Projectile: InstantHit
+		Inaccuracy: 0c512
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
+		ValidTargets: Ground, Air
 
 OrcaCannon:
 	Inherits: ^MGBullet
 	ReloadDelay: 20
-	Range: 7c0
+	Range: 7c768
 	Burst: 10
 	BurstDelays: 4
 	Report: tsgun4.aud
@@ -226,15 +230,25 @@ GattlingCannon:
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Building
 
-HarpyClaw:
-	Inherits: ^MG
-	ReloadDelay: 36
-	Range: 5c0
-	Report: cygun1.aud
+HydraCannon:
+	Inherits: ^MGBullet
+	ReloadDelay: 20
+	Range: 7c768
+	Burst: 30
+	BurstDelays: 2
+	Report: gattling01.aud, gattling02.aud, gattling03.aud
+	ValidTargets: Ground, Air
+	Projectile: Bullet
+		Image: 
+		Palette: effect
+		Inaccuracy: 2c0
+		ContrailLength: 3
+		ContrailStartWidth: 32
+		ContrailEndWidth: 0c16
 	Warhead@1Dam: SpreadDamage
-		Damage: 300
+		Damage: 100
 	Warhead@2Eff: CreateEffect
-		Explosions: gatpiff_small
+		Explosions: gatpiff_single
 		ValidTargets: Ground, Air, DeadInfantry
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@3Eff: CreateEffect

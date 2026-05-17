@@ -11,7 +11,7 @@ ABAN01:
 	CNHealth:
 		HP: 600
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -32,7 +32,7 @@ ABAN02:
 	CNHealth:
 		HP: 600
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -53,7 +53,7 @@ ABAN03:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -74,7 +74,7 @@ ABAN04:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 4, 7
 	FireProjectilesOnDeath@LARGE:
@@ -97,7 +97,7 @@ ABAN05:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN06:
 	Inherits: ^CivBuilding
@@ -112,7 +112,7 @@ ABAN06:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN07:
 	Inherits: ^CivBuilding
@@ -127,7 +127,7 @@ ABAN07:
 	CNHealth:
 		HP: 350
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN08:
 	Inherits: ^CivBuilding
@@ -142,7 +142,7 @@ ABAN08:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN09:
 	Inherits: ^CivBuilding
@@ -157,7 +157,7 @@ ABAN09:
 	CNHealth:
 		HP: 350
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN10:
 	Inherits: ^CivBuilding
@@ -172,7 +172,7 @@ ABAN10:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN11:
 	Inherits: ^CivBuilding
@@ -187,7 +187,7 @@ ABAN11:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN12:
 	Inherits: ^CivBuilding
@@ -202,7 +202,7 @@ ABAN12:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN13:
 	Inherits: ^CivBuilding
@@ -216,7 +216,7 @@ ABAN13:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN14:
 	Inherits: ^CivBuilding
@@ -230,7 +230,7 @@ ABAN14:
 	CNHealth:
 		HP: 300
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN15:
 	Inherits: ^CivBuilding
@@ -244,7 +244,7 @@ ABAN15:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN16:
 	Inherits: ^CivBuilding
@@ -259,7 +259,7 @@ ABAN16:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN17:
 	Inherits: ^CivBuilding
@@ -273,7 +273,7 @@ ABAN17:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 ABAN18:
 	Inherits: ^CivBuilding
@@ -287,7 +287,7 @@ ABAN18:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		ExcludeTilesets: TEMPERATE
+		ExcludeTilesets: TEMPERATE, DESERT
 
 AMMOCRAT:
 	Inherits: ^CivBuilding
@@ -821,7 +821,7 @@ CITY01:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -842,7 +842,7 @@ CITY02:
 	CNHealth:
 		HP: 700
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -863,7 +863,7 @@ CITY03:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -884,7 +884,7 @@ CITY04:
 	CNHealth:
 		HP: 600
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -905,7 +905,7 @@ CITY05:
 	CNHealth:
 		HP: 600
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 5, 9
 	FireProjectilesOnDeath@LARGE:
@@ -926,7 +926,7 @@ CITY06:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 7, 9
 	FireProjectilesOnDeath@LARGE:
@@ -947,7 +947,7 @@ CITY07:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 7, 9
 	FireProjectilesOnDeath@LARGE:
@@ -968,7 +968,7 @@ CITY08:
 	CNHealth:
 		HP: 300
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 
 CITY09:
 	Inherits: ^CivBuilding
@@ -983,7 +983,7 @@ CITY09:
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	IsometricSelectable:
 		Height: 48
 
@@ -1000,7 +1000,7 @@ CITY10:
 	CNHealth:
 		HP: 300
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	IsometricSelectable:
 		Height: 48
 
@@ -1017,7 +1017,7 @@ CITY11:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	IsometricSelectable:
 		Height: 96
 
@@ -1034,7 +1034,7 @@ CITY12:
 	CNHealth:
 		HP: 600
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	IsometricSelectable:
 		Height: 96
 
@@ -1051,7 +1051,7 @@ CITY13:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	IsometricSelectable:
 		Height: 96
 
@@ -1067,7 +1067,7 @@ CITY14:
 	CNHealth:
 		HP: 600
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	IsometricSelectable:
 		Height: 96
 
@@ -1084,7 +1084,7 @@ CITY15:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 7, 9
 	FireProjectilesOnDeath@LARGE:
@@ -1103,7 +1103,7 @@ CITY16:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 7, 9
 	FireProjectilesOnDeath@LARGE:
@@ -1124,7 +1124,7 @@ CITY17:
 	CNHealth:
 		HP: 300
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 7, 9
 	FireProjectilesOnDeath@LARGE:
@@ -1145,7 +1145,7 @@ CITY18:
 	CNHealth:
 		HP: 600
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 8, 12
 	FireProjectilesOnDeath@LARGE:
@@ -1166,7 +1166,7 @@ CITY19:
 	CNHealth:
 		HP: 500
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 
 CITY20:
 	Inherits: ^CivBuilding
@@ -1180,7 +1180,7 @@ CITY20:
 	CNHealth:
 		HP: 250
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 
 CITY21:
 	Inherits: ^CivBuilding
@@ -1194,7 +1194,7 @@ CITY21:
 	CNHealth:
 		HP: 100
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 
 CITY22:
 	Inherits: ^CivBuilding
@@ -1209,7 +1209,7 @@ CITY22:
 	CNHealth:
 		HP: 100
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	IsometricSelectable:
 		Height: 72
 
@@ -1694,7 +1694,7 @@ UFO:
 	Armor:
 		Type: Heavy
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 9, 12
 	FireProjectilesOnDeath@LARGE:

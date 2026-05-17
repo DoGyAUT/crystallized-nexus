@@ -5,6 +5,7 @@ overlay:
 		ZRamp: 1
 	build-valid-snow:
 	build-valid-temperate:
+	build-valid-desert:
 	build-invalid:
 		Start: 1
 	target-select:
@@ -51,6 +52,7 @@ crate:
 		TilesetFilenames:
 			TEMPERATE: crate.tem
 			SNOW: crate.sno
+			DESERT: crate.tem
 		ShadowStart: 1
 		Offset: 0, -10, 10
 
@@ -739,6 +741,7 @@ crystal4:
 		TilesetFilenames:
 			TEMPERATE: crystal4.tem
 			SNOW: crystal4.sno
+			DESERT: crystal4.tem
 		Length: 15
 		ShadowStart: 15
 		ZOffset: 1023
@@ -933,86 +936,107 @@ resources:
 		TilesetFilenames:
 			TEMPERATE: tib01.tem
 			SNOW: tib01.sno
+			DESERT: tib01.tem
 	tib02:
 		TilesetFilenames:
 			TEMPERATE: tib02.tem
 			SNOW: tib02.sno
+			DESERT: tib02.tem
 	tib03:
 		TilesetFilenames:
 			TEMPERATE: tib03.tem
 			SNOW: tib03.sno
+			DESERT: tib03.tem
 	tib04:
 		TilesetFilenames:
 			TEMPERATE: tib04.tem
 			SNOW: tib04.sno
+			DESERT: tib04.tem
 	tib05:
 		TilesetFilenames:
 			TEMPERATE: tib05.tem
 			SNOW: tib05.sno
+			DESERT: tib05.tem
 	tib06:
 		TilesetFilenames:
 			TEMPERATE: tib06.tem
 			SNOW: tib06.sno
+			DESERT: tib06.tem
 	tib07:
 		TilesetFilenames:
 			TEMPERATE: tib07.tem
 			SNOW: tib07.sno
+			DESERT: tib07.tem
 	tib08:
 		TilesetFilenames:
 			TEMPERATE: tib08.tem
 			SNOW: tib08.sno
+			DESERT: tib08.tem
 	tib09:
 		TilesetFilenames:
 			TEMPERATE: tib09.tem
 			SNOW: tib09.sno
+			DESERT: tib09.tem
 	tib10:
 		TilesetFilenames:
 			TEMPERATE: tib10.tem
 			SNOW: tib10.sno
+			DESERT: tib10.tem
 	tib11:
 		TilesetFilenames:
 			TEMPERATE: tib11.tem
 			SNOW: tib11.sno
+			DESERT: tib11.tem
 	tib12:
 		TilesetFilenames:
 			TEMPERATE: tib12.tem
 			SNOW: tib12.sno
+			DESERT: tib12.tem
 	tib13:
 		TilesetFilenames:
 			TEMPERATE: tib13.tem
 			SNOW: tib13.sno
+			DESERT: tib13.tem
 	tib14:
 		TilesetFilenames:
 			TEMPERATE: tib14.tem
 			SNOW: tib14.sno
+			DESERT: tib14.tem
 	tib15:
 		TilesetFilenames:
 			TEMPERATE: tib15.tem
 			SNOW: tib15.sno
+			DESERT: tib15.tem
 	tib16:
 		TilesetFilenames:
 			TEMPERATE: tib16.tem
 			SNOW: tib16.sno
+			DESERT: tib16.tem
 	tib17:
 		TilesetFilenames:
 			TEMPERATE: tib17.tem
 			SNOW: tib17.sno
+			DESERT: tib17.tem
 	tib18:
 		TilesetFilenames:
 			TEMPERATE: tib18.tem
 			SNOW: tib18.sno
+			DESERT: tib18.tem
 	tib19:
 		TilesetFilenames:
 			TEMPERATE: tib19.tem
 			SNOW: tib19.sno
+			DESERT: tib19.tem
 	tib20:
 		TilesetFilenames:
 			TEMPERATE: tib20.tem
 			SNOW: tib20.sno
+			DESERT: tib20.tem
 	veins:
 		TilesetFilenames:
 			TEMPERATE: veins.tem
 			SNOW: veins.sno
+			DESERT: veins.tem
 		Length: *
 		ShadowStart: -1
 		IgnoreWorldTint: false
@@ -1022,6 +1046,7 @@ veins:
 		TilesetFilenames:
 			TEMPERATE: veinatac.tem
 			SNOW: veinatac.sno
+			DESERT: veinatac.tem
 		Length: 12
 		ZOffset: 1023
 		Offset: 0, -12, 24
@@ -1031,6 +1056,7 @@ veinsidle:
 		TilesetFilenames:
 			TEMPERATE: veinatac.tem
 			SNOW: veinatac.sno
+			DESERT: veinatac.tem
 		Length: 12
 		Tick: 300
 		ZOffset: 1023
@@ -1055,26 +1081,32 @@ smallscorches:
 		TilesetFilenames:
 			TEMPERATE: burnt01.tem
 			SNOW: burnt01.sno
+			DESERT: burnt01.tem
 	sc2:
 		TilesetFilenames:
 			TEMPERATE: burnt02.tem
 			SNOW: burnt02.sno
+			DESERT: burnt02.tem
 	sc3:
 		TilesetFilenames:
 			TEMPERATE: burnt03.tem
 			SNOW: burnt03.sno
+			DESERT: burnt03.tem
 	sc4:
 		TilesetFilenames:
 			TEMPERATE: burnt04.tem
 			SNOW: burnt04.sno
+			DESERT: burnt04.tem
 	sc5:
 		TilesetFilenames:
 			TEMPERATE: burnt05.tem
 			SNOW: burnt05.sno
+			DESERT: burnt05.tem
 	sc6:
 		TilesetFilenames:
 			TEMPERATE: burnt06.tem
 			SNOW: burnt06.sno
+			DESERT: burnt06.tem
 
 mediumscorches:
 	Defaults:
@@ -1084,18 +1116,22 @@ mediumscorches:
 		TilesetFilenames:
 			TEMPERATE: burnt07.tem
 			SNOW: burnt07.sno
+			DESERT: burnt07.tem
 	sc8:
 		TilesetFilenames:
 			TEMPERATE: burnt08.tem
 			SNOW: burnt08.sno
+			DESERT: burnt08.tem
 	sc9:
 		TilesetFilenames:
 			TEMPERATE: burnt09.tem
 			SNOW: burnt09.sno
+			DESERT: burnt09.tem
 	sc10:
 		TilesetFilenames:
 			TEMPERATE: burnt10.tem
 			SNOW: burnt10.sno
+			DESERT: burnt10.tem
 
 largescorches:
 	Defaults:
@@ -1105,10 +1141,12 @@ largescorches:
 		TilesetFilenames:
 			TEMPERATE: burnt11.tem
 			SNOW: burnt11.sno
+			DESERT: burnt11.tem
 	sc12:
 		TilesetFilenames:
 			TEMPERATE: burnt12.tem
 			SNOW: burnt12.sno
+			DESERT: burnt12.tem
 
 smallcraters:
 	Defaults:
@@ -1118,26 +1156,32 @@ smallcraters:
 		TilesetFilenames:
 			TEMPERATE: crater01.tem
 			SNOW: crater01.sno
+			DESERT: crater01.tem
 	cr2:
 		TilesetFilenames:
 			TEMPERATE: crater02.tem
 			SNOW: crater02.sno
+			DESERT: crater02.tem
 	cr3:
 		TilesetFilenames:
 			TEMPERATE: crater03.tem
 			SNOW: crater03.sno
+			DESERT: crater03.tem
 	cr4:
 		TilesetFilenames:
 			TEMPERATE: crater04.tem
 			SNOW: crater04.sno
+			DESERT: crater04.tem
 	cr5:
 		TilesetFilenames:
 			TEMPERATE: crater05.tem
 			SNOW: crater05.sno
+			DESERT: crater05.tem
 	cr6:
 		TilesetFilenames:
 			TEMPERATE: crater06.tem
 			SNOW: crater06.sno
+			DESERT: crater06.tem
 
 mediumcraters:
 	Defaults:
@@ -1147,18 +1191,22 @@ mediumcraters:
 		TilesetFilenames:
 			TEMPERATE: crater07.tem
 			SNOW: crater07.sno
+			DESERT: crater07.tem
 	cr8:
 		TilesetFilenames:
 			TEMPERATE: crater08.tem
 			SNOW: crater08.sno
+			DESERT: crater08.tem
 	cr9:
 		TilesetFilenames:
 			TEMPERATE: crater09.tem
 			SNOW: crater09.sno
+			DESERT: crater09.tem
 	cr10:
 		TilesetFilenames:
 			TEMPERATE: crater10.tem
 			SNOW: crater10.sno
+			DESERT: crater10.tem
 
 largecraters:
 	Defaults:
@@ -1168,10 +1216,12 @@ largecraters:
 		TilesetFilenames:
 			TEMPERATE: crater11.tem
 			SNOW: crater11.sno
+			DESERT: crater11.tem
 	cr12:
 		TilesetFilenames:
 			TEMPERATE: crater12.tem
 			SNOW: crater12.sno
+			DESERT: crater12.tem
 
 icon:
 	clustermissile:
@@ -1206,6 +1256,7 @@ trock01:
 		TilesetFilenames:
 			TEMPERATE: trock01.tem
 			SNOW: trock01.sno
+			DESERT: trock01.tem
 
 trock02:
 	Inherits: ^rock
@@ -1213,6 +1264,7 @@ trock02:
 		TilesetFilenames:
 			TEMPERATE: trock02.tem
 			SNOW: trock02.sno
+			DESERT: trock02.tem
 
 trock03:
 	Inherits: ^rock
@@ -1220,6 +1272,7 @@ trock03:
 		TilesetFilenames:
 			TEMPERATE: trock03.tem
 			SNOW: trock03.sno
+			DESERT: trock03.tem
 
 trock04:
 	Inherits: ^rock
@@ -1227,6 +1280,7 @@ trock04:
 		TilesetFilenames:
 			TEMPERATE: trock04.tem
 			SNOW: trock04.sno
+			DESERT: trock04.tem
 
 trock05:
 	Inherits: ^rock
@@ -1234,6 +1288,7 @@ trock05:
 		TilesetFilenames:
 			TEMPERATE: trock05.tem
 			SNOW: trock05.sno
+			DESERT: trock05.tem
 
 srock01:
 	Inherits: ^rock
@@ -1241,6 +1296,7 @@ srock01:
 		TilesetFilenames:
 			TEMPERATE: srock01.tem
 			SNOW: srock01.sno
+			DESERT: srock01.tem
 
 srock02:
 	Inherits: ^rock
@@ -1248,6 +1304,7 @@ srock02:
 		TilesetFilenames:
 			TEMPERATE: srock02.tem
 			SNOW: srock02.sno
+			DESERT: srock02.tem
 
 srock03:
 	Inherits: ^rock
@@ -1255,6 +1312,7 @@ srock03:
 		TilesetFilenames:
 			TEMPERATE: srock03.tem
 			SNOW: srock03.sno
+			DESERT: srock03.tem
 
 srock04:
 	Inherits: ^rock
@@ -1262,6 +1320,7 @@ srock04:
 		TilesetFilenames:
 			TEMPERATE: srock04.tem
 			SNOW: srock04.sno
+			DESERT: srock04.tem
 
 srock05:
 	Inherits: ^rock
@@ -1269,6 +1328,7 @@ srock05:
 		TilesetFilenames:
 			TEMPERATE: srock05.tem
 			SNOW: srock05.sno
+			DESERT: srock05.tem
 
 dbrissm:
 	Defaults:
@@ -1402,6 +1462,7 @@ tracks01:
 		TilesetFilenames:
 			TEMPERATE: tracks01.tem
 			SNOW: tracks01.sno
+			DESERT: tracks01.tem
 
 tracks02:
 	Inherits: ^tracks
@@ -1409,6 +1470,7 @@ tracks02:
 		TilesetFilenames:
 			TEMPERATE: tracks02.tem
 			SNOW: tracks02.sno
+			DESERT: tracks02.tem
 
 tracks03:
 	Inherits: ^tracks
@@ -1416,6 +1478,7 @@ tracks03:
 		TilesetFilenames:
 			TEMPERATE: tracks03.tem
 			SNOW: tracks03.sno
+			DESERT: tracks03.tem
 
 tracks04:
 	Inherits: ^tracks
@@ -1423,6 +1486,7 @@ tracks04:
 		TilesetFilenames:
 			TEMPERATE: tracks04.tem
 			SNOW: tracks04.sno
+			DESERT: tracks04.tem
 
 tracks05:
 	Inherits: ^tracks
@@ -1430,6 +1494,7 @@ tracks05:
 		TilesetFilenames:
 			TEMPERATE: tracks05.tem
 			SNOW: tracks05.sno
+			DESERT: tracks05.tem
 
 tracks06:
 	Inherits: ^tracks
@@ -1437,6 +1502,7 @@ tracks06:
 		TilesetFilenames:
 			TEMPERATE: tracks06.tem
 			SNOW: tracks06.sno
+			DESERT: tracks06.tem
 
 tracks07:
 	Inherits: ^tracks
@@ -1444,6 +1510,7 @@ tracks07:
 		TilesetFilenames:
 			TEMPERATE: tracks07.tem
 			SNOW: tracks07.sno
+			DESERT: tracks07.tem
 
 tracks08:
 	Inherits: ^tracks
@@ -1451,6 +1518,7 @@ tracks08:
 		TilesetFilenames:
 			TEMPERATE: tracks08.tem
 			SNOW: tracks08.sno
+			DESERT: tracks08.tem
 
 tracks09:
 	Inherits: ^tracks
@@ -1458,6 +1526,7 @@ tracks09:
 		TilesetFilenames:
 			TEMPERATE: tracks09.tem
 			SNOW: tracks09.sno
+			DESERT: tracks09.tem
 
 tracks10:
 	Inherits: ^tracks
@@ -1465,6 +1534,7 @@ tracks10:
 		TilesetFilenames:
 			TEMPERATE: tracks10.tem
 			SNOW: tracks10.sno
+			DESERT: tracks10.tem
 
 tracks11:
 	Inherits: ^tracks
@@ -1472,6 +1542,7 @@ tracks11:
 		TilesetFilenames:
 			TEMPERATE: tracks11.tem
 			SNOW: tracks11.sno
+			DESERT: tracks11.tem
 
 tracks12:
 	Inherits: ^tracks
@@ -1479,6 +1550,7 @@ tracks12:
 		TilesetFilenames:
 			TEMPERATE: tracks12.tem
 			SNOW: tracks12.sno
+			DESERT: tracks12.tem
 
 tracks13:
 	Inherits: ^tracks
@@ -1486,6 +1558,7 @@ tracks13:
 		TilesetFilenames:
 			TEMPERATE: tracks13.tem
 			SNOW: tracks13.sno
+			DESERT: tracks13.tem
 
 tracks14:
 	Inherits: ^tracks
@@ -1493,6 +1566,7 @@ tracks14:
 		TilesetFilenames:
 			TEMPERATE: tracks14.tem
 			SNOW: tracks14.sno
+			DESERT: tracks14.tem
 
 tracks15:
 	Inherits: ^tracks
@@ -1500,6 +1574,7 @@ tracks15:
 		TilesetFilenames:
 			TEMPERATE: tracks15.tem
 			SNOW: tracks15.sno
+			DESERT: tracks15.tem
 
 tracks16:
 	Inherits: ^tracks
@@ -1507,6 +1582,7 @@ tracks16:
 		TilesetFilenames:
 			TEMPERATE: tracks16.tem
 			SNOW: tracks16.sno
+			DESERT: tracks16.tem
 
 ^tuntop:
 	idle:
@@ -1518,6 +1594,7 @@ tuntop01:
 		TilesetFilenames:
 			TEMPERATE: tuntop01.tem
 			SNOW: tuntop01.sno
+			DESERT: tuntop01.tem
 		Offset: 24, -49, 48
 
 tuntop02:
@@ -1526,6 +1603,7 @@ tuntop02:
 		TilesetFilenames:
 			TEMPERATE: tuntop02.tem
 			SNOW: tuntop02.sno
+			DESERT: tuntop02.tem
 		Offset: -24, -49, 48
 
 tuntop03:
@@ -1534,6 +1612,7 @@ tuntop03:
 		TilesetFilenames:
 			TEMPERATE: tuntop03.tem
 			SNOW: tuntop03.sno
+			DESERT: tuntop03.tem
 		Offset: 24, -49, 49
 
 tuntop04:
@@ -1542,6 +1621,7 @@ tuntop04:
 		TilesetFilenames:
 			TEMPERATE: tuntop04.tem
 			SNOW: tuntop04.sno
+			DESERT: tuntop04.tem
 		Offset: -24, -49, 49
 
 dig:
@@ -1640,41 +1720,51 @@ clouds:
 	cloud1:
 		Filename: cloud_small1.png
 		BlendMode: Overlay
+		IgnoreWorldTint: True
 		Offset: 0, 0, 1024
 	cloud2:
 		Filename: cloud_small2.png
 		BlendMode: Overlay
+		IgnoreWorldTint: True
 		Offset: 0, 0, 1024
 	cloud3:
 		Filename: cloud_large1.png
 		BlendMode: Overlay
+		IgnoreWorldTint: True
 		Offset: 0, 0, 1024
 	cloud4:
 		Filename: cloud_cirrus1.png
 		BlendMode: Overlay
+		IgnoreWorldTint: True
 		Offset: 0, 0, 1024
 	cloud5:
 		Filename: cloud_cluster1.png
 		BlendMode: Overlay
+		IgnoreWorldTint: True
 		Offset: 0, 0, 1024
 	cloud6:
 		Filename: cloud_huge.png
 		BlendMode: Overlay
+		IgnoreWorldTint: True
 		Offset: 0, 0, 1024
 
 godrays:
 	single:
 		Filename: godray_single.png
 		BlendMode: Additive
+		IgnoreWorldTint: True
 	double:
 		Filename: godray_double.png
 		BlendMode: Additive
+		IgnoreWorldTint: True
 	fan:
 		Filename: godray_fan.png
 		BlendMode: Additive
+		IgnoreWorldTint: True
 	dappled:
 		Filename: godray_dappled.png
 		BlendMode: Additive
+		IgnoreWorldTint: True
 
 water_waves:
 	glitter:
@@ -1777,72 +1867,84 @@ bloodsplatter:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_large.tem
 			SNOW: bloodsplatter_large.sno
+			DESERT: bloodsplatter_large.tem
 		Start: 0
 		Length: 1
 	bs2l:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_large.tem
 			SNOW: bloodsplatter_large.sno
+			DESERT: bloodsplatter_large.tem
 		Start: 1
 		Length: 1
 	bs3l:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_large.tem
 			SNOW: bloodsplatter_large.sno
+			DESERT: bloodsplatter_large.tem
 		Start: 2
 		Length: 1
 	bs4l:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_large.tem
 			SNOW: bloodsplatter_large.sno
+			DESERT: bloodsplatter_large.tem
 		Start: 3
 		Length: 1
 	bs1m:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_medium.tem
 			SNOW: bloodsplatter_medium.sno
+			DESERT: bloodsplatter_medium.tem
 		Start: 0
 		Length: 1
 	bs2m:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_medium.tem
 			SNOW: bloodsplatter_medium.sno
+			DESERT: bloodsplatter_medium.tem
 		Start: 1
 		Length: 1
 	bs3m:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_medium.tem
 			SNOW: bloodsplatter_medium.sno
+			DESERT: bloodsplatter_medium.tem
 		Start: 2
 		Length: 1
 	bs4m:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_medium.tem
 			SNOW: bloodsplatter_medium.sno
+			DESERT: bloodsplatter_medium.tem
 		Start: 3
 		Length: 1
 	bs1s:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_small.tem
 			SNOW: bloodsplatter_small.sno
+			DESERT: bloodsplatter_small.tem
 		Start: 0
 		Length: 1
 	bs2s:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_small.tem
 			SNOW: bloodsplatter_small.sno
+			DESERT: bloodsplatter_small.tem
 		Start: 1
 		Length: 1
 	bs3s:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_small.tem
 			SNOW: bloodsplatter_small.sno
+			DESERT: bloodsplatter_small.tem
 		Start: 2
 		Length: 1
 	bs4s:
 		TilesetFilenames:
 			TEMPERATE: bloodsplatter_small.tem
 			SNOW: bloodsplatter_small.sno
+			DESERT: bloodsplatter_small.tem
 		Start: 3
 		Length: 1
 
@@ -1896,6 +1998,7 @@ wa01x:
 		TilesetFilenames:
 			TEMPERATE: wa01x.tem
 			SNOW: wa01x.sno
+			DESERT: wa01x.tem
 		Offset: -9, 54, -6
 
 wa02x:
@@ -1904,6 +2007,7 @@ wa02x:
 		TilesetFilenames:
 			TEMPERATE: wa02x.tem
 			SNOW: wa02x.sno
+			DESERT: wa02x.tem
 		Offset: -39, 39, -6
 
 wa03x:
@@ -1912,6 +2016,7 @@ wa03x:
 		TilesetFilenames:
 			TEMPERATE: wa03x.tem
 			SNOW: wa03x.sno
+			DESERT: wa03x.tem
 		Offset: -26, 47, -6
 
 wa04x:
@@ -1920,6 +2025,7 @@ wa04x:
 		TilesetFilenames:
 			TEMPERATE: wa04x.tem
 			SNOW: wa04x.sno
+			DESERT: wa04x.tem
 		Offset: -38, 37, -6
 
 wb01x:
@@ -1928,6 +2034,7 @@ wb01x:
 		TilesetFilenames:
 			TEMPERATE: wb01x.tem
 			SNOW: wb01x.sno
+			DESERT: wb01x.tem
 		Offset: 30, 43, -6
 
 wb02x:
@@ -1936,6 +2043,7 @@ wb02x:
 		TilesetFilenames:
 			TEMPERATE: wb02x.tem
 			SNOW: wb02x.sno
+			DESERT: wb02x.tem
 		Offset: 43, 38, -6
 
 wb03x:
@@ -1944,6 +2052,7 @@ wb03x:
 		TilesetFilenames:
 			TEMPERATE: wb03x.tem
 			SNOW: wb03x.sno
+			DESERT: wb03x.tem
 		Offset: 29, 49, -6
 
 wb04x:
@@ -1952,6 +2061,7 @@ wb04x:
 		TilesetFilenames:
 			TEMPERATE: wb04x.tem
 			SNOW: wb04x.sno
+			DESERT: wb04x.tem
 		Offset: 9, 56, -6
 
 wc01x:
@@ -1960,6 +2070,7 @@ wc01x:
 		TilesetFilenames:
 			TEMPERATE: wc01x.tem
 			SNOW: wc01x.sno
+			DESERT: wc01x.tem
 		Offset: -2, 19, -6
 
 wc02x:
@@ -1968,6 +2079,7 @@ wc02x:
 		TilesetFilenames:
 			TEMPERATE: wc02x.tem
 			SNOW: wc02x.sno
+			DESERT: wc02x.tem
 		Offset: 5, -6, -6
 
 wc03x:
@@ -1976,6 +2088,7 @@ wc03x:
 		TilesetFilenames:
 			TEMPERATE: wc03x.tem
 			SNOW: wc03x.sno
+			DESERT: wc03x.tem
 		Offset: 14, 1, -6
 
 wc04x:
@@ -1984,6 +2097,7 @@ wc04x:
 		TilesetFilenames:
 			TEMPERATE: wc04x.tem
 			SNOW: wc04x.sno
+			DESERT: wc04x.tem
 		Offset: -41, -5, -6
 
 wd01x:
@@ -1992,6 +2106,7 @@ wd01x:
 		TilesetFilenames:
 			TEMPERATE: wd01x.tem
 			SNOW: wd01x.sno
+			DESERT: wd01x.tem
 		Offset: -8, -4, -6
 
 wd02x:
@@ -2000,6 +2115,7 @@ wd02x:
 		TilesetFilenames:
 			TEMPERATE: wd02x.tem
 			SNOW: wd02x.sno
+			DESERT: wd02x.tem
 		Offset: -2, -9, -6
 
 wd03x:
@@ -2008,6 +2124,7 @@ wd03x:
 		TilesetFilenames:
 			TEMPERATE: wd03x.tem
 			SNOW: wd03x.sno
+			DESERT: wd03x.tem
 		Offset: -17, 2, -6
 
 wd04x:
@@ -2016,4 +2133,5 @@ wd04x:
 		TilesetFilenames:
 			TEMPERATE: wd04x.tem
 			SNOW: wd04x.sno
+			DESERT: wd04x.tem
 		Offset: 2, 20, -6

@@ -269,7 +269,7 @@ GAGAT:
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 70
-		Prerequisites: gapile, gaarmory, ~structures.gdi, ~techlevel.medium
+		Prerequisites: gapile, gaarmory, gatech, ~structures.gdi, ~techlevel.high
 		Description: actor-gagat.description
 	CNHealth:
 		HP: 500
@@ -339,7 +339,7 @@ GASEN:
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 70
-		Prerequisites: gapile, garadr, ~structures.gdi, ~techlevel.medium
+		Prerequisites: gapile, garadr, gatech, ~structures.gdi, ~techlevel.high
 		Description: actor-gasen.description
 	CNHealth:
 		HP: 500
@@ -404,7 +404,7 @@ GAMORTAR:
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 70
-		Prerequisites: gaweap, garadr, gaarmory, ~structures.gdi, ~techlevel.medium
+		Prerequisites: gaweap, garadr, gaarmory, gatech, ~structures.gdi, ~techlevel.high
 		Description: actor-gamortar.description
 	CNHealth:
 		HP: 500
