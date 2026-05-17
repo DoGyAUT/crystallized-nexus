@@ -61,7 +61,15 @@ namespace OpenRA.Mods.CN.Traits
 		readonly IResourceLayer resourceLayer;
 		readonly Dictionary<CPos, List<RandomTransformsNearResources>> transformsByCell = [];
 		readonly List<RandomTransformsNearResources> activeTransforms = [];
-		readonly HashSet<RandomTransformsNearResources> activeTransformSet = [];
+
+		// transform -> its index in activeTransforms, for O(1) swap-removal.
+		readonly Dictionary<RandomTransformsNearResources, int> activeIndex = [];
+
+		// Refreshes triggered by resource-cell changes are deferred to the next
+		// Tick so a burst of Tiberium growth/decay around the same tree collapses
+		// into a single re-evaluation instead of recomputing on every event.
+		readonly HashSet<RandomTransformsNearResources> pendingRefresh = [];
+
 		bool enabled;
 
 		public RandomTransformsNearResourcesManager(Actor self, RandomTransformsNearResourcesManagerInfo info)
@@ -115,6 +123,7 @@ namespace OpenRA.Mods.CN.Traits
 					transformsByCell.Remove(transform.Location);
 			}
 
+			pendingRefresh.Remove(transform);
 			RemoveActive(transform);
 		}
 
@@ -148,6 +157,17 @@ namespace OpenRA.Mods.CN.Traits
 			if (!enabled)
 				return;
 
+			// Drain deferred refreshes from the previous interval's resource
+			// changes. Refresh mutates activeTransforms/activeIndex but never
+			// pendingRefresh, so iterating it here is safe.
+			if (pendingRefresh.Count > 0)
+			{
+				foreach (var transform in pendingRefresh)
+					Refresh(transform);
+
+				pendingRefresh.Clear();
+			}
+
 			for (var i = 0; i < activeTransforms.Count;)
 			{
 				var transform = activeTransforms[i];
@@ -160,6 +180,11 @@ namespace OpenRA.Mods.CN.Traits
 
 		void ResourceLayerCellChanged(CPos cell, string resourceType)
 		{
+			// Nothing left to mutate — skip the per-event neighbour scan entirely
+			// (Tiberium cell changes fire very frequently).
+			if (transformsByCell.Count == 0)
+				return;
+
 			foreach (var direction in CVec.Directions)
 			{
 				var location = cell - direction;
@@ -167,7 +192,7 @@ namespace OpenRA.Mods.CN.Traits
 					continue;
 
 				for (var i = 0; i < transforms.Count; i++)
-					Refresh(transforms[i]);
+					pendingRefresh.Add(transforms[i]);
 			}
 		}
 
@@ -184,24 +209,31 @@ namespace OpenRA.Mods.CN.Traits
 
 		void AddActive(RandomTransformsNearResources transform)
 		{
-			if (!activeTransformSet.Add(transform))
+			if (activeIndex.ContainsKey(transform))
 				return;
 
+			activeIndex[transform] = activeTransforms.Count;
 			activeTransforms.Add(transform);
 		}
 
 		void RemoveActive(RandomTransformsNearResources transform)
 		{
-			if (!activeTransformSet.Remove(transform))
-				return;
-
-			activeTransforms.Remove(transform);
+			if (activeIndex.TryGetValue(transform, out var index))
+				RemoveActiveAt(index);
 		}
 
+		// Swap-with-last removal: O(1); order of activeTransforms is irrelevant.
 		void RemoveActiveAt(int index)
 		{
-			activeTransformSet.Remove(activeTransforms[index]);
-			activeTransforms.RemoveAt(index);
+			var removed = activeTransforms[index];
+			var lastIndex = activeTransforms.Count - 1;
+			var last = activeTransforms[lastIndex];
+
+			activeTransforms[index] = last;
+			activeIndex[last] = index;
+
+			activeTransforms.RemoveAt(lastIndex);
+			activeIndex.Remove(removed);
 		}
 	}
 
