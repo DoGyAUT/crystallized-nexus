@@ -32,11 +32,21 @@ namespace OpenRA.Mods.CN.Traits
 			if (!types.HasFlag(ResupplyType.Repair))
 				return;
 
+			var squad = target.TraitOrDefault<MobSpawnerMaster>();
+			if (squad != null && squad.Info.AggregateHealth)
+			{
+				// RefreshMasterHP keeps the master's HP below MaxHP while slaves are missing,
+				// so DamageState.Undamaged is never reached. Call RestoreSquad directly so
+				// missing slaves are respawned as soon as the repair depot starts working.
+				squad.RestoreSquad(target, host);
+				return;
+			}
+
 			var health = target.TraitOrDefault<IHealth>();
 			if (health == null || health.DamageState != DamageState.Undamaged)
 				return;
 
-			target.TraitOrDefault<MobSpawnerMaster>()?.RestoreSquad(target, host);
+			squad?.RestoreSquad(target, host);
 		}
 
 		void INotifyPassengerEntered.OnPassengerEntered(Actor self, Actor passenger)
