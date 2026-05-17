@@ -1,16 +1,16 @@
 Player:
 	PowerDownBotModule:
-		RequiresCondition: enable-test-ai || enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-test-ai || enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		PowerDownTypes: garadr, naradr, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, nagat
 	CNResourceMapBotModule@cn:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		ResourceCreatorTypes: tibtre01, tibtre02, tibtre03, bigblue, bigblue3, bigred
 		ValuableResourceTypes: Tiberium, BlueTiberium, RedTiberium
 		HarvesterTypes: gharv, nharv
 		RefineryTypes: gproc, nproc
 		EnemyBaseBuildingTypes: gacnst, nacnst, gapowr, napowr, naapwr, gaarmory, gapile, nahand, gaweap, gadept, naweap, garadr, naradr, gahpad, nahpad, gatech, natech, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, nagat, naflamer, gaplug, natmpl
 	CNHarvesterBotModule@cn:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		HarvesterTypes: gharv, nharv
 		RefineryTypes: gproc, nproc
 		InitialHarvesters: 1
@@ -19,7 +19,7 @@ Player:
 		MaxHarvestersPerFiniteIndice: 1
 		MaxHarvestersPerRespawningIndice: 2
 	CNBaseBuilderBotModule@cn:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		DefenseQueues: Support
 		MinimumExcessPower: 30
 		MaximumExcessPower: 200
@@ -29,7 +29,7 @@ Player:
 		RefineryTypes: gproc, nproc
 		PowerTypes: gapowr, napowr, naapwr
 		ProductionTypes: gapile, nahand, gaweap, naweap, gahpad, nahpad
-		TechTypes: garadr, naradr, gaarmory, gatech, natech, gadept, gaplug, natmpl, namisl, napyra
+		TechTypes: garadr, naradr, gaarmory, gatech, gadept, gaplug, natmpl, namisl, napyra
 		SiloTypes: gasilo
 		DefenseTypes: gamg, gagat, gasam, gacan, gasen, gamortar, nalasr, nasam, naflamer, nagat, naobel, napuls
 		MaxRefineriesPerCluster: 2
@@ -47,7 +47,7 @@ Player:
 		MaximumFailedPlacementAttempts: 6
 		StructureProductionResumeDelay: 3000
 		WallTypes: gawall, nawall
-		ProtectedByWalls: gaarmory, gatech, natech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls
+		ProtectedByWalls: gaarmory, gatech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls
 		HarvesterLocomotors: tracked
 		VeinsOnlyBuildingTypes: nawast
 		VeinsOnlyResourceTypes: Veins
@@ -137,7 +137,6 @@ Player:
 			gaarmory: 1
 			naradr: 1
 			gatech: 1
-			natech: 1
 			napyra: 1
 			gaplug: 1
 			gaplug2: 1
@@ -165,7 +164,6 @@ Player:
 			naradr: 5
 			gaarmory: 5
 			gatech: 4
-			natech: 4
 			napyra: 4
 			nastlh: 4
 			gaplug: 4
@@ -184,7 +182,6 @@ Player:
 		LateBuildingFractions:
 			gatech: 8
 			napyra: 8
-			natech: 8
 			nastlh: 10
 			gaplug: 4
 			gaplug2: 4
@@ -192,10 +189,10 @@ Player:
 			namisl: 4
 		EcoBuildingFractions:
 		RushBuildingFractions:
-			gapile: 14
-			nahand: 14
-			gaweap: 16
-			naweap: 16
+			gapile: 16
+			nahand: 16
+			gaweap: 14
+			naweap: 14
 			gahpad: 14
 			nahpad: 14
 		TurtleBuildingFractions:

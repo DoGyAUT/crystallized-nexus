@@ -1,6 +1,5 @@
 Player:
 	CNBotProfileBotModule@adaptive:
-		AdaptiveFallbackProfile: Expansion
 		AdaptiveMinimumIntentHoldTicks: 3000
 		AdaptiveEmergencyTurtleDangerThreshold: 650
 		AdaptiveSteamrollerEarliestTick: 6500
@@ -82,46 +81,6 @@ Player:
 			Expansion: 9000
 
 	CNBaseBuilderBotModule@cn:
-		BasePlanClusters:
-			gproc: Eco
-			nproc: Eco
-			gapowr: Core
-			napowr: Core
-			naapwr: Core
-			gasilo: Core
-			gapile: Production
-			nahand: Production
-			gaweap: Production
-			naweap: Production
-			gahpad: Production
-			nahpad: Production
-			garadr: Tech
-			naradr: Tech
-			gaarmory: Tech
-			gadept: Tech
-			gatech: Tech
-			natech: Tech
-			gaplug: Tech
-			gaplug2: Tech
-			gaplug3: Tech
-			gaplug4: Tech
-			natmpl: Tech
-			namisl: Tech
-			napyra: Tech
-			nastlh: Tech
-			nawast: Tech
-			gamg: DefensePerimeter
-			gagat: DefensePerimeter
-			gacan: DefensePerimeter
-			gasam: DefensePerimeter
-			gasen: DefensePerimeter
-			gamortar: DefensePerimeter
-			nalasr: DefensePerimeter
-			nagat: DefensePerimeter
-			naflamer: DefensePerimeter
-			nasam: DefensePerimeter
-			naobel: DefensePerimeter
-			napuls: DefensePerimeter
 		ExpansionBuildingFractions:
 			gapile: 9
 			nahand: 9
@@ -141,7 +100,6 @@ Player:
 			gaarmory: 8
 			gadept: 7
 			gatech: 9
-			natech: 9
 			gaplug: 7
 			natmpl: 8
 			namisl: 5
@@ -157,7 +115,6 @@ Player:
 			garadr: 5
 			naradr: 5
 			gatech: 5
-			natech: 5
 			gaplug: 4
 			natmpl: 5
 		ExpansionDefenseRoleLimits:

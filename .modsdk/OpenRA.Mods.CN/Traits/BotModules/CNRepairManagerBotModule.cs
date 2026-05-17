@@ -9,10 +9,11 @@
  */
 #endregion
 
-using System.Collections.Generic;
 using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.CN.Traits;
+using OpenRA.Mods.CN.Traits.BotModules.Squads;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -26,6 +27,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Minimum damage state required before a unit is sent to repair.")]
 		public readonly DamageState MinimumDamageState = DamageState.Light;
+
+		[Desc("Minimum damage state required before infantry is sent into a barracks for repair.")]
+		public readonly DamageState BarracksMinimumDamageState = DamageState.Heavy;
 
 		[Desc("Maximum number of repair orders to issue on each scan.")]
 		public readonly int MaxAssignmentsPerScan = 3;
@@ -44,6 +48,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<Actor> idleBaseUnits = [];
 		int repairScanTicks;
 		World world;
+		CNSquadManagerBotModule squadManager;
 
 		public CNRepairManagerBotModule(Actor self, CNRepairManagerBotModuleInfo info)
 			: base(info)
@@ -64,6 +69,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			repairScanTicks = RepairScanInterval;
+			RefreshActiveSquadManager(bot);
 			var assignments = 0;
 
 			// Merge idle-base-units with any damaged idle infantry not yet in that list
@@ -81,8 +87,15 @@ namespace OpenRA.Mods.Common.Traits
 				if (actor.Owner != bot.Player || actor.IsDead || !actor.IsInWorld || !actor.IsIdle)
 					continue;
 
+				if (squadManager?.IsUnitAssignedToSquad(actor) == true)
+					continue;
+
 				var health = actor.TraitOrDefault<IHealth>();
 				if (health == null || health.DamageState < Info.MinimumDamageState || health.DamageState >= DamageState.Dead)
+					continue;
+
+				var repairableInBarracks = actor.TraitOrDefault<RepairableInBarracks>();
+				if (repairableInBarracks != null && health.DamageState < Info.BarracksMinimumDamageState)
 					continue;
 
 				if (TryAssignMobileRepair(bot, actor))
@@ -103,7 +116,6 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
-				var repairableInBarracks = actor.TraitOrDefault<RepairableInBarracks>();
 				if (repairableInBarracks != null)
 				{
 					var repairBuilding = repairableInBarracks.FindRepairBuilding(actor);
@@ -126,6 +138,15 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 			}
+		}
+
+		void RefreshActiveSquadManager(IBot bot)
+		{
+			if (squadManager != null && squadManager.IsTraitEnabled())
+				return;
+
+			squadManager = bot.Player.PlayerActor.TraitsImplementing<CNSquadManagerBotModule>()
+				.FirstOrDefault(t => t.IsTraitEnabled());
 		}
 
 		bool TryAssignMobileRepair(IBot bot, Actor actor)

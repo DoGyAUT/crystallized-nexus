@@ -23,9 +23,6 @@ Player:
 	GrantConditionOnBotOwner@cn-rush:
 		Condition: enable-cn-rush
 		Bots: cn-rush
-	GrantConditionOnBotOwner@cn-eco:
-		Condition: enable-cn-eco
-		Bots: cn-eco
 	GrantConditionOnBotOwner@cn-turtle:
 		Condition: enable-cn-turtle
 		Bots: cn-turtle
@@ -41,35 +38,31 @@ Player:
 	CNBotProfileBotModule@adaptive:
 		RequiresCondition: enable-cn-ai
 		Profile: Adaptive
-		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra, natech
+		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
 		AdaptiveEcoIncomeThreshold: 250
 		AdaptiveTurtleDangerThreshold: 420
 		AdaptiveRushUnitThreshold: 14
-		AdaptiveSwitchCooldownTicks: 1200
 		AdaptiveEcoGraceTicks: 3600
 		RushUnitThresholdEarlyOffset: 6
 		RushUnitThresholdLateOffset: -4
+		AdaptiveStartProfiles: Rush, Expansion, Turtle
 	CNBotProfileBotModule@rush:
 		RequiresCondition: enable-cn-rush
 		Profile: Rush
-		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra, natech
-	CNBotProfileBotModule@eco:
-		RequiresCondition: enable-cn-eco
-		Profile: Expansion
-		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra, natech
+		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
 	CNBotProfileBotModule@turtle:
 		RequiresCondition: enable-cn-turtle
 		Profile: Turtle
-		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra, natech
+		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
 	CNBotProfileBotModule@tech:
 		RequiresCondition: enable-cn-tech
 		Profile: Tech
-		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra, natech
+		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
 	CNBotProfileBotModule@expansion:
 		RequiresCondition: enable-cn-expansion
 		Profile: Expansion
-		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra, natech
+		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
 	CNBotProfileBotModule@steamroller:
 		RequiresCondition: enable-cn-steamroller
 		Profile: Steamroller
-		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra, natech
+		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra

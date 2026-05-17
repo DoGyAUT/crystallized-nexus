@@ -1,6 +1,6 @@
 Player:
 	CombatAnalysisBotModule:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		WeightPerHit: 10
 		ThreatRecordInterval: 25
 		ReactThreshold: 20
@@ -11,23 +11,24 @@ Player:
 		NemesisAllyWeightPerHit: 2
 		NemesisThreshold: 15
 	BuildingRepairBotModule@cn:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 	CNRepairManagerBotModule@cn:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		RepairScanInterval: 75
 		MinimumDamageState: Light
+		BarracksMinimumDamageState: Heavy
 		MaxAssignmentsPerScan: 3
 		MobileRepairActorTypes: repair
 		MobileRepairSearchRadius: 10
 	CNBridgeRepairBotModule@cn:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		RepairScanInterval: 125
 		RepairerActorTypes: engineer, nengineer
 		BridgeHutActorTypes: cabhut
 		MinimumDamageState: Dead
 		MaximumRepairers: 2
 	CNUnitBuilderBotModule@Combat:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		UnitQueues: Infantry, Vehicle, Air
 		ProductionMinCashRequirement: 300
 		DesiredCashReserve: 500
@@ -40,7 +41,7 @@ Player:
 			repair: 2
 			weed: 4
 	CNUnitBuilderBotModule@Capture:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		UnitQueues: Infantry
 		ProductionMinCashRequirement: 250
 		DesiredCashReserve: 300
@@ -58,13 +59,13 @@ Player:
 			engineer: 1500
 			nengineer: 1500
 	UnitBuilderBotModule@Tech:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		UnitQueues: Tech
 		UnitsToBuild:
 			upgrade.gapowerup1: 100
 			upgrade.gapowerup2: 100
 	SupportPowerBotModule:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		Decisions:
 			IonCannon:
 				OrderName: IonCannonPowerInfoOrder
@@ -128,7 +129,7 @@ Player:
 				OrderName: ProduceActorPowerInfoOrder
 				FireWithoutTarget: true
 	DeployBotModule:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		ScanInterval: 25
 		Groups:
 			Artillery:
@@ -151,13 +152,20 @@ Player:
 				DeployRange: 8
 				AbilityDuration: 100
 	CNMcvExpansionManagerBotModule@cn:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		McvTypes: gmcv, nmcv
 		ConstructionYardTypes: gacnst, nacnst
 		McvFactoryTypes: gaweap, naweap
 		MinimumConstructionYardCount: 1
 		AdditionalConstructionYardCount: 1
+		AdditionalConstructionYardCounts:
+			Rush: 0
+			Expansion: 2
+			Steamroller: 1
 		BuildAdditionalMCVCashAmount: 9000
+		BuildAdditionalMCVCashAmounts:
+			Expansion: 5000
+			Steamroller: 7500
 		EnableStrategicOutposts: true
 		McvEnemyBaseAvoidanceRadius: 10
 		McvEnemyBaseHardAvoidanceRadius: 4
@@ -170,7 +178,7 @@ Player:
 		CBmodeOutpostEnemyMinRange: 18
 		CBmodeOutpostFriendlyMinRange: 12
 	CaptureManagerBotModule@test:
-		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-eco || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		CapturingActorTypes: engineer, nengineer
 		CapturableActorTypes: cahosp, caarmr, caaray
 		MinimumCaptureDelay: 125

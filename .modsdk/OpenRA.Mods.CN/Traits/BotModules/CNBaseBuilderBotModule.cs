@@ -170,9 +170,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Per-building-type layout overrides.")]
 		public readonly Dictionary<string, CNBuildingLayoutEntry> BuildingLayouts = [];
 
-		[Desc("Optional per-building baseplan cluster overrides. Keys are actor type names, values are CNBasePlanCluster names.")]
-		public readonly FrozenDictionary<string, CNBasePlanCluster> BasePlanClusters = null;
-
 		static object LoadBuildingLayouts(MiniYaml yaml)
 		{
 			var result = new Dictionary<string, CNBuildingLayoutEntry>();
@@ -563,7 +560,6 @@ namespace OpenRA.Mods.Common.Traits
 			};
 			var profileOverride = ActiveProfile switch
 			{
-				BotProfile.Eco    => Info.EcoBuildingFractions,
 				BotProfile.Rush   => Info.RushBuildingFractions,
 				BotProfile.Turtle => Info.TurtleBuildingFractions,
 				BotProfile.Tech => Info.TechBuildingFractions,
@@ -597,7 +593,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var profileOverride = ActiveProfile switch
 			{
-				BotProfile.Eco    => Info.EcoDefenseRoleLimits,
 				BotProfile.Rush   => Info.RushDefenseRoleLimits,
 				BotProfile.Turtle => Info.TurtleDefenseRoleLimits,
 				BotProfile.Tech => Info.TechDefenseRoleLimits,
@@ -612,7 +607,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var v = ActiveProfile switch
 			{
-				BotProfile.Eco    => Info.EcoNewProductionCashThreshold,
 				BotProfile.Rush   => Info.RushNewProductionCashThreshold,
 				BotProfile.Turtle => Info.TurtleNewProductionCashThreshold,
 				BotProfile.Tech => Info.TechNewProductionCashThreshold,
@@ -627,7 +621,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var v = ActiveProfile switch
 			{
-				BotProfile.Eco    => Info.EcoNewProductionChance,
 				BotProfile.Rush   => Info.RushNewProductionChance,
 				BotProfile.Turtle => Info.TurtleNewProductionChance,
 				BotProfile.Tech => Info.TechNewProductionChance,
@@ -642,7 +635,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var v = ActiveProfile switch
 			{
-				BotProfile.Eco    => Info.EcoMinimumExcessPower,
 				BotProfile.Rush   => Info.RushMinimumExcessPower,
 				BotProfile.Turtle => Info.TurtleMinimumExcessPower,
 				BotProfile.Tech => Info.TechMinimumExcessPower,
@@ -657,7 +649,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var v = ActiveProfile switch
 			{
-				BotProfile.Eco    => Info.EcoMaximumExcessPower,
 				BotProfile.Rush   => Info.RushMaximumExcessPower,
 				BotProfile.Turtle => Info.TurtleMaximumExcessPower,
 				BotProfile.Tech => Info.TechMaximumExcessPower,
@@ -672,7 +663,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var v = ActiveProfile switch
 			{
-				BotProfile.Eco    => Info.EcoInititalMinimumRefineryCount,
 				BotProfile.Rush   => Info.RushInititalMinimumRefineryCount,
 				BotProfile.Turtle => Info.TurtleInititalMinimumRefineryCount,
 				BotProfile.Tech => Info.TechInititalMinimumRefineryCount,
@@ -687,10 +677,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (actorInfo == null)
 				return CNBasePlanCluster.Core;
-
-			if (Info.BasePlanClusters != null &&
-				Info.BasePlanClusters.TryGetValue(actorInfo.Name, out var configuredCluster))
-				return configuredCluster;
 
 			if (isRefinery || Info.RefineryTypes.Contains(actorInfo.Name))
 				return CNBasePlanCluster.Eco;

@@ -140,14 +140,22 @@ namespace OpenRA.Mods.CN.Traits
 
 		protected override void Created(Actor self)
 		{
-			squadManager = self.Owner.PlayerActor.TraitsImplementing<CNSquadManagerBotModule>()
-				.FirstOrDefault();
-			profileModule = self.Owner.PlayerActor.TraitsImplementing<CNBotProfileBotModule>()
-				.FirstOrDefault();
+			RefreshActiveBotTraits();
 			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
 			requestPause = self.Owner.PlayerActor
 				.TraitsImplementing<IBotRequestPauseUnitProduction>()
 				.ToArray();
+		}
+
+		void RefreshActiveBotTraits()
+		{
+			if (squadManager == null || !squadManager.IsTraitEnabled())
+				squadManager = player.PlayerActor.TraitsImplementing<CNSquadManagerBotModule>()
+					.FirstOrDefault(t => t.IsTraitEnabled());
+
+			if (profileModule == null || !profileModule.IsTraitEnabled())
+				profileModule = player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>()
+					.FirstOrDefault(t => t.IsTraitEnabled());
 		}
 
 		void IBotNotifyIdleBaseUnits.UpdatedIdleBaseUnits(List<Actor> idleUnits)
@@ -167,6 +175,8 @@ namespace OpenRA.Mods.CN.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			RefreshActiveBotTraits();
+
 			if (requestPause.Any(rp => rp.PauseUnitProduction))
 				return;
 
@@ -792,7 +802,6 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			var v = ActiveProfile switch
 			{
-				BotProfile.Eco => Info.EcoProductionMinCashRequirement,
 				BotProfile.Rush => Info.RushProductionMinCashRequirement,
 				BotProfile.Turtle => Info.TurtleProductionMinCashRequirement,
 				BotProfile.Tech => Info.TechProductionMinCashRequirement,
@@ -808,7 +817,6 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			var v = ActiveProfile switch
 			{
-				BotProfile.Eco => Info.EcoDesiredCashReserve,
 				BotProfile.Rush => Info.RushDesiredCashReserve,
 				BotProfile.Turtle => Info.TurtleDesiredCashReserve,
 				BotProfile.Tech => Info.TechDesiredCashReserve,
@@ -824,7 +832,6 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			var v = ActiveProfile switch
 			{
-				BotProfile.Eco => Info.EcoAdditionalCashReservePerQueue,
 				BotProfile.Rush => Info.RushAdditionalCashReservePerQueue,
 				BotProfile.Turtle => Info.TurtleAdditionalCashReservePerQueue,
 				BotProfile.Tech => Info.TechAdditionalCashReservePerQueue,

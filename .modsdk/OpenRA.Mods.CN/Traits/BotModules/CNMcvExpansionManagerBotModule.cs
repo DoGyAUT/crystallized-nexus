@@ -37,8 +37,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Try to maintain at additional this many ConstructionYardTypes.")]
 		public readonly int AdditionalConstructionYardCount = 0;
 
+		[Desc("Per-profile additional construction yard counts. Overrides AdditionalConstructionYardCount for the active profile.")]
+		public readonly FrozenDictionary<string, int> AdditionalConstructionYardCounts = null;
+
 		[Desc("Build additional MCV if cash is above this.")]
 		public readonly int BuildAdditionalMCVCashAmount = 5000;
+
+		[Desc("Per-profile cash thresholds to trigger additional MCV building. Overrides BuildAdditionalMCVCashAmount for the active profile.")]
+		public readonly FrozenDictionary<string, int> BuildAdditionalMCVCashAmounts = null;
 
 		[Desc("Delay (in ticks) for giving orders to idle MCVs.")]
 		public readonly int ScanForNewMcvInterval = 20;
@@ -148,6 +154,7 @@ namespace OpenRA.Mods.Common.Traits
 		IBotRequestUnitProduction[] requestUnitProduction;
 		IBotSuggestRefineryProduction[] suggestRefineryProduction;
 		CNBaseBuilderBotModule cnBaseBuilder;
+		CNBotProfileBotModule profileModule;
 
 		readonly Dictionary<Actor, CPos?> activeMCVs = [];
 		readonly Dictionary<Actor, int> mcvRetryCooldown = [];
@@ -720,6 +727,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (firstTick)
 			{
 				resourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
+				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				SwitchExpansionMode(Info.InitialExpansionMode);
 
 				pathDistanceSquareFactor = resourceMapModule.GetIndiceRowCount() * resourceMapModule.GetIndiceRowCount()
@@ -773,8 +781,17 @@ namespace OpenRA.Mods.Common.Traits
 			var mcvNum = AIUtils.CountActorByCommonName(mcvs);
 			var conyardNum = AIUtils.CountActorByCommonName(constructionYards);
 
-			var mcvShouldHave = playerResources.GetCashAndResources() >= Info.BuildAdditionalMCVCashAmount
-				? Info.MinimumConstructionYardCount + Info.AdditionalConstructionYardCount : Info.MinimumConstructionYardCount;
+			var profileKey = profileModule != null ? profileModule.ActiveProfile.ToString() : null;
+			var additionalCYCount = profileKey != null
+				&& Info.AdditionalConstructionYardCounts != null
+				&& Info.AdditionalConstructionYardCounts.TryGetValue(profileKey, out var profileAdditional)
+				? profileAdditional : Info.AdditionalConstructionYardCount;
+			var buildCashAmount = profileKey != null
+				&& Info.BuildAdditionalMCVCashAmounts != null
+				&& Info.BuildAdditionalMCVCashAmounts.TryGetValue(profileKey, out var profileCash)
+				? profileCash : Info.BuildAdditionalMCVCashAmount;
+			var mcvShouldHave = playerResources.GetCashAndResources() >= buildCashAmount
+				? Info.MinimumConstructionYardCount + additionalCYCount : Info.MinimumConstructionYardCount;
 
 			// If we only have 1 MCV and no conyard, we should be allowed to build another MCV.
 			// Otherwise, when an mcv is on the move and we should wait.
