@@ -278,9 +278,12 @@ HVR:
 		PauseOnCondition: empdisable
 	CNWithVoxelTurret
 	Hovers:
-		RequiresCondition: !empdisable
+		RequiresCondition: !empdisable && !repair-docked
 		BobDistance: -64
 		InitialHeight: 384
+	GrantConditionOnClientDock@REPAIR:
+		Condition: repair-docked
+		DockHostNames: gadept
 	LeavesTrails:
 		RequiresCondition: !inside-tunnel
 		Image: wake
@@ -561,7 +564,7 @@ MMCH:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
 		Prerequisites: ~gaweap, gaarmory, ~techlevel.medium
-		Description: actor-gtmtnk.description
+		Description: actor-4tnk-description
 	Mobile:
 		Locomotor: heavytracked
 		Speed: 56

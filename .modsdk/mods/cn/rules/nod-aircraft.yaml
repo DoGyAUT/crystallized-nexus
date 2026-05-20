@@ -164,7 +164,7 @@ HYDRA:
 		LocalOffset: 1000,0,220
 	AttackAircraft:
 		Armaments: missiles, gun, missiles_aa
-		FacingTolerance: 80
+		FacingTolerance: 512
 		PersistentTargeting: false
 		Voice: Attack
 		PauseOnCondition: empdisable

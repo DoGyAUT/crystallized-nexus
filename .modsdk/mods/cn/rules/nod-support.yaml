@@ -225,12 +225,12 @@ NALASR:
 	Valued:
 		Cost: 500
 	Tooltip:
-		Name: actor-nagat.name
+		Name: actor-nalasr.name
 	Buildable:
 		Queue: Support
 		Prerequisites: naweap, ~structures.nod, ~techlevel.medium
 		BuildPaletteOrder: 100
-		Description: actor-nagat.description
+		Description: actor-nalasr.description
 	CNHealth:
 		HP: 600
 	Armor:

@@ -93,6 +93,7 @@
 							tibtre02: Tiberium
 							tibtre03: Tiberium
 							bigblue: BlueTiberium
+							bigblue3: BlueTiberium
 							bigred: RedTiberium
 							veinhole: Veins
 						ClearTerrain: Clear
@@ -862,27 +863,31 @@
 					Label: label-ts-map-generator-choice-tib-value-mixed
 					Settings:
 						ResourceSpawnWeights:
-							tibtre01: 2
-							tibtre02: 2
-							tibtre03: 2
+							tibtre01: 8
+							tibtre02: 8
+							tibtre03: 8
 							bigblue: 2
+							bigblue3: 1
+							bigred: 1
 				Choice@Blue:
 					Label: label-ts-map-generator-choice-tib-value-blue
 					Settings:
 						ResourceSpawnWeights:
-							tibtre01: 1
-							tibtre02: 1
-							tibtre03: 1
-							bigblue: 4
+							tibtre01: 3
+							tibtre02: 3
+							tibtre03: 2
+							bigblue: 7
+							bigblue3: 5
 				Choice@Red:
 					Label: label-ts-map-generator-choice-tib-value-red
 					Settings:
 						ResourceSpawnWeights:
-							tibtre01: 1
-							tibtre02: 1
-							tibtre03: 1
-							bigblue: 2
-							bigred: 3
+							tibtre01: 2
+							tibtre02: 2
+							tibtre03: 2
+							bigblue: 1
+							bigblue3: 1
+							bigred: 12
 			MultiChoiceOption@TibAmount:
 				Label: label-ts-map-generator-option-tib-amount
 				Default: Medium

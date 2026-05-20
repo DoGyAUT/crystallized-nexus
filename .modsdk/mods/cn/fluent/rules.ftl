@@ -131,6 +131,14 @@ actor-apache =
        Strong vs Infantry, Light armor and Aircraft
        Weak vs Vehicles
 
+actor-hornet =
+    .name = Hornet
+    .description =
+    Fast strike aircraft with
+    precision missiles.
+       Strong vs Vehicles and Aircraft
+       Weak vs Infantry
+
 actor-hunter-name = Hunter-Seeker Droid
 
 ## bridges.yaml
@@ -340,9 +348,9 @@ actor-jumpjet =
 actor-jumpjet-husk-name = Jump Jet Infantry
 
 actor-gasniper =
-    .name = Sniper
+    .name = Sniper Squad
     .description =
-    General-purpose infantry.
+    Long-range infantry squad.
        Strong vs Infantry
        Weak vs Vehicles and Aircraft
 
@@ -430,6 +438,12 @@ actor-gafire =
     .description =
     Building that grants access to the Firestorm device.
 
+actor-gaarmory =
+    .name = GDI Armory
+    .description =
+    Unlocks advanced GDI infantry
+    and support technologies.
+
 actor-gaplug-socket-ioncannon-name = GDI Upgrade Center socket
 actor-gaplug-socket-hunterseeker-name = GDI Upgrade Center socket
 
@@ -489,6 +503,49 @@ actor-gacsam =
        Strong vs Aircraft
        Weak vs Ground units
 
+actor-gamg =
+    .name = Vulcan Tower
+    .description =
+    Basic modular base defense.
+       Strong vs Infantry and Light armor
+       Weak vs Aircraft
+
+actor-gacan =
+    .name = Guardian Tower
+    .description =
+    Cannon-based modular base defense.
+       Strong vs Vehicles
+       Weak vs Infantry and Aircraft
+
+actor-gasam =
+    .name = SAM Tower
+    .description =
+    Anti-air modular base defense.
+       Strong vs Aircraft
+       Weak vs Ground units
+
+actor-gagat =
+    .name = Vulture Tower
+    .description =
+    Advanced modular base defense.
+       Strong vs Infantry and Light armor
+       Weak vs Aircraft
+
+actor-gasen =
+    .name = Sensor Tower
+    .description =
+    Sensor-equipped modular base defense.
+    Can detect cloaked units.
+       Strong vs Infantry
+       Weak vs Aircraft
+
+actor-gamortar =
+    .name = Mortar Tower
+    .description =
+    Long-range modular base defense.
+       Strong vs Ground units
+       Weak vs Aircraft
+
 ## gdi-vehicles.yaml
 actor-apc =
     .name = Amphibious APC
@@ -528,10 +585,10 @@ actor-mmch =
 
 
 actor-4tnk-name = Mammoth Tank
-    .description =
+actor-4tnk-description =
     Heavy armored tank armed with dual cannons and missiles.
        Strong vs Vehicles and Aircraft
-       Weak vs Infantry and Aircraft
+       Weak vs Infantry
 
 actor-hmec =
     .name = Mammoth Mk. II
@@ -730,9 +787,9 @@ actor-napost =
 actor-nafnce-name = Laser Fence
 
 actor-nalasr =
-    .name = Laser Turret
+    .name = Laser Tower
     .description =
-    Basic base defense.
+    Laser-based base defense.
     Requires power to operate.
        Strong vs Ground units
        Weak vs Aircraft
@@ -752,6 +809,22 @@ actor-nasam =
     Requires power to operate.
        Strong vs Aircraft
        Weak vs Ground units
+
+actor-nagat =
+    .name = Gattling Tower
+    .description =
+    Rapid-fire base defense.
+    Requires power to operate.
+       Strong vs Infantry and Light armor
+       Weak vs Aircraft
+
+actor-naflamer =
+    .name = Flamer Tower
+    .description =
+    Flame-based base defense.
+    Requires power to operate.
+       Strong vs Infantry and Buildings
+       Weak vs Aircraft
 
 ## nod-vehicles.yaml
 actor-bggy =

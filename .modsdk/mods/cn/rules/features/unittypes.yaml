@@ -20,6 +20,8 @@
 		HP: 50
 	Armor:
 		Type: None
+	CombatChatter:
+		Voice: Attack
 	ExternalCondition@FORESTCOVER:
 		Condition: forest-cover
 	Cloak@FORESTCOVER:
@@ -511,10 +513,10 @@
 		CurveRollSpeed: 5
 		SpiralInitialSpin: 4, 12
 		SpiralAcceleration: 2
-		SpiralMaxSpin: 34
-		TumbleYawRate: -6, 7
-		TumblePitchRate: 4, 12
-		TumbleRollRate: -14, 15
+		SpiralMaxSpin: 24
+		TumbleYawRate: -3, 4
+		TumblePitchRate: 2, 6
+		TumbleRollRate: -7, 8
 		SmokeTrailImage: durasmoke_medium
 		SmokeTrailSequences: idle
 		SmokeTrailInterval: 3

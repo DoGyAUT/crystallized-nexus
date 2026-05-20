@@ -186,7 +186,7 @@ ORCA_F1:
 		LocalOffset: 1000,0,220
 	AttackAircraft:
 		Armaments: missiles, gun
-		FacingTolerance: 80
+		FacingTolerance: 512
 		PersistentTargeting: false
 		Voice: Attack
 		PauseOnCondition: empdisable
@@ -426,7 +426,7 @@ HORNET:
 		Queue: Air
 		BuildPaletteOrder: 50
 		Prerequisites: ~gahpad, gatech, ~techlevel.high
-		Description: actor-scrin.description
+		Description: actor-hornet.description
 	Selectable:
 		Bounds: 905, 1448
 	Voiced:

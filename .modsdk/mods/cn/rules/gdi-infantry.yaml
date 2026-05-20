@@ -211,7 +211,7 @@ GASNIPER:
 		Queue: Infantry
 		BuildPaletteOrder: 60
 		Prerequisites: ~gapile, garadr, ~techlevel.medium
-		Description: actor-e1.description
+		Description: actor-gasniper.description
 	Valued:
 		Cost: 500
 	Tooltip:

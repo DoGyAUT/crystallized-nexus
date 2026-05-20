@@ -3,8 +3,8 @@
 	PlayerResources:
 		ResourceValues:
 			Tiberium: 25
-			BlueTiberium: 40
-			RedTiberium: 80
+			BlueTiberium: 50
+			RedTiberium: 100
 			Veins: 0
 
 EditorPlayer:

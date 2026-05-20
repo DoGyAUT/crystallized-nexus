@@ -135,9 +135,9 @@ ObeliskLaserFire:
 		Duration: 8
 		DamageDuration: 8
 		DamageInterval: 2
-		Color: FFF4C8F0
-		SecondaryBeamWidth: 160
-		SecondaryBeamColor: FF9A3030
+		Color: FF4040F0
+		SecondaryBeamWidth: 240
+		SecondaryBeamColor: FF2A2A20
 	Warhead@1Dam: SpreadDamage
 		Damage: 125
 	Warhead@2Sparks: SparkBurst
@@ -154,9 +154,9 @@ TurretLaserFire:
 		Duration: 16
 		DamageDuration: 16
 		DamageInterval: 2
-		Color: FFF4C8F0
-		SecondaryBeamWidth: 160
-		SecondaryBeamColor: FF9A3030
+		Color: FF4040F0
+		SecondaryBeamWidth: 240
+		SecondaryBeamColor: FF2A2A20
 	Warhead@1Dam: SpreadDamage
 		Damage: 25
 
@@ -169,20 +169,14 @@ LaserFence:
 		DamageTypes: FireDeath
 
 AcolyteGun:
-	Inherits: ^MGBullet
+	Inherits: ^Bullet
 	Inherits@wh: ^TiberiumWarhead
 	ReloadDelay: 100
 	Range: 6c497
 	Report: tibrifle01.aud, tibrifle02.aud, tibrifle03.aud
 	Burst: 4
-	Projectile: Bullet
-		Image: tiberiumBullet
-		Palette: effect
+	Projectile: InstantHit
 		Inaccuracy: 1c0
-		ContrailLength: 3
-		ContrailStartColor: 00FF64
-		ContrailStartWidth: 14
-		ContrailEndWidth: 0c10
 	Warhead@1Dam: SpreadDamage
 		Damage: 60
 	Warhead@2Eff: CreateEffect

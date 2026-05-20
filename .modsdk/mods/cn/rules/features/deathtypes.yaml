@@ -24,7 +24,7 @@
 	DeathSounds@NORMAL:
 		DeathTypes: BulletDeath, SmallExplosionDeath
 	DeathSounds@EXPLOSION:
-		Voice: Explode
+		Voice: Burned
 		DeathTypes: ExplosionDeath
 	DeathSounds@BURNED:
 		Voice: Burned

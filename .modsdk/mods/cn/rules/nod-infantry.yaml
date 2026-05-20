@@ -14,7 +14,7 @@ NASOL:
 	Valued:
 		Cost: 120
 	Tooltip:
-		Name: actor-e1.name
+		Name: actor-nasol.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	CNHealth:
@@ -152,13 +152,13 @@ NACAD:
 		Queue: Infantry
 		BuildPaletteOrder: 60
 		Prerequisites: ~nahand, naradr, ~techlevel.medium
-		Description: actor-e1.description
+		Description: actor-nacad.description
 	Voiced:
 		VoiceSet: EliteCadre
 	Valued:
 		Cost: 600
 	Tooltip:
-		Name: actor-e1.name
+		Name: actor-nacad.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	CNHealth:
@@ -204,7 +204,7 @@ SHADOW:
 	Valued:
 		Cost: 800
 	Tooltip:
-		Name: actor-e1.name
+		Name: actor-shadow.name
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	CNHealth:
@@ -251,7 +251,7 @@ ACOLYTE:
 		Queue: Infantry
 		BuildPaletteOrder: 60
 		Prerequisites: ~nahand, napyra, ~techlevel.high
-		Description: actor-e1.description
+		Description: actor-acolyte.description
 	Voiced:
 		VoiceSet: Acolyte
 	Valued:
