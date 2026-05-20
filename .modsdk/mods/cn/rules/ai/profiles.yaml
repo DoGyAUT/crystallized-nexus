@@ -1,0 +1,51 @@
+Player:
+	CNBotProfileBotModule@adaptive:
+		# Adaptive switching decides which profile is active.
+		AdaptiveMinimumIntentHoldTicks: 3000
+		AdaptiveEmergencyTurtleDangerThreshold: 650
+		AdaptiveSteamrollerEarliestTick: 5000
+		AdaptiveSteamrollerUnitThreshold: 22
+		AdaptiveTechCashThreshold: 6000
+		AdaptiveExpansionIncomeThreshold: 300
+		AdaptiveRushUnitThreshold: 12
+
+		RushExpansionBudget: 12
+		RushTechBudget: 8
+		RushDefenseBudget: 8
+		RushProductionBudget: 42
+		TurtleExpansionBudget: 30
+		TurtleTechBudget: 14
+		TurtleDefenseBudget: 42
+		TurtleProductionBudget: 14
+		TechExpansionBudget: 14
+		TechTechBudget: 36
+		TechDefenseBudget: 24
+		TechProductionBudget: 26
+		ExpansionExpansionBudget: 42
+		ExpansionTechBudget: 16
+		ExpansionDefenseBudget: 16
+		ExpansionProductionBudget: 14
+		SteamrollerExpansionBudget: 12
+		SteamrollerTechBudget: 10
+		SteamrollerDefenseBudget: 8
+		SteamrollerProductionBudget: 70
+		
+		HarvesterTargetPercents:
+			Rush: 95
+			Turtle: 125
+			Tech: 105
+			Expansion: 125
+			Steamroller: 115
+		
+		MidTechTicks:
+			Rush: 3200
+			Turtle: 6000
+			Tech: 3000
+			Expansion: 4000
+			Steamroller: 4200
+		LateTechTicks:
+			Rush: 7500
+			Turtle: 9000
+			Tech: 6500
+			Expansion: 7500
+			Steamroller: 6500

@@ -731,7 +731,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		int GetDemandScore(CNTeamTemplateInfo template, CNSlotInfo slot, int missingCount, bool existingSquad)
 		{
-			var score = EffectivePriority(template) * 100 + missingCount;
+			var score = EffectivePriority(template) * 100 + missingCount * 10;
 
 			if (!slot.Optional)
 				score += 40;
@@ -742,7 +742,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				score += 80;
 
 			if (existingSquad)
+			{
 				score += 200;
+
+				var slotsFilled = slot.Count - missingCount;
+				if (slotsFilled > 0)
+					score += slotsFilled * 30;
+			}
 
 			return score;
 		}

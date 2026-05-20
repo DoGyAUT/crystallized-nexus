@@ -1,7 +1,7 @@
 Player:
 	CNSquadManagerBotModule@steamroller:
 		RequiresCondition: enable-cn-steamroller || cn-profile-steamroller
-		IdleScanRadius: 10
+		IdleScanRadius: 16
 		DangerScanRadius: 10
 		AttackScanRadius: 12
 		AssignRolesInterval: 50
@@ -10,7 +10,7 @@ Player:
 		SupportFollowRangeCells: 7
 		AttackWaveEnabled: true
 		AttackWaveInitialDelay: 3200
-		AttackWaveInterval: 4200
+		AttackWaveInterval: 3000
 		AttackWaveMinReadySquads: 4
 		AttackWaveMaxMinReadySquads: 11
 		AttackWaveMaxSkipsBeforeFallback: 2
@@ -23,10 +23,11 @@ Player:
 		WaveHoldScatterCells: 6
 		WaveParticipantRoles: Assault, ArtilleryAssault, SubterraneanAssault, AircraftAttack
 		ArmyCompositionRatio:
-			Assault: 56
+			Assault: 52
 			ArtilleryAssault: 14
 			AircraftAttack: 10
 			SubterraneanAssault: 8
+			SubterraneanTransport: 4
 			Raider: 4
 			Support: 4
 			AircraftRaider: 4
@@ -34,7 +35,7 @@ Player:
 			GDI_BasicInfantry_AntiInfantry:
 				Role: Assault
 				Priority: 100
-				MaxInstances: 6
+				MaxInstances: 8
 				PriorityTargetCapabilities: Infantry
 				ScaleWithBuilding: gapile
 				SquadsPerBuilding: 2
@@ -53,7 +54,7 @@ Player:
 			GDI_BasicInfantry_AntiArmor:
 				Role: Assault
 				Priority: 100
-				MaxInstances: 6
+				MaxInstances: 8
 				PriorityTargetCapabilities: Harvester, Vehicle
 				ScaleWithBuilding: gapile
 				SquadsPerBuilding: 2
@@ -212,7 +213,7 @@ Player:
 			GDI_Mammoth_Attack:
 				Role: Assault
 				Priority: 112
-				MaxInstances: 4
+				MaxInstances: 6
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
 				MinSlotsToActivate: 1
@@ -423,7 +424,7 @@ Player:
 			Nod_BasicInfantry_AntiInfantry:
 				Role: Assault
 				Priority: 100
-				MaxInstances: 6
+				MaxInstances: 8
 				PriorityTargetCapabilities: Infantry
 				ScaleWithBuilding: nahand
 				SquadsPerBuilding: 2
@@ -442,7 +443,7 @@ Player:
 			Nod_BasicInfantry_AntiArmor:
 				Role: Assault
 				Priority: 100
-				MaxInstances: 6
+				MaxInstances: 8
 				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
 				ScaleWithBuilding: nahand
 				SquadsPerBuilding: 2

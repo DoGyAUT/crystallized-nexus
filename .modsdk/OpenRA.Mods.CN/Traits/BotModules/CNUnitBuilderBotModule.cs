@@ -65,21 +65,18 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Additional reserve per available production queue to avoid spending to zero across many factories.")]
 		public readonly int AdditionalCashReservePerQueue = 200;
 
-		public readonly int EcoProductionMinCashRequirement = -1;
 		public readonly int RushProductionMinCashRequirement = -1;
 		public readonly int TurtleProductionMinCashRequirement = -1;
 		public readonly int TechProductionMinCashRequirement = -1;
 		public readonly int ExpansionProductionMinCashRequirement = -1;
 		public readonly int SteamrollerProductionMinCashRequirement = -1;
 
-		public readonly int EcoDesiredCashReserve = -1;
 		public readonly int RushDesiredCashReserve = -1;
 		public readonly int TurtleDesiredCashReserve = -1;
 		public readonly int TechDesiredCashReserve = -1;
 		public readonly int ExpansionDesiredCashReserve = -1;
 		public readonly int SteamrollerDesiredCashReserve = -1;
 
-		public readonly int EcoAdditionalCashReservePerQueue = -1;
 		public readonly int RushAdditionalCashReservePerQueue = -1;
 		public readonly int TurtleAdditionalCashReservePerQueue = -1;
 		public readonly int TechAdditionalCashReservePerQueue = -1;
@@ -128,7 +125,6 @@ namespace OpenRA.Mods.CN.Traits
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
 		int ticks;
-		int currentQueueIndex;
 
 		public CNUnitBuilderBotModule(Actor self, CNUnitBuilderBotModuleInfo info)
 			: base(info)
@@ -245,20 +241,17 @@ namespace OpenRA.Mods.CN.Traits
 			var builtAny = false;
 			var committedCost = 0;
 
-			for (var i = 0; i < Info.UnitQueues.Length; i++)
-			{
-				if (++currentQueueIndex >= Info.UnitQueues.Length)
-					currentQueueIndex = 0;
+			var orderedCategories = OrderCategoriesByDemand(demand);
 
-				var queueCategory = Info.UnitQueues[currentQueueIndex];
+			foreach (var queueCategory in orderedCategories)
+			{
 				var queueSlots = GetAvailableQueues(queuesByCategory, queueCategory);
 				if (queueSlots.Count == 0)
 					continue;
 
 				foreach (var queue in queueSlots)
 				{
-					if (string.Equals(queueCategory, "Vehicle", StringComparison.OrdinalIgnoreCase) &&
-						TryBuildReservedVehicle(bot, queue, existingByType, demand, queuesByCategory, ref committedCost))
+					if (TryBuildReservedTemplate(bot, queue, existingByType, demand, queuesByCategory, ref committedCost))
 					{
 						builtAny = true;
 						continue;
@@ -288,6 +281,28 @@ namespace OpenRA.Mods.CN.Traits
 			}
 
 			return builtAny;
+		}
+
+		IEnumerable<string> OrderCategoriesByDemand(Dictionary<string, int> demand)
+		{
+			var categoryDemands = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+			foreach (var (typeName, missingCount) in demand)
+			{
+				if (missingCount <= 0)
+					continue;
+
+				var actorInfo = world.Map.Rules.Actors.GetValueOrDefault(typeName);
+				var buildable = actorInfo?.TraitInfoOrDefault<BuildableInfo>();
+				if (buildable == null)
+					continue;
+
+				foreach (var category in buildable.Queue)
+					if (Info.UnitQueues.Contains(category))
+						categoryDemands[category] = categoryDemands.GetValueOrDefault(category) + missingCount;
+			}
+
+			return Info.UnitQueues
+				.OrderByDescending(c => categoryDemands.GetValueOrDefault(c));
 		}
 
 		ActorInfo FindBestDemandUnit(
@@ -328,11 +343,7 @@ namespace OpenRA.Mods.CN.Traits
 				if (!HasBudgetFor(actorInfo, committedCost, queuesByCategory))
 					continue;
 
-				var existing = existingByType.GetValueOrDefault(typeName);
-				var score = (float)missingCount / (existing + 1);
-
-				if (existing == 0)
-					score += 25f;
+				var score = (float)missingCount;
 
 				if (score > bestScore)
 				{
@@ -352,12 +363,8 @@ namespace OpenRA.Mods.CN.Traits
 			var builtAny = false;
 			var committedCost = 0;
 
-			for (var i = 0; i < Info.UnitQueues.Length; i++)
+			foreach (var category in Info.UnitQueues)
 			{
-				if (++currentQueueIndex >= Info.UnitQueues.Length)
-					currentQueueIndex = 0;
-
-				var category = Info.UnitQueues[currentQueueIndex];
 				var queues = GetAvailableQueues(queuesByCategory, category);
 				if (queues.Count == 0)
 					continue;
@@ -516,7 +523,7 @@ namespace OpenRA.Mods.CN.Traits
 			return result;
 		}
 
-		bool TryBuildReservedVehicle(
+		bool TryBuildReservedTemplate(
 			IBot bot,
 			ProductionQueue queue,
 			Dictionary<string, int> existingByType,
@@ -525,11 +532,11 @@ namespace OpenRA.Mods.CN.Traits
 			ref int committedCost)
 		{
 			var reservation = GetOrCreateReservation(queue);
-			var next = GetReservedVehicleBuild(queue, reservation.TemplateName, existingByType);
+			var next = GetReservedTemplateBuild(queue, reservation.TemplateName, existingByType);
 			if (next == null)
 			{
-				reservation.TemplateName = FindBestVehicleTemplate(queue, existingByType);
-				next = GetReservedVehicleBuild(queue, reservation.TemplateName, existingByType);
+				reservation.TemplateName = FindBestQueueTemplate(queue, existingByType);
+				next = GetReservedTemplateBuild(queue, reservation.TemplateName, existingByType);
 				if (next == null)
 				{
 					ReleaseReservation(queue, reservation);
@@ -560,7 +567,7 @@ namespace OpenRA.Mods.CN.Traits
 			else
 				demand.Remove(next.Name);
 
-			if (GetReservedVehicleBuild(queue, reservation.TemplateName, existingByType) == null)
+			if (GetReservedTemplateBuild(queue, reservation.TemplateName, existingByType) == null)
 				ReleaseReservation(queue, reservation);
 
 			return true;
@@ -584,7 +591,7 @@ namespace OpenRA.Mods.CN.Traits
 			queueReservations.Remove(queue.Actor.ActorID);
 		}
 
-		string FindBestVehicleTemplate(ProductionQueue queue, Dictionary<string, int> existingByType)
+		string FindBestQueueTemplate(ProductionQueue queue, Dictionary<string, int> existingByType)
 		{
 			if (squadManager == null || squadManager.IsTraitDisabled)
 				return null;
@@ -599,12 +606,12 @@ namespace OpenRA.Mods.CN.Traits
 				if (!TemplateAppliesToFaction(template))
 					continue;
 
-				var next = GetReservedVehicleBuild(queue, templateName, existingByType);
+				var next = GetReservedTemplateBuild(queue, templateName, existingByType);
 				if (next == null)
 					continue;
 
 				var score = squadManager.GetEffectivePriority(template) * 100;
-				if (HasExistingTemplateVehicleDeficit(templateName, queue, existingByType))
+				if (HasExistingTemplateQueueDeficit(templateName, queue, existingByType))
 					score += TemplateDeficitBonus;
 
 				var currentCount = CountReservedTemplateSquads(templateName);
@@ -654,7 +661,7 @@ namespace OpenRA.Mods.CN.Traits
 			return penaltySteps * TemplateRecentBuildPenaltyStep;
 		}
 
-		bool HasExistingTemplateVehicleDeficit(string templateName, ProductionQueue queue, Dictionary<string, int> existingByType)
+		bool HasExistingTemplateQueueDeficit(string templateName, ProductionQueue queue, Dictionary<string, int> existingByType)
 		{
 			foreach (var squad in squadManager.Squads)
 			{
@@ -679,7 +686,7 @@ namespace OpenRA.Mods.CN.Traits
 			return false;
 		}
 
-		ActorInfo GetReservedVehicleBuild(ProductionQueue queue, string templateName, Dictionary<string, int> existingByType)
+		ActorInfo GetReservedTemplateBuild(ProductionQueue queue, string templateName, Dictionary<string, int> existingByType)
 		{
 			if (string.IsNullOrEmpty(templateName) || squadManager == null || squadManager.IsTraitDisabled)
 				return null;
@@ -805,7 +812,7 @@ namespace OpenRA.Mods.CN.Traits
 				BotProfile.Rush => Info.RushProductionMinCashRequirement,
 				BotProfile.Turtle => Info.TurtleProductionMinCashRequirement,
 				BotProfile.Tech => Info.TechProductionMinCashRequirement,
-				BotProfile.Expansion => Info.ExpansionProductionMinCashRequirement >= 0 ? Info.ExpansionProductionMinCashRequirement : Info.EcoProductionMinCashRequirement,
+				BotProfile.Expansion => Info.ExpansionProductionMinCashRequirement,
 				BotProfile.Steamroller => Info.SteamrollerProductionMinCashRequirement,
 				_ => -1
 			};
@@ -820,7 +827,7 @@ namespace OpenRA.Mods.CN.Traits
 				BotProfile.Rush => Info.RushDesiredCashReserve,
 				BotProfile.Turtle => Info.TurtleDesiredCashReserve,
 				BotProfile.Tech => Info.TechDesiredCashReserve,
-				BotProfile.Expansion => Info.ExpansionDesiredCashReserve >= 0 ? Info.ExpansionDesiredCashReserve : Info.EcoDesiredCashReserve,
+				BotProfile.Expansion => Info.ExpansionDesiredCashReserve,
 				BotProfile.Steamroller => Info.SteamrollerDesiredCashReserve,
 				_ => -1
 			};
@@ -835,7 +842,7 @@ namespace OpenRA.Mods.CN.Traits
 				BotProfile.Rush => Info.RushAdditionalCashReservePerQueue,
 				BotProfile.Turtle => Info.TurtleAdditionalCashReservePerQueue,
 				BotProfile.Tech => Info.TechAdditionalCashReservePerQueue,
-				BotProfile.Expansion => Info.ExpansionAdditionalCashReservePerQueue >= 0 ? Info.ExpansionAdditionalCashReservePerQueue : Info.EcoAdditionalCashReservePerQueue,
+				BotProfile.Expansion => Info.ExpansionAdditionalCashReservePerQueue,
 				BotProfile.Steamroller => Info.SteamrollerAdditionalCashReservePerQueue,
 				_ => -1
 			};

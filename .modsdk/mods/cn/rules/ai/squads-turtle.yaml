@@ -1,17 +1,17 @@
 Player:
 	CNSquadManagerBotModule@turtle:
 		RequiresCondition: enable-cn-turtle || cn-profile-turtle
-		IdleScanRadius: 10
+		IdleScanRadius: 16
 		DangerScanRadius: 13
 		AttackScanRadius: 13
 		AssignRolesInterval: 50
 		AttackForceInterval: 95
-		MinimumAttackForceDelay: 3000
+		MinimumAttackForceDelay: 1800
 		ArtilleryHangBackCells: 8
 		SupportFollowRangeCells: 9
 		AttackWaveEnabled: true
-		AttackWaveInitialDelay: 8500
-		AttackWaveInterval: 6800
+		AttackWaveInitialDelay: 6000
+		AttackWaveInterval: 4800
 		AttackWaveMinReadySquads: 5
 		AttackWaveMaxMinReadySquads: 9
 		AttackWaveMaxSkipsBeforeFallback: 2
@@ -26,18 +26,19 @@ Player:
 		ArmyCompositionRatio:
 			Defense: 28
 			ArtilleryDefense: 10
-			Assault: 28
+			Assault: 25
 			ArtilleryAssault: 8
 			Support: 8
 			Stealth: 6
 			AircraftAttack: 5
+			SubterraneanTransport: 3
 			AircraftRaider: 3
 			Raider: 2
 			AirTransport: 2
 		Teams:
 			GDI_BasicInfantry_AntiInfantry:
 				Role: Assault
-				Priority: 100
+				Priority: 92
 				MaxInstances: 6
 				PriorityTargetCapabilities: Infantry
 				ScaleWithBuilding: gapile
@@ -60,7 +61,7 @@ Player:
 						Optional: True
 			GDI_BasicInfantry_AntiArmor:
 				Role: Assault
-				Priority: 100
+				Priority: 92
 				MaxInstances: 6
 				PriorityTargetCapabilities: Harvester, Vehicle
 				ScaleWithBuilding: gapile
@@ -127,9 +128,6 @@ Player:
 					AntiArmor: 3
 					AntiInfantry: 3
 					AntiAir: 3
-				ThreatBonusesGlobalPerUnit:
-					Harvester: 3
-					ArmorDefense: 2
 				Slots:
 					1:
 						Count: 3
@@ -152,8 +150,6 @@ Player:
 				ThreatBonusesPerUnit:
 					ArmorDefense: 4
 					InfantryDefense: 2
-				ThreatBonusesGlobalPerUnit:
-					Harvester: 2
 				Slots:
 					1:
 						Count: 2
@@ -241,8 +237,8 @@ Player:
 						AllowedTypes: gtmtnk
 			GDI_HoverMLRS_Raider:
 				Role: Raider
-				Priority: 115
-				MaxInstances: 8
+				Priority: 88
+				MaxInstances: 2
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
@@ -452,7 +448,7 @@ Player:
 						IsPassenger: True
 			Nod_BasicInfantry_AntiInfantry:
 				Role: Assault
-				Priority: 100
+				Priority: 92
 				MaxInstances: 6
 				PriorityTargetCapabilities: Infantry
 				ScaleWithBuilding: nahand
@@ -475,7 +471,7 @@ Player:
 						Optional: True
 			Nod_BasicInfantry_AntiArmor:
 				Role: Assault
-				Priority: 100
+				Priority: 92
 				MaxInstances: 6
 				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
 				ScaleWithBuilding: nahand
@@ -539,7 +535,7 @@ Player:
 						Optional: True
 			Nod_Buggy_Raid:
 				Role: Raider
-				Priority: 95
+				Priority: 86
 				MaxInstances: 3
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
@@ -557,7 +553,7 @@ Player:
 						AllowedTypes: bggy
 			Nod_Bike_Raid:
 				Role: Raider
-				Priority: 95
+				Priority: 86
 				MaxInstances: 3
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
@@ -624,9 +620,6 @@ Player:
 					AntiArmor: 3
 					AntiInfantry: 3
 					AntiAir: 3
-				ThreatBonusesGlobalPerUnit:
-					Harvester: 3
-					ArmorDefense: 2
 				Slots:
 					1:
 						Count: 3
@@ -649,8 +642,6 @@ Player:
 				ThreatBonusesPerUnit:
 					ArmorDefense: 4
 					InfantryDefense: 2
-				ThreatBonusesGlobalPerUnit:
-					Harvester: 2
 				Slots:
 					1:
 						Count: 2

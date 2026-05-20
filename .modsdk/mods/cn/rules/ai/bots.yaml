@@ -39,10 +39,10 @@ Player:
 		RequiresCondition: enable-cn-ai
 		Profile: Adaptive
 		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
-		AdaptiveEcoIncomeThreshold: 250
+		AdaptiveExpansionIncomeThreshold: 250
 		AdaptiveTurtleDangerThreshold: 420
 		AdaptiveRushUnitThreshold: 14
-		AdaptiveEcoGraceTicks: 3600
+		AdaptiveExpansionGraceTicks: 3600
 		RushUnitThresholdEarlyOffset: 6
 		RushUnitThresholdLateOffset: -4
 		AdaptiveStartProfiles: Rush, Expansion, Turtle

@@ -1,0 +1,17 @@
+Player:
+	CNUnitBuilderBotModule@Combat:
+		RushProductionMinCashRequirement: 150
+		RushDesiredCashReserve: 280
+		RushAdditionalCashReservePerQueue: 50
+		TurtleProductionMinCashRequirement: 200
+		TurtleDesiredCashReserve: 380
+		TurtleAdditionalCashReservePerQueue: 60
+		ExpansionProductionMinCashRequirement: 280
+		ExpansionDesiredCashReserve: 550
+		ExpansionAdditionalCashReservePerQueue: 65
+		TechProductionMinCashRequirement: 220
+		TechDesiredCashReserve: 550
+		TechAdditionalCashReservePerQueue: 75
+		SteamrollerProductionMinCashRequirement: 80
+		SteamrollerDesiredCashReserve: 120
+		SteamrollerAdditionalCashReservePerQueue: 28

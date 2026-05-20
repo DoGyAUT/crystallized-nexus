@@ -20,7 +20,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly BotProfile Profile;
 		public readonly TechStage TechStage;
-		public readonly int EcoBudget;
+		public readonly int ExpansionBudget;
 		public readonly int TechBudget;
 		public readonly int DefenseBudget;
 		public readonly int ProductionBudget;
@@ -29,7 +29,7 @@ namespace OpenRA.Mods.Common.Traits
 		public CNBotStrategySnapshot(
 			BotProfile profile,
 			TechStage techStage,
-			int ecoBudget,
+			int expansionBudget,
 			int techBudget,
 			int defenseBudget,
 			int productionBudget,
@@ -37,11 +37,29 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			Profile = profile;
 			TechStage = techStage;
-			EcoBudget = ecoBudget;
+			ExpansionBudget = expansionBudget;
 			TechBudget = techBudget;
 			DefenseBudget = defenseBudget;
 			ProductionBudget = productionBudget;
 			HarvesterTargetPercent = harvesterTargetPercent;
+		}
+	}
+
+	public sealed class CNBotProfileBudget
+	{
+		public readonly int Expansion = 25;
+		public readonly int Tech = 15;
+		public readonly int Defense = 20;
+		public readonly int Production = 25;
+
+		public CNBotProfileBudget() { }
+
+		public CNBotProfileBudget(int expansion, int tech, int defense, int production)
+		{
+			Expansion = expansion;
+			Tech = tech;
+			Defense = defense;
+			Production = production;
 		}
 	}
 
@@ -56,8 +74,8 @@ namespace OpenRA.Mods.Common.Traits
 			"E.g. Tech Center, Pyramid, Missile Silo. Empty = no Late stage detected.")]
 		public readonly FrozenSet<string> LateTechTypes = FrozenSet<string>.Empty;
 
-		[Desc("Cash reserve below this value (after grace period) triggers Eco mode.")]
-		public readonly int AdaptiveEcoIncomeThreshold = 150;
+		[Desc("Cash reserve below this value (after grace period) triggers Expansion mode.")]
+		public readonly int AdaptiveExpansionIncomeThreshold = 150;
 
 		[Desc("Sum of defense danger hotspot weights above this triggers Turtle mode.")]
 		public readonly int AdaptiveTurtleDangerThreshold = 350;
@@ -68,8 +86,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks between profile re-evaluations in Adaptive mode.")]
 		public readonly int AdaptiveSwitchCooldownTicks = 1500;
 
-		[Desc("World tick after which low-cash Eco mode can trigger. Prevents false positives in the opening.")]
-		public readonly int AdaptiveEcoGraceTicks = 3000;
+		[Desc("World tick after which low-cash Expansion mode can trigger. Prevents false positives in the opening.")]
+		public readonly int AdaptiveExpansionGraceTicks = 3000;
 
 		[Desc("Added to RushUnitThreshold in Early tech stage (bot needs more units to consider rushing with basic troops).")]
 		public readonly int RushUnitThresholdEarlyOffset = 5;
@@ -133,17 +151,35 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Default target world tick for entering Late tech stage.")]
 		public readonly int DefaultLateTechTick = 12000;
 
-		[Desc("Per-profile eco budget shares. Keys are BotProfile names.")]
-		public readonly FrozenDictionary<string, int> EcoBudgets = null;
+		[Desc("Rush profile budget shares: expansion, tech, defense, production.")]
+		public readonly int RushExpansionBudget = 12;
+		public readonly int RushTechBudget = 8;
+		public readonly int RushDefenseBudget = 8;
+		public readonly int RushProductionBudget = 42;
 
-		[Desc("Per-profile tech budget shares. Keys are BotProfile names.")]
-		public readonly FrozenDictionary<string, int> TechBudgets = null;
+		[Desc("Turtle profile budget shares: expansion, tech, defense, production.")]
+		public readonly int TurtleExpansionBudget = 30;
+		public readonly int TurtleTechBudget = 14;
+		public readonly int TurtleDefenseBudget = 42;
+		public readonly int TurtleProductionBudget = 14;
 
-		[Desc("Per-profile defense budget shares. Keys are BotProfile names.")]
-		public readonly FrozenDictionary<string, int> DefenseBudgets = null;
+		[Desc("Tech profile budget shares: expansion, tech, defense, production.")]
+		public readonly int TechExpansionBudget = 18;
+		public readonly int TechTechBudget = 40;
+		public readonly int TechDefenseBudget = 24;
+		public readonly int TechProductionBudget = 18;
 
-		[Desc("Per-profile production budget shares. Keys are BotProfile names.")]
-		public readonly FrozenDictionary<string, int> ProductionBudgets = null;
+		[Desc("Expansion profile budget shares: expansion, tech, defense, production.")]
+		public readonly int ExpansionExpansionBudget = 42;
+		public readonly int ExpansionTechBudget = 16;
+		public readonly int ExpansionDefenseBudget = 16;
+		public readonly int ExpansionProductionBudget = 14;
+
+		[Desc("Steamroller profile budget shares: expansion, tech, defense, production.")]
+		public readonly int SteamrollerExpansionBudget = 16;
+		public readonly int SteamrollerTechBudget = 12;
+		public readonly int SteamrollerDefenseBudget = 8;
+		public readonly int SteamrollerProductionBudget = 64;
 
 		[Desc("Per-profile harvester target multiplier in percent. Keys are BotProfile names.")]
 		public readonly FrozenDictionary<string, int> HarvesterTargetPercents = null;
@@ -307,8 +343,8 @@ namespace OpenRA.Mods.Common.Traits
 				+ (ActiveTechStage == TechStage.Early ? Info.RushUnitThresholdEarlyOffset : 0)
 				+ (ActiveTechStage == TechStage.Late  ? Info.RushUnitThresholdLateOffset  : 0);
 
-			var needsExpansion = world.WorldTick > Info.AdaptiveEcoGraceTicks
-				&& cash < Info.AdaptiveEcoIncomeThreshold
+			var needsExpansion = world.WorldTick > Info.AdaptiveExpansionGraceTicks
+				&& cash < Info.AdaptiveExpansionIncomeThreshold
 				&& (!baseBuilder.HasAdequateRefineryCount() || baseBuilder.ShouldExpandEconomy());
 
 			var steamrollerReady = world.WorldTick >= Info.AdaptiveSteamrollerEarliestTick
@@ -463,14 +499,33 @@ namespace OpenRA.Mods.Common.Traits
 
 		CNBotStrategySnapshot CreateStrategySnapshot(BotProfile profile, TechStage techStage)
 		{
+			var budget = GetProfileBudget(profile);
 			return new CNBotStrategySnapshot(
 				profile,
 				techStage,
-				GetProfileValue(Info.EcoBudgets, profile, DefaultEcoBudget(profile)),
-				GetProfileValue(Info.TechBudgets, profile, DefaultTechBudget(profile)),
-				GetProfileValue(Info.DefenseBudgets, profile, DefaultDefenseBudget(profile)),
-				GetProfileValue(Info.ProductionBudgets, profile, DefaultProductionBudget(profile)),
+				budget.Expansion,
+				budget.Tech,
+				budget.Defense,
+				budget.Production,
 				GetProfileValue(Info.HarvesterTargetPercents, profile, DefaultHarvesterTargetPercent(profile)));
+		}
+
+		CNBotProfileBudget GetProfileBudget(BotProfile profile)
+		{
+			return profile switch
+			{
+				BotProfile.Rush => new CNBotProfileBudget(
+					Info.RushExpansionBudget, Info.RushTechBudget, Info.RushDefenseBudget, Info.RushProductionBudget),
+				BotProfile.Turtle => new CNBotProfileBudget(
+					Info.TurtleExpansionBudget, Info.TurtleTechBudget, Info.TurtleDefenseBudget, Info.TurtleProductionBudget),
+				BotProfile.Tech => new CNBotProfileBudget(
+					Info.TechExpansionBudget, Info.TechTechBudget, Info.TechDefenseBudget, Info.TechProductionBudget),
+				BotProfile.Expansion => new CNBotProfileBudget(
+					Info.ExpansionExpansionBudget, Info.ExpansionTechBudget, Info.ExpansionDefenseBudget, Info.ExpansionProductionBudget),
+				BotProfile.Steamroller => new CNBotProfileBudget(
+					Info.SteamrollerExpansionBudget, Info.SteamrollerTechBudget, Info.SteamrollerDefenseBudget, Info.SteamrollerProductionBudget),
+				_ => new CNBotProfileBudget()
+			};
 		}
 
 		static int GetProfileValue(FrozenDictionary<string, int> values, BotProfile profile, int fallback)
@@ -479,58 +534,6 @@ namespace OpenRA.Mods.Common.Traits
 				return fallback;
 
 			return values.TryGetValue(profile.ToString(), out var value) ? value : fallback;
-		}
-
-		static int DefaultEcoBudget(BotProfile profile)
-		{
-			return profile switch
-			{
-				BotProfile.Rush => 14,
-				BotProfile.Turtle => 30,
-				BotProfile.Tech => 22,
-				BotProfile.Expansion => 34,
-				BotProfile.Steamroller => 24,
-				_ => 25
-			};
-		}
-
-		static int DefaultTechBudget(BotProfile profile)
-		{
-			return profile switch
-			{
-				BotProfile.Rush => 8,
-				BotProfile.Turtle => 12,
-				BotProfile.Tech => 30,
-				BotProfile.Expansion => 14,
-				BotProfile.Steamroller => 14,
-				_ => 15
-			};
-		}
-
-		static int DefaultDefenseBudget(BotProfile profile)
-		{
-			return profile switch
-			{
-				BotProfile.Rush => 10,
-				BotProfile.Turtle => 34,
-				BotProfile.Tech => 24,
-				BotProfile.Expansion => 20,
-				BotProfile.Steamroller => 12,
-				_ => 20
-			};
-		}
-
-		static int DefaultProductionBudget(BotProfile profile)
-		{
-			return profile switch
-			{
-				BotProfile.Rush => 36,
-				BotProfile.Turtle => 18,
-				BotProfile.Tech => 24,
-				BotProfile.Expansion => 22,
-				BotProfile.Steamroller => 40,
-				_ => 25
-			};
 		}
 
 		static int DefaultHarvesterTargetPercent(BotProfile profile)

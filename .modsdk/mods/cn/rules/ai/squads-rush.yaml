@@ -1,7 +1,7 @@
 Player:
 	CNSquadManagerBotModule@rush:
 		RequiresCondition: enable-cn-rush || cn-profile-rush
-		IdleScanRadius: 10
+		IdleScanRadius: 16
 		DangerScanRadius: 10
 		AttackScanRadius: 12
 		AssignRolesInterval: 50
@@ -24,26 +24,27 @@ Player:
 		WaveHoldScatterCells: 3
 		WaveParticipantRoles: Assault
 		ArmyCompositionRatio:
-			Assault: 26
+			Assault: 22
 			Raider: 42
 			Transport: 8
 			Support: 3
 			Stealth: 4
+			SubterraneanAssault: 4
 			AircraftRaider: 12
 			AirTransport: 5
 		Teams:
 			GDI_BasicInfantry_AntiInfantry:
 				Role: Assault
 				Priority: 100
-				MaxInstances: 6
+				MaxInstances: 8
 				PriorityTargetCapabilities: Infantry
 				ScaleWithBuilding: gapile
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				ThreatBonuses:
-					Infantry: 30
+					Infantry: 22
 				ThreatBonusesPerUnit:
-					Infantry: 3
+					Infantry: 2
 				ThreatBonusesGlobalPerUnit:
 					InfantryDefense: -4
 					ArmorDefense: 6
@@ -55,15 +56,15 @@ Player:
 			GDI_BasicInfantry_AntiArmor:
 				Role: Assault
 				Priority: 100
-				MaxInstances: 6
+				MaxInstances: 8
 				PriorityTargetCapabilities: Harvester, Vehicle
 				ScaleWithBuilding: gapile
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				ThreatBonuses:
-					Vehicle: 30
+					Vehicle: 22
 				ThreatBonusesPerUnit:
-					Vehicle: 3
+					Vehicle: 2
 				ThreatBonusesGlobalPerUnit:
 					InfantryDefense: -4
 					ArmorDefense: 6
@@ -74,7 +75,7 @@ Player:
 						AllowedTypes: e2
 			GDI_JumpjetInfantry:
 				Role: Raider
-				Priority: 105
+				Priority: 112
 				MaxInstances: 3
 				PriorityTargetCapabilities: Harvester, Infantry, Power
 				ScaleWithBuilding: gapile
@@ -175,7 +176,7 @@ Player:
 			GDI_Archon_Attack:
 				Role: Assault
 				Priority: 95
-				MaxInstances: 3
+				MaxInstances: 5
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
 				MinSlotsToActivate: 1
@@ -193,7 +194,7 @@ Player:
 			GDI_Titan_Attack:
 				Role: Assault
 				Priority: 98
-				MaxInstances: 3
+				MaxInstances: 5
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
 				MinSlotsToActivate: 1
@@ -242,7 +243,7 @@ Player:
 						AllowedTypes: 4tnk
 			GDI_HoverMLRS_Raid:
 				Role: Raider
-				Priority: 98
+				Priority: 112
 				MaxInstances: 2
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
@@ -345,7 +346,7 @@ Player:
 						AllowedTypes: orca_b
 			GDI_Orca_Raid:
 				Role: AircraftRaider
-				Priority: 110
+				Priority: 118
 				MaxInstances: 4
 				ScaleWithBuilding: gahpad
 				SquadsPerBuilding: 1
@@ -369,7 +370,7 @@ Player:
 						AllowedTypes: orca_f1
 			GDI_Orca_TransportAttack:
 				Role: AirTransport
-				Priority: 108
+				Priority: 114
 				MaxInstances: 4
 				ScaleWithBuilding: gahpad
 				SquadsPerBuilding: 1
@@ -400,15 +401,15 @@ Player:
 			Nod_BasicInfantry_AntiInfantry:
 				Role: Assault
 				Priority: 100
-				MaxInstances: 6
+				MaxInstances: 8
 				PriorityTargetCapabilities: Infantry
 				ScaleWithBuilding: nahand
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				ThreatBonuses:
-					Infantry: 30
+					Infantry: 22
 				ThreatBonusesPerUnit:
-					Infantry: 3
+					Infantry: 2
 				ThreatBonusesGlobalPerUnit:
 					InfantryDefense: -4
 					ArmorDefense: 6
@@ -420,15 +421,15 @@ Player:
 			Nod_BasicInfantry_AntiArmor:
 				Role: Assault
 				Priority: 100
-				MaxInstances: 6
+				MaxInstances: 8
 				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
 				ScaleWithBuilding: nahand
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				ThreatBonuses:
-					Vehicle: 30
+					Vehicle: 22
 				ThreatBonusesPerUnit:
-					Vehicle: 3
+					Vehicle: 2
 				ThreatBonusesGlobalPerUnit:
 					InfantryDefense: -4
 					ArmorDefense: 6
@@ -487,7 +488,7 @@ Player:
 						Optional: True
 			Nod_Buggy_Raid:
 				Role: Raider
-				Priority: 120
+				Priority: 118
 				MaxInstances: 8
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 3
@@ -496,10 +497,10 @@ Player:
 				ThreatBonuses:
 					Harvester: 25
 				ThreatBonusesPerUnit:
-					Infantry: 5
+					Infantry: 3
 					AntiArmor: -1
 				ThreatBonusesGlobalPerUnit:
-					Harvester: 8
+					Harvester: 5
 					InfantryDefense: 1
 					ArmorDefense: -2
 				Slots:
@@ -508,7 +509,7 @@ Player:
 						AllowedTypes: bggy
 			Nod_Bike_Raid:
 				Role: Raider
-				Priority: 120
+				Priority: 118
 				MaxInstances: 8
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 3
@@ -517,11 +518,11 @@ Player:
 				ThreatBonuses:
 					Harvester: 20
 				ThreatBonusesPerUnit:
-					Vehicle: 3
+					Vehicle: 2
 					AntiArmor: -1
 					AntiAir: 2
 				ThreatBonusesGlobalPerUnit:
-					Harvester: 6
+					Harvester: 5
 					InfantryDefense: 3
 					ArmorDefense: -1
 				Slots:
@@ -531,7 +532,7 @@ Player:
 			Nod_Scorpion_Attack:
 				Role: Assault
 				Priority: 105
-				MaxInstances: 6
+				MaxInstances: 8
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
@@ -564,7 +565,7 @@ Player:
 			Nod_TickTank_Attack:
 				Role: Assault
 				Priority: 100
-				MaxInstances: 3
+				MaxInstances: 5
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
 				MinSlotsToActivate: 1

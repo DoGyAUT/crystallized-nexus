@@ -1,7 +1,7 @@
 Player:
 	CNSquadManagerBotModule@expansion:
 		RequiresCondition: enable-cn-expansion || cn-profile-expansion
-		IdleScanRadius: 10
+		IdleScanRadius: 16
 		DangerScanRadius: 10
 		AttackScanRadius: 12
 		AssignRolesInterval: 50
@@ -10,7 +10,7 @@ Player:
 		ArtilleryHangBackCells: 8
 		SupportFollowRangeCells: 7
 		AttackWaveEnabled: true
-		AttackWaveInitialDelay: 4500
+		AttackWaveInitialDelay: 3200
 		AttackWaveInterval: 4800
 		AttackWaveMinReadySquads: 3
 		AttackWaveMaxMinReadySquads: 6
@@ -24,14 +24,16 @@ Player:
 		WaveHoldScatterCells: 4
 		WaveParticipantRoles: Assault, ArtilleryAssault, AircraftAttack
 		ArmyCompositionRatio:
-			Assault: 30
-			Raider: 18
+			Assault: 28
+			Raider: 16
 			Transport: 12
 			Support: 12
 			Stealth: 8
 			AircraftRaider: 7
 			AirTransport: 8
 			ArtilleryAssault: 5
+			SubterraneanAssault: 3
+			SubterraneanTransport: 1
 		Teams:
 			GDI_BasicInfantry_AntiInfantry:
 				Role: Assault

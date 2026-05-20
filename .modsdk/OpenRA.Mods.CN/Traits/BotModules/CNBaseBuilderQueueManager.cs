@@ -555,9 +555,14 @@ namespace OpenRA.Mods.Common.Traits
 				else if (actorInfo.HasTraitInfo<LineBuildInfo>() ||
 					baseBuilder.Info.WallTypes.Contains(actorInfo.Name))
 				{
-					// Walls use LineBuild order and ProtectedByWalls placement (also handles wall ring)
+					// Walls use LineBuild order and ProtectedByWalls/perimeter placement.
 					orderString = "LineBuild";
 					(location, baseCenterKeepsFailing, actorVariant) = ChooseWallLocation(actorInfo);
+				}
+				else if (baseBuilder.Info.GateTypes.Contains(actorInfo.Name))
+				{
+					// Gates replace a 3-cell wall segment and must use normal building placement.
+					(location, baseCenterKeepsFailing, actorVariant) = ChooseGateLocation(actorInfo);
 				}
 				else
 				{
@@ -677,6 +682,16 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var variant in variants)
 				if (baseBuilder.BuildingsBeingProduced.TryGetValue(variant, out var queuedVariant))
 					count += queuedVariant;
+
+			return count;
+		}
+
+		int CountExistingAndQueuedGates()
+		{
+			var count = playerBuildings.Count(a => baseBuilder.Info.GateTypes.Contains(a.Info.Name));
+			foreach (var gate in baseBuilder.Info.GateTypes)
+				if (baseBuilder.BuildingsBeingProduced.TryGetValue(gate, out var queued))
+					count += queued;
 
 			return count;
 		}
@@ -904,9 +919,27 @@ namespace OpenRA.Mods.Common.Traits
 				baseBuilder.RefineryExpansionBlocked = false;
 			}
 
-			// Build walls around protected structures
-			if (baseBuilder.Info.ProtectedByWalls.Count > 0)
+			// Build walls around protected structures, and optionally around the core base for defensive profiles.
+			if (baseBuilder.Info.ProtectedByWalls.Count > 0 || baseBuilder.ShouldBuildBasePerimeterWalls())
 			{
+				if (baseBuilder.ShouldBuildBasePerimeterWalls() && CountExistingAndQueuedGates() < baseBuilder.Info.BasePerimeterMaxGateCount)
+				{
+					foreach (var gate in buildableThings
+						.Where(a => baseBuilder.Info.GateTypes.Contains(a.Name))
+						.OrderBy(a => CountExistingAndQueuedBuilding(a.Name)))
+					{
+						if (!HasSufficientPowerForActor(gate))
+							continue;
+
+						var (gateLoc, _, _) = ChooseGateLocation(gate);
+						if (gateLoc != null)
+						{
+							AIUtils.BotDebug("{0} decided to build {1}: Priority override (gate)", queue.Actor.Owner, gate.Name);
+							return gate;
+						}
+					}
+				}
+
 				var wall = GetProducibleBuilding(baseBuilder.Info.WallTypes, buildableThings);
 				if (wall != null && HasSufficientPowerForActor(wall))
 				{
@@ -2282,7 +2315,152 @@ namespace OpenRA.Mods.Common.Traits
 			return (null, null, 0);
 		}
 
-		// Find a free adjacent cell around a ProtectedByWalls building, then fall back to wall ring.
+		bool IsValuableResourceCell(CPos cell)
+		{
+			if (resourceLayer == null || !world.Map.Contains(cell))
+				return false;
+
+			var resourceType = resourceLayer.GetResource(cell).Type;
+			return resourceType != null && (baseBuilder.ResourceMapModule == null
+				|| baseBuilder.ResourceMapModule.Info.ValuableResourceTypes.Contains(resourceType));
+		}
+
+		bool HasNearbyValuableResource(CPos cell, int radius)
+		{
+			if (radius <= 0)
+				return IsValuableResourceCell(cell);
+
+			return world.Map.FindTilesInAnnulus(cell, 0, radius).Any(IsValuableResourceCell);
+		}
+
+		bool HasOwnActorAt(CPos cell, FrozenSet<string> actorTypes)
+		{
+			return world.ActorMap.GetActorsAt(cell)
+				.Any(a => !a.IsDead && a.Owner == player && actorTypes.Contains(a.Info.Name));
+		}
+
+		bool HasAnyBuildingAt(CPos cell)
+		{
+			return world.ActorMap.GetActorsAt(cell)
+				.Any(a => !a.IsDead && a.Info.HasTraitInfo<BuildingInfo>());
+		}
+
+		bool TryGetCorePerimeter(out CPos baseCenter, out int minX, out int maxX, out int minY, out int maxY)
+		{
+			var conyard = baseBuilder.ConstructionYardBuildings.Actors
+				.Where(a => !a.IsDead && a.IsInWorld)
+				.OrderBy(a => a.ActorID)
+				.FirstOrDefault();
+
+			baseCenter = conyard?.Location ?? baseBuilder.GetRandomBaseCenter();
+			var center = baseCenter;
+			var effectiveMaxRadius = baseBuilder.GetEffectiveMaxBaseRadius(playerBuildings.Length);
+			var effectiveMaxRadiusSq = effectiveMaxRadius * effectiveMaxRadius;
+
+			var coreBuildings = playerBuildings
+				.Where(a => !a.IsDead && a.IsInWorld
+					&& !baseBuilder.Info.WallTypes.Contains(a.Info.Name)
+					&& !baseBuilder.Info.GateTypes.Contains(a.Info.Name)
+					&& !baseBuilder.Info.RefineryTypes.Contains(a.Info.Name)
+					&& (a.Location - center).LengthSquared <= effectiveMaxRadiusSq)
+				.ToList();
+
+			if (coreBuildings.Count < baseBuilder.Info.BasePerimeterWallMinimumStructures)
+			{
+				minX = maxX = minY = maxY = 0;
+				return false;
+			}
+
+			var first = true;
+			minX = maxX = minY = maxY = 0;
+			foreach (var actor in coreBuildings)
+			{
+				var bi = actor.Info.TraitInfoOrDefault<BuildingInfo>();
+				if (bi == null)
+					continue;
+
+				var actorMinX = actor.Location.X;
+				var actorMaxX = actor.Location.X + bi.Dimensions.X - 1;
+				var actorMinY = actor.Location.Y;
+				var actorMaxY = actor.Location.Y + bi.Dimensions.Y - 1;
+
+				if (first)
+				{
+					minX = actorMinX;
+					maxX = actorMaxX;
+					minY = actorMinY;
+					maxY = actorMaxY;
+					first = false;
+				}
+				else
+				{
+					minX = Math.Min(minX, actorMinX);
+					maxX = Math.Max(maxX, actorMaxX);
+					minY = Math.Min(minY, actorMinY);
+					maxY = Math.Max(maxY, actorMaxY);
+				}
+			}
+
+			if (first)
+				return false;
+
+			var padding = Math.Max(2, baseBuilder.Info.BasePerimeterWallPadding);
+			minX -= padding;
+			maxX += padding;
+			minY -= padding;
+			maxY += padding;
+
+			return true;
+		}
+
+		IEnumerable<CPos> PerimeterCells(int minX, int maxX, int minY, int maxY)
+		{
+			for (var x = minX; x <= maxX; x++)
+			{
+				yield return new CPos(x, minY);
+				yield return new CPos(x, maxY);
+			}
+
+			for (var y = minY + 1; y < maxY; y++)
+			{
+				yield return new CPos(minX, y);
+				yield return new CPos(maxX, y);
+			}
+		}
+
+		int CountExistingPerimeterWalls(int minX, int maxX, int minY, int maxY)
+		{
+			return PerimeterCells(minX, maxX, minY, maxY)
+				.Count(c => HasOwnActorAt(c, baseBuilder.Info.WallTypes));
+		}
+
+		List<CPos> GetGateTargetCells(CPos baseCenter)
+		{
+			var targets = new List<CPos>();
+			if (resourceLayer != null)
+			{
+				var resourceTargets = world.Map
+					.FindTilesInAnnulus(baseCenter, baseBuilder.Info.MinBaseRadius, baseBuilder.GetEffectiveMaxBaseRadius(playerBuildings.Length) + 16)
+					.Where(IsValuableResourceCell)
+					.OrderBy(c => (c - baseCenter).LengthSquared)
+					.ToList();
+
+				if (resourceTargets.Count > 0)
+					targets.Add(resourceTargets[0]);
+			}
+
+			var enemyBuilding = world.ActorsHavingTrait<Building>()
+				.Where(a => !a.IsDead && a.IsInWorld && a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy)
+				.OrderBy(a => (a.Location - baseCenter).LengthSquared)
+				.FirstOrDefault();
+
+			if (enemyBuilding != null)
+				targets.Add(enemyBuilding.Location);
+
+			return targets;
+		}
+
+		// Find a free adjacent cell around a ProtectedByWalls building, then fall back to a core perimeter.
 		(CPos? Location, CPos? BaseCenter, int Variant) ChooseWallLocation(ActorInfo actorInfo)
 		{
 			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
@@ -2323,6 +2501,124 @@ namespace OpenRA.Mods.Common.Traits
 					return (valid.Random(world.LocalRandom), topLeft, 0);
 				}
 			}
+
+			if (bi != null && baseBuilder.ShouldBuildBasePerimeterWalls() &&
+				TryGetCorePerimeter(out var baseCenter, out var minX, out var maxX, out var minY, out var maxY))
+			{
+				var lineBuildRange = actorInfo.TraitInfoOrDefault<LineBuildInfo>()?.Range ?? 8;
+				var existingWalls = new HashSet<CPos>(PerimeterCells(minX, maxX, minY, maxY)
+					.Where(c => HasOwnActorAt(c, baseBuilder.Info.WallTypes) || HasOwnActorAt(c, baseBuilder.Info.GateTypes)));
+
+				int WallScore(CPos cell)
+				{
+					var score = 0;
+					if (existingWalls.Contains(cell + new CVec(1, 0))) score -= 80;
+					if (existingWalls.Contains(cell + new CVec(-1, 0))) score -= 80;
+					if (existingWalls.Contains(cell + new CVec(0, 1))) score -= 80;
+					if (existingWalls.Contains(cell + new CVec(0, -1))) score -= 80;
+
+					var nearestInline = existingWalls
+						.Where(w => w.X == cell.X || w.Y == cell.Y)
+						.Select(w => Math.Abs(w.X - cell.X) + Math.Abs(w.Y - cell.Y))
+						.Where(d => d > 0)
+						.DefaultIfEmpty(lineBuildRange + 1)
+						.Min();
+
+					if (nearestInline <= lineBuildRange)
+						score -= 40 - nearestInline;
+
+					var isCorner = (cell.X == minX || cell.X == maxX) && (cell.Y == minY || cell.Y == maxY);
+					if (isCorner && existingWalls.Count == 0)
+						score -= 30;
+
+					score += Math.Abs(cell.X - baseCenter.X) + Math.Abs(cell.Y - baseCenter.Y);
+					return score;
+				}
+
+				var resourceAvoidanceRadius = Math.Max(0, baseBuilder.Info.BasePerimeterResourceAvoidanceRadius);
+				foreach (var cell in PerimeterCells(minX, maxX, minY, maxY)
+					.Where(c => world.Map.Contains(c))
+					.Where(c => !existingWalls.Contains(c))
+					.Where(c => !HasNearbyValuableResource(c, resourceAvoidanceRadius))
+					.Where(c => !HasAnyBuildingAt(c))
+					.Where(c => world.CanPlaceBuilding(c, actorInfo, bi, null))
+					.Where(c => bi.IsCloseEnoughToBase(world, player, actorInfo, c))
+					.OrderBy(WallScore))
+					return (cell, baseCenter, 0);
+			}
+
+			return (null, null, 0);
+		}
+
+		(CPos? Location, CPos? BaseCenter, int Variant) ChooseGateLocation(ActorInfo actorInfo)
+		{
+			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
+			if (bi == null || !baseBuilder.ShouldBuildBasePerimeterWalls())
+				return (null, null, 0);
+
+			if (!TryGetCorePerimeter(out var baseCenter, out var minX, out var maxX, out var minY, out var maxY))
+				return (null, null, 0);
+
+			if (CountExistingPerimeterWalls(minX, maxX, minY, maxY) < baseBuilder.Info.BasePerimeterGateWallThreshold)
+				return (null, null, 0);
+
+			var targets = GetGateTargetCells(baseCenter);
+			var horizontal = bi.Dimensions.X > bi.Dimensions.Y;
+			var candidates = new List<CPos>();
+
+			if (horizontal)
+			{
+				for (var x = minX + 1; x <= maxX - bi.Dimensions.X; x++)
+				{
+					candidates.Add(new CPos(x, minY));
+					candidates.Add(new CPos(x, maxY));
+				}
+			}
+			else
+			{
+				for (var y = minY + 1; y <= maxY - bi.Dimensions.Y; y++)
+				{
+					candidates.Add(new CPos(minX, y));
+					candidates.Add(new CPos(maxX, y));
+				}
+			}
+
+			bool CanReplaceWallRun(CPos topLeft)
+			{
+				foreach (var cell in bi.Tiles(topLeft))
+					if (!HasOwnActorAt(cell, baseBuilder.Info.WallTypes))
+						return false;
+
+				if (!world.CanPlaceBuilding(topLeft, actorInfo, bi, null))
+					return false;
+
+				if (!bi.IsCloseEnoughToBase(world, player, actorInfo, topLeft))
+					return false;
+
+				var nearbyGate = world.Map.FindTilesInAnnulus(topLeft, 0, 6)
+					.Any(c => HasOwnActorAt(c, baseBuilder.Info.GateTypes));
+
+				return !nearbyGate;
+			}
+
+			int GateScore(CPos topLeft)
+			{
+				var center = new CPos(topLeft.X + bi.Dimensions.X / 2, topLeft.Y + bi.Dimensions.Y / 2);
+				var sideCenterDistance = horizontal
+					? Math.Abs(center.X - (minX + maxX) / 2)
+					: Math.Abs(center.Y - (minY + maxY) / 2);
+
+				var targetDistance = targets.Count == 0
+					? 0
+					: targets.Min(t => (t - center).LengthSquared);
+
+				return targetDistance + sideCenterDistance * 8;
+			}
+
+			foreach (var cell in candidates
+				.Where(CanReplaceWallRun)
+				.OrderBy(GateScore))
+				return (cell, baseCenter, 0);
 
 			return (null, null, 0);
 		}
