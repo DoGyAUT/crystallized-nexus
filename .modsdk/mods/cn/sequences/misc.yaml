@@ -558,13 +558,13 @@ explosion:
 		BlendMode: Additive
 		AlphaFade: False
 	gatpiff_single:
-		Filename: gatpiff_single.shp
+		Filename: gatpiff_single.png
 		Length: *
 	gatpiff_small:
-		Filename: gatpiff_small.shp
+		Filename: gatpiff_small.png
 		Length: *
 	gatpiff_large:
-		Filename: gatpiff_large.shp
+		Filename: gatpiff_large.png
 		Length: *
 	tpiff:
 		Filename: tpiff.shp

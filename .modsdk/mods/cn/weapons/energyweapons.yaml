@@ -169,7 +169,7 @@ LaserFence:
 		DamageTypes: FireDeath
 
 AcolyteGun:
-	Inherits: ^Bullet
+	Inherits: ^MG
 	Inherits@wh: ^TiberiumWarhead
 	ReloadDelay: 100
 	Range: 6c497

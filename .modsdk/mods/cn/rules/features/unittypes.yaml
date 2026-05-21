@@ -429,6 +429,7 @@
 		LightPitch: 128
 		LightYaw: 768
 		Scale: 10
+		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	RenderSprites:
 	FormationMove:
 		Columns: 0
@@ -481,6 +482,7 @@
 		LightPitch: 128
 		LightYaw: 768
 		Scale: 10
+		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	RenderSprites:
 	WithVoxelBody:
 		RequiresCondition: !inside-tunnel
