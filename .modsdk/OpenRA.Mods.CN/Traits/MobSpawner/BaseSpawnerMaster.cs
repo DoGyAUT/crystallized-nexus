@@ -164,7 +164,12 @@ namespace OpenRA.Mods.CN.Traits
 			return candidates.Random(self.World.SharedRandom);
 		}
 
-		public virtual void Killed(Actor self, AttackInfo e)
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
+		{
+			OnKilled(self, e);
+		}
+
+		protected virtual void OnKilled(Actor self, AttackInfo e)
 		{
 			foreach (var se in SlaveEntries)
 				if (se.IsValid)

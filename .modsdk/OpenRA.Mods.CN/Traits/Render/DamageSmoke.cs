@@ -62,7 +62,7 @@ namespace OpenRA.Mods.CN.Traits
 		public override object Create(ActorInitializer init) { return new DamageSmoke(init.Self, this); }
 	}
 
-	public class DamageSmoke : ConditionalTrait<DamageSmokeInfo>, INotifyCreated, ITick
+	public class DamageSmoke : ConditionalTrait<DamageSmokeInfo>, ITick
 	{
 		IHealth health;
 		int ticks;
@@ -70,7 +70,7 @@ namespace OpenRA.Mods.CN.Traits
 		public DamageSmoke(Actor self, DamageSmokeInfo info)
 			: base(info) { }
 
-		void INotifyCreated.Created(Actor self)
+		protected override void Created(Actor self)
 		{
 			health = self.TraitOrDefault<IHealth>();
 		}
