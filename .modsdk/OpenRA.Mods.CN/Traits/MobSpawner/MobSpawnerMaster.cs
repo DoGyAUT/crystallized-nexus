@@ -537,11 +537,11 @@ namespace OpenRA.Mods.CN.Traits
 			hasSpawnedInitialLoad = true;
 		}
 
-		public override void Killed(Actor self, AttackInfo e)
+		protected override void OnKilled(Actor self, AttackInfo e)
 		{
 			if (!Info.TransferMasterOnKill)
 			{
-				base.Killed(self, e);
+				base.OnKilled(self, e);
 				return;
 			}
 
@@ -552,7 +552,7 @@ namespace OpenRA.Mods.CN.Traits
 
 			if (survivors.Length == 0)
 			{
-				base.Killed(self, e);
+				base.OnKilled(self, e);
 				return;
 			}
 
