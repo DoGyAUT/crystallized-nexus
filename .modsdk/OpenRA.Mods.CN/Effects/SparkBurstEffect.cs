@@ -44,7 +44,8 @@ namespace OpenRA.Mods.CN.Effects
 					wr.Screen3DPosition(Pos),
 					wr.Screen3DPosition(end),
 					width,
-					color);
+					color,
+					ignoreWorldTint: true);
 			}
 
 			public void RenderDebugGeometry(WorldRenderer wr) { }

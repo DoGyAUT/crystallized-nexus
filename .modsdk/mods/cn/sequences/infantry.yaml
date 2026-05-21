@@ -54,6 +54,7 @@
 		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
+		IgnoreWorldTint: True
 
 ^BasicInfantryAttack:
 	attack:
@@ -171,6 +172,7 @@ gasniper:
 		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
+		IgnoreWorldTint: True
 	icon:
 		Filename: scouticon.shp
 
@@ -244,6 +246,7 @@ gaspotter:
 		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
+		IgnoreWorldTint: True
 	icon:
 		Filename: scouticon.shp
 
@@ -621,6 +624,7 @@ medic:
 		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
+		IgnoreWorldTint: True
 	icon:
 		Filename: mediicon.shp
 
@@ -723,6 +727,7 @@ jumpjet:
 		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
+		IgnoreWorldTint: True
 	icon:
 		Filename: jjeticon.shp
 
@@ -791,6 +796,7 @@ weedguy:
 		Filename: electro.shp
 		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 		Length: *
+		IgnoreWorldTint: True
 	die-crushed:
 		Start: 174
 		Length: 3

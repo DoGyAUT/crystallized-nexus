@@ -80,11 +80,12 @@ namespace OpenRA.Mods.CN.Traits
 		public readonly string StartCategory = null;
 
 		// ── Keyframe tints (R, G, B, Ambient) ────────────────────────
-		[Desc("Ambient tint at midnight (hour 0 / 24).")]
-		public readonly float NightRed = 0.55f;
-		public readonly float NightGreen = 0.62f;
-		public readonly float NightBlue = 0.95f;
-		public readonly float NightAmbient = 0.55f;
+		[Desc("Ambient tint at midnight (hour 0 / 24). Calibrated as moonlight:",
+			"~75% brightness with a subtle cool/blue cast so units stay readable.")]
+		public readonly float NightRed = 0.78f;
+		public readonly float NightGreen = 0.85f;
+		public readonly float NightBlue = 1.00f;
+		public readonly float NightAmbient = 0.75f;
 
 		[Desc("Ambient tint at dawn (hour 6).")]
 		public readonly float DawnRed = 1.05f;
