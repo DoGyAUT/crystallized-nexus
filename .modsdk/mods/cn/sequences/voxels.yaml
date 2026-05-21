@@ -154,6 +154,7 @@ sonic:
 
 mobilemp:
 	idle: m_emp
+	idle-charged: m_emp_load
 
 #truk: # TODO: unused
 #	idle:
