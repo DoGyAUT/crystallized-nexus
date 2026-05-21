@@ -3,6 +3,7 @@ gacnst:
 		TilesetFilenames:
 			TEMPERATE: gacnst.shp
 			SNOW: gacnst.shp
+			DESERT: gacnst.shp
 		Offset: 0, -36, 36
 		DepthSprite: isodepth.shp
 	idle:
@@ -18,12 +19,14 @@ gacnst:
 		TilesetFilenames:
 			TEMPERATE: gacnstmk.shp
 			SNOW: gacnstmk.shp
+			DESERT: gacnstmk.shp
 		Length: 26
 		ShadowStart: -1
 	idle-top:
 		TilesetFilenames:
 			TEMPERATE: gtcnst_c.shp
 			SNOW: gacnst_c.shp
+			DESERT: gtcnst_c.shp
 		Length: 15
 		Tick: 80
 		Offset: 5, -25, 50
@@ -31,6 +34,7 @@ gacnst:
 		TilesetFilenames:
 			TEMPERATE: gtcnst_c.shp
 			SNOW: gacnst_c.shp
+			DESERT: gtcnst_c.shp
 		Length: 15
 		Tick: 80
 		IgnoreWorldTint: True
@@ -55,6 +59,7 @@ nacnst:
 		TilesetFilenames:
 			TEMPERATE: nacnst.shp
 			SNOW: nacnst.shp
+			DESERT: nacnst.shp
 		Offset: 0, -36, 50
 		DepthSprite: isodepth.shp
 	idle:
@@ -67,12 +72,14 @@ nacnst:
 		TilesetFilenames:
 			TEMPERATE: nacnstmk.shp
 			SNOW: nacnstmk.shp
+			DESERT: nacnstmk.shp
 		Length: 25
 		ShadowStart: 0
 	idle-smoke1:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 100
@@ -83,6 +90,7 @@ nacnst:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 110
@@ -93,6 +101,7 @@ nacnst:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 0
 		Length: 30
 		Tick: 100
@@ -104,6 +113,7 @@ nacnst:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 0
 		Length: 30
 		Tick: 100
@@ -131,6 +141,7 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: gtpowr.shp
 			SNOW: gapowr.shp
+			DESERT: gtpowr.shp
 		Offset: 0, -24, 24
 		DepthSprite: isodepth.shp
 	idle:
@@ -146,12 +157,14 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_a.shp
 			SNOW: gapowr_a.shp
+			DESERT: gtpowr_a.shp
 		Length: 12
 		Tick: 200
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_a.shp
 			SNOW: gapowr_a.shp
+			DESERT: gtpowr_a.shp
 		Length: 12
 		Tick: 200
 		IgnoreWorldTint: True
@@ -159,6 +172,7 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_a.shp
 			SNOW: gapowr_a.shp
+			DESERT: gtpowr_a.shp
 		Start: 12
 		Length: 12
 		Tick: 200
@@ -166,6 +180,7 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_a.shp
 			SNOW: gapowr_a.shp
+			DESERT: gtpowr_a.shp
 		Start: 12
 		Length: 12
 		Tick: 200
@@ -174,18 +189,21 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_b.shp
 			SNOW: gapowr_b.shp
+			DESERT: gtpowr_b.shp
 		Length: 12
 		Tick: 200
 	damaged-idle-plug:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_b.shp
 			SNOW: gapowr_b.shp
+			DESERT: gtpowr_b.shp
 		Length: 12
 		Tick: 200
 	idle-powrupa:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_b.shp
 			SNOW: gapowr_b.shp
+			DESERT: gtpowr_b.shp
 		Length: 12
 		Tick: 200
 		Offset: -48, -24, 36
@@ -193,6 +211,7 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_b.shp
 			SNOW: gapowr_b.shp
+			DESERT: gtpowr_b.shp
 		Length: 12
 		Tick: 200
 		Offset: -48, -24, 36
@@ -200,6 +219,7 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_b.shp
 			SNOW: gapowr_b.shp
+			DESERT: gtpowr_b.shp
 		Length: 12
 		Tick: 200
 		Offset: -24, -12, 40
@@ -207,6 +227,7 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: gtpowr_b.shp
 			SNOW: gapowr_b.shp
+			DESERT: gtpowr_b.shp
 		Length: 12
 		Tick: 200
 		Offset: -24, -12, 40
@@ -214,6 +235,7 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 100
@@ -224,12 +246,14 @@ gapowr:
 		TilesetFilenames:
 			TEMPERATE: gtpowrmk.shp
 			SNOW: gapowrmk.shp
+			DESERT: gtpowrmk.shp
 		Length: 20
 		ShadowStart: 20
 	make-bright:
 		TilesetFilenames:
 			TEMPERATE: gtpowrmk.shp
 			SNOW: gapowrmk.shp
+			DESERT: gtpowrmk.shp
 		Length: 20
 		ShadowStart: 20
 		IgnoreWorldTint: True
@@ -273,6 +297,7 @@ gapile:
 		TilesetFilenames:
 			TEMPERATE: gtpile.shp
 			SNOW: gapile.shp
+			DESERT: gtpile.shp
 		Offset: 0, -24, 24
 		DepthSprite: isodepth.shp
 	idle:
@@ -288,6 +313,7 @@ gapile:
 		TilesetFilenames:
 			TEMPERATE: gtpile_a.shp
 			SNOW: gapile_a.shp
+			DESERT: gtpile_a.shp
 		Length: 8
 		Tick: 200
 		ZOffset: 1023
@@ -295,6 +321,7 @@ gapile:
 		TilesetFilenames:
 			TEMPERATE: gtpile_a.shp
 			SNOW: gapile_a.shp
+			DESERT: gtpile_a.shp
 		Length: 8
 		Tick: 200
 		ZOffset: 1023
@@ -303,6 +330,7 @@ gapile:
 		TilesetFilenames:
 			TEMPERATE: gtpile_b.shp
 			SNOW: gapile_b.shp
+			DESERT: gtpile_b.shp
 		Length: 8
 		Tick: 200
 		IgnoreWorldTint: True
@@ -310,12 +338,14 @@ gapile:
 		TilesetFilenames:
 			TEMPERATE: gtpile_c.shp
 			SNOW: gapile_c.shp
+			DESERT: gtpile_c.shp
 		Length: 7
 		Tick: 100
 	damaged-idle-flag:
 		TilesetFilenames:
 			TEMPERATE: gtpile_c.shp
 			SNOW: gapile_c.shp
+			DESERT: gtpile_c.shp
 		Start: 7
 		Length: 7
 		Tick: 100
@@ -323,6 +353,7 @@ gapile:
 		TilesetFilenames:
 			TEMPERATE: gtpilemk.shp
 			SNOW: gapilemk.shp
+			DESERT: gtpilemk.shp
 		Length: 20
 		ShadowStart: 20
 	emp-overlay:
@@ -349,6 +380,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_1.shp
 			SNOW: gaweap_1.shp
+			DESERT: gtweap_1.shp
 		ShadowStart: 2
 		Offset: -12, -42, 1
 		ZOffset: -1024
@@ -358,6 +390,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_1.shp
 			SNOW: gaweap_1.shp
+			DESERT: gtweap_1.shp
 		Start: 1
 		ShadowStart: 3
 		ZOffset: -1024
@@ -368,17 +401,20 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_2.shp
 			SNOW: gaweap_2.shp
+			DESERT: gtweap_2.shp
 		ShadowStart: 2
 	damaged-idle-roof:
 		TilesetFilenames:
 			TEMPERATE: gtweap_2.shp
 			SNOW: gaweap_2.shp
+			DESERT: gtweap_2.shp
 		Start: 1
 		ShadowStart: 3
 	dead:
 		TilesetFilenames:
 			TEMPERATE: gtweap.shp
 			SNOW: gaweap.shp
+			DESERT: gtweap.shp
 		Start: 2
 		ShadowStart: 5
 		Tick: 400
@@ -386,6 +422,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_a.shp
 			SNOW: gaweap_a.shp
+			DESERT: gtweap_a.shp
 		Length: 16
 		Tick: 100
 		ZOffset: 2048
@@ -393,6 +430,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_a.shp
 			SNOW: gaweap_a.shp
+			DESERT: gtweap_a.shp
 		Length: 16
 		Tick: 100
 		ZOffset: 2048
@@ -401,6 +439,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_b.shp
 			SNOW: gaweap_b.shp
+			DESERT: gtweap_b.shp
 		Length: 8
 		Tick: 120
 		ZOffset: 2048
@@ -408,6 +447,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_b.shp
 			SNOW: gaweap_b.shp
+			DESERT: gtweap_b.shp
 		Length: 8
 		Tick: 120
 		ZOffset: 2048
@@ -416,6 +456,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_c.shp
 			SNOW: gaweap_c.shp
+			DESERT: gtweap_c.shp
 		Length: 4
 		Tick: 80
 		ZOffset: 2048
@@ -423,6 +464,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_c.shp
 			SNOW: gaweap_c.shp
+			DESERT: gtweap_c.shp
 		Length: 4
 		Tick: 80
 		ZOffset: 2048
@@ -430,6 +472,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_d.shp
 			SNOW: gaweap_d.shp
+			DESERT: gtweap_d.shp
 		ZOffset: 512
 		Length: 9
 		ShadowStart: 9
@@ -437,6 +480,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweap_d.shp
 			SNOW: gaweap_d.shp
+			DESERT: gtweap_d.shp
 		ZOffset: 512
 		Length: 9
 		ShadowStart: 9
@@ -444,6 +488,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweapmk.shp
 			SNOW: gaweapmk.shp
+			DESERT: gtweapmk.shp
 		Length: 20
 		Tick: 60
 		ShadowStart: 20
@@ -453,6 +498,7 @@ gaweap:
 		TilesetFilenames:
 			TEMPERATE: gtweapmk.shp
 			SNOW: gaweapmk.shp
+			DESERT: gtweapmk.shp
 		Length: 20
 		Tick: 80
 		Offset: -12, -42, 44
@@ -476,6 +522,7 @@ napowr:
 		TilesetFilenames:
 			TEMPERATE: napowr.shp
 			SNOW: napowr.shp
+			DESERT: napowr.shp
 		Offset: 0, -24, 24
 		DepthSprite: isodepth.shp
 	idle:
@@ -489,6 +536,7 @@ napowr:
 		TilesetFilenames:
 			TEMPERATE: smoke_large.png
 			SNOW: smoke_large.png
+			DESERT: smoke_large.png
 		Start: 33
 		Length: 37
 		BlendMode: Alpha
@@ -499,6 +547,7 @@ napowr:
 		TilesetFilenames:
 			TEMPERATE: smoke_large.png
 			SNOW: smoke_large.png
+			DESERT: smoke_large.png
 		Start: 0
 		Length: 33
 		BlendMode: Alpha
@@ -510,6 +559,7 @@ napowr:
 		TilesetFilenames:
 			TEMPERATE: ntpowr_a.shp
 			SNOW: napowr_a.shp
+			DESERT: ntpowr_a.shp
 		Length: 9
 		Tick: 200
 		Scale: 1.5
@@ -519,6 +569,7 @@ napowr:
 		TilesetFilenames:
 			TEMPERATE: napowrmk.shp
 			SNOW: napowrmk.shp
+			DESERT: napowrmk.shp
 		Length: 26
 		ShadowStart: 0
 	emp-overlay:
@@ -541,6 +592,7 @@ naapwr:
 		TilesetFilenames:
 			TEMPERATE: naapwr.shp
 			SNOW: naapwr.shp
+			DESERT: naapwr.shp
 		Offset: 12, -30, 40
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: 12, 0
@@ -555,6 +607,7 @@ naapwr:
 		TilesetFilenames:
 			TEMPERATE: smoke_large.png
 			SNOW: smoke_large.png
+			DESERT: smoke_large.png
 		Start: 33
 		Length: 37
 		Tick: 100
@@ -563,6 +616,7 @@ naapwr:
 		TilesetFilenames:
 			TEMPERATE: smoke_large.png
 			SNOW: smoke_large.png
+			DESERT: smoke_large.png
 		Start: 0
 		Length: 33
 		Tick: 100
@@ -572,6 +626,7 @@ naapwr:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 0
 		Length: 30
 		Tick: 100
@@ -583,6 +638,7 @@ naapwr:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 0
 		Length: 30
 		Tick: 100
@@ -594,6 +650,7 @@ naapwr:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 100
@@ -604,6 +661,7 @@ naapwr:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 110
@@ -615,6 +673,7 @@ naapwr:
 		TilesetFilenames:
 			TEMPERATE: ntpowr_a.shp
 			SNOW: napowr_a.shp
+			DESERT: ntpowr_a.shp
 		Length: 9
 		Tick: 200
 		Scale: 1.5
@@ -624,6 +683,7 @@ naapwr:
 		TilesetFilenames:
 			TEMPERATE: naapwrmk.shp
 			SNOW: naapwrmk.shp
+			DESERT: naapwrmk.shp
 		Length: 26
 		ShadowStart: 0
 	emp-overlay:
@@ -646,6 +706,7 @@ nahand:
 		TilesetFilenames:
 			TEMPERATE: nahand.shp
 			SNOW: nahand.shp
+			DESERT: nahand.shp
 		Offset: -12, -30, 55
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -12, 0
@@ -657,12 +718,14 @@ nahand:
 		TilesetFilenames:
 			TEMPERATE: nahandmk.shp
 			SNOW: nahandmk.shp
+			DESERT: nahandmk.shp
 		Length: 25
 		ShadowStart: 0
 	idle-light-bright:
 		TilesetFilenames:
 			TEMPERATE: nthand_a.shp
 			SNOW: nahand_a.shp
+			DESERT: nthand_a.shp
 		Length: 10
 		Tick: 100
 		ZOffset: 1023
@@ -672,6 +735,7 @@ nahand:
 		TilesetFilenames:
 			TEMPERATE: nthand_b.shp
 			SNOW: nahand_b.shp
+			DESERT: nthand_b.shp
 		Length: 12
 		Tick: 200
 		IgnoreWorldTint: True
@@ -700,6 +764,7 @@ naweap:
 		TilesetFilenames:
 			TEMPERATE: naweap_1.shp
 			SNOW: naweap_1.shp
+			DESERT: naweap_1.shp
 		ShadowStart: -1
 		Offset: -12, -42, 10
 		ZOffset: 0
@@ -707,18 +772,21 @@ naweap:
 		TilesetFilenames:
 			TEMPERATE: naweap_2.shp
 			SNOW: naweap_2.shp
+			DESERT: naweap_2.shp
 		ShadowStart: -1
 		ZOffset: 512
 	dead:
 		TilesetFilenames:
 			TEMPERATE: naweap_2.shp
 			SNOW: naweap_2.shp
+			DESERT: naweap_2.shp
 		ShadowStart: -1
 		Tick: 400
 	build-door:
 		TilesetFilenames:
 			TEMPERATE: naweap_b.shp
 			SNOW: naweap_b.shp
+			DESERT: naweap_b.shp
 		ZOffset: 1000
 		Length: *
 		ShadowStart: -1
@@ -726,6 +794,7 @@ naweap:
 		TilesetFilenames:
 			TEMPERATE: naweapmk.shp
 			SNOW: naweapmk.shp
+			DESERT: naweapmk.shp
 		Length: *
 		Tick: 60
 		ShadowStart: -1
@@ -735,6 +804,7 @@ naweap:
 		TilesetFilenames:
 			TEMPERATE: naweapbb.shp
 			SNOW: naweapbb.shp
+			DESERT: naweapbb.shp
 		Offset: -12, -42, 2
 		ZOffset: -512
 		ZRamp: 1
@@ -751,6 +821,7 @@ naweap:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 100
@@ -762,6 +833,7 @@ naweap:
 		TilesetFilenames:
 			TEMPERATE: smoke_small.png
 			SNOW: smoke_small.png
+			DESERT: smoke_small.png
 		Start: 30
 		Length: 60
 		Tick: 110
@@ -779,6 +851,7 @@ naradr:
 		TilesetFilenames:
 			TEMPERATE: naradr.shp
 			SNOW: naradr.shp
+			DESERT: naradr.shp
 		Offset: 0, -24, 30
 		DepthSprite: isodepth.shp
 	idle:
@@ -789,6 +862,7 @@ naradr:
 		TilesetFilenames:
 			TEMPERATE: naradr_a.shp
 			SNOW: naradr_a.shp
+			DESERT: naradr_a.shp
 		Offset: 0, -24, 35
 		Length: 64
 		Tick: 120
@@ -796,6 +870,7 @@ naradr:
 		TilesetFilenames:
 			TEMPERATE: naradr_a.shp
 			SNOW: naradr_a.shp
+			DESERT: naradr_a.shp
 		Offset: 0, -24, 35
 		Start: 0
 		Length: 64
@@ -804,6 +879,7 @@ naradr:
 		TilesetFilenames:
 			TEMPERATE: naradrmk.shp
 			SNOW: naradrmk.shp
+			DESERT: naradrmk.shp
 		Length: 26
 		ShadowStart: 0
 	emp-overlay:
@@ -826,6 +902,7 @@ natech:
 		TilesetFilenames:
 			TEMPERATE: nttech.shp
 			SNOW: natech.shp
+			DESERT: nttech.shp
 		Offset: 0, -24, 24
 		DepthSprite: isodepth.shp
 	idle:
@@ -841,12 +918,14 @@ natech:
 		TilesetFilenames:
 			TEMPERATE: nttech_a.shp
 			SNOW: natech_a.shp
+			DESERT: nttech_a.shp
 		Length: 10
 		Tick: 120
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: nttech_a.shp
 			SNOW: natech_a.shp
+			DESERT: nttech_a.shp
 		Length: 10
 		Tick: 120
 		IgnoreWorldTint: True
@@ -854,6 +933,7 @@ natech:
 		TilesetFilenames:
 			TEMPERATE: nttech_a.shp
 			SNOW: natech_a.shp
+			DESERT: nttech_a.shp
 		Start: 10
 		Length: 10
 		Tick: 120
@@ -861,6 +941,7 @@ natech:
 		TilesetFilenames:
 			TEMPERATE: nttech_a.shp
 			SNOW: natech_a.shp
+			DESERT: nttech_a.shp
 		Start: 10
 		Length: 10
 		Tick: 120
@@ -869,6 +950,7 @@ natech:
 		TilesetFilenames:
 			TEMPERATE: nttechmk.shp
 			SNOW: natechmk.shp
+			DESERT: nttechmk.shp
 		Length: 18
 		ShadowStart: 18
 	emp-overlay:
@@ -891,6 +973,7 @@ natmpl:
 		TilesetFilenames:
 			TEMPERATE: nttmpl.shp
 			SNOW: natmpl.shp
+			DESERT: nttmpl.shp
 		Offset: -12,-42, 42
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -12, 0
@@ -907,12 +990,14 @@ natmpl:
 		TilesetFilenames:
 			TEMPERATE: nttmpl_a.shp
 			SNOW: natmpl_a.shp
+			DESERT: nttmpl_a.shp
 		Length: 16
 		Tick: 120
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: nttmpl_a.shp
 			SNOW: natmpl_a.shp
+			DESERT: nttmpl_a.shp
 		Length: 16
 		Tick: 120
 		IgnoreWorldTint: True
@@ -920,6 +1005,7 @@ natmpl:
 		TilesetFilenames:
 			TEMPERATE: nttmplmk.shp
 			SNOW: natmplmk.shp
+			DESERT: nttmplmk.shp
 		Length: 17
 		ShadowStart: 17
 	emp-overlay:
@@ -942,6 +1028,7 @@ garadr:
 		TilesetFilenames:
 			TEMPERATE: gtradr.shp
 			SNOW: garadr.shp
+			DESERT: gtradr.shp
 		Offset: 0, -24, 28
 		DepthSprite: isodepth.shp
 	idle:
@@ -957,6 +1044,7 @@ garadr:
 		TilesetFilenames:
 			TEMPERATE: gtradr_a.shp
 			SNOW: garadr_a.shp
+			DESERT: gtradr_a.shp
 		Length: 15
 		Reverses: True
 		Tick: 200
@@ -964,6 +1052,7 @@ garadr:
 		TilesetFilenames:
 			TEMPERATE: gtradr_a.shp
 			SNOW: garadr_a.shp
+			DESERT: gtradr_a.shp
 		Start: 15
 		Length: 15
 		Reverses: True
@@ -972,6 +1061,7 @@ garadr:
 		TilesetFilenames:
 			TEMPERATE: gtradrmk.shp
 			SNOW: garadrmk.shp
+			DESERT: gtradrmk.shp
 		Length: 20
 		ShadowStart: 20
 	emp-overlay:
@@ -994,6 +1084,7 @@ gatech:
 		TilesetFilenames:
 			TEMPERATE: gttech.shp
 			SNOW: gatech.shp
+			DESERT: gttech.shp
 		Offset: -12, -30, 30
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -12, 0
@@ -1010,12 +1101,14 @@ gatech:
 		TilesetFilenames:
 			TEMPERATE: gttech_a.shp
 			SNOW: gatech_a.shp
+			DESERT: gttech_a.shp
 		Length: 8
 		Tick: 200
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: gttech_a.shp
 			SNOW: gatech_a.shp
+			DESERT: gttech_a.shp
 		Length: 8
 		Tick: 200
 		IgnoreWorldTint: True
@@ -1023,6 +1116,7 @@ gatech:
 		TilesetFilenames:
 			TEMPERATE: gttech_a.shp
 			SNOW: gatech_a.shp
+			DESERT: gttech_a.shp
 		Start: 8
 		Length: 8
 		Tick: 240
@@ -1030,6 +1124,7 @@ gatech:
 		TilesetFilenames:
 			TEMPERATE: gttech_a.shp
 			SNOW: gatech_a.shp
+			DESERT: gttech_a.shp
 		Start: 8
 		Length: 8
 		Tick: 240
@@ -1038,6 +1133,7 @@ gatech:
 		TilesetFilenames:
 			TEMPERATE: gttechmk.shp
 			SNOW: gatechmk.shp
+			DESERT: gttechmk.shp
 		Length: 20
 		ShadowStart: 20
 	emp-overlay:
@@ -1060,6 +1156,7 @@ gasand:
 		TilesetFilenames:
 			TEMPERATE: gtsand.shp
 			SNOW: gasand.shp
+			DESERT: gtsand.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1080,6 +1177,7 @@ gawall:
 		TilesetFilenames:
 			TEMPERATE: gtwall.shp
 			SNOW: gawall.shp
+			DESERT: gtwall.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1104,6 +1202,7 @@ gagate_a:
 		TilesetFilenames:
 			TEMPERATE: gtgate_a.shp
 			SNOW: gagate_a.shp
+			DESERT: gtgate_a.shp
 		Offset: -24, -24, 25
 		DepthSpriteOffset: -24, 0
 		DepthSprite: isodepth.shp
@@ -1152,6 +1251,7 @@ gagate_b:
 		TilesetFilenames:
 			TEMPERATE: gtgate_b.shp
 			SNOW: gagate_b.shp
+			DESERT: gtgate_b.shp
 		Offset: 24, -24, 25
 		DepthSpriteOffset: 24, 0
 		DepthSprite: isodepth.shp
@@ -1200,6 +1300,7 @@ nagate_a:
 		TilesetFilenames:
 			TEMPERATE: ntgate_a.shp
 			SNOW: nagate_a.shp
+			DESERT: ntgate_a.shp
 		Offset: -24, -24, 25
 		DepthSpriteOffset: -24, 0
 		Tick: 80
@@ -1253,6 +1354,7 @@ nagate_b:
 		TilesetFilenames:
 			TEMPERATE: ntgate_b.shp
 			SNOW: nagate_b.shp
+			DESERT: ntgate_b.shp
 		Offset: 24, -24, 25
 		DepthSpriteOffset: 24, 0
 		DepthSprite: isodepth.shp
@@ -1302,6 +1404,7 @@ napost:
 		TilesetFilenames:
 			TEMPERATE: ntpost.shp
 			SNOW: napost.shp
+			DESERT: ntpost.shp
 		Offset: 0, -12, 13
 		DepthSprite: isodepth.shp
 	idle:
@@ -1314,6 +1417,7 @@ napost:
 		TilesetFilenames:
 			TEMPERATE: ntpost_b.shp
 			SNOW: napost_b.shp
+			DESERT: ntpost_b.shp
 		Start: 0
 		Length: 7
 		ShadowStart: 14
@@ -1323,6 +1427,7 @@ napost:
 		TilesetFilenames:
 			TEMPERATE: ntpost_b.shp
 			SNOW: napost_b.shp
+			DESERT: ntpost_b.shp
 		Start: 7
 		Length: 7
 		ShadowStart: 21
@@ -1332,6 +1437,7 @@ napost:
 		TilesetFilenames:
 			TEMPERATE: ntpost_a.shp
 			SNOW: napost_a.shp
+			DESERT: ntpost_a.shp
 		Start: 0
 		Length: 12
 		ShadowStart: 24
@@ -1340,6 +1446,7 @@ napost:
 		TilesetFilenames:
 			TEMPERATE: ntpost_a.shp
 			SNOW: napost_a.shp
+			DESERT: ntpost_a.shp
 		Start: 0
 		Length: 12
 		ShadowStart: 24
@@ -1349,6 +1456,7 @@ napost:
 		TilesetFilenames:
 			TEMPERATE: ntpost_a.shp
 			SNOW: napost_a.shp
+			DESERT: ntpost_a.shp
 		Start: 12
 		Length: 12
 		ShadowStart: 36
@@ -1357,6 +1465,7 @@ napost:
 		TilesetFilenames:
 			TEMPERATE: ntpost_a.shp
 			SNOW: napost_a.shp
+			DESERT: ntpost_a.shp
 		Start: 12
 		Length: 12
 		ShadowStart: 36
@@ -1370,6 +1479,7 @@ napost:
 		TilesetFilenames:
 			TEMPERATE: ntpostmk.shp
 			SNOW: napostmk.shp
+			DESERT: ntpostmk.shp
 		Start: 0
 		Length: 12
 		ShadowStart: 12
@@ -1393,6 +1503,7 @@ nafnce:
 		TilesetFilenames:
 			TEMPERATE: ntfnce.shp
 			SNOW: nafnce.shp
+			DESERT: ntfnce.shp
 		Offset: 0, -12, 19
 		DepthSprite: isodepth.shp
 	idle:
@@ -1442,6 +1553,7 @@ nawall:
 		TilesetFilenames:
 			TEMPERATE: ntwall.shp
 			SNOW: nawall.shp
+			DESERT: ntwall.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1466,6 +1578,7 @@ gaicbm:
 		TilesetFilenames:
 			TEMPERATE: gticbm.shp
 			SNOW: gaicbm.shp
+			DESERT: gticbm.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -12, 6
@@ -1487,6 +1600,7 @@ gaicbm:
 		TilesetFilenames:
 			TEMPERATE: gticbmmk.shp
 			SNOW: gaicbmmk.shp
+			DESERT: gticbmmk.shp
 		Length: 30
 		ShadowStart: 30
 
@@ -1495,6 +1609,7 @@ naobel:
 		TilesetFilenames:
 			TEMPERATE: naobel.shp
 			SNOW: naobel.shp
+			DESERT: naobel.shp
 		Offset: 0, -24, 128
 		DepthSprite: isodepth.shp
 	idle:
@@ -1510,6 +1625,7 @@ naobel:
 		TilesetFilenames:
 			TEMPERATE: naobel_a.shp
 			SNOW: naobel_a.shp
+			DESERT: naobel_a.shp
 		Length: 6
 		Tick: 200
 		ZOffset: 2
@@ -1517,12 +1633,14 @@ naobel:
 		TilesetFilenames:
 			TEMPERATE: naobel_b.shp
 			SNOW: naobel_b.shp
+			DESERT: naobel_b.shp
 		Length: 7
 		Tick: 400
 	make:
 		TilesetFilenames:
 			TEMPERATE: naobelmk.shp
 			SNOW: naobelmk.shp
+			DESERT: naobelmk.shp
 		Length: 25
 		ShadowStart: -1
 	emp-overlay:
@@ -1545,6 +1663,7 @@ nasam:
 		TilesetFilenames:
 			TEMPERATE: nasam.shp
 			SNOW: nasam.shp
+			DESERT: nasam.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1552,12 +1671,14 @@ nasam:
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	damaged-idle:
 		Start: 1
 		ShadowStart: 4
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	dead:
 		Start: 2
 		ShadowStart: 5
@@ -1565,16 +1686,19 @@ nasam:
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	turret:
 		TilesetFilenames:
 			TEMPERATE: nasam_a.shp
 			SNOW: nasam_a.shp
+			DESERT: nasam_a.shp
 		Facings: 32
 		ShadowStart: 32
 	make:
 		TilesetFilenames:
 			TEMPERATE: nasammk.shp
 			SNOW: nasammk.shp
+			DESERT: nasammk.shp
 		Length: 16
 		ShadowStart: -1
 		DepthSprite: isodepth.shp
@@ -1597,6 +1721,7 @@ nagat:
 		TilesetFilenames:
 			TEMPERATE: nasam.shp
 			SNOW: nasam.shp
+			DESERT: nasam.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1604,12 +1729,14 @@ nagat:
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	damaged-idle:
 		Start: 1
 		ShadowStart: 4
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	dead:
 		Start: 2
 		ShadowStart: 5
@@ -1617,16 +1744,19 @@ nagat:
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	turret:
 		TilesetFilenames:
 			TEMPERATE: nagat_a.shp
 			SNOW: nagat_a.shp
+			DESERT: nagat_a.shp
 		Facings: 32
 		ShadowStart: 32
 	make:
 		TilesetFilenames:
 			TEMPERATE: nasammk.shp
 			SNOW: nasammk.shp
+			DESERT: nasammk.shp
 		Length: 16
 		ShadowStart: -1
 		DepthSprite: isodepth.shp
@@ -1637,41 +1767,49 @@ nagat:
 			0:
 				TilesetFilenames:
 					TEMPERATE: mgun-n.shp
+					DESERT: mgun-n.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			1:
 				TilesetFilenames:
 					TEMPERATE: mgun-nw.shp
+					DESERT: mgun-nw.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			2:
 				TilesetFilenames:
 					TEMPERATE: mgun-w.shp
+					DESERT: mgun-w.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			3:
 				TilesetFilenames:
 					TEMPERATE: mgun-sw.shp
+					DESERT: mgun-sw.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			4:
 				TilesetFilenames:
 					TEMPERATE: mgun-s.shp
+					DESERT: mgun-s.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			5:
 				TilesetFilenames:
 					TEMPERATE: mgun-se.shp
+					DESERT: mgun-se.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			6:
 				TilesetFilenames:
 					TEMPERATE: mgun-e.shp
+					DESERT: mgun-e.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			7:
 				TilesetFilenames:
 					TEMPERATE: mgun-ne.shp
+					DESERT: mgun-ne.shp
 					SNOW: mgun-n.shp
 				Length: 6
 		Facings: 8
@@ -1695,6 +1833,7 @@ naflamer:
 		TilesetFilenames:
 			TEMPERATE: nasam.shp
 			SNOW: nasam.shp
+			DESERT: nasam.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1702,12 +1841,14 @@ naflamer:
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	damaged-idle:
 		Start: 1
 		ShadowStart: 4
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	dead:
 		Start: 2
 		ShadowStart: 5
@@ -1715,16 +1856,19 @@ naflamer:
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	turret:
 		TilesetFilenames:
 			TEMPERATE: naflamer_a.shp
 			SNOW: naflamer_a.shp
+			DESERT: naflamer_a.shp
 		Facings: 32
 		ShadowStart: -1
 	make:
 		TilesetFilenames:
 			TEMPERATE: nasammk.shp
 			SNOW: nasammk.shp
+			DESERT: nasammk.shp
 		Length: 16
 		ShadowStart: -1
 		DepthSprite: isodepth.shp
@@ -1747,6 +1891,7 @@ nalasr:
 		TilesetFilenames:
 			TEMPERATE: nasam.shp
 			SNOW: nasam.shp
+			DESERT: nasam.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1754,12 +1899,14 @@ nalasr:
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	damaged-idle:
 		Start: 1
 		ShadowStart: 4
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	dead:
 		Start: 2
 		ShadowStart: 5
@@ -1767,16 +1914,19 @@ nalasr:
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
+		Offset: 0, -12, 5
 	turret:
 		TilesetFilenames:
 			TEMPERATE: nalasr_a.shp
 			SNOW: nalasr_a.shp
+			DESERT: nalasr_a.shp
 		Facings: 32
 		ShadowStart: -1
 	make:
 		TilesetFilenames:
 			TEMPERATE: nasammk.shp
 			SNOW: nasammk.shp
+			DESERT: nasammk.shp
 		Length: 16
 		ShadowStart: -1
 		DepthSprite: isodepth.shp
@@ -1799,6 +1949,7 @@ napuls.gdi:
 		TilesetFilenames:
 			TEMPERATE: ntpuls.shp
 			SNOW: napuls.shp
+			DESERT: ntpuls.shp
 		Offset: 0, -24, 24
 		DepthSprite: isodepth.shp
 	idle:
@@ -1814,15 +1965,18 @@ napuls.gdi:
 		TilesetFilenames:
 			TEMPERATE: ntpuls_a.shp
 			SNOW: napuls_a.shp
+			DESERT: ntpuls_a.shp
 		Facings: 32
 	make:
 		TilesetFilenames:
 			TEMPERATE: ntpulsmk.shp
 			SNOW: napulsmk.shp
+			DESERT: ntpulsmk.shp
 		Length: 20
 		ShadowStart: 20
 	emp-overlay:
 		Filename: emp_fx01.shp
+		IgnoreWorldTint: True
 		TilesetFilenames:
 		Length: *
 		Offset: 0, 0, 25
@@ -1840,6 +1994,7 @@ napuls.nod:
 		TilesetFilenames:
 			TEMPERATE: ntpuls.shp
 			SNOW: napuls.shp
+			DESERT: ntpuls.shp
 		Offset: 0, -24, 24
 		DepthSprite: isodepth.shp
 	idle:
@@ -1855,11 +2010,13 @@ napuls.nod:
 		TilesetFilenames:
 			TEMPERATE: ntpuls_a.shp
 			SNOW: napuls_a.shp
+			DESERT: ntpuls_a.shp
 		Facings: 32
 	make:
 		TilesetFilenames:
 			TEMPERATE: ntpulsmk.shp
 			SNOW: napulsmk.shp
+			DESERT: ntpulsmk.shp
 		Length: 20
 		ShadowStart: 20
 	emp-overlay:
@@ -1882,6 +2039,7 @@ nastlh:
 		TilesetFilenames:
 			TEMPERATE: nastlh.shp
 			SNOW: nastlh.shp
+			DESERT: nastlh.shp
 		Offset: -32, -42, 50
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -48, -12
@@ -1893,12 +2051,14 @@ nastlh:
 		TilesetFilenames:
 			TEMPERATE: nastlh_a.shp
 			SNOW: nastlh_a.shp 
+			DESERT: nastlh_a.shp
 		Length: 20
 		Tick: 100
 	pulse-bright:
 		TilesetFilenames:
 			TEMPERATE: nastlh_a.shp
 			SNOW: nastlh_a.shp 
+			DESERT: nastlh_a.shp
 		Length: 20
 		Tick: 100
 		IgnoreWorldTint: true
@@ -1906,6 +2066,7 @@ nastlh:
 		TilesetFilenames:
 			TEMPERATE: nastlhmk.shp
 			SNOW: nastlhmk.shp
+			DESERT: nastlhmk.shp
 		Length: 26
 	emp-overlay: emp_fx01
 		Length: *
@@ -1913,6 +2074,7 @@ nastlh:
 		UseTilesetCode: false
 		ZOffset: 512
 		BlendMode: Additive
+		IgnoreWorldTint: True
 	icon:
 		Filename: clckicon.shp
 		TilesetFilenames:
@@ -1924,6 +2086,7 @@ napyra:
 		TilesetFilenames:
 			TEMPERATE: napyra.shp
 			SNOW: napyra.shp
+			DESERT: napyra.shp
 		Offset: 0, -48, 48
 		DepthSprite: isodepth.shp
 	idle:
@@ -1934,23 +2097,27 @@ napyra:
 		TilesetFilenames:
 			TEMPERATE: napyramk.shp
 			SNOW: napyramk.shp
+			DESERT: napyramk.shp
 		Length: 26
 	idle-lights:
 		TilesetFilenames:
 			TEMPERATE: napyra_a.shp
 			SNOW: napyra_a.shp
+			DESERT: napyra_a.shp
 		Length: 7
 		Tick: 300
 	damaged-idle-lights:
 		TilesetFilenames:
 			TEMPERATE: napyra_a.shp
 			SNOW: napyra_a.shp
+			DESERT: napyra_a.shp
 		Length: 7
 		Tick: 300
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: napyra_a.shp
 			SNOW: napyra_a.shp
+			DESERT: napyra_a.shp
 		Length: 7
 		Tick: 300
 		IgnoreWorldTint: true
@@ -1958,6 +2125,7 @@ napyra:
 		TilesetFilenames:
 			TEMPERATE: napyra_a.shp
 			SNOW: napyra_a.shp
+			DESERT: napyra_a.shp
 		Length: 7
 		Tick: 300
 		IgnoreWorldTint: true
@@ -1967,6 +2135,7 @@ napyra:
 		UseTilesetCode: false
 		ZOffset: 512
 		BlendMode: Additive
+		IgnoreWorldTint: True
 	icon:
 		Filename: napyraicon.shp
 		TilesetFilenames:
@@ -1978,6 +2147,7 @@ gactwr:
 		TilesetFilenames:
 			TEMPERATE: gatwr.shp
 			SNOW: gatwr.shp
+			DESERT: gatwr.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1996,6 +2166,7 @@ gactwr:
 		TilesetFilenames:
 			TEMPERATE: gtctwr_a.shp
 			SNOW: gactwr_a.shp
+			DESERT: gtctwr_a.shp
 		Length: 6
 		Tick: 200
 		Offset: 0, -17, 20
@@ -2003,6 +2174,7 @@ gactwr:
 		TilesetFilenames:
 			TEMPERATE: gtctwr_a.shp
 			SNOW: gactwr_a.shp
+			DESERT: gtctwr_a.shp
 		Length: 6
 		Tick: 200
 		IgnoreWorldTint: True
@@ -2011,6 +2183,7 @@ gactwr:
 		TilesetFilenames:
 			TEMPERATE: gatwrmk.shp
 			SNOW: gatwrmk.shp
+			DESERT: gatwrmk.shp
 		Length: 26
 		ShadowStart: 26
 	muzzle_mg:
@@ -2019,41 +2192,49 @@ gactwr:
 			0:
 				TilesetFilenames:
 					TEMPERATE: mgun-n.shp
+					DESERT: mgun-n.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			1:
 				TilesetFilenames:
 					TEMPERATE: mgun-nw.shp
+					DESERT: mgun-nw.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			2:
 				TilesetFilenames:
 					TEMPERATE: mgun-w.shp
+					DESERT: mgun-w.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			3:
 				TilesetFilenames:
 					TEMPERATE: mgun-sw.shp
+					DESERT: mgun-sw.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			4:
 				TilesetFilenames:
 					TEMPERATE: mgun-s.shp
+					DESERT: mgun-s.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			5:
 				TilesetFilenames:
 					TEMPERATE: mgun-se.shp
+					DESERT: mgun-se.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			6:
 				TilesetFilenames:
 					TEMPERATE: mgun-e.shp
+					DESERT: mgun-e.shp
 					SNOW: mgun-n.shp
 				Length: 6
 			7:
 				TilesetFilenames:
 					TEMPERATE: mgun-ne.shp
+					DESERT: mgun-ne.shp
 					SNOW: mgun-n.shp
 				Length: 6
 		Facings: 8
@@ -2063,6 +2244,7 @@ gactwr:
 		TilesetFilenames:
 			TEMPERATE: tankmuzzle_medium.png
 			SNOW: tankmuzzle_medium.png
+			DESERT: tankmuzzle_medium.png
 		Facings: -32
 		Offset: 0, 0, 128
 		Length: 5
@@ -2073,6 +2255,7 @@ gactwr:
 		TilesetFilenames:
 			TEMPERATE: tankmuzzle_small.png
 			SNOW: tankmuzzle_small.png
+			DESERT: tankmuzzle_small.png
 		Facings: -32
 		Offset: 0, -12, 128
 		Length: 3
@@ -2083,6 +2266,7 @@ gactwr:
 		TilesetFilenames:
 			TEMPERATE: tankmuzzle_small.png
 			SNOW: tankmuzzle_small.png
+			DESERT: tankmuzzle_small.png
 		Facings: -32
 		Offset: 0, -12, 128
 		Length: 3
@@ -2110,6 +2294,7 @@ gamg:
 		TilesetFilenames:
 			TEMPERATE: gamg_tur.shp
 			SNOW: gamg_tur.shp
+			DESERT: gamg_tur.shp
 		Facings: 32
 		ShadowStart: 32
 		Offset: 0, -15, 25
@@ -2122,6 +2307,7 @@ gagat:
 		TilesetFilenames:
 			TEMPERATE: gagat_tur.shp
 			SNOW: gagat_tur.shp
+			DESERT: gagat_tur.shp
 		Facings: 32
 		ShadowStart: 32
 		Offset: 0, -15, 25
@@ -2134,6 +2320,7 @@ gacan:
 		TilesetFilenames:
 			TEMPERATE: gacan_tur.shp
 			SNOW: gacan_tur.shp
+			DESERT: gacan_tur.shp
 		Facings: 32
 		ShadowStart: -1
 		Offset: 0, -15, 25
@@ -2146,6 +2333,7 @@ gasam:
 		TilesetFilenames:
 			TEMPERATE: gasam_tur.shp
 			SNOW: gasam_tur.shp
+			DESERT: gasam_tur.shp
 		Facings: 32
 		ShadowStart: -1
 		Offset: 0, -15, 25
@@ -2158,6 +2346,7 @@ gasen:
 		TilesetFilenames:
 			TEMPERATE: gasensor_tur.shp
 			SNOW: gasensor_tur.shp
+			DESERT: gasensor_tur.shp
 		Facings: 32
 		ShadowStart: -1
 		Offset: 0, -15, 25
@@ -2170,6 +2359,7 @@ gamortar:
 		TilesetFilenames:
 			TEMPERATE: gamortar_tur.shp
 			SNOW: gamortar_tur.shp
+			DESERT: gamortar_tur.shp
 		Facings: 32
 		ShadowStart: 32
 		Offset: 0, -15, 25
@@ -2182,6 +2372,7 @@ gamgsam:
 		TilesetFilenames:
 			TEMPERATE: gamg_samtur.shp
 			SNOW: gamg_samtur.shp
+			DESERT: gamg_samtur.shp
 		Facings: 32
 		ShadowStart: 32
 		Offset: 0, -15, 25
@@ -2193,6 +2384,7 @@ gahpad:
 		TilesetFilenames:
 			TEMPERATE: gthpad.shp
 			SNOW: gahpad.shp
+			DESERT: gthpad.shp
 		Offset: 0, -24, 1
 		DepthSpriteOffset: 34, 0
 	idle:
@@ -2217,6 +2409,7 @@ gahpad:
 		TilesetFilenames:
 			TEMPERATE: gthpadbb.shp
 			SNOW: gahpadbb.shp
+			DESERT: gthpadbb.shp
 		ShadowStart: 3
 		ZOffset: -1c511
 		ZRamp: 1
@@ -2224,6 +2417,7 @@ gahpad:
 		TilesetFilenames:
 			TEMPERATE: gthpadbb.shp
 			SNOW: gahpadbb.shp
+			DESERT: gthpadbb.shp
 		Start: 1
 		ShadowStart: 4
 		ZOffset: -1c511
@@ -2232,6 +2426,7 @@ gahpad:
 		TilesetFilenames:
 			TEMPERATE: gthpadbb.shp
 			SNOW: gahpadbb.shp
+			DESERT: gthpadbb.shp
 		Start: 2
 		ShadowStart: 5
 		ZOffset: -1c511
@@ -2241,6 +2436,7 @@ gahpad:
 		TilesetFilenames:
 			TEMPERATE: gthpad_a.shp
 			SNOW: gahpad_a.shp
+			DESERT: gthpad_a.shp
 		Length: 8
 		Tick: 100
 		Offset: 0, -36, 1
@@ -2250,6 +2446,7 @@ gahpad:
 		TilesetFilenames:
 			TEMPERATE: gthpad_a.shp
 			SNOW: gahpad_a.shp
+			DESERT: gthpad_a.shp
 		Length: 8
 		Tick: 100
 		Offset: 0, -36, 1
@@ -2260,6 +2457,7 @@ gahpad:
 		TilesetFilenames:
 			TEMPERATE: gthpad_a.shp
 			SNOW: gahpad_a.shp
+			DESERT: gthpad_a.shp
 		Start: 8
 		Length: 8
 		Tick: 100
@@ -2270,6 +2468,7 @@ gahpad:
 		TilesetFilenames:
 			TEMPERATE: gthpad_a.shp
 			SNOW: gahpad_a.shp
+			DESERT: gthpad_a.shp
 		Start: 8
 		Length: 8
 		Tick: 100
@@ -2281,6 +2480,7 @@ gahpad:
 		TilesetFilenames:
 			TEMPERATE: gthpadmk.shp
 			SNOW: gahpadmk.shp
+			DESERT: gthpadmk.shp
 		Length: 18
 		ShadowStart: 18
 		ZOffset: -1c511
@@ -2305,6 +2505,7 @@ nahpad:
 		TilesetFilenames:
 			TEMPERATE: nthpad.shp
 			SNOW: nahpad.shp
+			DESERT: nthpad.shp
 		Offset: 0, -24, 1
 		DepthSpriteOffset: -24, 0
 	idle:
@@ -2329,6 +2530,7 @@ nahpad:
 		TilesetFilenames:
 			TEMPERATE: nthpadbb.shp
 			SNOW: nahpadbb.shp
+			DESERT: nthpadbb.shp
 		ShadowStart: 3
 		ZOffset: -1c511
 		ZRamp: 1
@@ -2336,6 +2538,7 @@ nahpad:
 		TilesetFilenames:
 			TEMPERATE: nthpadbb.shp
 			SNOW: nahpadbb.shp
+			DESERT: nthpadbb.shp
 		Start: 1
 		ShadowStart: 4
 		ZOffset: -1c511
@@ -2344,6 +2547,7 @@ nahpad:
 		TilesetFilenames:
 			TEMPERATE: nthpadbb.shp
 			SNOW: nahpadbb.shp
+			DESERT: nthpadbb.shp
 		Start: 2
 		ShadowStart: 5
 		ZOffset: -1c511
@@ -2353,6 +2557,7 @@ nahpad:
 		TilesetFilenames:
 			TEMPERATE: nthpad_a.shp
 			SNOW: nahpad_a.shp
+			DESERT: nthpad_a.shp
 		Length: 46
 		ZOffset: -1c511
 		Tick: 100
@@ -2361,6 +2566,7 @@ nahpad:
 		TilesetFilenames:
 			TEMPERATE: nthpad_a.shp
 			SNOW: nahpad_a.shp
+			DESERT: nthpad_a.shp
 		Length: 46
 		ZOffset: -1c511
 		Tick: 100
@@ -2370,6 +2576,7 @@ nahpad:
 		TilesetFilenames:
 			TEMPERATE: nthpad_a.shp
 			SNOW: nahpad_a.shp
+			DESERT: nthpad_a.shp
 		Start: 46
 		Length: 46
 		Tick: 100
@@ -2379,6 +2586,7 @@ nahpad:
 		TilesetFilenames:
 			TEMPERATE: nthpad_a.shp
 			SNOW: nahpad_a.shp
+			DESERT: nthpad_a.shp
 		Start: 46
 		Length: 46
 		Tick: 100
@@ -2389,6 +2597,7 @@ nahpad:
 		TilesetFilenames:
 			TEMPERATE: nthpadmk.shp
 			SNOW: nahpadmk.shp
+			DESERT: nthpadmk.shp
 		Length: 20
 		ShadowStart: 20
 		Offset: 0, -24, 24
@@ -2412,6 +2621,7 @@ gproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefn.shp
 			SNOW: narefn.shp
+			DESERT: ntrefn.shp
 		Offset: -12, -42, 20
 		DepthSpriteOffset: 22, 0
 		DepthSprite: isodepth.shp
@@ -2428,6 +2638,7 @@ gproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefnmk.shp
 			SNOW: narefnmk.shp
+			DESERT: ntrefnmk.shp
 		Length: 20
 		ShadowStart: 20
 		Offset: -12, -42, 43
@@ -2436,24 +2647,28 @@ gproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefn_b.shp
 			SNOW: narefn_b.shp
+			DESERT: ntrefn_b.shp
 		Length: *
 		IgnoreWorldTint: True
 	unload-overlay:
 		TilesetFilenames:
 			TEMPERATE: ntrefn_a.shp
 			SNOW: narefn_a.shp
+			DESERT: ntrefn_a.shp
 		Length: *
 		ZOffset: 1024
 	idle-lights:
 		TilesetFilenames:
 			TEMPERATE: ntrefn_c.shp
 			SNOW: narefn_c.shp
+			DESERT: ntrefn_c.shp
 		Length: 16
 		Tick: 120
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: ntrefn_c.shp
 			SNOW: narefn_c.shp
+			DESERT: ntrefn_c.shp
 		Length: 16
 		Tick: 120
 		IgnoreWorldTint: True
@@ -2461,6 +2676,7 @@ gproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefnbb.shp
 			SNOW: narefnbb.shp
+			DESERT: ntrefnbb.shp
 		Length: 1
 		ZOffset: -1024
 		Offset: -12, -42, 1
@@ -2470,6 +2686,7 @@ gproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefnbb.shp
 			SNOW: narefnbb.shp
+			DESERT: ntrefnbb.shp
 		Start: 1
 		ZOffset: -1024
 		Offset: -12, -42, 1
@@ -2479,6 +2696,7 @@ gproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefnbb.shp
 			SNOW: narefnbb.shp
+			DESERT: ntrefnbb.shp
 		Start: 2
 		ZOffset: -1024
 		Offset: -12, -42, 1
@@ -2504,6 +2722,7 @@ nproc:
 		TilesetFilenames:
 			TEMPERATE: naref.shp
 			SNOW: naref.shp
+			DESERT: naref.shp
 		Offset: -12, -42, 40
 		DepthSpriteOffset: 22, 0
 		DepthSprite: isodepth.shp
@@ -2515,6 +2734,7 @@ nproc:
 		TilesetFilenames:
 			TEMPERATE: narefmk.shp
 			SNOW: narefmk.shp
+			DESERT: narefmk.shp
 		Length: 25
 		ShadowStart: 0
 		Offset: -12, -42, 43
@@ -2523,6 +2743,7 @@ nproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefn_b.shp
 			SNOW: narefn_b.shp
+			DESERT: ntrefn_b.shp
 		Length: *
 		Offset: -5, -50, 40
 		IgnoreWorldTint: True
@@ -2530,6 +2751,7 @@ nproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefn_b.shp
 			SNOW: narefn_b.shp
+			DESERT: ntrefn_b.shp
 		Length: *
 		Offset: -35, -40, 40
 		IgnoreWorldTint: True
@@ -2537,18 +2759,21 @@ nproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefn_a.shp
 			SNOW: narefn_a.shp
+			DESERT: ntrefn_a.shp
 		Length: *
 		ZOffset: 1024
 	idle-lights:
 		TilesetFilenames:
 			TEMPERATE: ntrefn_c.shp
 			SNOW: narefn_c.shp
+			DESERT: ntrefn_c.shp
 		Length: 16
 		Tick: 120
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: ntrefn_c.shp
 			SNOW: narefn_c.shp
+			DESERT: ntrefn_c.shp
 		Length: 16
 		Tick: 120
 		IgnoreWorldTint: True
@@ -2556,6 +2781,7 @@ nproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefnbb.shp
 			SNOW: narefnbb.shp
+			DESERT: ntrefnbb.shp
 		Length: 1
 		ZOffset: -1024
 		Offset: -12, -42, 1
@@ -2565,6 +2791,7 @@ nproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefnbb.shp
 			SNOW: narefnbb.shp
+			DESERT: ntrefnbb.shp
 		Start: 1
 		ZOffset: -1024
 		Offset: -12, -42, 1
@@ -2574,6 +2801,7 @@ nproc:
 		TilesetFilenames:
 			TEMPERATE: ntrefnbb.shp
 			SNOW: narefnbb.shp
+			DESERT: ntrefnbb.shp
 		Start: 2
 		ZOffset: -1024
 		Offset: -12, -42, 1
@@ -2599,6 +2827,7 @@ nawast:
 		TilesetFilenames:
 			TEMPERATE: ntwast.shp
 			SNOW: nawast.shp
+			DESERT: ntwast.shp
 		Offset: 0, -36, 24
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: 16, 0
@@ -2615,6 +2844,7 @@ nawast:
 		TilesetFilenames:
 			TEMPERATE: ntwastmk.shp
 			SNOW: nawastmk.shp
+			DESERT: ntwastmk.shp
 		Length: 19
 		ShadowStart: 19
 		Offset: 0, -36, 36
@@ -2623,6 +2853,7 @@ nawast:
 		TilesetFilenames:
 			TEMPERATE: ntwast_a.shp
 			SNOW: nawast_a.shp
+			DESERT: ntwast_a.shp
 		Length: 20
 		ShadowStart: 40
 		Tick: 120
@@ -2630,6 +2861,7 @@ nawast:
 		TilesetFilenames:
 			TEMPERATE: ntwast_a.shp
 			SNOW: nawast_a.shp
+			DESERT: ntwast_a.shp
 		Start: 20
 		Length: 20
 		ShadowStart: 60
@@ -2638,6 +2870,7 @@ nawast:
 		TilesetFilenames:
 			TEMPERATE: ntwast_b.shp
 			SNOW: nawast_b.shp
+			DESERT: ntwast_b.shp
 		Length: 8
 		Tick: 120
 		IgnoreWorldTint: True
@@ -2645,6 +2878,7 @@ nawast:
 		TilesetFilenames:
 			TEMPERATE: ntwast_b.shp
 			SNOW: nawast_b.shp
+			DESERT: ntwast_b.shp
 		Start: 8
 		Length: 8
 		Tick: 120
@@ -2653,6 +2887,7 @@ nawast:
 		TilesetFilenames:
 			TEMPERATE: ntwastbb.shp
 			SNOW: nawastbb.shp
+			DESERT: ntwastbb.shp
 		ZOffset: -1024
 		ZRamp: 1
 		DepthSprite:
@@ -2661,6 +2896,7 @@ nawast:
 		TilesetFilenames:
 			TEMPERATE: ntwastbb.shp
 			SNOW: nawastbb.shp
+			DESERT: ntwastbb.shp
 		Start: 1
 		ZOffset: -1024
 		ZRamp: 1
@@ -2670,6 +2906,7 @@ nawast:
 		TilesetFilenames:
 			TEMPERATE: ntwastbb.shp
 			SNOW: nawastbb.shp
+			DESERT: ntwastbb.shp
 		Start: 2
 		ZOffset: -1024
 		ZRamp: 1
@@ -2695,26 +2932,31 @@ gasilo.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtsilo.shp
 			SNOW: gasilo.shp
+			DESERT: gtsilo.shp
 		Offset: 0, -24, 24
 		DepthSprite: isodepth.shp
 	idle:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_a.shp
 			SNOW: gasilo_a.shp
+			DESERT: gtsilo_a.shp
 	damaged-idle:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_a.shp
 			SNOW: gasilo_a.shp
+			DESERT: gtsilo_a.shp
 		Start: 4
 	stages:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_a.shp
 			SNOW: gasilo_a.shp
+			DESERT: gtsilo_a.shp
 		Length: 4
 	damaged-stages:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_a.shp
 			SNOW: gasilo_a.shp
+			DESERT: gtsilo_a.shp
 		Start: 4
 		Length: 4
 	idle-underlay:
@@ -2733,6 +2975,7 @@ gasilo.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_b.shp
 			SNOW: gasilo_b.shp
+			DESERT: gtsilo_b.shp
 		Length: 16
 		Tick: 120
 		IgnoreWorldTint: True
@@ -2740,6 +2983,7 @@ gasilo.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_b.shp
 			SNOW: gasilo_b.shp
+			DESERT: gtsilo_b.shp
 		Start: 16
 		Length: 16
 		Tick: 120
@@ -2748,6 +2992,7 @@ gasilo.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtsilomk.shp
 			SNOW: gasilomk.shp
+			DESERT: gtsilomk.shp
 		Length: 18
 		ShadowStart: 20
 	emp-overlay:
@@ -2770,26 +3015,31 @@ gasilo.nod:
 		TilesetFilenames:
 			TEMPERATE: gtsilo.shp
 			SNOW: gasilo.shp
+			DESERT: gtsilo.shp
 		Offset: 0, -24, 24
 		DepthSprite: isodepth.shp
 	idle:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_a.shp
 			SNOW: gasilo_a.shp
+			DESERT: gtsilo_a.shp
 	damaged-idle:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_a.shp
 			SNOW: gasilo_a.shp
+			DESERT: gtsilo_a.shp
 		Start: 4
 	stages:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_a.shp
 			SNOW: gasilo_a.shp
+			DESERT: gtsilo_a.shp
 		Length: 4
 	damaged-stages:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_a.shp
 			SNOW: gasilo_a.shp
+			DESERT: gtsilo_a.shp
 		Start: 4
 		Length: 4
 	idle-underlay:
@@ -2808,6 +3058,7 @@ gasilo.nod:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_b.shp
 			SNOW: gasilo_b.shp
+			DESERT: gtsilo_b.shp
 		Length: 16
 		Tick: 120
 		IgnoreWorldTint: True
@@ -2815,6 +3066,7 @@ gasilo.nod:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_b.shp
 			SNOW: gasilo_b.shp
+			DESERT: gtsilo_b.shp
 		Start: 16
 		Length: 16
 		Tick: 120
@@ -2823,6 +3075,7 @@ gasilo.nod:
 		TilesetFilenames:
 			TEMPERATE: gtsilomk.shp
 			SNOW: gasilomk.shp
+			DESERT: gtsilomk.shp
 		Length: 18
 		ShadowStart: 20
 	emp-overlay:
@@ -2845,6 +3098,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept.shp
 			SNOW: gadept.shp
+			DESERT: gtdept.shp
 		Offset: 0, -36, 1
 		DepthSpriteOffset: 36, 0
 	idle:
@@ -2866,6 +3120,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdeptbb.shp
 			SNOW: gadeptbb.shp
+			DESERT: gtdeptbb.shp
 		ShadowStart: 3
 		ZOffset: -1c611
 		ZRamp: 1
@@ -2873,6 +3128,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdeptbb.shp
 			SNOW: gadeptbb.shp
+			DESERT: gtdeptbb.shp
 		Start: 1
 		ShadowStart: 4
 		ZOffset: -1c611
@@ -2881,6 +3137,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdeptbb.shp
 			SNOW: gadeptbb.shp
+			DESERT: gtdeptbb.shp
 		Start: 2
 		ShadowStart: 5
 		ZOffset: -1c611
@@ -2890,6 +3147,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_b.shp
 			SNOW: gadept_b.shp
+			DESERT: gtdept_b.shp
 		Offset: 0, -36, 13
 		Length: 7
 		Tick: 120
@@ -2898,6 +3156,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_b.shp
 			SNOW: gadept_b.shp
+			DESERT: gtdept_b.shp
 		Offset: 0, -36, 13
 		Length: 7
 		Tick: 120
@@ -2907,6 +3166,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_a.shp
 			SNOW: gadept_a.shp
+			DESERT: gtdept_a.shp
 		Length: 5
 		ZOffset: -1c511
 		Tick: 120
@@ -2915,6 +3175,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_a.shp
 			SNOW: gadept_a.shp
+			DESERT: gtdept_a.shp
 		Length: 5
 		ZOffset: -1c511
 		Tick: 120
@@ -2924,6 +3185,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_a.shp
 			SNOW: gadept_a.shp
+			DESERT: gtdept_a.shp
 		Start: 5
 		Length: 5
 		ZOffset: -1c511
@@ -2933,6 +3195,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_a.shp
 			SNOW: gadept_a.shp
+			DESERT: gtdept_a.shp
 		Start: 5
 		Length: 5
 		ZOffset: -1c511
@@ -2943,6 +3206,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_c.shp
 			SNOW: gadept_c.shp
+			DESERT: gtdept_c.shp
 		Length: 6
 		Offset: 0, -36, 12
 		Tick: 60
@@ -2951,6 +3215,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_c.shp
 			SNOW: gadept_c.shp
+			DESERT: gtdept_c.shp
 		Start: 6
 		Length: 5
 		Offset: 0, -36, 12
@@ -2960,6 +3225,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_c.shp
 			SNOW: gadept_c.shp
+			DESERT: gtdept_c.shp
 		Start: 6
 		Length: 5
 		Offset: 0, -36, 12
@@ -2970,6 +3236,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_c.shp
 			SNOW: gadept_c.shp
+			DESERT: gtdept_c.shp
 		Start: 10
 		Length: 6
 		Offset: 0, -36, 12
@@ -2979,6 +3246,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_d.shp
 			SNOW: gadept_d.shp
+			DESERT: gtdept_d.shp
 		Length: 7
 		ZOffset: -1c511
 		ZRamp: 1
@@ -2986,6 +3254,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdept_d.shp
 			SNOW: gadept_d.shp
+			DESERT: gtdept_d.shp
 		Start: 7
 		Length: 7
 		ZOffset: -1c511
@@ -2994,6 +3263,7 @@ gadept.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdeptmk.shp
 			SNOW: gadeptmk.shp
+			DESERT: gtdeptmk.shp
 		Length: 10
 		Tick: 60
 		ShadowStart: 10
@@ -3017,6 +3287,7 @@ gaarmory:
 		TilesetFilenames:
 			TEMPERATE: gaarmory.shp
 			SNOW: gaarmory.shp
+			DESERT: gaarmory.shp
 		Offset: 6, -30, 50
 		DepthSpriteOffset: 22, 0
 		DepthSprite: isodepth.shp
@@ -3033,6 +3304,7 @@ gaarmory:
 		TilesetFilenames:
 			TEMPERATE: gaarmorymk.shp
 			SNOW: gaarmorymk.shp
+			DESERT: gaarmorymk.shp
 		Length: 31
 		ShadowStart: 31
 	emp-overlay:
@@ -3053,6 +3325,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept.shp
 			SNOW: gadept.shp
+			DESERT: gtdept.shp
 		Offset: 0, -36, 1
 		DepthSpriteOffset: 36, 0
 	idle:
@@ -3074,6 +3347,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdeptbb.shp
 			SNOW: gadeptbb.shp
+			DESERT: gtdeptbb.shp
 		ShadowStart: 3
 		ZOffset: -1c611
 		ZRamp: 1
@@ -3081,6 +3355,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdeptbb.shp
 			SNOW: gadeptbb.shp
+			DESERT: gtdeptbb.shp
 		Start: 1
 		ShadowStart: 4
 		ZOffset: -1c611
@@ -3089,6 +3364,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdeptbb.shp
 			SNOW: gadeptbb.shp
+			DESERT: gtdeptbb.shp
 		Start: 2
 		ShadowStart: 5
 		ZOffset: -1c611
@@ -3098,6 +3374,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_b.shp
 			SNOW: gadept_b.shp
+			DESERT: gtdept_b.shp
 		Offset: 0, -36, 13
 		Length: 7
 		Tick: 120
@@ -3106,6 +3383,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_b.shp
 			SNOW: gadept_b.shp
+			DESERT: gtdept_b.shp
 		Offset: 0, -36, 13
 		Length: 7
 		Tick: 120
@@ -3115,6 +3393,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_a.shp
 			SNOW: gadept_a.shp
+			DESERT: gtdept_a.shp
 		Length: 5
 		ZOffset: -1c511
 		Tick: 120
@@ -3123,6 +3402,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_a.shp
 			SNOW: gadept_a.shp
+			DESERT: gtdept_a.shp
 		Length: 5
 		ZOffset: -1c511
 		Tick: 120
@@ -3132,6 +3412,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_a.shp
 			SNOW: gadept_a.shp
+			DESERT: gtdept_a.shp
 		Start: 5
 		Length: 5
 		ZOffset: -1c511
@@ -3141,6 +3422,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_a.shp
 			SNOW: gadept_a.shp
+			DESERT: gtdept_a.shp
 		Start: 5
 		Length: 5
 		ZOffset: -1c511
@@ -3151,6 +3433,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_c.shp
 			SNOW: gadept_c.shp
+			DESERT: gtdept_c.shp
 		Length: 6
 		Offset: 0, -36, 12
 		Tick: 60
@@ -3159,6 +3442,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_c.shp
 			SNOW: gadept_c.shp
+			DESERT: gtdept_c.shp
 		Start: 6
 		Length: 5
 		Offset: 0, -36, 12
@@ -3168,6 +3452,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_c.shp
 			SNOW: gadept_c.shp
+			DESERT: gtdept_c.shp
 		Start: 6
 		Length: 5
 		Offset: 0, -36, 12
@@ -3178,6 +3463,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_c.shp
 			SNOW: gadept_c.shp
+			DESERT: gtdept_c.shp
 		Start: 10
 		Length: 6
 		Offset: 0, -36, 12
@@ -3187,6 +3473,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_d.shp
 			SNOW: gadept_d.shp
+			DESERT: gtdept_d.shp
 		Length: 7
 		ZOffset: -1c511
 		ZRamp: 1
@@ -3194,6 +3481,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdept_d.shp
 			SNOW: gadept_d.shp
+			DESERT: gtdept_d.shp
 		Start: 7
 		Length: 7
 		ZOffset: -1c511
@@ -3202,6 +3490,7 @@ gadept.nod:
 		TilesetFilenames:
 			TEMPERATE: gtdeptmk.shp
 			SNOW: gadeptmk.shp
+			DESERT: gtdeptmk.shp
 		Length: 10
 		Tick: 60
 		ShadowStart: 10
@@ -3225,6 +3514,7 @@ namisl:
 		TilesetFilenames:
 			TEMPERATE: ntmisl.shp
 			SNOW: namisl.shp
+			DESERT: ntmisl.shp
 		Offset: 0, -24, 24
 		DepthSprite: isodepth.shp
 	idle:
@@ -3237,12 +3527,14 @@ namisl:
 		TilesetFilenames:
 			TEMPERATE: ntmisl_b.shp
 			SNOW: namisl_b.shp
+			DESERT: ntmisl_b.shp
 		Length: 10
 		Tick: 120
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: ntmisl_b.shp
 			SNOW: namisl_b.shp
+			DESERT: ntmisl_b.shp
 		Length: 10
 		Tick: 120
 		IgnoreWorldTint: True
@@ -3250,6 +3542,7 @@ namisl:
 		TilesetFilenames:
 			TEMPERATE: ntmisl_b.shp
 			SNOW: namisl_b.shp
+			DESERT: ntmisl_b.shp
 		Start: 10
 		Length: 10
 		Tick: 120
@@ -3257,6 +3550,7 @@ namisl:
 		TilesetFilenames:
 			TEMPERATE: ntmisl_b.shp
 			SNOW: namisl_b.shp
+			DESERT: ntmisl_b.shp
 		Start: 10
 		Length: 10
 		Tick: 120
@@ -3265,12 +3559,14 @@ namisl:
 		TilesetFilenames:
 			TEMPERATE: ntmislmk.shp
 			SNOW: namislmk.shp
+			DESERT: ntmislmk.shp
 		Length: 18
 		ShadowStart: 18
 	active:
 		TilesetFilenames:
 			TEMPERATE: ntmisl_a.shp
 			SNOW: namisl_a.shp
+			DESERT: ntmisl_a.shp
 		Frames: 0, 1, 2, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11
 		Length: 25
 		Tick: 80
@@ -3279,6 +3575,7 @@ namisl:
 		TilesetFilenames:
 			TEMPERATE: ntmisl_a.shp
 			SNOW: namisl_a.shp
+			DESERT: ntmisl_a.shp
 		Frames: 11, 12, 13, 14, 14, 14, 14, 14, 15, 16, 16, 16, 16, 17, 17, 17, 17, 17, 17, 17, 17, 18, 19, 20, 12, 22
 		Length: 25
 		Tick: 80
@@ -3288,6 +3585,7 @@ namisl:
 		TilesetFilenames:
 			TEMPERATE: ntmisl_a.shp
 			SNOW: namisl_a.shp
+			DESERT: ntmisl_a.shp
 		Start: 11
 		Length: 10
 		Tick: 80
@@ -3296,6 +3594,7 @@ namisl:
 		TilesetFilenames:
 			TEMPERATE: ntmisl_a.shp
 			SNOW: namisl_a.shp
+			DESERT: ntmisl_a.shp
 		Start: 11
 		Length: 10
 		Tick: 80
@@ -3321,6 +3620,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug.shp
 			SNOW: gaplug.shp
+			DESERT: gtplug.shp
 		Offset: 12,-30, 30
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: 12, 0
@@ -3337,12 +3637,14 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_a.shp
 			SNOW: gaplug_a.shp
+			DESERT: gtplug_a.shp
 		Length: 20
 		Tick: 120
 	damaged-idle-dish:
 		TilesetFilenames:
 			TEMPERATE: gtplug_a.shp
 			SNOW: gaplug_a.shp
+			DESERT: gtplug_a.shp
 		Start: 20
 		Length: 20
 		Tick: 120
@@ -3350,6 +3652,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_b.shp
 			SNOW: gaplug_b.shp
+			DESERT: gtplug_b.shp
 		Length: 20
 		Tick: 120
 		IgnoreWorldTint: True
@@ -3357,6 +3660,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_b.shp
 			SNOW: gaplug_b.shp
+			DESERT: gtplug_b.shp
 		Start: 20
 		Length: 20
 		Tick: 120
@@ -3365,12 +3669,14 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_c.shp
 			SNOW: gaplug_c.shp
+			DESERT: gtplug_c.shp
 		Length: 8
 		Tick: 120
 	idle-strip-bright:
 		TilesetFilenames:
 			TEMPERATE: gtplug_c.shp
 			SNOW: gaplug_c.shp
+			DESERT: gtplug_c.shp
 		Length: 8
 		Tick: 120
 		IgnoreWorldTint: True
@@ -3378,6 +3684,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_c.shp
 			SNOW: gaplug_c.shp
+			DESERT: gtplug_c.shp
 		Start: 8
 		Length: 8
 		Tick: 120
@@ -3385,6 +3692,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_c.shp
 			SNOW: gaplug_c.shp
+			DESERT: gtplug_c.shp
 		Start: 8
 		Length: 8
 		Tick: 120
@@ -3393,6 +3701,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_f.shp
 			SNOW: gaplug_f.shp
+			DESERT: gtplug_f.shp
 		Length: 15
 		Tick: 120
 		Reverses: true
@@ -3401,6 +3710,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_f.shp
 			SNOW: gaplug_f.shp
+			DESERT: gtplug_f.shp
 		Length: 15
 		Reverses: true
 		Tick: 120
@@ -3408,6 +3718,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_e.shp
 			SNOW: gaplug_e.shp
+			DESERT: gtplug_e.shp
 		Length: 15
 		Tick: 120
 		Offset: -12, -42, 30
@@ -3415,6 +3726,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_e.shp
 			SNOW: gaplug_e.shp
+			DESERT: gtplug_e.shp
 		Length: 15
 		Tick: 120
 		Offset: -12, -42, 30
@@ -3423,12 +3735,14 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_e.shp
 			SNOW: gaplug_e.shp
+			DESERT: gtplug_e.shp
 		Length: 15
 		Tick: 120
 	idle-hunterseekerb-bright:
 		TilesetFilenames:
 			TEMPERATE: gtplug_e.shp
 			SNOW: gaplug_e.shp
+			DESERT: gtplug_e.shp
 		Length: 15
 		Tick: 120
 		IgnoreWorldTint: True
@@ -3436,6 +3750,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_d.shp
 			SNOW: gaplug_d.shp
+			DESERT: gtplug_d.shp
 		Length: 15
 		Tick: 120
 		Offset: -12, -42, 30
@@ -3443,6 +3758,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_d.shp
 			SNOW: gaplug_d.shp
+			DESERT: gtplug_d.shp
 		Length: 15
 		Tick: 120
 		Offset: -12, -42, 30
@@ -3451,12 +3767,14 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplug_d.shp
 			SNOW: gaplug_d.shp
+			DESERT: gtplug_d.shp
 		Length: 15
 		Tick: 120
 	idle-droppodb-bright:
 		TilesetFilenames:
 			TEMPERATE: gtplug_d.shp
 			SNOW: gaplug_d.shp
+			DESERT: gtplug_d.shp
 		Length: 15
 		Tick: 120
 		IgnoreWorldTint: True
@@ -3464,6 +3782,7 @@ gaplug:
 		TilesetFilenames:
 			TEMPERATE: gtplugmk.shp
 			SNOW: gaplugmk.shp
+			DESERT: gtplugmk.shp
 		Length: 17
 		ShadowStart: 17
 	emp-overlay:
@@ -3486,6 +3805,7 @@ gaplug2:
 		TilesetFilenames:
 			TEMPERATE: gtplug_e.shp
 			SNOW: gaplug_e.shp
+			DESERT: gtplug_e.shp
 		Offset: 24,-48, 48
 		Reverses: true
 		Length: 14
@@ -3498,6 +3818,7 @@ gaplug3:
 		TilesetFilenames:
 			TEMPERATE: gtplug_f.shp
 			SNOW: gaplug_f.shp
+			DESERT: gtplug_f.shp
 		Offset: 24,-48, 48
 		Reverses: true
 		Length: 14
@@ -3510,6 +3831,7 @@ gaplug4:
 		TilesetFilenames:
 			TEMPERATE: gtplug_d.shp
 			SNOW: gaplug_d.shp
+			DESERT: gtplug_d.shp
 		Offset: 24,-48, 48
 		Reverses: true
 		Length: 14
@@ -3522,6 +3844,7 @@ gafire:
 		TilesetFilenames:
 			TEMPERATE: gtfire.shp
 			SNOW: gafire.shp
+			DESERT: gtfire.shp
 		Offset: -12, -30, 30
 	idle:
 		ShadowStart: 3
@@ -3536,33 +3859,39 @@ gafire:
 		TilesetFilenames:
 			TEMPERATE: gtfire_b.shp
 			SNOW: gafire_b.shp
+			DESERT: gtfire_b.shp
 		Length: 16
 		IgnoreWorldTint: True
 	active:
 		TilesetFilenames:
 			TEMPERATE: gtfire_a.shp
 			SNOW: gafire_a.shp
+			DESERT: gtfire_a.shp
 		Start: 19
 	disabled:
 		TilesetFilenames:
 			TEMPERATE: gtfire_a.shp
 			SNOW: gafire_a.shp
+			DESERT: gtfire_a.shp
 		Start: 0
 	switching:
 		TilesetFilenames:
 			TEMPERATE: gtfire_a.shp
 			SNOW: gafire_a.shp
+			DESERT: gtfire_a.shp
 		Length: 20
 	idle-lights:
 		TilesetFilenames:
 			TEMPERATE: gtfire_c.shp
 			SNOW: gafire_c.shp
+			DESERT: gtfire_c.shp
 		Length: 6
 		Tick: 200
 	idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: gtfire_c.shp
 			SNOW: gafire_c.shp
+			DESERT: gtfire_c.shp
 		Length: 6
 		Tick: 240
 		IgnoreWorldTint: True
@@ -3570,6 +3899,7 @@ gafire:
 		TilesetFilenames:
 			TEMPERATE: gtfiremk.shp
 			SNOW: gafiremk.shp
+			DESERT: gtfiremk.shp
 		Length: 15
 		ShadowStart: 17
 	emp-overlay:

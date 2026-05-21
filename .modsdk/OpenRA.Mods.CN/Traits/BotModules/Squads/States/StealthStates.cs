@@ -11,6 +11,7 @@
 
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
@@ -121,11 +122,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	{
 		int fleeStartTick;
 		const int RecloakWaitTicks = 150;
+		const int MinRetreatCells = 5;
+		const int MaxRetreatCells = 12;
 
 		public void Activate(CNSquad squad)
 		{
 			fleeStartTick = squad.World.WorldTick;
-			Retreat(squad, flee: true, rearm: true, repair: true);
+
+			var retreatCell = FindRetreatCell(squad);
+			if (retreatCell.HasValue)
+			{
+				var target = Target.FromCell(squad.World, retreatCell.Value);
+				foreach (var unit in squad.OrderableUnits)
+					squad.Bot.QueueOrder(new Order("Move", unit, target, false));
+			}
+			else
+				GoToRandomOwnBuilding(squad);
 		}
 
 		public void Tick(CNSquad squad)
@@ -133,12 +145,79 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			if (squad.World.WorldTick > fleeStartTick + RecloakWaitTicks)
-			{
+			var center = squad.CenterUnit();
+			if (center == null)
+				return;
+
+			var enemy = squad.SquadManager.FindClosestEnemy(center,
+				WDist.FromCells(squad.SquadManager.Info.DangerScanRadius));
+
+			if (enemy == null || squad.World.WorldTick - fleeStartTick >= RecloakWaitTicks)
 				squad.FuzzyStateMachine.ChangeState(squad, new StealthIdleState());
-			}
 		}
 
 		public void Deactivate(CNSquad squad) { }
+
+		static CPos? FindRetreatCell(CNSquad squad)
+		{
+			var leader = squad.CenterUnit();
+			if (leader == null)
+				return null;
+
+			var mobile = leader.TraitOrDefault<Mobile>();
+			if (mobile == null)
+				return null;
+
+			var map = squad.World.Map;
+			var origin = leader.Location;
+			var baseCell = squad.SquadManager.GetRandomBaseCenter();
+			CPos? bestCell = null;
+			var bestScore = int.MinValue;
+
+			for (var dy = -MaxRetreatCells; dy <= MaxRetreatCells; dy++)
+			{
+				for (var dx = -MaxRetreatCells; dx <= MaxRetreatCells; dx++)
+				{
+					var distanceSquared = dx * dx + dy * dy;
+					if (distanceSquared < MinRetreatCells * MinRetreatCells ||
+						distanceSquared > MaxRetreatCells * MaxRetreatCells)
+						continue;
+
+					var candidate = origin + new CVec(dx, dy);
+					if (!map.Contains(candidate) || !mobile.CanEnterCell(candidate))
+						continue;
+
+					var score = ScoreRetreatCell(squad, candidate, baseCell);
+					if (score <= bestScore)
+						continue;
+
+					bestScore = score;
+					bestCell = candidate;
+				}
+			}
+
+			return bestCell;
+		}
+
+		static int ScoreRetreatCell(CNSquad squad, CPos candidate, CPos baseCell)
+		{
+			var candidatePos = squad.World.Map.CenterOfCell(candidate);
+			var closestEnemyDistance = int.MaxValue;
+
+			foreach (var actor in squad.World.FindActorsInCircle(candidatePos,
+				WDist.FromCells(squad.SquadManager.Info.DangerScanRadius + 4)))
+			{
+				if (!squad.SquadManager.IsPreferredEnemyUnit(actor))
+					continue;
+
+				var distance = (int)(actor.CenterPosition - candidatePos).LengthSquared;
+				if (distance < closestEnemyDistance)
+					closestEnemyDistance = distance;
+			}
+
+			var score = closestEnemyDistance == int.MaxValue ? 1000000 : closestEnemyDistance;
+			score -= (candidate - baseCell).LengthSquared * 4;
+			return score;
+		}
 	}
 }

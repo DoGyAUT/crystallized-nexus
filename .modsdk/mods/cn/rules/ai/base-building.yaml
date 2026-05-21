@@ -1,0 +1,219 @@
+Player:
+	PowerDownBotModule:
+		RequiresCondition: enable-test-ai || enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		PowerDownTypes: garadr, naradr, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, nagat
+
+	CNBaseBuilderBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		
+		# Strategic scalar targets. Profile budget fields in profiles.yaml blend these category values.
+		BudgetNewProductionCashThresholds:
+			Expansion: 5500
+			Tech: 3500
+			Defense: 3800
+			Production: 2000
+		BudgetNewProductionChances:
+			Expansion: 55
+			Tech: 65
+			Defense: 75
+			Production: 95
+		BudgetMinimumExcessPower:
+			Expansion: 20
+			Tech: 20
+			Defense: 70
+			Production: 10
+		BudgetMaximumExcessPower:
+			Expansion: 110
+			Tech: 120
+			Defense: 130
+			Production: 35
+		BudgetInitialMinimumRefineryCounts:
+			Expansion: 2
+			Tech: 2
+			Defense: 2
+			Production: 1
+		
+		DefenseQueues: Support
+		MinimumExcessPower: 30
+		MaximumExcessPower: 200
+		ExcessPowerIncrement: 30
+		ExcessPowerIncreaseThreshold: 4
+		ConstructionYardTypes: gacnst, nacnst
+		RefineryTypes: gproc, nproc
+		PowerTypes: gapowr, napowr, naapwr
+		ProductionTypes: gapile, nahand, gaweap, naweap, gahpad, nahpad
+		TechTypes: garadr, naradr, gaarmory, gatech, gadept, gaplug, natmpl, namisl, napyra
+		SiloTypes: gasilo
+		DefenseTypes: gamg, gagat, gasam, gacan, gasen, gamortar, nalasr, nasam, naflamer, nagat, naobel, napuls
+		MaxRefineriesPerCluster: 2
+		RefineryClusterRadius: 10
+		MaxResourceCellsToCheck: 16
+		MinFiniteFieldCellsForExtraRefinery: 18
+		SellRefineryNoResourceDistance: 18
+		ExpansionTolerate: 3, 4
+		ForceExpansionTolerate: 5, 6
+		PerExpansionTolerateOnCash: 18000
+		InititalMinimumRefineryCount: 1
+		AdditionalMinimumRefineryCount: 1
+		NewProductionCashThreshold: 4000
+		NewProductionChance: 65
+		MaximumFailedPlacementAttempts: 6
+		StructureProductionResumeDelay: 3000
+		WallTypes: gawall, nawall
+		GateTypes: gagate_a, gagate_b, nagate_a, nagate_b
+		ProtectedByWalls: gaarmory, gatech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls
+		BasePerimeterWallMinimumStructures: 8
+		BasePerimeterWallPadding: 4
+		BasePerimeterMaxGateCount: 2
+		BasePerimeterResourceAvoidanceRadius: 2
+		BasePerimeterGateWallThreshold: 10
+		HarvesterLocomotors: tracked
+		VeinsOnlyBuildingTypes: nawast
+		VeinsOnlyResourceTypes: Veins
+		
+		# Defense placement and memory.
+		MinimumDefenseRadius: 3
+		MaximumDefenseRadius: 17
+		DefenseInnerRadius: 8
+		DefenseInnerMinSpacing: 2
+		DefenseOuterMinSpacing: 3
+		EnableDefenseDangerMemory: true
+		DefenseDangerMemoryAttackWeight: 120
+		DefenseDangerMemoryBuildingAttackWeight: 160
+		DefenseDangerMemoryRecordInterval: 30
+		DefenseCenterUpdateInterval: 90
+		DefenseDangerMemoryMergeRadius: 5
+		DefenseDangerMemoryMaxEntries: 10
+		DefensePlacementMaxHotspots: 4
+		DefensePlacementCandidateLimit: 32
+		DefenseDangerMemoryMinimumWeight: 80
+		DefenseDangerMemoryDecayInterval: 180
+		DefenseDangerMemoryDecayAmount: 12
+		DefensePlacementDangerWeight: 80
+		DefensePlacementEnemyDirectionWeight: 70
+		
+		# Base layout.
+		DynamicBaseRadius: true
+		RadiusPerBuilding: 0.4
+		MaxDynamicBaseRadius: 25
+		DefaultLayout: BaseGrid
+		SameTypeMinSpacing: 1
+		GlobalMinSpacing: 2
+		BuildingLayouts:
+			gapowr:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: gapowr
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 10
+			napowr:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: napowr
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 10
+			naapwr:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: naapwr
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 10
+			gahpad:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: gahpad
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 10
+			nahpad:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: nahpad
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 10
+			gasilo:
+				Layout: BaseGrid
+				MinSpacing: 0
+				NearBuilding: gasilo
+				ClusterGroupSize: 4
+				ClusterGroupSpacing: 10
+			gproc:
+				Layout: BaseGrid
+				MinSpacing: 1
+			nproc:
+				Layout: BaseGrid
+				MinSpacing: 1
+			gadept:
+				Layout: BaseGrid
+				NearBuilding: gaweap
+			nastlh:
+				Layout: Coverage
+				MinSpacing: 15
+		
+		# Hard caps.
+		BuildingLimits:
+			gapile: 6
+			nahand: 6
+			gaweap: 6
+			naweap: 6
+			gadept: 2
+			gahpad: 10
+			nahpad: 10
+			garadr: 1
+			gaarmory: 1
+			naradr: 1
+			gatech: 1
+			napyra: 1
+			gaplug: 1
+			gaplug2: 1
+			gaplug3: 1
+			gaplug4: 1
+			natmpl: 1
+			namisl: 1
+			nawast: 2
+		
+		# Neutral defense caps. Profile DefenseBudget scales these at runtime.
+		DefenseRoleLimits:
+			Total: 25
+			InfantryDefense: 10
+			ArmorDefense: 8
+			AADefense: 6
+			ArtilleryDefense: 5
+			Special: 5
+		
+		# Neutral base building targets.
+		# Tech-stage overlays are applied first, then profile budgets scale Production/Tech/Defense behavior in code.
+		BuildingFractions:
+			gapile: 10
+			nahand: 10
+			gaweap: 10
+			naweap: 10
+			gahpad: 16
+			nahpad: 16
+			gadept: 4
+			garadr: 5
+			naradr: 5
+			gaarmory: 5
+			gatech: 4
+			napyra: 4
+			nastlh: 4
+			gaplug: 4
+			gaplug2: 4
+			gaplug3: 4
+			gaplug4: 4
+			natmpl: 4
+			namisl: 4
+			nawast: 4
+		EarlyBuildingFractions:
+		MidBuildingFractions:
+			garadr: 8
+			naradr: 8
+			gaarmory: 8
+			gadept: 7
+		LateBuildingFractions:
+			gatech: 8
+			napyra: 8
+			nastlh: 10
+			gaplug: 4
+			gaplug2: 4
+			natmpl: 5
+			namisl: 4

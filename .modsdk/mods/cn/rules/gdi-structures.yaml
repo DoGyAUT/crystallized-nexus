@@ -735,7 +735,7 @@ GATECH:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 90
-		Prerequisites: gaweap, garadr, gaarmory, ~structures.gdi, ~techlevel.medium
+		Prerequisites: gaweap, garadr, gaarmory, ~structures.gdi, ~techlevel.high
 		Description: actor-gatech.description
 	Valued:
 		Cost: 1500

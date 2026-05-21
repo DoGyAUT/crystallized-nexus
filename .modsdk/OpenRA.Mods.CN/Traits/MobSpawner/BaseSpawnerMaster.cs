@@ -198,6 +198,13 @@ namespace OpenRA.Mods.CN.Traits
 				if (self.IsDead)
 					return;
 
+				// Guard against double-spawn: if the master triggers replenish twice for the
+				// same slave entry before the first frame-end task runs, both tasks would
+				// try to add the same actor to the world, throwing an ArgumentException
+				// (duplicate key) in World.Add.
+				if (slave.IsInWorld || slave.IsDead || slave.Disposed)
+					return;
+
 				var spawnOffset = exit == null ? WVec.Zero : exit.SpawnOffset;
 				var spawnPos = centerPosition + spawnOffset;
 

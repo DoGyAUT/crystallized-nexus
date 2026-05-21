@@ -63,6 +63,7 @@ FileSystem: ContentInstallerFileSystem
 		cn|bits/art/nod/vehicles
 		cn|bits/cameos
 		cn|bits/palletes
+		cn|bits/terrain/desert: desert
 		cn|bits/terrain
 		cn|audio/data
 		cn|audio/data/eva
@@ -78,10 +79,16 @@ MapFolders:
 
 Rules:
 	cn|rules/ai/bots.yaml
+	cn|rules/ai/profiles.yaml
 	cn|rules/ai/economy.yaml
+	cn|rules/ai/base-building.yaml
 	cn|rules/ai/support.yaml
-	cn|rules/ai/squads.yaml
-	cn|rules/ai/strategy.yaml
+	cn|rules/ai/production.yaml
+	cn|rules/ai/squads-rush.yaml
+	cn|rules/ai/squads-turtle.yaml
+	cn|rules/ai/squads-expansion.yaml
+	cn|rules/ai/squads-tech.yaml
+	cn|rules/ai/squads-steamroller.yaml
 	cn|rules/general.yaml
 	cn|rules/misc.yaml
 	cn|rules/player.yaml
@@ -163,6 +170,7 @@ ModelSequences:
 TileSets:
 	cn|tilesets/temperate.yaml
 	cn|tilesets/snow.yaml
+	cn|tilesets/desert.yaml
 
 MapGrid:
 	EnableDepthBuffer: True
@@ -332,7 +340,7 @@ TerrainFormat: DefaultTerrain
 SpriteSequenceFormat: TilesetSpecificSpriteSequence
 
 AssetBrowser:
-	SpriteExtensions: .shp, .tem, .sno
+	SpriteExtensions: .shp, .tem, .sno, .des
 	ModelExtensions: .vxl
 	AudioExtensions: .aud, .wav, .ogg
 	VideoExtensions: .vqa

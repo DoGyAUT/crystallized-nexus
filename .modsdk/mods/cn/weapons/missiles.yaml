@@ -63,10 +63,50 @@ Dragon:
 	Warhead@1Dam: SpreadDamage
 		Damage: 80
 
+HydraDragon:
+	Inherits: ^DefaultMissile
+	ReloadDelay: 200
+	Range: 7c768
+	Report: rocket01.aud, rocket02.aud, rocket03.aud, rocket04.aud, rocket05.aud, rocket06.aud
+	Burst: 12
+	BurstDelays: 10
+	ValidTargets: Ground
+	InvalidTargets: Infantry
+	Projectile: Missile
+		Inaccuracy: 1c256
+		MinimumLaunchAngle: -96
+		MaximumLaunchAngle: 32
+		HorizontalRateOfTurn: 32
+		VerticalRateOfTurn: 64
+		CruiseAltitude: 3c0
+	Warhead@1Dam: SpreadDamage
+		Spread: 72
+		Damage: 90
+		ValidTargets: Ground, Air
+		
+HydraLauncher:
+	Inherits: ^DefaultMissile
+	ReloadDelay: 120
+	Range: 7c768
+	Report: launcher01.aud, launcher02.aud, launcher03.aud, launcher04.aud
+	Burst: 2
+	BurstDelays: 10
+	ValidTargets: Air
+	Projectile: Missile
+		MinimumLaunchAngle: -96
+		MaximumLaunchAngle: 32
+		HorizontalRateOfTurn: 32
+		VerticalRateOfTurn: 64
+		CruiseAltitude: 3c0
+	Warhead@1Dam: SpreadDamage
+		Spread: 72
+		Damage: 100
+		ValidTargets: Ground, Air
+
 Hellfire:
 	Inherits: ^DefaultMissile
 	ReloadDelay: 80
-	Range: 8c0
+	Range: 7c768
 	Report: missile_v1.ogg, missile_v2.ogg
 	Burst: 2
 	ValidTargets: Ground, Air
@@ -81,7 +121,6 @@ Hellfire:
 		Spread: 72
 		Damage: 70
 		ValidTargets: Ground, Air
-		InvalidTargets: Infantry
 
 Hellstorm:
 	Inherits: ^DefaultMissile

@@ -46,7 +46,7 @@ NAPOST:
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 150
-		Prerequisites: naapwr, ~structures.nod
+		Prerequisites: naapwr, ~structures.nod, ~techlevel.medium
 		Description: actor-napost.description
 	Valued:
 		Cost: 200
@@ -178,7 +178,7 @@ NAOBEL:
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 160
-		Prerequisites: natech, ~structures.nod, ~techlevel.high
+		Prerequisites: napyra, ~structures.nod, ~techlevel.high
 		Description: actor-naobel.description
 	Building:
 		Footprint: xx xx
@@ -225,12 +225,12 @@ NALASR:
 	Valued:
 		Cost: 500
 	Tooltip:
-		Name: actor-nagat.name
+		Name: actor-nalasr.name
 	Buildable:
 		Queue: Support
 		Prerequisites: naweap, ~structures.nod, ~techlevel.medium
 		BuildPaletteOrder: 100
-		Description: actor-nagat.description
+		Description: actor-nalasr.description
 	CNHealth:
 		HP: 600
 	Armor:
@@ -389,7 +389,7 @@ NAPULS:
 	Buildable:
 		Queue: Support
 		BuildPaletteOrder: 110
-		Prerequisites: naweap, natech, ~structures.nod, ~techlevel.high
+		Prerequisites: naweap, napyra, ~structures.nod, ~techlevel.superweapons
 		Description: actor-napuls.description
 	Building:
 		Footprint: xx xx

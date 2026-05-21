@@ -116,6 +116,7 @@ lpst.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdpsa.shp
 			SNOW: gadpsa.shp
+			DESERT: gtdpsa.shp
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -6, -6
 		Offset: 0, -13, 12
@@ -124,6 +125,7 @@ lpst.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdpsamk.shp
 			SNOW: gadpsamk.shp
+			DESERT: gtdpsamk.shp
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -6, -6
 		Offset: 0, -13, 12
@@ -133,6 +135,7 @@ lpst.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdpsa_a.shp
 			SNOW: gadpsa_a.shp
+			DESERT: gtdpsa_a.shp
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -6, -6
 		Offset: 0, -13, 12
@@ -142,6 +145,7 @@ lpst.gdi:
 		TilesetFilenames:
 			TEMPERATE: gtdpsa_a.shp
 			SNOW: gadpsa_a.shp
+			DESERT: gtdpsa_a.shp
 		DepthSprite: isodepth.shp
 		DepthSpriteOffset: -6, -6
 		Offset: 0, -13, 12
@@ -169,6 +173,7 @@ art2:
 		TilesetFilenames:
 			TEMPERATE: gtarty.shp
 			SNOW: gaarty.shp
+			DESERT: gtarty.shp
 		ShadowStart: 3
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
@@ -176,6 +181,7 @@ art2:
 		TilesetFilenames:
 			TEMPERATE: gtarty.shp
 			SNOW: gaarty.shp
+			DESERT: gtarty.shp
 		Start: 1
 		ShadowStart: 4
 		Offset: 0, -12, 12
@@ -184,6 +190,7 @@ art2:
 		TilesetFilenames:
 			TEMPERATE: gtartymk.shp
 			SNOW: gaartymk.shp
+			DESERT: gtartymk.shp
 		Length: 16
 		ShadowStart: 16
 		Offset: 0, -12, 12

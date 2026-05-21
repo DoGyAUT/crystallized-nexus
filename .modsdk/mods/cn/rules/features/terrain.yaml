@@ -20,6 +20,12 @@
 		Interval: 55
 	WithIdleAnimation:
 		Interval: 500, 1000
+	TerrainLightSource:
+		Range: 2c184
+		Intensity: 0.01
+		RedTint: 0.01
+		GreenTint: 0.6
+		BlueTint: 0.01
 	MapEditorData:
 		Categories: Resource spawn
 	AmbientSound:

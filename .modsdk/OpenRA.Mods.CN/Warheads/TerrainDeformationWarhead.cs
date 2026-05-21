@@ -177,13 +177,24 @@ namespace OpenRA.Mods.CN.Warheads
 				return;
 
 			if (RampTemplates.Length == 0 || !TryRetileRamps(world, firedBy, heightChanges))
-				ApplyHeightChanges(world, heightChanges);
+				ApplyHeightChangesAndTerrainLat(world, firedBy, heightChanges);
 		}
 
 		void ApplyHeightChanges(World world, Dictionary<CPos, byte> heightChanges)
 		{
 			foreach (var (cell, height) in heightChanges)
 				world.Map.Height[cell] = height;
+		}
+
+		void ApplyHeightChangesAndTerrainLat(World world, Actor firedBy, Dictionary<CPos, byte> heightChanges)
+		{
+			ApplyHeightChanges(world, heightChanges);
+
+			var terrainLatGroups = BuildTerrainLatGroups(world.Map);
+			if (terrainLatGroups.Count == 0)
+				return;
+
+			ApplyTerrainLat(world, CollectRetileCells(world.Map, firedBy, heightChanges.Keys), terrainLatGroups);
 		}
 
 		void AddMinHeightRim(
@@ -214,19 +225,12 @@ namespace OpenRA.Mods.CN.Warheads
 		bool TryRetileRamps(World world, Actor firedBy, Dictionary<CPos, byte> heightChanges)
 		{
 			var map = world.Map;
-			var tileable = new HashSet<CPos>();
-			var retileRadius = Math.Max(0, RampRetileRadius);
-
-			foreach (var origin in heightChanges.Keys)
-				foreach (var cell in map.FindTilesInAnnulus(origin, 0, retileRadius))
-					if (CanRetileCell(cell, firedBy))
-						tileable.Add(cell);
+			var tileable = CollectRetileCells(map, firedBy, heightChanges.Keys);
 
 			if (tileable.Count == 0)
 				return false;
 
 			var terrainLatGroups = BuildTerrainLatGroups(map);
-			var terrainLatHints = CaptureTerrainLatHints(map, tileable, terrainLatGroups);
 			var rampTiler = new RampTiler(map, RampTemplates);
 			var heightMap = new RampTiler.HeightMap(map);
 
@@ -247,13 +251,26 @@ namespace OpenRA.Mods.CN.Warheads
 			try
 			{
 				brush.Paint(map, [], CPos.Zero, 0, MultiBrush.Replaceability.Tile, world.SharedRandom);
-				ApplyTerrainLat(world, tileable, terrainLatHints, terrainLatGroups);
+				ApplyTerrainLat(world, tileable, terrainLatGroups);
 				return true;
 			}
 			catch (ArgumentException)
 			{
 				return false;
 			}
+		}
+
+		HashSet<CPos> CollectRetileCells(Map map, Actor firedBy, IEnumerable<CPos> origins)
+		{
+			var tileable = new HashSet<CPos>();
+			var retileRadius = Math.Max(0, RampRetileRadius);
+
+			foreach (var origin in origins)
+				foreach (var cell in map.FindTilesInAnnulus(origin, 0, retileRadius))
+					if (CanRetileCell(cell, firedBy))
+						tileable.Add(cell);
+
+			return tileable;
 		}
 
 		void SeedCurrentCornerHeights(
@@ -337,33 +354,9 @@ namespace OpenRA.Mods.CN.Warheads
 			return groups;
 		}
 
-		Dictionary<CPos, string> CaptureTerrainLatHints(
-			Map map,
-			HashSet<CPos> cells,
-			Dictionary<ushort, string> terrainLatGroups)
-		{
-			var hints = new Dictionary<CPos, string>();
-			if (terrainLatGroups.Count == 0)
-				return hints;
-
-			var radius = Math.Max(0, TerrainLatRepaintRadius);
-			foreach (var origin in cells)
-				foreach (var cell in map.FindTilesInAnnulus(origin, 0, radius))
-				{
-					if (!map.Contains(cell))
-						continue;
-
-					if (terrainLatGroups.TryGetValue(map.Tiles[cell].Type, out var group))
-						hints[cell] = group;
-				}
-
-			return hints;
-		}
-
 		void ApplyTerrainLat(
 			World world,
 			HashSet<CPos> cells,
-			Dictionary<CPos, string> terrainLatHints,
 			Dictionary<ushort, string> terrainLatGroups)
 		{
 			if (terrainLatGroups.Count == 0)
@@ -382,7 +375,7 @@ namespace OpenRA.Mods.CN.Warheads
 				if (map.Ramp[cell] != 0)
 					continue;
 
-				var group = GetTerrainLatGroup(map, cell, terrainLatHints, terrainLatGroups);
+				var group = GetTerrainLatGroup(map, cell, terrainLatGroups);
 				if (group == null)
 					continue;
 
@@ -391,7 +384,7 @@ namespace OpenRA.Mods.CN.Warheads
 				if (!TerrainLatTransitionTemplates.TryGetValue(group, out var transitions) || transitions.Length != 16)
 					continue;
 
-				var mask = CalculateTerrainLatMask(map, cell, group, terrainLatHints, terrainLatGroups);
+				var mask = CalculateTerrainLatMask(map, cell, group, terrainLatGroups);
 				var template = mask == 0
 					? baseTemplates[world.SharedRandom.Next(baseTemplates.Length)]
 					: transitions[mask];
@@ -404,12 +397,8 @@ namespace OpenRA.Mods.CN.Warheads
 		string GetTerrainLatGroup(
 			Map map,
 			CPos cell,
-			Dictionary<CPos, string> terrainLatHints,
 			Dictionary<ushort, string> terrainLatGroups)
 		{
-			if (terrainLatHints.TryGetValue(cell, out var hintedGroup))
-				return hintedGroup;
-
 			return terrainLatGroups.TryGetValue(map.Tiles[cell].Type, out var group) ? group : null;
 		}
 
@@ -417,17 +406,16 @@ namespace OpenRA.Mods.CN.Warheads
 			Map map,
 			CPos cell,
 			string group,
-			Dictionary<CPos, string> terrainLatHints,
 			Dictionary<ushort, string> terrainLatGroups)
 		{
 			var mask = 0;
-			if (!IsSameTerrainLatGroup(map, cell + new CVec(0, -1), group, terrainLatHints, terrainLatGroups))
+			if (!IsSameTerrainLatGroup(map, cell + new CVec(0, -1), group, terrainLatGroups))
 				mask |= 1;
-			if (!IsSameTerrainLatGroup(map, cell + new CVec(1, 0), group, terrainLatHints, terrainLatGroups))
+			if (!IsSameTerrainLatGroup(map, cell + new CVec(1, 0), group, terrainLatGroups))
 				mask |= 2;
-			if (!IsSameTerrainLatGroup(map, cell + new CVec(0, 1), group, terrainLatHints, terrainLatGroups))
+			if (!IsSameTerrainLatGroup(map, cell + new CVec(0, 1), group, terrainLatGroups))
 				mask |= 4;
-			if (!IsSameTerrainLatGroup(map, cell + new CVec(-1, 0), group, terrainLatHints, terrainLatGroups))
+			if (!IsSameTerrainLatGroup(map, cell + new CVec(-1, 0), group, terrainLatGroups))
 				mask |= 8;
 
 			return mask;
@@ -437,13 +425,12 @@ namespace OpenRA.Mods.CN.Warheads
 			Map map,
 			CPos cell,
 			string group,
-			Dictionary<CPos, string> terrainLatHints,
 			Dictionary<ushort, string> terrainLatGroups)
 		{
 			if (!map.Contains(cell))
 				return false;
 
-			return GetTerrainLatGroup(map, cell, terrainLatHints, terrainLatGroups) == group;
+			return GetTerrainLatGroup(map, cell, terrainLatGroups) == group;
 		}
 
 		bool IsValidTemplate(Map map, ushort template)

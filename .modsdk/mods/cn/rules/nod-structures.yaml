@@ -597,11 +597,6 @@ NATECH:
 	Inherits: ^Building
 	Inherits@IDISABLED: ^DisableOnLowPower
 	Inherits@SHAPE: ^2x2Shape
-	Buildable:
-		Queue: Building
-		BuildPaletteOrder: 90
-		Prerequisites: naweap, naradr, ~structures.nod, ~techlevel.medium
-		Description: actor-natech.description
 	Valued:
 		Cost: 1500
 	Tooltip:
@@ -644,7 +639,7 @@ NASTLH:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 100
-		Prerequisites: nproc, natech, ~structures.nod, ~techlevel.high
+		Prerequisites: nproc, napyra, ~structures.nod, ~techlevel.high
 		Description: actor-nastlh.description
 	ProvidesPrerequisite@buildingname:
 	Building:
@@ -687,14 +682,13 @@ NAPYRA:
 	Inherits@SHAPE: ^4x4Shape
 	Buildable:
 		Queue: Building
-		BuildPaletteOrder: 100
-		Prerequisites: nproc, natech, ~structures.nod, ~techlevel.high
-		Description: actor-nastlh.description
-	ProvidesPrerequisite@buildingname:
+		BuildPaletteOrder: 50
+		Prerequisites: naweap, naradr, ~structures.nod, ~techlevel.medium
+		Description: actor-napyra.description
 	Valued:
-		Cost: 4000
+		Cost: 1500
 	Tooltip:
-		Name: Nod Pyramid
+		Name: actor-napyra.name
 	Building:
 		Footprint: xxxx xxxx xxxx xxxx
 		Dimensions: 4,4
@@ -722,6 +716,8 @@ NAPYRA:
 		Palette: bright
 	Power:
 		Amount: -150
+	ProvidesPrerequisite:
+		Prerequisite: tech
 	ProvidesPrerequisite@buildingname:
 	RequiresBuildableArea:
 		AreaTypes: building
@@ -739,7 +735,7 @@ NATMPL:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 110
-		Prerequisites: natech, ~structures.nod, ~techlevel.high
+		Prerequisites: napyra, ~structures.nod, ~techlevel.superweapons
 		Description: actor-natmpl.description
 	ProvidesPrerequisite@buildingname:
 	Valued:
@@ -797,7 +793,7 @@ NAMISL:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 120
-		Prerequisites: natech, ~structures.nod, ~techlevel.superweapons
+		Prerequisites: napyra, ~structures.nod, ~techlevel.superweapons
 		BuildLimit: 1
 		Description: actor-namisl.description
 	Valued:

@@ -7,6 +7,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA;
 using OpenRA.Mods.Common.Activities;
@@ -226,6 +227,11 @@ namespace OpenRA.Mods.CN.Traits
 			}
 		}
 
+		public IEnumerable<Actor> AliveSlavesInWorld =>
+			slaveEntries
+				.Where(se => se.IsValid && se.Actor.IsInWorld)
+				.Select(se => se.Actor);
+
 		// --- IResolveOrder ---
 		public void ResolveOrder(Actor self, Order order)
 		{
@@ -239,8 +245,9 @@ namespace OpenRA.Mods.CN.Traits
 				order.Target.Type != TargetType.Invalid)
 				AssignTargetsToSlaves(self, order.Target, forceAttack: order.OrderString == "ForceAttack");
 
-			// Block EnterTransport if the transport can't fit the master + all alive slaves.
-			// This prevents a partial load where only the master enters and slaves are left behind.
+			// Slaves have Weight: 0 so only the master needs to fit; they teleport in via
+			// INotifyEnteredCargo once the master actually boards. While the master walks to the
+			// transport, slaves move alongside it so the squad visually travels together.
 			if (order.OrderString == "EnterTransport" && order.Target.Type == TargetType.Actor)
 			{
 				var transport = order.Target.Actor;
@@ -248,20 +255,21 @@ namespace OpenRA.Mods.CN.Traits
 				if (cargo == null)
 					return;
 
-				var aliveSlaves = slaveEntries.Where(s => s.IsValid && s.Actor.IsInWorld).ToArray();
-
-				// Calculate total weight of slaves that would need to enter
-				var slaveWeight = aliveSlaves.Sum(se =>
-					se.Actor.Info.TraitInfoOrDefault<PassengerInfo>()?.Weight ?? 1);
-
-				// Check remaining capacity after the master is accounted for
 				var masterWeight = self.Info.TraitInfoOrDefault<PassengerInfo>()?.Weight ?? 1;
-				var totalRequired = masterWeight + slaveWeight;
-
-				var hasRoom = cargo.HasSpace(totalRequired);
-				if (!hasRoom)
+				if (!cargo.HasSpace(masterWeight))
 				{
 					self.CancelActivity();
+					return;
+				}
+
+				var transportCell = transport.Location;
+				foreach (var se in slaveEntries)
+				{
+					if (!se.IsValid || !se.Actor.IsInWorld)
+						continue;
+
+					se.SpawnerSlave.Stop(se.Actor);
+					se.SpawnerSlave.Move(se.Actor, transportCell);
 				}
 			}
 		}
@@ -417,7 +425,7 @@ namespace OpenRA.Mods.CN.Traits
 			}
 
 			foreach (var se in slaveEntries)
-				if (se.IsValid && !se.Actor.IsInWorld)
+				if (se.IsValid && !se.Actor.IsInWorld && se.Actor.TraitOrDefault<Passenger>()?.Transport == null)
 					SpawnIntoWorld(self, se.Actor, centerPosition + Info.Offset);
 
 			// On initial production spawn: override the default MoveTo(spawnCell) activity
@@ -581,38 +589,49 @@ namespace OpenRA.Mods.CN.Traits
 		// --- APC Transport ---
 		void INotifyEnteredCargo.OnEnteredCargo(Actor self, Actor transport)
 		{
+			// Master has boarded; now teleport all alive slaves directly into the cargo.
+			// They were walking toward the transport and snap in without a boarding animation.
 			var cargo = transport.TraitOrDefault<Cargo>();
 			if (cargo == null)
 				return;
 
+			var aliveSlaves = slaveEntries
+				.Where(s => s.IsValid && s.Actor.IsInWorld && !s.Actor.IsDead)
+				.Select(s => s.Actor)
+				.ToArray();
+
+			if (aliveSlaves.Length == 0)
+				return;
+
 			self.World.AddFrameEndTask(w =>
 			{
-				foreach (var se in slaveEntries)
+				foreach (var slave in aliveSlaves)
 				{
-					if (!se.IsValid)
+					if (slave.IsDead || !slave.IsInWorld)
 						continue;
 
-					if (se.Actor.TraitOrDefault<Passenger>()?.Transport == transport)
+					if (!cargo.CanLoad(slave))
 						continue;
 
-					if (!cargo.CanLoad(se.Actor))
-						continue;
-
-					se.Actor.CancelActivity();
-					if (se.Actor.IsInWorld)
-						w.Remove(se.Actor);
-
-					cargo.Load(transport, se.Actor);
+					slave.CancelActivity();
+					cargo.Load(transport, slave);
+					w.Remove(slave);
 				}
 			});
 		}
 
 		void INotifyExitedCargo.OnExitedCargo(Actor self, Actor transport)
 		{
-			// Slaves are loaded into the transport individually (via OnEnteredCargo), so the
-			// Cargo activity ejects them on its own — no manual unload needed here.
+			// Slaves are loaded directly into cargo by INotifyEnteredCargo, so the
+			// Cargo activity ejects them on its own when the transport unloads.
 			// When the transport is killed, Cargo.Killed handles all passengers directly;
 			// calling cargo.Unload here too would add each slave to World twice → ArgumentException.
+			//
+			// However, slaves that were dead and replenished via RestoreSquad while the master
+			// was inside a transport were never added to cargo and must be spawned now.
+			// SpawnReplenishedSlaves skips actors whose Passenger.Transport is still set (alive
+			// slaves still being ejected by cargo), so there is no risk of double-spawning.
+			SpawnReplenishedSlaves(self);
 		}
 
 		// --- Position aggregation (nexus mode only) ---
@@ -741,7 +760,7 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			var activity = self.CurrentActivity;
 
-			if (activity is Move)
+			if (activity is Move || activity is Enter)
 			{
 				MoveSlaves(self);
 				return;

@@ -29,6 +29,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			currentState?.Activate(squad);
 		}
+
+		public bool IsInState<T>() where T : ICNState => currentState is T;
+
+		public bool IsInAnyState<T1, T2>() where T1 : ICNState where T2 : ICNState =>
+			currentState is T1 || currentState is T2;
 	}
 
 	interface ICNState

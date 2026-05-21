@@ -4,13 +4,13 @@
 		DeathSequence: die-
 		DeathTypes:
 			BulletDeath: twirling
-			SmallExplosionDeath: flying
 	WithDeathAnimation@explosion:
 		DeathSequence: die-
 		DeathSequencePalette: apolra
 		DeathPaletteIsPlayerPalette: False
 		DeathTypes:
 			ExplosionDeath: exploding
+			SmallExplosionDeath: exploding
 	WithDeathAnimation@energy:
 		DeathSequence: die-
 		DeathSequencePalette: ra
@@ -22,9 +22,9 @@
 		CrushedSequencePalette: player
 		CrushedPaletteIsPlayerPalette: true
 	DeathSounds@NORMAL:
-		DeathTypes: BulletDeath, SmallExplosionDeath, ExplosionDeath
+		DeathTypes: BulletDeath, SmallExplosionDeath
 	DeathSounds@EXPLOSION:
-		Voice: Explode
+		Voice: Burned
 		DeathTypes: ExplosionDeath
 	DeathSounds@BURNED:
 		Voice: Burned

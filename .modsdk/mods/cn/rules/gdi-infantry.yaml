@@ -8,7 +8,7 @@ GASOL:
 		Queue: Infantry
 		BuildPaletteOrder: 10
 		Prerequisites: ~gapile, ~techlevel.low
-		Description: actor-e1.description
+		Description: actor-gasol.description
 	Valued:
 		Cost: 120
 	Tooltip:
@@ -211,7 +211,7 @@ GASNIPER:
 		Queue: Infantry
 		BuildPaletteOrder: 60
 		Prerequisites: ~gapile, garadr, ~techlevel.medium
-		Description: actor-e1.description
+		Description: actor-gasniper.description
 	Valued:
 		Cost: 500
 	Tooltip:
@@ -367,7 +367,7 @@ JUMPJET:
 		Actors: JUMPJET.Member, JUMPJET.Member
 		DisableRespawning: true
 	BotCapabilities:
-		Capabilities: Infantry, AntiInfantry, Jumpjet
+		Capabilities: Infantry, AntiInfantry, Jumpjet, AntiAir
 
 JUMPJET.Husk:
 	RenderSprites:

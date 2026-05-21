@@ -227,11 +227,10 @@ namespace OpenRA.Mods.CN.UtilityCommands
 				}
 			},
 
-			// RedTiberium (Arboreus - red) → ResourceIndex 3
+			// Veins → ResourceIndex 3
+			// RedTiberium (Arboreus - red) → ResourceIndex 4
 			// MPR does not have native red tiberium; this is a CN-only extension.
-			// Maps with red tiberium placed via editor will use ResourceIndex 3 directly.
-
-			// Veins → ResourceIndex 4 (shifted from TS's 3 to make room for RedTiberium)
+			// Maps with red tiberium placed via editor will use ResourceIndex 4 directly.
 			{ 0x03, new byte[] { 0x7E } }
 		};
 
@@ -300,8 +299,8 @@ namespace OpenRA.Mods.CN.UtilityCommands
 				if (frame < 48 || frame > 60)
 					return true;
 
-				// CN mod: Veins use ResourceIndex 4 (RedTiberium occupies 3)
-				map.Resources[cell] = new ResourceTile(4, (byte)(frame == 52 ? 1 : 2));
+				// CN mod: Veins use ResourceIndex 3 (RedTiberium occupies 4).
+				map.Resources[cell] = new ResourceTile(3, (byte)(frame == 52 ? 1 : 2));
 				return true;
 			}
 

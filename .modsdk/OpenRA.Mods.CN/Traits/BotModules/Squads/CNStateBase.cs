@@ -20,6 +20,27 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 {
 	abstract class CNStateBase
 	{
+		/// <summary>
+		/// Validates that the squad has at least one operational carrier unit that is alive and in-world.
+		/// Returns true if carriers are valid, false otherwise.
+		/// </summary>
+		public static bool ValidateCarriers(CNSquad squad)
+		{
+			if (squad == null || squad.CarrierUnits == null || !squad.CarrierUnits.Any())
+				return false;
+
+			return squad.CarrierUnits.Any(u => !u.IsDead && u.IsInWorld);
+		}
+
+		/// <summary>
+		/// Horizontal (X/Y only) squared distance. Aircraft carry their cruise
+		/// altitude in Z, so a 3-D distance check would never report a flying
+		/// transport as "arrived"; callers comparing an airborne actor against a
+		/// ground cell must ignore Z.
+		/// </summary>
+		protected static long HorizontalLengthSquared(WVec v)
+			=> (long)v.X * v.X + (long)v.Y * v.Y;
+
 		// --- Movement helpers (delegate to CNSquadHelper) ---
 
 		protected static void GoToRandomOwnBuilding(CNSquad squad)
@@ -30,23 +51,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		// --- Attack helpers ---
 
-		/// <summary>Returns true if the actor is currently executing an attack activity.</summary>
+		/// <summary>Returns true if the actor has an attack activity anywhere in its
+		/// current activity chain (not just the head / first queued entry), so a
+		/// deeply queued or derived Attack/FlyAttack still counts as busy.</summary>
 		protected static bool BusyAttack(Actor a)
 		{
 			if (a.IsIdle)
 				return false;
 
-			var activity = a.CurrentActivity;
-			var type = activity.GetType();
-			if (type == typeof(Attack) || type == typeof(FlyAttack))
-				return true;
-
-			var next = activity.NextActivity;
-			if (next == null)
-				return false;
-
-			var nextType = next.GetType();
-			return nextType == typeof(Attack) || nextType == typeof(FlyAttack);
+			var current = a.CurrentActivity;
+			return current.ActivitiesImplementing<Attack>().Any()
+				|| current.ActivitiesImplementing<FlyAttack>().Any();
 		}
 
 		/// <summary>Returns true if the actor has a weapon that can target the given actor.</summary>
@@ -62,6 +77,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			foreach (var arm in a.TraitsImplementing<Armament>())
 			{
 				if (arm.IsTraitDisabled)
+					continue;
+				if (arm.IsTraitPaused)
 					continue;
 				if (arm.Weapon.IsValidTarget(targetTypes))
 					return true;
@@ -121,7 +138,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var enemies = units
 				.Where(u => squad.SquadManager.IsPreferredEnemyUnit(u) &&
-				            u.Info.HasTraitInfo<AttackBaseInfo>())
+							u.Info.HasTraitInfo<AttackBaseInfo>())
 				.ToList();
 
 			if (enemies.Count == 0)

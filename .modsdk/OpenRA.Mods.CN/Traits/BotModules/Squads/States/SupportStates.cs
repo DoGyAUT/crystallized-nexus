@@ -17,7 +17,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	/// <summary>
-	/// Idle: scan for an active Assault or Rush squad to attach to.
+	/// Idle: scan for an active Assault, Rush, Protection, or Defense squad to attach to.
 	/// </summary>
 	sealed class SupportIdleState : CNStateBase, ICNState
 	{
@@ -44,7 +44,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				.Where(s => s != squad && s.IsOperational &&
 							(s.Type == CNSquadType.Assault ||
 							 s.Type == CNSquadType.Rush ||
-							 s.Type == CNSquadType.Protection))
+							 s.Type == CNSquadType.Protection ||
+							 s.Type == CNSquadType.Defense))
 				.OrderBy(s =>
 				{
 					var sCenter = s.CenterUnit();
@@ -63,7 +64,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	}
 
 	/// <summary>
-	/// Follow: stay near the attached squad and heal/repair allies.
+	/// Follow: stay near the attached squad and heal/repair allies. Flee when enemies are in danger range.
 	/// </summary>
 	sealed class SupportFollowState : CNStateBase, ICNState
 	{
@@ -73,6 +74,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			if (!squad.IsOperational)
 				return;
+
+			// Flee from any nearby attacker — support units never fight back.
+			if (IsUnderThreat(squad))
+			{
+				Retreat(squad, flee: true, rearm: false, repair: false);
+				squad.AttachedTo = null;
+				squad.FuzzyStateMachine.ChangeState(squad, new SupportIdleState());
+				return;
+			}
 
 			if (squad.AttachedTo == null || !squad.AttachedTo.IsValid)
 			{
@@ -123,8 +133,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Deactivate(CNSquad squad) { }
 
+		/// <summary>
+		/// True when any enemy with a weapon is within DangerScanRadius, regardless of own buildings.
+		/// Unlike the base ShouldFlee, this does NOT exempt the area around own structures — support
+		/// units must flee even during a base attack.
+		/// </summary>
+		static bool IsUnderThreat(CNSquad squad)
+		{
+			if (!squad.IsValid)
+				return false;
+
+			var dangerRadius = WDist.FromCells(squad.SquadManager.Info.DangerScanRadius);
+			return squad.World
+				.FindActorsInCircle(squad.CenterPosition(), dangerRadius)
+				.Any(u => squad.SquadManager.IsPreferredEnemyUnit(u) && u.Info.HasTraitInfo<AttackBaseInfo>());
+		}
+
 		/// <summary>Returns true if the healer can target the given actor.</summary>
-		bool CanHeal(Actor unit, Actor target)
+		static bool CanHeal(Actor unit, Actor target)
 		{
 			var isMedic = !unit.Info.HasTraitInfo<RepairsUnitsInfo>();
 			var targetIsMechanical = target.Info.HasTraitInfo<MobileInfo>() &&

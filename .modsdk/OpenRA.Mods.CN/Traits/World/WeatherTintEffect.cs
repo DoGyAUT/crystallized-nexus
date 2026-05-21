@@ -6,14 +6,16 @@
 #endregion
 
 using OpenRA.Graphics;
-using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits
 {
 	[TraitLocation(SystemActors.World)]
-	[Desc("Lerps TintPostProcessEffect tint values based on WeatherController intensity.",
-		"Requires TintPostProcessEffect and WeatherController on the world actor.")]
+	[Desc("Sole writer of WorldTintState: takes the DayNightCycle base tint",
+		"and lerps it toward the ion-storm tint by WeatherController intensity.",
+		"This path is the per-sprite combined-shader tint, so it respects",
+		"IgnoreWorldTint (both day/night and the storm skip those sprites).",
+		"Declare AFTER DayNightCycle so it reads a fresh base each tick.")]
 	public class WeatherTintEffectInfo : TraitInfo
 	{
 		[Desc("Ambient multiplier at full storm intensity.")]
@@ -31,14 +33,12 @@ namespace OpenRA.Mods.CN.Traits
 		public override object Create(ActorInitializer init) { return new WeatherTintEffect(this); }
 	}
 
-	public class WeatherTintEffect : IWorldLoaded, ITick
+	public class WeatherTintEffect : IWorldLoaded, ITick, INotifyActorDisposing
 	{
 		readonly WeatherTintEffectInfo info;
 
-		TintPostProcessEffect tintEffect;
 		WeatherController weatherController;
-
-		float baseRed, baseGreen, baseBlue, baseAmbient;
+		DayNightCycle dayNight;
 
 		public WeatherTintEffect(WeatherTintEffectInfo info)
 		{
@@ -47,28 +47,49 @@ namespace OpenRA.Mods.CN.Traits
 
 		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
 		{
-			tintEffect = w.WorldActor.TraitOrDefault<TintPostProcessEffect>();
 			weatherController = w.WorldActor.TraitOrDefault<WeatherController>();
-
-			if (tintEffect == null || weatherController == null)
-				return;
-
-			baseRed = tintEffect.Red;
-			baseGreen = tintEffect.Green;
-			baseBlue = tintEffect.Blue;
-			baseAmbient = tintEffect.Ambient;
+			dayNight = w.WorldActor.TraitOrDefault<DayNightCycle>();
+			Apply();
 		}
 
 		void ITick.Tick(Actor self)
 		{
-			if (tintEffect == null || weatherController == null)
-				return;
+			Apply();
+		}
 
-			var t = weatherController.Intensity;
-			tintEffect.Red = baseRed + (info.StormRed - baseRed) * t;
-			tintEffect.Green = baseGreen + (info.StormGreen - baseGreen) * t;
-			tintEffect.Blue = baseBlue + (info.StormBlue - baseBlue) * t;
-			tintEffect.Ambient = baseAmbient + (info.StormAmbient - baseAmbient) * t;
+		void Apply()
+		{
+			// Day/night base (effective = Ambient * RGB, matching the old
+			// TintPostProcessEffect convention). Identity when absent.
+			float br = 1f, bg = 1f, bb = 1f;
+			if (dayNight != null)
+			{
+				br = dayNight.BaseAmbient * dayNight.BaseRed;
+				bg = dayNight.BaseAmbient * dayNight.BaseGreen;
+				bb = dayNight.BaseAmbient * dayNight.BaseBlue;
+			}
+
+			// Storm target, same effective convention.
+			var sr = info.StormAmbient * info.StormRed;
+			var sg = info.StormAmbient * info.StormGreen;
+			var sb = info.StormAmbient * info.StormBlue;
+
+			var t = weatherController != null ? weatherController.Intensity : 0f;
+
+			// Sole writer of the per-sprite world tint: storm layered on the
+			// day/night base. Skips IgnoreWorldTint geometry in the shader.
+			WorldTintState.Red = br + (sr - br) * t;
+			WorldTintState.Green = bg + (sg - bg) * t;
+			WorldTintState.Blue = bb + (sb - bb) * t;
+		}
+
+		void INotifyActorDisposing.Disposing(Actor self)
+		{
+			// Reset shared state so a later match without these traits is not
+			// left with a stale tint.
+			WorldTintState.Red = 1f;
+			WorldTintState.Green = 1f;
+			WorldTintState.Blue = 1f;
 		}
 	}
 }

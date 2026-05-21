@@ -309,7 +309,7 @@
 			Superheavy: 10
 			Shield: 110
 			Stability: 400
-		DamageTypes: SmallExplosionDeath, TriggerProne, Prone350Percent
+		DamageTypes: BulletDeath, TriggerProne, Prone350Percent
 
 ^VeinWarhead:
 	Warhead@1Dam: SpreadDamage

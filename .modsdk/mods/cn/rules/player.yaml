@@ -3,8 +3,8 @@
 	PlayerResources:
 		ResourceValues:
 			Tiberium: 25
-			BlueTiberium: 40
-			RedTiberium: 80
+			BlueTiberium: 50
+			RedTiberium: 100
 			Veins: 0
 
 EditorPlayer:
@@ -138,13 +138,17 @@ Player:
 		Name: options-tech-level.medium
 		Prerequisites: techlevel.low, techlevel.medium
 		Id: medium
-	ProvidesTechPrerequisite@nosuper:
-		Name: options-tech-level.no-powers
+	ProvidesTechPrerequisite@high:
+		Name: options-tech-level.high
 		Prerequisites: techlevel.low, techlevel.medium, techlevel.high
-		Id: nopowers
+		Id: high
+	ProvidesTechPrerequisite@veryhigh:
+		Name: options-tech-level.veryhigh
+		Prerequisites: techlevel.low, techlevel.medium, techlevel.high, techlevel.veryhigh
+		Id: veryhigh
 	ProvidesTechPrerequisite@all:
-		Name: options-tech-level.unrestricted
-		Prerequisites: techlevel.low, techlevel.medium, techlevel.high, techlevel.superweapons
+		Name: options-tech-level.superweapons
+		Prerequisites: techlevel.low, techlevel.medium, techlevel.high, techlevel.veryhigh, techlevel.superweapons
 		Id: unrestricted
 	ResourceStorageWarning:
 		TextNotification: notification-silos-needed

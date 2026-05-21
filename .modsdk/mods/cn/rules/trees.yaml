@@ -1,29 +1,11 @@
 TIBTRE01:
 	Inherits: ^BlossomTree
-	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.03
-		RedTint: 0.01
-		GreenTint: 0.6
-		BlueTint: 0.01
 
 TIBTRE02:
 	Inherits: ^BlossomTree
-	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.03
-		RedTint: 0.01
-		GreenTint: 0.6
-		BlueTint: 0.01
 
 TIBTRE03:
 	Inherits: ^BlossomTree
-	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.03
-		RedTint: 0.01
-		GreenTint: 0.6
-		BlueTint: 0.01
 
 BIGBLUE:
 	Inherits: ^BlossomTree
@@ -39,8 +21,8 @@ BIGBLUE:
 		ResourceType: BlueTiberium
 		Interval: 75
 	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.06
+		Range: 2c184
+		Intensity: 0.03
 		RedTint: 0.01
 		GreenTint: 0.01
 		BlueTint: 0.6
@@ -62,8 +44,8 @@ BIGRED:
 		ResourceType: RedTiberium
 		Interval: 50
 	TerrainLightSource:
-		Range: 9c184
-		Intensity: 0.06
+		Range: 2c184
+		Intensity: 0.03
 		RedTint: 0.6
 		GreenTint: 0.01
 		BlueTint: 0.01
@@ -193,12 +175,12 @@ VEINHOLE:
 		Delay: 10
 		StartIfBelow: 100
 		DamageCooldown: 500
-	TerrainLightSource:
-		Range: 6c184
-		Intensity: 0.01
-		RedTint: 1.0
-		GreenTint: 0.5
-		BlueTint: 0.01
+#	TerrainLightSource:
+#		Range: 6c184
+#		Intensity: 0.01
+#		RedTint: 1.0
+#		GreenTint: 0.5
+#		BlueTint: 0.01
 	WithIdleAnimation:
 		Interval: 50, 500
 	SpawnActorOnDamage@TIBCLOUD:
@@ -225,7 +207,7 @@ VEINHOLE:
 	-RandomTransformsNearResources@TIBGREEN:
 	-RandomTransformsNearResources@TIBBLUE:
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	Tooltip:
 		Name: meta-tibflora-name
 	TerrainLightSource:

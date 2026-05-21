@@ -48,11 +48,11 @@
 	Demolishable:
 	FireProjectilesOnDeath@SMALL:
 		Weapons: SmallDebris
-		Pieces: 2, 4
+		Pieces: 2, 20
 		Range: 2c0, 5c0
 	FireProjectilesOnDeath@LARGE:
 		Weapons: LargeDebris, LargeDebrisWithTrail
-		Pieces: 1, 2
+		Pieces: 1, 10
 		Range: 2c0, 5c0
 	MapEditorData:
 		Categories: Building
@@ -213,7 +213,7 @@
 	CNHealth:
 		HP: 400
 	MapEditorData:
-		RequireTilesets: TEMPERATE
+		RequireTilesets: TEMPERATE, DESERT
 	FireProjectilesOnDeath@SMALL:
 		Pieces: 1, 3
 	FireProjectilesOnDeath@LARGE:

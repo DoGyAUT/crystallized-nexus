@@ -19,6 +19,15 @@
 		BlueTint: 1.19
 		Intensity: 0.9
 	TintPostProcessEffect:
+	DayNightCycle:
+		CycleDisplayOrder: 3
+		CycleCategory: events
+		StartDisplayOrder: 4
+		StartCategory: events
+	WeatherProfile:
+		WeatherDisplayOrder: 5
+		WeatherCategory: events
+	AtmosphericGradingRenderer:
 	AmbientFogRenderer:
 		FogColor: E8DFC880    # warm sandy haze, alpha 128
 		Alpha: 0.22
@@ -69,22 +78,22 @@
 		StormWaveSpeed: 0.13
 #	WaterEffectReflectionRenderer:
 #		TerrainTypes: Water
-	CloudSpawner@Clouds:
-		Image: clouds
-		Sequences: cloud1, cloud2, cloud3, cloud4, cloud5, cloud6
-		Palette: effect
-		SpawnInterval: 50
-		Speed: 20, 40
-		WindDirection: 8
-		ShouldPrespawn: true
-	CloudSpawner@Godrays:
-		Image: godrays
-		Sequences: single, double, fan, dappled
-		Palette: effect
-		SpawnInterval: 100
-		Speed: 10, 20
-		WindDirection: 12
-		ShouldPrespawn: true
+	WorldCloudShadow:
+		WindAngle: 0
+		CloudEdge: 0.25
+		ShadowAlpha: 0.4
+		CloudCoverage: 0.4
+		StormShadowAlpha: 0.52
+		StormCloudCoverage: 0.3
+#	CloudSpawner@Godrays:
+#		Image: godrays
+#		Sequences: single, double, fan, dappled
+#		Palette: effect
+#		SpawnInterval: 100
+#		Speed: 10, 20
+#		WindDirection: 12
+#		ShouldPrespawn: true
+#		RenderZOffset: 8192
 	RandomMapAmbientSound@ForestWind:
 		SoundFiles: wind1.ogg, wind2.ogg, wind3.ogg, wind4.ogg
 		Delay: 150, 450
@@ -183,32 +192,66 @@
 		Tiles: 435, 436, 437, 438, 680, 681, 682, 683, 684, 685, 686, 687, 688, 689, 690, 691
 		Index: 0
 		Sound: waterfall.ogg
-	TerrainAnimationOverlay@WaterRipples:
+	TiberiumGlowRenderer:
+		GreenType: Tiberium
+		BlueType: BlueTiberium
+		RedType: RedTiberium
+		VeinsType: Veins
+		GlowStrength: 0.22
+		BleedStrength: 0.035
+		VeinsTintRed: 1.00
+		VeinsTintGreen: 0.42
+		VeinsTintBlue: 0.10
+		VeinsGlowStrength: 0.032
+		VeinsAmbientStrength: 0.04
+		VeinsDarkenStrength: 0.13
+		VeinsPulseSpeed: 0.032
+		VeinsPulseStrength: 0.51
+		VeinsRingStrength: 0.14
+		VeinsRingScale: 5.0
+		VeinsRingSpeed: 0.015
+		VeinsCorpStrength: 0.10
+		VeinsCorpScale: 26.0
+		VeinsCorpSpeed: 0.060
+		VeinsGlintStrength: 0.16
+		VeinsGlintDensity: 0.10
+		VeinsGlintSpeed: 0.20
+		VeinsSporeStrength: 0.09
+		VeinsSporeDensity: 0.14
+		VeinsSporeSpeed: 0.008
+		VeinsBreathStrength: 0.50
+		VeinsBreathSpeed: 0.020
+		VeinsCrawlScale: 0.040
+		VeinsCrawlSpeed: 0.034
+		ShimmerStrength: 0.00
+		Distortion: 0.80
+		WaveScale: 0.05
+		WaveSpeed: 0.03
+		PulseSpeed: 0.05
+		PulseStrength: 1.00
+		FogStrength: 0.40
+		FogBloom: 0.06
+		FogScale: 0.008
+		FogDetailScale: 0.020
+		FogSpeed: 0.60
+		FogCoverage: 0.30
+		FogEdge: 0.60
+		ParticleStrength: 0.80
+		ParticleDensity: 0.18
+		ParticleSpeed: 0.010
+	WaterSparkleRenderer:
+		Strength: 0.45
+		Density: 0.16
+		Speed: 0.010
+		MovementPixels: 0.75
+		CorePixels: 1.05
+		CellPixels: 13
 		TerrainTypes: Water
-		Image: water_waves
-		Sequences: glitter
-		Palette: effect
-		Interval: 18, 42
-		InitialDelay: 50
-		VisibleThroughFog: false
-	ResourceAnimationOverlay@TiberiumSparkle:
-		ResourceTypes: Tiberium, BlueTiberium, RedTiberium
-		Image: sparkle
-		Sequences: twnk1, twnk2, twnk3
-		Palette: sparkle
-		Interval: 1, 5
-		InitialDelay: 50
-#		AdditionalImage: tibpoison
-#		AdditionalSequences: idle
-#		AdditionalPalette: effect
-#		AdditionalChance: 50
-	ResourceAnimationOverlay@VeinIdle:
-		ResourceTypes: Veins
-		Image: veinsidle
-		Sequences: idle
-		Palette: player
-		Interval: 1, 5
-		InitialDelay: 50
+		TemperateWaterPaletteIndexRanges: 1, 15, 204, 207, 220, 223, 240, 254
+		SnowWaterPaletteIndexRanges: 64, 79
+		WaterPaletteMaskedTemplates: 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 297, 300, 339, 340, 346, 435, 436, 437, 438, 567, 570, 667, 668, 669, 670, 679, 680, 681, 682, 683, 684, 685, 686, 687, 688, 689, 690, 691, 719, 720, 721, 722, 723, 724, 725, 726, 423, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466, 467, 468, 469, 470, 471, 472, 473, 474, 475, 476, 477, 478, 479, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 498, 499, 500, 501, 502, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621, 622, 623, 624, 625, 626, 627, 628, 629, 630, 745, 746, 747, 748
+		CliffOcclusionTemplates: 60, 61, 62, 63, 78, 79, 80, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 298, 301, 568, 571
+		CliffBlockTemplates: 60, 61, 62, 63, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 298, 301, 568, 571
 	ShroudRenderer:
 		Index: 255, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 20, 40, 56, 65, 97, 130, 148, 194, 24, 33, 66, 132, 28, 41, 67, 134, 1, 2, 4, 8, 3, 6, 12, 9, 7, 14, 13, 11, 5, 10, 15, 255
 		UseExtendedIndex: true
@@ -483,7 +526,7 @@ World:
 		FactionPreviewActors:
 			gdi: gtmtnk.colorpicker
 			nod: subtank.colorpicker
-		PresetColors: F21818, FF7A22, F2BC18, F8D3B3, CDF291, DAF218, 18F26F, 12B572, F279E6, 502048, 391D1D, BA18F2, F218BC, 1821F2, 328DFF, 78DBF8
+		PresetColors: E10600, FF3B30, D25400, FF9900, FACC15, BEF264, 22C55E, 15803D, 22D3EE, 1E3A8A, 1D4ED8, 6D28D9, A21CAF, D946EF, 00FF99, 4B5563
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle
@@ -494,6 +537,12 @@ World:
 #		UseSquares: True
 	ExternalCondition@IONSTORM:
 		Condition: ionstorm
+	ExternalCondition@WEATHERRAIN:
+		Condition: weather-rain
+	ExternalCondition@WEATHERSNOW:
+		Condition: weather-snow
+	ExternalCondition@WEATHEROVERCAST:
+		Condition: weather-overcast
 	WeatherController:
 		IonStormDisplayOrder: 2
 		IonStormCategory: events
@@ -554,6 +603,40 @@ World:
 		LineTailAlphaValue: 200
 		FadeInTicks: 500
 		FadeOutTicks: 750
+	WeatherOverlay@WEATHERRAIN:
+		RequiresCondition: weather-rain
+		InitialParticlePercentage: 0
+		ParticleDensityFactor: 5
+		UseSquares: false
+		ParticleSize: 1, 1
+		Gravity: 8.0, 14.0
+		WindLevels: -15, -10, -5, 0, 5, 10, 15
+		WindTick: 50, 200
+		InstantWindChanges: true
+		ScatterDirection: -2, 2
+		SwingOffset: 0.05, 0.15
+		SwingSpeed: 0.001, 0.005
+		SwingAmplitude: 0.1, 0.3
+		ParticleColors: 8090AAC0, 7080A0C0, 607898C0
+		LineTailAlphaValue: 200
+		FadeInTicks: 250
+		FadeOutTicks: 250
+	WeatherOverlay@WEATHERSNOW:
+		RequiresCondition: weather-snow
+		InitialParticlePercentage: 0
+		ParticleDensityFactor: 8
+		UseSquares: true
+		ParticleSize: 1, 2
+		Gravity: 1.0, 3.0
+		WindLevels: -8, -4, 0, 4, 8
+		WindTick: 100, 400
+		ScatterDirection: -3, 3
+		SwingOffset: 0.1, 0.3
+		SwingSpeed: 0.002, 0.008
+		SwingAmplitude: 0.2, 0.6
+		ParticleColors: FFFFFFE0, EEF2FFD0, DDE6F5C0
+		FadeInTicks: 250
+		FadeOutTicks: 250
 
 EditorWorld:
 	Inherits: ^BaseWorld

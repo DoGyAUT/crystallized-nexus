@@ -20,6 +20,8 @@
 		HP: 50
 	Armor:
 		Type: None
+	CombatChatter:
+		Voice: Attack
 	ExternalCondition@FORESTCOVER:
 		Condition: forest-cover
 	Cloak@FORESTCOVER:
@@ -427,6 +429,7 @@
 		LightPitch: 128
 		LightYaw: 768
 		Scale: 10
+		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	RenderSprites:
 	FormationMove:
 		Columns: 0
@@ -437,6 +440,10 @@
 		RequiresCondition: !inside-tunnel
 #		ShowShadow: False
 #	WithShadow:
+	FireProjectilesOnDeath:
+		Weapons: SmallDebris
+		Pieces: 3, 10
+		Range: 2c0, 5c0
 	WithWaterReflection:
 	RevealOnFire:
 	HitShape:
@@ -475,6 +482,7 @@
 		LightPitch: 128
 		LightYaw: 768
 		Scale: 10
+		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	RenderSprites:
 	WithVoxelBody:
 		RequiresCondition: !inside-tunnel
@@ -507,10 +515,10 @@
 		CurveRollSpeed: 5
 		SpiralInitialSpin: 4, 12
 		SpiralAcceleration: 2
-		SpiralMaxSpin: 34
-		TumbleYawRate: -6, 7
-		TumblePitchRate: 4, 12
-		TumbleRollRate: -14, 15
+		SpiralMaxSpin: 24
+		TumbleYawRate: -3, 4
+		TumblePitchRate: 2, 6
+		TumbleRollRate: -7, 8
 		SmokeTrailImage: durasmoke_medium
 		SmokeTrailSequences: idle
 		SmokeTrailInterval: 3

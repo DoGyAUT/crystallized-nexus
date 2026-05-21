@@ -21,7 +21,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class ArtilleryIdleState : CNStateBase, ICNState
 	{
-		public void Activate(CNSquad squad) { }
+		CPos? holdCell;
+		const int HoldRadiusCells = 6;
+
+		public void Activate(CNSquad squad) { holdCell = null; }
 
 		public void Tick(CNSquad squad)
 		{
@@ -38,7 +41,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 							(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush))
 						.ToArray();
 
-					squad.AttachedTo = attachable.FirstOrDefault(s => s.IsWaitingForArtillery) ??
+					squad.AttachedTo = attachable.FirstOrDefault(s => s.IsTargetValid) ??
 						attachable.FirstOrDefault();
 				}
 
@@ -62,8 +65,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				}
 				else
 				{
-					// Hold near base
-					GoToRandomOwnBuilding(squad);
+					// Hold near one stable base cell instead of re-rolling a building every tick.
+					holdCell ??= squad.SquadManager.GetRandomBaseCenter();
+					var holdPos = squad.World.Map.CenterOfCell(holdCell.Value);
+					var holdRadiusSq = (long)WDist.FromCells(HoldRadiusCells).Length *
+						WDist.FromCells(HoldRadiusCells).Length;
+					var movers = squad.OrderableUnits
+						.Where(u => u.IsIdle && (u.CenterPosition - holdPos).LengthSquared > holdRadiusSq)
+						.ToArray();
+
+					if (movers.Length > 0)
+						squad.Bot.QueueOrder(new Order("Move", null, Target.FromCell(squad.World, holdCell.Value), false,
+							groupedActors: movers));
 				}
 			}
 		}
@@ -77,7 +90,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class ArtilleryHangBackState : CNStateBase, ICNState
 	{
-		public void Activate(CNSquad squad) { }
+		CPos? lastHangBackCell;
+
+		public void Activate(CNSquad squad) { lastHangBackCell = null; }
 
 		public void Tick(CNSquad squad)
 		{
@@ -89,17 +104,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryIdleState());
 				return;
-			}
-
-			if (!squad.AttachedTo.IsWaitingForArtillery)
-			{
-				var waitingAssault = squad.SquadManager.Squads
-					.FirstOrDefault(s => s.IsValid &&
-						(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush) &&
-						s.IsWaitingForArtillery);
-
-				if (waitingAssault != null)
-					squad.AttachedTo = waitingAssault;
 			}
 
 			var attachedLeader = squad.AttachedTo.CenterUnit();
@@ -156,18 +160,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			var hangBackCell = squad.World.Map.CellContaining(hangBackPos);
+			if (hangBackCell == lastHangBackCell)
+				return;
+
+			lastHangBackCell = hangBackCell;
 			foreach (var unit in squad.OrderableUnits)
-				squad.Bot.QueueOrder(new Order("Move", unit,
+				squad.Bot.QueueOrder(new Order("AttackMove", unit,
 					Target.FromCell(squad.World, hangBackCell), false));
 		}
 
 		static Actor FindCoordinatedTarget(CNSquad squad)
 		{
 			var attached = squad.AttachedTo;
-			if (attached == null || !attached.IsWaitingForArtillery)
+			if (attached == null || !attached.IsTargetValid)
 				return null;
 
-			var target = attached.CoordinatedAssaultTarget;
+			var target = attached.TargetActor;
 			if (target != null && attached.SquadManager.IsLiveEnemyActor(target) && IsDefenseStructure(target))
 				return target;
 

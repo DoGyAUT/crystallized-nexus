@@ -428,7 +428,7 @@ EliteCadre:
 		Burned: bhand_d1, bhand_d2, bhand_d3, bhand_d4, bhand_d5
 		Zapped: electro1
 		Explode: expnew10
-#		Feedback: bhand_f1, bhand_f2, bhand_f3, bhand_f4
+		Feedback: bhand_f1, bhand_f2, bhand_f3, bhand_f4
 
 Shadow:
 	Voices:
@@ -436,7 +436,7 @@ Shadow:
 		Move: shadow_m1, shadow_m2, shadow_m3, shadow_m4, shadow_m5, shadow_m6, shadow_m7, shadow_m8, shadow_m9, shadow_m10
 		Action: shadow_a1, shadow_a2, shadow_a3, shadow_a4, shadow_a5, shadow_a6, shadow_a7, shadow_a8, shadow_a9
 		Attack: shadow_a1, shadow_a2, shadow_a3, shadow_a4, shadow_a5, shadow_a6, shadow_a7, shadow_a8, shadow_a9
-#		Feedback: shadow_f1, shadow_f2, shadow_f3, shadow_f4, shadow_f5
+		Feedback: shadow_f1, shadow_f2, shadow_f3, shadow_f4, shadow_f5
 		Die: shadow_d1, shadow_d2, shadow_d3, shadow_d4, shadow_d5, shadow_d6, dedman1, dedman3, dedman4, dedman5, dedman6
 		Burned: shadow_d1, shadow_d2, shadow_d3, shadow_d4, shadow_d5, shadow_d6
 		Zapped: electro1
@@ -448,7 +448,7 @@ Acolyte:
 		Move: medusa_m1, medusa_m2, medusa_m3, medusa_m4, medusa_m5, medusa_m6, medusa_m7, medusa_m8, medusa_m9, medusa_m10, medusa_m11, medusa_m12, medusa_m13, medusa_m14, medusa_m15
 		Action: medusa_a1, medusa_a2, medusa_a3, medusa_a4, medusa_a5, medusa_a6, medusa_a7, medusa_a8, medusa_a9, medusa_a10
 		Attack: medusa_a1, medusa_a2, medusa_a3, medusa_a4, medusa_a5, medusa_a6, medusa_a7, medusa_a8, medusa_a9, medusa_a10
-#		Feedback: medusa_f1, medusa_f2, medusa_f3, medusa_f4
+		Feedback: medusa_f1, medusa_f2, medusa_f3, medusa_f4
 		Die: dedgirl1, dedgirl2, dedgirl4
 		Burned: dedgirl3
 		Zapped: electro1

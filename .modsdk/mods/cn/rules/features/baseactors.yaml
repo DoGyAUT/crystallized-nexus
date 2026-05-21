@@ -35,6 +35,7 @@
 		LightPitch: 128
 		LightYaw: 768
 		Scale: 10
+		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 
@@ -51,6 +52,7 @@
 		LightPitch: 128
 		LightYaw: 768
 		Scale: 10
+		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 

@@ -1,0 +1,756 @@
+Player:
+	CNSquadManagerBotModule@steamroller:
+		RequiresCondition: enable-cn-steamroller || cn-profile-steamroller
+		IdleScanRadius: 16
+		DangerScanRadius: 10
+		AttackScanRadius: 12
+		AssignRolesInterval: 50
+		AttackForceInterval: 65
+		ArtilleryHangBackCells: 8
+		SupportFollowRangeCells: 7
+		AttackWaveEnabled: true
+		AttackWaveInitialDelay: 3200
+		AttackWaveInterval: 3000
+		AttackWaveMinReadySquads: 4
+		AttackWaveMaxMinReadySquads: 11
+		AttackWaveMaxSkipsBeforeFallback: 2
+		AttackWaveFallbackMinSquads: 3
+		AttackWaveSizeGrowthInterval: 3500
+		AttackWaveSizeGrowthAmount: 1
+		AttackWaveStagingOffsetCells: 12
+		AttackWaveStagingTimeoutTicks: 850
+		AttackWaveStagingArrivalCells: 5
+		WaveHoldScatterCells: 6
+		WaveParticipantRoles: Assault, ArtilleryAssault, SubterraneanAssault, AircraftAttack
+		ArmyCompositionRatio:
+			Assault: 52
+			ArtilleryAssault: 14
+			AircraftAttack: 10
+			SubterraneanAssault: 8
+			SubterraneanTransport: 4
+			Raider: 4
+			Support: 4
+			AircraftRaider: 4
+		Teams:
+			GDI_BasicInfantry_AntiInfantry:
+				Role: Assault
+				Priority: 100
+				MaxInstances: 8
+				PriorityTargetCapabilities: Infantry
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				ThreatBonuses:
+					Infantry: 25
+				ThreatBonusesPerUnit:
+					Infantry: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -8
+					ArmorDefense: 10
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: gasol
+			GDI_BasicInfantry_AntiArmor:
+				Role: Assault
+				Priority: 100
+				MaxInstances: 8
+				PriorityTargetCapabilities: Harvester, Vehicle
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				ThreatBonuses:
+					Vehicle: 25
+				ThreatBonusesPerUnit:
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -8
+					ArmorDefense: 10
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: e2
+			GDI_JumpjetInfantry:
+				Role: Raider
+				Priority: 100
+				MaxInstances: 3
+				PriorityTargetCapabilities: Infantry, Harvester
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				ThreatBonuses:
+					Infantry: 20
+				ThreatBonusesPerUnit:
+					Infantry: 3
+					AntiAir: 1
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -3
+					AADefense: -4
+					ArmorDefense: 7
+				Slots:
+					1:
+						Count: 6
+						AllowedTypes: jumpjet
+			GDI_SniperInfantry:
+				Role: Stealth
+				Priority: 95
+				MaxInstances: 2
+				PriorityTargetCapabilities: Infantry, Harvester
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				ThreatBonuses:
+					Infantry: 20
+				ThreatBonusesPerUnit:
+					Infantry: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -3
+					ArmorDefense: 7
+					Harvester: 3
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: gasniper
+			GDI_Wolverine_Attack:
+				Role: Assault
+				Priority: 115
+				MaxInstances: 8
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 3
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Infantry, InfantryDefense
+				ThreatBonuses:
+					Defense: 12
+				ThreatBonusesPerUnit:
+					Infantry: 4
+					AntiArmor: -1
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 6
+					ArmorDefense: -2
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: smech
+			GDI_APC_Attack:
+				Role: Transport
+				Priority: 110
+				MaxInstances: 6
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power
+				ThreatBonuses:
+					Defense: 8
+				ThreatBonusesPerUnit:
+					Infantry: 2
+					AntiArmor: -1
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 3
+					ArmorDefense: -2
+				Slots:
+					1:
+						Count: 1
+						AllowedTypes: apc
+						IsCarrier: True
+					2:
+						Count: 5
+						AllowedTypes: gasol, e2
+						IsPassenger: True
+			GDI_Medics:
+				Role: Support
+				Priority: 100
+				MaxInstances: 3
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: medic
+			GDI_Archon_Attack:
+				Role: Assault
+				Priority: 115
+				MaxInstances: 8
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 3
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle, ArmorDefense
+				ThreatBonusesPerUnit:
+					Vehicle: 4
+					AntiArmor: -2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 8
+					ArmorDefense: -4
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: gtmtnk
+			GDI_Titan_Attack:
+				Role: Assault
+				Priority: 115
+				MaxInstances: 8
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle, ArmorDefense
+				ThreatBonuses:
+					Defense: 10
+					Vehicle: 10
+				ThreatBonusesPerUnit:
+					Vehicle: 4
+					AntiArmor: -2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 8
+					ArmorDefense: -4
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: mmch
+					2:
+						Count: 2
+						AllowedTypes: smech
+						Optional: True
+			GDI_Mammoth_Attack:
+				Role: Assault
+				Priority: 112
+				MaxInstances: 6
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle, Aircraft, ArmorDefense
+				ThreatBonuses:
+					Defense: 10
+					Vehicle: 12
+					Aircraft: 12
+				ThreatBonusesPerUnit:
+					Vehicle: 4
+					AntiArmor: -2
+					AntiAir: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 8
+					ArmorDefense: -4
+					Aircraft: 4
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: 4tnk
+			GDI_HoverMLRS_Raid:
+				Role: Raider
+				Priority: 100
+				MaxInstances: 3
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Vehicle, Aircraft, Harvester
+				ThreatBonuses:
+					Vehicle: 12
+					Aircraft: 14
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+					AntiAir: 3
+					ArmorDefense: -2
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -3
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: hvr
+			GDI_Juggernaut_Siege:
+				Role: ArtilleryAssault
+				Priority: 124
+				MaxInstances: 5
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 2
+				AttachToRole: Assault
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Defense, Production, Tech, Superweapon
+				ThreatBonuses:
+					Defense: 20
+					Production: 14
+					Superweapon: 12
+				ThreatBonusesPerUnit:
+					ArmorDefense: 5
+					AADefense: 3
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: 2
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: jugg
+			GDI_Sonic_Breaker:
+				Role: Assault
+				Priority: 126
+				MaxInstances: 5
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Defense, Vehicle, Production, Tech
+				ThreatBonuses:
+					Defense: 18
+					Vehicle: 16
+					Production: 12
+				ThreatBonusesPerUnit:
+					Vehicle: 5
+					Infantry: 2
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: -3
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: sonic
+			GDI_MammothMkII_Tech:
+				Role: Assault
+				Priority: 128
+				MaxInstances: 3
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Defense, Vehicle, Tech, Superweapon
+				ThreatBonuses:
+					Defense: 18
+					Vehicle: 18
+					Superweapon: 14
+				ThreatBonusesPerUnit:
+					Vehicle: 5
+					AntiAir: 3
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: -3
+				Slots:
+					1:
+						Count: 1
+						AllowedTypes: hmec
+					2:
+						Count: 3
+						AllowedTypes: 4tnk, mmch
+						Optional: True
+			GDI_Orca_Bomber:
+				Role: AircraftAttack
+				Priority: 118
+				MaxInstances: 4
+				ScaleWithBuilding: gahpad
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Defense, Production, Tech, Superweapon
+				ThreatBonuses:
+					Defense: 16
+					Production: 14
+					Superweapon: 14
+				ThreatBonusesPerUnit:
+					AADefense: -4
+					AntiAir: -2
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -5
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: orca_b
+			GDI_Hornet_Strike:
+				Role: AircraftRaider
+				Priority: 112
+				MaxInstances: 3
+				ScaleWithBuilding: gahpad
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Vehicle, Defense, Tech, Superweapon
+				ThreatBonuses:
+					Vehicle: 16
+					Defense: 14
+					Tech: 12
+				ThreatBonusesPerUnit:
+					AADefense: -3
+					AntiAir: -2
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -4
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: hornet
+			GDI_Orca_Raid:
+				Role: AircraftRaider
+				Priority: 112
+				MaxInstances: 5
+				ScaleWithBuilding: gahpad
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power
+				ThreatBonuses:
+					Defense: 8
+					Harvester: 10
+				ThreatBonusesPerUnit:
+					Vehicle: 2
+					AADefense: -2
+					AntiAir: -1
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -4
+					ArmorDefense: 2
+					InfantryDefense: 2
+					ArtilleryDefense: 2
+					Harvester: 3
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: orca_f1
+			GDI_Orca_TransportAttack:
+				Role: AirTransport
+				Priority: 110
+				MaxInstances: 4
+				ScaleWithBuilding: gahpad
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power
+				ThreatBonuses:
+					Defense: 8
+					Harvester: 10
+				ThreatBonusesPerUnit:
+					Vehicle: 2
+					AADefense: -2
+					AntiAir: -1
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -4
+					ArmorDefense: 2
+					InfantryDefense: -2
+					ArtilleryDefense: 2
+					Harvester: 3
+				Slots:
+					1:
+						Count: 1
+						AllowedTypes: orca_tran
+						IsAircraftCarrier: True
+					2:
+						Count: 5
+						AllowedTypes: gasol, e2
+						IsPassenger: True
+			Nod_BasicInfantry_AntiInfantry:
+				Role: Assault
+				Priority: 100
+				MaxInstances: 8
+				PriorityTargetCapabilities: Infantry
+				ScaleWithBuilding: nahand
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				ThreatBonuses:
+					Infantry: 25
+				ThreatBonusesPerUnit:
+					Infantry: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -8
+					ArmorDefense: 10
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: nasol
+			Nod_BasicInfantry_AntiArmor:
+				Role: Assault
+				Priority: 100
+				MaxInstances: 8
+				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
+				ScaleWithBuilding: nahand
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				ThreatBonuses:
+					Vehicle: 25
+				ThreatBonusesPerUnit:
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -8
+					ArmorDefense: 10
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: e3
+			Nod_SniperInfantry:
+				Role: Stealth
+				Priority: 95
+				MaxInstances: 2
+				PriorityTargetCapabilities: Infantry, Harvester
+				ScaleWithBuilding: nahand
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				ThreatBonuses:
+					Infantry: 20
+				ThreatBonusesPerUnit:
+					Infantry: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -3
+					ArmorDefense: 7
+					Harvester: 3
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: shadow
+			Nod_AdvancedInfantry:
+				Role: Assault
+				Priority: 100
+				MaxInstances: 6
+				PriorityTargetCapabilities: Harvester, Economy, Power, Infantry, Vehicle
+				ScaleWithBuilding: nahand
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				ThreatBonuses:
+					Infantry: 25
+					Vehicle: 12
+				ThreatBonusesPerUnit:
+					Infantry: 4
+					Vehicle: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -8
+					ArmorDefense: 10
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: nacad
+					2:
+						Count: 1
+						AllowedTypes: shadow
+						Optional: True
+			Nod_Buggy_Raid:
+				Role: Raider
+				Priority: 100
+				MaxInstances: 4
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Infantry
+				ThreatBonusesPerUnit:
+					Infantry: 2
+					AntiArmor: -2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 1
+					ArmorDefense: -2
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: bggy
+			Nod_Bike_Raid:
+				Role: Raider
+				Priority: 100
+				MaxInstances: 4
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle
+				ThreatBonusesPerUnit:
+					Vehicle: 1
+					AntiArmor: -2
+					AntiAir: 2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 3
+					ArmorDefense: -1
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: bike
+			Nod_Scorpion_Attack:
+				Role: Assault
+				Priority: 115
+				MaxInstances: 8
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 3
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle, ArmorDefense
+				ThreatBonuses:
+					Defense: 10
+				ThreatBonusesPerUnit:
+					Vehicle: 4
+					AntiArmor: -2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 8
+					ArmorDefense: -4
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: ltnk
+			Nod_Repair:
+				Role: Support
+				Priority: 100
+				MaxInstances: 2
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				ThreatBonusesGlobalPerUnit:
+					Vehicle: 3
+					ArmorDefense: 2
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: repair
+			Nod_TickTank_Attack:
+				Role: Assault
+				Priority: 115
+				MaxInstances: 8
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 3
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle, ArmorDefense
+				ThreatBonuses:
+					Defense: 10
+					Vehicle: 10
+				ThreatBonusesPerUnit:
+					Vehicle: 4
+					AntiArmor: -2
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: 8
+					ArmorDefense: -4
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: ttnk
+			Nod_Acolyte_Tech:
+				Role: Assault
+				Priority: 118
+				MaxInstances: 5
+				PriorityTargetCapabilities: Infantry, Vehicle, Defense, Production
+				ScaleWithBuilding: nahand
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				ThreatBonuses:
+					Infantry: 18
+					Vehicle: 14
+					Defense: 12
+				ThreatBonusesPerUnit:
+					Infantry: 4
+					Vehicle: 3
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -5
+					ArmorDefense: 8
+				Slots:
+					1:
+						Count: 5
+						AllowedTypes: acolyte
+			Nod_Artillery_Siege:
+				Role: ArtilleryAssault
+				Priority: 124
+				MaxInstances: 5
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 2
+				AttachToRole: Assault
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Defense, Production, Tech, Superweapon
+				ThreatBonuses:
+					Defense: 20
+					Production: 14
+					Superweapon: 12
+				ThreatBonusesPerUnit:
+					ArmorDefense: 5
+					AADefense: 3
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: 2
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: nhwtz
+			Nod_Subtank_Raid:
+				Role: SubterraneanAssault
+				Priority: 118
+				MaxInstances: 4
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Defense, Production, Tech, Economy
+				ThreatBonuses:
+					Defense: 16
+					Production: 14
+					Tech: 12
+				ThreatBonusesPerUnit:
+					InfantryDefense: -2
+					ArmorDefense: -2
+				ThreatBonusesGlobalPerUnit:
+					Harvester: 2
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: subtank
+			Nod_SubAPC_Ambush:
+				Role: SubterraneanTransport
+				Priority: 108
+				MaxInstances: 2
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Production, Tech, Superweapon, Power
+				ThreatBonuses:
+					Production: 14
+					Tech: 12
+					Superweapon: 12
+				ThreatBonusesPerUnit:
+					InfantryDefense: -2
+					ArmorDefense: -2
+				ThreatBonusesGlobalPerUnit:
+					ArmorDefense: 2
+				Slots:
+					1:
+						Count: 1
+						AllowedTypes: sapc
+						IsCarrier: True
+					2:
+						Count: 5
+						AllowedTypes: acolyte, nacad, e3
+						IsPassenger: True
+			Nod_StealthTank_Strike:
+				Role: Stealth
+				Priority: 112
+				MaxInstances: 4
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Aircraft, Tech, Superweapon, Harvester
+				ThreatBonuses:
+					Aircraft: 16
+					Tech: 14
+					Superweapon: 14
+				ThreatBonusesPerUnit:
+					Vehicle: 3
+					AntiAir: 3
+				ThreatBonusesGlobalPerUnit:
+					InfantryDefense: -2
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: stnk
+			Nod_Scrin_Strike:
+				Role: AircraftAttack
+				Priority: 118
+				MaxInstances: 4
+				ScaleWithBuilding: nahpad
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Vehicle, Defense, Production, Tech, Superweapon
+				ThreatBonuses:
+					Vehicle: 18
+					Defense: 16
+					Superweapon: 14
+				ThreatBonusesPerUnit:
+					AADefense: -4
+					AntiAir: -2
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -5
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: scrin
+			Nod_Hydra_Raid:
+				Role: AircraftRaider
+				Priority: 112
+				MaxInstances: 5
+				ScaleWithBuilding: nahpad
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Infantry
+				ThreatBonuses:
+					Defense: 8
+					Infantry: 15
+				ThreatBonusesPerUnit:
+					Infantry: 3
+					AADefense: -2
+					AntiAir: -1
+				ThreatBonusesGlobalPerUnit:
+					AADefense: -4
+					ArmorDefense: 2
+					InfantryDefense: 2
+					ArtilleryDefense: 2
+					Harvester: 3
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: hydra

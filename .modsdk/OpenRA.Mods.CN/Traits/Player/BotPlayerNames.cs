@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using OpenRA.Traits;
@@ -45,32 +46,28 @@ namespace OpenRA.Mods.CN.Traits
 			if (!player.IsBot)
 				return null;
 
-			if (!TryGetNames(player.Faction.InternalName, out var names) || names.IsDefaultOrEmpty)
-				return null;
-
-			var hash = StableHash(
-				player.World.LobbyInfo.GlobalSettings.RandomSeed,
-				player.Faction.InternalName,
-				player.BotType ?? string.Empty);
-			var seedOffset = ((hash % names.Length) + names.Length) % names.Length;
-
-			var factionBots = player.World.Players
-				.Where(p => p.IsBot && !p.NonCombatant && p.Playable && p.Faction.InternalName == player.Faction.InternalName)
+			var bots = player.World.Players
+				.Where(IsNamedBot)
 				.OrderBy(p => p.ClientIndex)
 				.ToArray();
 
-			var botOffset = Array.IndexOf(factionBots, player);
-			if (botOffset < 0)
-				botOffset = 0;
+			var playerIndex = Array.IndexOf(bots, player);
+			if (playerIndex < 0)
+				return null;
 
-			var baseName = names[(seedOffset + botOffset) % names.Length];
-			var cycle = botOffset / names.Length;
-			var fullName = cycle == 0 ? baseName : $"{baseName} {cycle + 1}";
+			var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			for (var i = 0; i <= playerIndex; i++)
+			{
+				var name = PickUniqueName(bots[i], usedNames);
+				if (name == null)
+					continue;
 
-			if (info.BotTypeLabels.TryGetValue(player.BotType ?? string.Empty, out var typeLabel))
-				fullName = $"{fullName} ({typeLabel})";
+				usedNames.Add(name);
+				if (bots[i] == player)
+					return name;
+			}
 
-			return fullName;
+			return null;
 		}
 
 		bool TryGetNames(string faction, out ImmutableArray<string> names)
@@ -83,6 +80,49 @@ namespace OpenRA.Mods.CN.Traits
 
 			names = default;
 			return false;
+		}
+
+		string PickUniqueName(Player player, HashSet<string> usedNames)
+		{
+			if (!TryGetNames(player.Faction.InternalName, out var rawNames) || rawNames.IsDefaultOrEmpty)
+				return null;
+
+			var names = rawNames.Where(n => !string.IsNullOrWhiteSpace(n)).ToArray();
+			if (names.Length == 0)
+				return null;
+
+			var botType = player.BotType ?? string.Empty;
+			var offset = PositiveModulo(
+				StableHash(player.World.LobbyInfo.GlobalSettings.RandomSeed, player.Faction.InternalName, botType),
+				names.Length);
+
+			for (var attempt = 0; ; attempt++)
+			{
+				var baseName = names[(offset + attempt) % names.Length];
+				var cycle = attempt / names.Length;
+				var name = cycle == 0 ? baseName : $"{baseName} {cycle + 1}";
+				var fullName = ApplyBotTypeLabel(name, botType);
+
+				if (!usedNames.Contains(fullName))
+					return fullName;
+			}
+		}
+
+		string ApplyBotTypeLabel(string name, string botType)
+		{
+			return info.BotTypeLabels.TryGetValue(botType, out var typeLabel)
+				? $"{name} ({typeLabel})"
+				: name;
+		}
+
+		static bool IsNamedBot(Player player)
+		{
+			return player.IsBot && !player.NonCombatant && player.Playable;
+		}
+
+		static int PositiveModulo(int value, int divisor)
+		{
+			return ((value % divisor) + divisor) % divisor;
 		}
 
 		static int StableHash(int seed, string faction, string botType)

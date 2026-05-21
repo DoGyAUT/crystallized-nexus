@@ -375,7 +375,7 @@ TTNK:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
-		Prerequisites: ~naweap, natech, ~techlevel.medium
+		Prerequisites: ~naweap, napyra, ~techlevel.medium
 		Description: actor-ttnk.description
 	Mobile:
 		TurnSpeed: 20
@@ -804,7 +804,7 @@ SAPC:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 110
-		Prerequisites: ~naweap, natech, ~techlevel.medium
+		Prerequisites: ~naweap, napyra, ~techlevel.medium
 		Description: actor-sapc.description
 	Mobile:
 		TurnSpeed: 20
@@ -887,7 +887,7 @@ SUBTANK:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 130
-		Prerequisites: ~naweap, natech, ~techlevel.high
+		Prerequisites: ~naweap, napyra, ~techlevel.high
 		Description: actor-subtank.description
 	Mobile:
 		TurnSpeed: 24
@@ -970,7 +970,7 @@ STNK:
 		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 150
-		Prerequisites: ~naweap, natech, ~techlevel.high
+		Prerequisites: ~naweap, napyra, ~techlevel.high
 		Queue: Vehicle
 		Description: actor-stnk.description
 	Mobile:
@@ -1051,7 +1051,7 @@ SGEN:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 130
-		Prerequisites: ~naweap, nastlh
+		Prerequisites: ~naweap, nastlh, ~techlevel.high
 		Description: actor-sgen.description
 	Valued:
 		Cost: 1600

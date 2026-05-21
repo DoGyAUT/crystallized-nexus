@@ -12,7 +12,7 @@ SCRIN:
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 40
-		Prerequisites: ~nahpad, natech
+		Prerequisites: ~nahpad, napyra, ~techlevel.high
 		Description: actor-scrin.description
 	Selectable:
 		Bounds: 905, 1448
@@ -107,7 +107,7 @@ HYDRA:
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 20
-		Prerequisites: ~nahpad
+		Prerequisites: ~nahpad, ~techlevel.medium
 		Description: actor-apache.description
 	Selectable:
 		Bounds: 905, 1448
@@ -141,17 +141,36 @@ HYDRA:
 		DepletedSound:
 		RechargedSound:
 		BarColor: D4AA00
-	Armament:
-		Weapon: HarpyClaw
+	Armament@Missiles:
+		Name: missiles
+		Weapon: HydraDragon
 		PauseOnCondition: !ammo
+		MuzzleSequence: muzzle_rockets
+		MuzzlePalette: effect
+		LocalOffset: 300,-180,220, 300,180,220
+	Armament@MissilesAA:
+		Name: missiles_aa
+		Weapon: HydraLauncher
+		PauseOnCondition: !ammo
+		MuzzleSequence: muzzle_rockets
+		MuzzlePalette: effect
+		LocalOffset: 300,-180,220, 300,180,220
+	Armament@Gun:
+		Name: gun
+		Weapon: HydraCannon
+		PauseOnCondition: !ammo
+		MuzzleSequence: muzzle_gun
+		MuzzlePalette: effect
+		LocalOffset: 1000,0,220
 	AttackAircraft:
-		FacingTolerance: 80
+		Armaments: missiles, gun, missiles_aa
+		FacingTolerance: 512
 		PersistentTargeting: false
 		Voice: Attack
 		PauseOnCondition: empdisable
-		AttackType: Shuffle
-		ShuffleRange: 4c512
 	AmmoPool:
+		Name: missiles
+		Armaments: missiles, missiles_aa
 		Ammo: 12
 		AmmoCondition: ammo
 	WithIdleOverlay@ROTORAIR:
@@ -170,12 +189,12 @@ HYDRA:
 		RequiresCondition: empdisable
 	Rearmable:
 		RearmActors: gahpad, nahpad
-		AmmoPools: primary, flares
+		AmmoPools: missiles, flares
 	WithAmmoPipsDecoration:
 		Position: BottomLeft
 		RequiresSelection: true
 		Margin: 4, 5
-		AmmoPools: primary
+		AmmoPools: missiles
 		PipCount: 4
 		FullSequence: pip-ammo
 		EmptySequence: pip-ammoempty

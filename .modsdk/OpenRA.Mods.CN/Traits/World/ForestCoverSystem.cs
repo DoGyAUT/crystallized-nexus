@@ -71,11 +71,27 @@ namespace OpenRA.Mods.CN.Traits
 		readonly World world;
 
 		// Reference-counted influence map: cell → number of tree sources covering it.
-		// A cell is "in forest" when count > 0.
+		// A cell is "in forest" when the cell is present.
 		readonly Dictionary<CPos, int> forestCells = [];
+
+		// Only actors that actually declare the forest-cover ExternalCondition are
+		// tracked — buildings, trees, projectiles etc. are never iterated. This is
+		// the key scalability win over scanning every actor in the world.
+		readonly HashSet<Actor> coverable = [];
+
+		// Last evaluated cell per coverable actor — lets us skip the per-actor
+		// forest lookup/grant logic when the actor hasn't moved cell and the
+		// forest map itself hasn't changed since the previous pass.
+		readonly Dictionary<Actor, CPos> lastCell = [];
 
 		// One condition token per covered unit — avoids N tokens per unit when N trees overlap.
 		readonly Dictionary<Actor, int> tokens = [];
+
+		// Bumped whenever a tree source is added/removed. When it changes between
+		// passes the unmoved-actor short-circuit is bypassed so stationary units
+		// under a tree that just appeared/was destroyed still update.
+		int forestRevision;
+		int lastProcessedRevision;
 
 		int tickCount;
 		bool ready;
@@ -88,8 +104,21 @@ namespace OpenRA.Mods.CN.Traits
 
 		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
 		{
-			ready = true;
+			// Seed the coverable set once, then maintain it incrementally.
+			foreach (var actor in world.Actors)
+				if (IsCoverable(actor))
+					coverable.Add(actor);
+
+			world.ActorAdded += OnActorAdded;
 			world.ActorRemoved += OnActorRemoved;
+			ready = true;
+		}
+
+		// An actor can receive forest cover only if it declares an ExternalCondition
+		// for our condition. Checked against ActorInfo so it is stable and cheap.
+		bool IsCoverable(Actor actor)
+		{
+			return actor.Info.TraitInfos<ExternalConditionInfo>().Any(c => c.Condition == info.Condition);
 		}
 
 		// Called by ForestCoverSource when a tree enters the world.
@@ -100,6 +129,8 @@ namespace OpenRA.Mods.CN.Traits
 				forestCells.TryGetValue(cell, out var count);
 				forestCells[cell] = count + 1;
 			}
+
+			forestRevision++;
 		}
 
 		// Called by ForestCoverSource when a tree leaves the world (e.g. destroyed).
@@ -115,6 +146,8 @@ namespace OpenRA.Mods.CN.Traits
 				else
 					forestCells[cell] = count - 1;
 			}
+
+			forestRevision++;
 		}
 
 		IEnumerable<CPos> CellsInRange(CPos center, WDist range)
@@ -140,13 +173,25 @@ namespace OpenRA.Mods.CN.Traits
 				return;
 			tickCount = 0;
 
-			foreach (var actor in world.Actors)
+			// If the forest map changed since the last pass, every coverable actor
+			// must be re-checked (a tree may have appeared/vanished under a unit
+			// that did not move). Otherwise only moved units need work.
+			var forestChanged = forestRevision != lastProcessedRevision;
+			lastProcessedRevision = forestRevision;
+
+			foreach (var actor in coverable)
 			{
 				if (!actor.IsInWorld || actor.IsDead || actor.OccupiesSpace == null)
 					continue;
 
 				var cell = world.Map.CellContaining(actor.CenterPosition);
-				var inForest = forestCells.Count > 0 && forestCells.ContainsKey(cell);
+
+				if (!forestChanged && lastCell.TryGetValue(actor, out var lc) && lc == cell)
+					continue;
+
+				lastCell[actor] = cell;
+
+				var inForest = forestCells.ContainsKey(cell);
 				var hasToken = tokens.ContainsKey(actor);
 
 				if (inForest && !hasToken)
@@ -181,9 +226,17 @@ namespace OpenRA.Mods.CN.Traits
 					break;
 		}
 
+		void OnActorAdded(Actor actor)
+		{
+			if (IsCoverable(actor))
+				coverable.Add(actor);
+		}
+
 		void OnActorRemoved(Actor actor)
 		{
+			coverable.Remove(actor);
 			tokens.Remove(actor);
+			lastCell.Remove(actor);
 		}
 	}
 }

@@ -232,7 +232,7 @@ HVR:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 80
-		Prerequisites: ~gaweap, garadr, ~techlevel.high
+		Prerequisites: ~gaweap, garadr, ~techlevel.medium
 		Description: actor-hvr.description
 	Mobile:
 		Speed: 99
@@ -278,9 +278,12 @@ HVR:
 		PauseOnCondition: empdisable
 	CNWithVoxelTurret
 	Hovers:
-		RequiresCondition: !empdisable
+		RequiresCondition: !empdisable && !repair-docked
 		BobDistance: -64
 		InitialHeight: 384
+	GrantConditionOnClientDock@REPAIR:
+		Condition: repair-docked
+		DockHostNames: gadept
 	LeavesTrails:
 		RequiresCondition: !inside-tunnel
 		Image: wake
@@ -355,6 +358,8 @@ SMECH:
 		FacingTolerance: 0
 	Armament@primary:
 		Weapon: AssaultCannon
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 176, 191, 192, 199
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
 		RequiresCondition: !inside-tunnel
@@ -507,6 +512,8 @@ MMCH:
 	BodyOrientation:
 		QuantizedFacings: 32
 		UseClassicPerspectiveFudge: False
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 255, 255
 	WithFacingSpriteBody:
 		Sequence: stand
 		RequiresCondition: !inside-tunnel
@@ -561,7 +568,7 @@ MMCH:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
 		Prerequisites: ~gaweap, gaarmory, ~techlevel.medium
-		Description: actor-gtmtnk.description
+		Description: actor-4tnk-description
 	Mobile:
 		Locomotor: heavytracked
 		Speed: 56
@@ -657,7 +664,7 @@ HMEC:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 140
-		Prerequisites: ~gaweap, gatech, ~techlevel.high
+		Prerequisites: ~gaweap, gatech, ~techlevel.veryhigh
 		Description: actor-hmec.description
 	Mobile:
 		Locomotor: heavywalker
@@ -960,8 +967,11 @@ MOBILEMP:
 		Type: Medium
 	Mobile:
 		Speed: 85
-	CNWithVoxelBody:
-		Offset: 0,0,-256
+	CNWithVoxelBody@EMPTY:
+		RequiresCondition: !charged
+	CNWithVoxelBody@CHARGED:
+		Sequence: idle-charged
+		RequiresCondition: charged
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 6c0
@@ -970,6 +980,7 @@ MOBILEMP:
 		Voice: Move
 		ChargeDuration: 750
 		ActivatedCondition: triggered
+		ChargedCondition: charged
 		PauseOnCondition: empdisable
 	FireWarheads:
 		Weapons: MEMPulse

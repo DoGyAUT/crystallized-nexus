@@ -12,11 +12,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Tick(CNSquad squad)
 		{
+			// Sanity check: verify squad and all carriers are valid
+			if (!squad.IsValid || !CNStateBase.ValidateCarriers(squad))
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+				return;
+			}
+
 			if (!squad.IsOperational)
 				return;
 
-			var hasCarriers = squad.CarrierUnits.Any(u => !u.IsDead);
-			var hasPassengers = squad.PassengerUnits.Any(u => !u.IsDead);
+			var hasCarriers = squad.CarrierUnits.Any(u => !u.IsDead && u.IsInWorld);
+			var hasPassengers = squad.PassengerUnits.Any(u => !u.IsDead && u.IsInWorld);
 
 			if (hasCarriers && hasPassengers)
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportLoadState());
@@ -31,11 +38,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Tick(CNSquad squad)
 		{
+			// Sanity check: verify squad and all carriers are valid
+			if (!squad.IsValid || !CNStateBase.ValidateCarriers(squad))
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+				return;
+			}
+
 			if (!squad.IsOperational)
 				return;
 
-			var hasCarriers = squad.CarrierUnits.Any(u => !u.IsDead);
-			var hasPassengers = squad.PassengerUnits.Any(u => !u.IsDead);
+			var hasCarriers = squad.CarrierUnits.Any(u => !u.IsDead && u.IsInWorld);
+			var hasPassengers = squad.PassengerUnits.Any(u => !u.IsDead && u.IsInWorld);
 
 			if (hasCarriers && hasPassengers)
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportLoadState());
@@ -46,10 +60,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class TransportLoadState : CNStateBase, ICNState
 	{
-		int waitTicks;
+		int loadStartTick;
 
-		// 10 update-cycles × 75 game ticks = 750 ticks ≈ ~37 seconds at 20fps.
-		const int MaxLoadTicks = 10;
+		// Abort threshold: if passengers haven't loaded within this time, transition to safe state.
+		// 750 ticks ≈ ~50 seconds at 15 ticks/sec.
+		const int MaxLoadTicks = 750;
 
 		static void IssueLoadOrders(CNSquad squad)
 		{
@@ -74,11 +89,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Activate(CNSquad squad)
 		{
-			waitTicks = 0;
+			loadStartTick = squad.World.WorldTick;
 
-			// Stop all carriers so they stay put while passengers walk to them.
+			// Stop all carriers and escorts so they stay put while passengers walk to them.
 			foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
 				squad.Bot.QueueOrder(new Order("Stop", carrier, false));
+			foreach (var escort in squad.EscortUnits.Where(u => !u.IsDead && u.IsInWorld))
+				squad.Bot.QueueOrder(new Order("Stop", escort, false));
 
 			// Issue boarding orders immediately (don't wait up to 75 ticks for first Tick).
 			IssueLoadOrders(squad);
@@ -89,20 +106,34 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			waitTicks++;
+			// Sanity check: if all carriers are dead, transition to done state instead of attack states.
+			var validCarriers = squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld).ToList();
+			if (validCarriers.Count == 0)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+				return;
+			}
 
 			var passengers = squad.PassengerUnits.Where(u => !u.IsDead).ToList();
 
-			if (passengers.Count == 0)
+			// Cargo aboard the carriers is the authoritative "loaded" signal:
+			// passenger actors leave the world while boarded, so a passenger count
+			// alone cannot tell "all aboard" apart from "none assigned".
+			var anyCargo = validCarriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false);
+
+			if (passengers.Count == 0 && !anyCargo)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportIdleState());
 				return;
 			}
 
-			var allLoaded = passengers.All(u => !u.IsInWorld);
+			var allLoaded = anyCargo && (passengers.Count == 0 || passengers.All(u => !u.IsInWorld));
 
-			if (allLoaded || waitTicks >= MaxLoadTicks)
+			if (allLoaded || squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
 			{
+				// Abort logic: if timeout reached but loading failed, transition to a safe state.
+				// For air transports, go to attack move; for ground, also proceed to attack move
+				// since carriers may have partial cargo or the squad needs to continue its mission.
 				if (squad.Type == CNSquadType.AirTransport)
 					squad.FuzzyStateMachine.ChangeState(squad, new AirTransportAttackMoveState());
 				else
@@ -135,16 +166,51 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		const int DropSearchMaxCells = 10;
 		const int DropArriveRangeCells = 3;
 
+		// Fail-safe: if carriers arrive at LZ but never transition to unload (e.g., stuck on idle),
+		// force the unload state after this many ticks of being at/near the drop zone.
+		const int MaxLZIdleTicks = 180; // ~12 seconds at 15 ticks/sec
+
+		// Threat relaxation: when already at/near the LZ, reduce threat score so a nearly-finished
+		// transport doesn't get stuck in "hesitation" where a tiny threat prevents unload.
+		const int LzThreatRelaxFactor = 2; // divide threat by this factor near LZ
+
+		int lzIdleStartTick;
+
 		public void Activate(CNSquad squad)
 		{
 			dropCell = null;
 			lastTarget = null;
+			lzIdleStartTick = 0;
 		}
 
 		public void Tick(CNSquad squad)
 		{
 			if (!squad.IsValid)
 				return;
+
+			// Fail-safe idle check: if the transport has been at/near the LZ for too long
+			// with passengers still aboard, force unload to prevent permanent idle.
+			var lzCarriers = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
+			if (dropCell.HasValue && lzCarriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false))
+			{
+				var lzTargetPos = squad.World.Map.CenterOfCell(dropCell.Value);
+				var nearLZ = lzCarriers.All(c => (c.CenterPosition - lzTargetPos).Length <= WDist.FromCells(DropArriveRangeCells + 2).Length);
+				if (nearLZ)
+				{
+					if (lzIdleStartTick == 0)
+						lzIdleStartTick = squad.World.WorldTick;
+
+					if (squad.World.WorldTick - lzIdleStartTick >= MaxLZIdleTicks)
+					{
+						squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
+						return;
+					}
+				}
+				else
+				{
+					lzIdleStartTick = 0;
+				}
+			}
 
 			// Find a drop-off target if we don't have one yet (squad starts without a target)
 			if (!squad.IsTargetValid)
@@ -215,6 +281,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				if ((carrier.CenterPosition - targetPos).LengthSquared <= (long)unloadRange.Length * unloadRange.Length)
 				{
+					lzIdleStartTick = 0; // Reset LZ counter when arriving at drop zone
 					squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
 					return;
 				}
@@ -229,6 +296,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					// directly to the drop-off point instead of stopping to fight.
 					squad.Bot.QueueOrder(new Order("Move", carrier, moveTarget, false));
 				}
+			}
+
+			// Escorts AttackMove to the drop zone — they fight enemies en route and arrive combat-ready.
+			if (dropCell.HasValue)
+			{
+				var escortTarget = Target.FromCell(squad.World, dropCell.Value);
+				foreach (var escort in squad.EscortUnits.Where(e => !e.IsDead && e.IsInWorld && e.IsIdle))
+					squad.Bot.QueueOrder(new Order("AttackMove", escort, escortTarget, false));
 			}
 		}
 
@@ -290,6 +365,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (baseToCandidate < baseToTarget)
 				score += (baseToTarget - baseToCandidate) * 6;
 
+			// Apply threat relaxation near LZ: when already at the drop zone, a tiny threat
+			// shouldn't prevent the transport from completing its unload.
 			foreach (var actor in world.FindActorsInCircle(candidatePos, WDist.FromCells(6)))
 			{
 				if (!squad.SquadManager.IsLiveEnemyActor(actor))
@@ -299,9 +376,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				var canAttack = actor.Info.HasTraitInfo<AttackBaseInfo>();
 
 				if (isBuilding && canAttack)
-					score += 350;
+					score += 350 / LzThreatRelaxFactor;
 				else if (canAttack)
-					score += 80;
+					score += 80 / LzThreatRelaxFactor;
 				else if (isBuilding)
 					score -= 10;
 			}
@@ -316,7 +393,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 				if ((actor.CenterPosition - candidatePos).LengthSquared <=
 					(long)WDist.FromCells(6).Length * WDist.FromCells(6).Length)
-					score += 80;
+					score += 80 / LzThreatRelaxFactor;
 			}
 
 			return score;
@@ -327,23 +404,31 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	{
 		const int DropSearchMinCells = 5;
 		const int DropSearchMaxCells = 13;
-		const int DropArriveRangeCells = 2;
+		const int DropArriveRangeCells = 3;
 		const int ThreatScanCells = 7;
 		const int MaxAcceptableDropScore = 1600;
 
-		// After loading, aircraft may not be immediately idle (landing animation, rearm-pad state).
-		// Re-issue the move order after this many ticks to guarantee departure.
-		const int MaxStuckTicks = 8;
+		// Loiter fail-safe: if the lead carrier hasn't made horizontal progress for
+		// this many ticks while still carrying cargo, it is hovering over/near the
+		// LZ — force the unload rather than circling forever.
+		const int MaxLoiterTicks = 60;
+		const int MinProgressDistance = 512; // sub-cell; movement below this counts as "not moving"
 
 		CPos? dropCell;
 		Actor lastTarget;
-		int stuckTicks;
+		WPos lastLeadPos;
+		int loiterTicks;
+
+		// Threat relaxation: when already at/near the LZ, reduce threat score so a nearly-finished
+		// transport doesn't get stuck in "hesitation" where a tiny threat prevents unload.
+		const int LzThreatRelaxFactor = 2; // divide threat by this factor near LZ
 
 		public void Activate(CNSquad squad)
 		{
 			dropCell = null;
 			lastTarget = null;
-			stuckTicks = 0;
+			lastLeadPos = WPos.Zero;
+			loiterTicks = 0;
 		}
 
 		public void Tick(CNSquad squad)
@@ -390,26 +475,47 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			if (carriers.Count == 0)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
+				return;
+			}
+
 			var targetPos = squad.World.Map.CenterOfCell(dropCell.Value);
 			var unloadRange = WDist.FromCells(DropArriveRangeCells);
+			var unloadRangeSq = (long)unloadRange.Length * unloadRange.Length;
 
-			var issuedMove = false;
+			// Horizontal-only distance: an airborne carrier's Z is its cruise
+			// altitude, so a 3-D check would never fall under the threshold and
+			// the transport would circle the LZ forever without unloading.
 			foreach (var carrier in carriers)
 			{
-				if ((carrier.CenterPosition - targetPos).LengthSquared <= (long)unloadRange.Length * unloadRange.Length)
+				if (HorizontalLengthSquared(carrier.CenterPosition - targetPos) <= unloadRangeSq)
 				{
 					squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
 					return;
 				}
-
-				if (carrier.IsIdle || stuckTicks >= MaxStuckTicks)
-				{
-					squad.Bot.QueueOrder(new Order("Move", carrier, Target.FromCell(squad.World, dropCell.Value), false));
-					issuedMove = true;
-				}
 			}
 
-			stuckTicks = issuedMove ? 0 : stuckTicks + 1;
+			// Loiter fail-safe: if the lead carrier stops making horizontal
+			// progress while still carrying cargo, it has effectively arrived
+			// (hovering over the LZ) — unload instead of looping.
+			var lead = carriers[0];
+			var moved = HorizontalLengthSquared(lead.CenterPosition - lastLeadPos)
+				> (long)MinProgressDistance * MinProgressDistance;
+			lastLeadPos = lead.CenterPosition;
+
+			if (moved)
+				loiterTicks = 0;
+			else if (++loiterTicks >= MaxLoiterTicks)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
+				return;
+			}
+
+			foreach (var carrier in carriers)
+				if (carrier.IsIdle)
+					squad.Bot.QueueOrder(new Order("Move", carrier, Target.FromCell(squad.World, dropCell.Value), false));
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -436,6 +542,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				bestScore = score;
 				target = candidate;
 				dropCell = candidateDropCell;
+			}
+
+			// Fallback: no capability-tagged target had a landable approach. Use
+			// the nearest enemy building with a safe drop cell so a loaded
+			// transport still engages instead of idling at base forever.
+			if (target == null)
+			{
+				foreach (var candidate in squad.SquadManager.GetCachedEnemyBuildings()
+					.OrderBy(b => (b.CenterPosition - carrier.CenterPosition).LengthSquared))
+				{
+					var fallbackCell = FindSafeAirDropCell(squad, carrier, candidate);
+					if (!fallbackCell.HasValue)
+						continue;
+
+					target = candidate;
+					dropCell = fallbackCell;
+					break;
+				}
 			}
 
 			return target != null;
@@ -471,7 +595,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					score -= 250;
 			}
 
-			score += ScoreAirThreatAt(squad, carrier, target.CenterPosition, ThreatScanCells + 3);
+			// Apply threat relaxation near LZ: when already at the drop zone, a tiny threat
+			// shouldn't prevent the transport from completing its unload.
+			var threatScore = ScoreAirThreatAt(squad, carrier, target.CenterPosition, ThreatScanCells + 3);
+			score += threatScore / LzThreatRelaxFactor;
 			return score;
 		}
 
@@ -530,7 +657,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (baseToCandidate < baseToTarget)
 				score += (baseToTarget - baseToCandidate) * 4;
 
-			score += ScoreAirThreatAt(squad, carrier, candidatePos, ThreatScanCells);
+			// Apply threat relaxation near LZ: when already at the drop zone, a tiny threat
+			// shouldn't prevent the transport from completing its unload.
+			var threatScore = ScoreAirThreatAt(squad, carrier, candidatePos, ThreatScanCells);
+			score += threatScore / LzThreatRelaxFactor;
 			return score;
 		}
 
@@ -562,26 +692,69 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class TransportUnloadState : CNStateBase, ICNState
 	{
-		public void Activate(CNSquad squad) { }
+		// Timeout: 600 ticks ≈ ~40 seconds at 15 ticks/sec — abort if stuck.
+		const int MaxUnloadWaitTicks = 600;
+
+		// Periodic nudge interval: re-issue Unload order every N ticks to "nudge" the engine's activity queue.
+		const int NudgeIntervalTicks = 100;
+
+		int unloadStartTick;
+		int lastNudgeTick;
+
+		public void Activate(CNSquad squad)
+		{
+			unloadStartTick = squad.World.WorldTick;
+			lastNudgeTick = squad.World.WorldTick;
+		}
 
 		public void Tick(CNSquad squad)
 		{
 			if (!squad.IsValid)
 				return;
 
-			var carriers = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
+			var carriers = squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld).ToList();
 			var anyCargo = carriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false);
 
+			// If no cargo remains, transition to return state.
 			if (!anyCargo)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
 				return;
 			}
 
+			// Periodic nudge: if a carrier is idle but still has passengers, re-issue Unload order
+			// every NudgeIntervalTicks to try and "nudge" the engine's activity queue.
+			if (squad.World.WorldTick - lastNudgeTick >= NudgeIntervalTicks)
+			{
+				lastNudgeTick = squad.World.WorldTick;
+				foreach (var carrier in carriers.Where(c => c.IsIdle && c.TraitOrDefault<Cargo>()?.IsEmpty() == false))
+					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
+			}
+
+			// Timeout: if the transport has been at the LZ for too long with passengers still aboard,
+			// force unload on all carriers and transition to return state to prevent permanent idle.
+			if (squad.World.WorldTick - unloadStartTick >= MaxUnloadWaitTicks)
+			{
+				foreach (var carrier in carriers.Where(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false))
+					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
+
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
+				return;
+			}
+
+			// Standard idle check: re-issue Unload to carriers that became idle.
 			foreach (var carrier in carriers)
 			{
 				if (carrier.IsIdle && carrier.TraitOrDefault<Cargo>()?.IsEmpty() == false)
 					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
+			}
+
+			// Escorts attack the nearest enemy while passengers unload.
+			var escortEnemy = FindClosestEnemyUnit(squad);
+			if (escortEnemy != null)
+			{
+				foreach (var escort in squad.EscortUnits.Where(e => !e.IsDead && e.IsInWorld && e.IsIdle))
+					squad.Bot.QueueOrder(new Order("Attack", escort, Target.FromActor(escortEnemy), false));
 			}
 		}
 
@@ -592,11 +765,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	{
 		bool returnIssued;
 		int unloadAttemptTicks;
+		int returnStartTick;
+		CPos returnCell;
+
+		// Cleanup timeout: if carriers are stuck in a return loop but cannot reach base
+		// (e.g., pathfinding blocked) for more than this many ticks, force release units.
+		const int MaxReturnWaitTicks = 1200; // ~80 seconds at 15 ticks/sec
 
 		public void Activate(CNSquad squad)
 		{
 			returnIssued = false;
 			unloadAttemptTicks = 0;
+			returnStartTick = squad.World.WorldTick;
+			returnCell = CPos.Zero;
 		}
 
 		public void Tick(CNSquad squad)
@@ -607,26 +788,50 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			// Sanity check: if no valid carriers remain, release units immediately.
+			var validCarriers = squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld).ToList();
+			if (validCarriers.Count == 0)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+				return;
+			}
+
+			// Cleanup timeout: if carriers are stuck in a return loop for too long,
+			// force transition to done state to release units back to the manager pool.
+			if (squad.World.WorldTick - returnStartTick >= MaxReturnWaitTicks)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+				return;
+			}
+
+			// Consistently issue return-to-base order every tick until carriers are en route.
 			if (!returnIssued)
 			{
-				GoToRandomOwnBuilding(squad);
+				returnCell = squad.SquadManager.GetRandomBaseCenter();
+				var target = Target.FromCell(squad.World, returnCell);
+				foreach (var carrier in validCarriers)
+					squad.Bot.QueueOrder(new Order("Move", carrier, target, false));
+				foreach (var escort in squad.EscortUnits.Where(e => !e.IsDead && e.IsInWorld))
+					squad.Bot.QueueOrder(new Order("Move", escort, target, false));
+
 				returnIssued = true;
 			}
 
-			var baseCell = squad.SquadManager.GetRandomBaseCenter();
-			var basePos = squad.World.Map.CenterOfCell(baseCell);
+			var basePos = squad.World.Map.CenterOfCell(returnCell);
 			var homeRange = WDist.FromCells(10);
+			var homeRangeSq = (long)homeRange.Length * homeRange.Length;
 
-			var allHome = squad.CarrierUnits
-				.Where(u => !u.IsDead)
-				.All(u => (u.CenterPosition - basePos).Length <= homeRange.Length);
+			// Horizontal-only: air-transport carriers hover at cruise altitude
+			// over the base; a 3-D distance would never satisfy the home check.
+			var allHome = validCarriers
+				.All(u => HorizontalLengthSquared(u.CenterPosition - basePos) <= homeRangeSq);
 
 			if (!allHome || !returnIssued)
 				return;
 
 			// Unload any remaining cargo before dissolving so passengers aren't stranded inside.
-			var carriersWithCargo = squad.CarrierUnits
-				.Where(u => !u.IsDead && u.TraitOrDefault<Cargo>()?.IsEmpty() == false)
+			var carriersWithCargo = validCarriers
+				.Where(u => u.TraitOrDefault<Cargo>()?.IsEmpty() == false)
 				.ToList();
 
 			if (carriersWithCargo.Count > 0)

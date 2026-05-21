@@ -12,7 +12,6 @@
 
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using OpenRA.Effects;
 using OpenRA.Graphics;
 using OpenRA.Mods.CN.Traits;
@@ -26,6 +25,7 @@ namespace OpenRA.Mods.CN.Effects
 		readonly string palette;
 		readonly WPos edge;
 		readonly int facing;
+		readonly int renderZOffset;
 		readonly ImmutableArray<WDist> speed;
 		readonly WDist closeEnough;
 		WPos position;
@@ -37,23 +37,46 @@ namespace OpenRA.Mods.CN.Effects
 			this.position = position;
 			this.edge = edge;
 			this.facing = facing;
+			renderZOffset = info.RenderZOffset;
 
 			palette = info.Palette;
 			speed = info.Speed;
 			closeEnough = info.CloseEnough;
 
+			EnableSoftOverlayFiltering(animation);
 			world.ScreenMap.Add(this, position, animation.Image);
+		}
+
+		static void EnableSoftOverlayFiltering(Animation animation)
+		{
+			var sequence = animation.CurrentSequence;
+			if (sequence == null)
+				return;
+
+			for (var frame = 0; frame < sequence.Length; frame++)
+			{
+				sequence.GetSprite(frame).Sheet.GetTexture().ScaleFilter = TextureScaleFilter.Linear;
+				var shadow = sequence.GetShadow(frame, WAngle.Zero);
+				if (shadow != null)
+					shadow.Sheet.GetTexture().ScaleFilter = TextureScaleFilter.Linear;
+			}
 		}
 
 		IEnumerable<IRenderable> IEffect.Render(WorldRenderer r)
 		{
-			if (!Game.Settings.Graphics.CloudShadows || world.ShroudObscures(position))
+			// Atmospheric overlays (cloud shadows / godrays) are sky-level: never
+			// hide them by ground shroud/fog. The old single-point ShroudObscures
+			// test popped the whole large sprite along cell-quantised shroud
+			// edges as it drifted -> hard straight "cut" artifact.
+			if (!Game.Settings.Graphics.CloudShadows)
 				return SpriteRenderable.None;
 
-			var renderables = animation.Render(position, r.Palette(palette));
-
-			// AsDecoration skips depth buffer testing so clouds always render above terrain
-			return renderables.Select(rb => rb.AsDecoration());
+			// NOT AsDecoration: godrays must be depth-tested so buildings /
+			// cliffs / ramps occlude them (no bleed-through). They use an
+			// Additive blend mode, for which the engine already disables depth
+			// writes (Sdl2GraphicsContext.SetBlendMode), so they still do not
+			// clip explosions / FX drawn afterwards.
+			return animation.Render(position, WVec.Zero, renderZOffset, r.Palette(palette));
 		}
 
 		void IEffect.Tick(World world)

@@ -7,6 +7,10 @@
 		Name: terrain
 		Tileset: TEMPERATE
 		Filename: isotem.pal
+	PaletteFromFile@terraindes:
+		Name: terrain
+		Tileset: DESERT
+		Filename: isotem.pal
 	PaletteFromFile@terrainsno:
 		Name: terrain
 		Tileset: SNOW
@@ -14,6 +18,11 @@
 	PaletteFromFile@terraindectem:
 		Name: terraindecoration
 		Tileset: TEMPERATE
+		Filename: isotem.pal
+		ShadowIndex: 1
+	PaletteFromFile@terraindecdes:
+		Name: terraindecoration
+		Tileset: DESERT
 		Filename: isotem.pal
 		ShadowIndex: 1
 	PaletteFromFile@terraindecsno:
@@ -29,6 +38,11 @@
 	PaletteFromFile@playertem:
 		Name: player
 		Tileset: TEMPERATE
+		Filename: unittem.pal
+		ShadowIndex: 1
+	PaletteFromFile@playerdes:
+		Name: player
+		Tileset: DESERT
 		Filename: unittem.pal
 		ShadowIndex: 1
 	PaletteFromFile@playerforcetem:
@@ -47,6 +61,12 @@
 		Filename: unittem.pal
 		ShadowIndex: 1
 		TransparentIndex: 0, 246, 247, 248, 249, 250
+	PaletteFromFile@playerdes-nomuzzle:
+		Name: player-nomuzzle
+		Tileset: DESERT
+		Filename: unittem.pal
+		ShadowIndex: 1
+		TransparentIndex: 0, 246, 247, 248, 249, 250
 	PaletteFromFile@playersno-nobright:
 		Name: player-nobright
 		Tileset: SNOW
@@ -56,6 +76,12 @@
 	PaletteFromFile@playertem-nobright:
 		Name: player-nobright
 		Tileset: TEMPERATE
+		Filename: unittem.pal
+		ShadowIndex: 1
+		TransparentIndex: 0, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255
+	PaletteFromFile@playerdes-nobright:
+		Name: player-nobright
+		Tileset: DESERT
 		Filename: unittem.pal
 		ShadowIndex: 1
 		TransparentIndex: 0, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255
