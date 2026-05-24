@@ -46,6 +46,7 @@ namespace OpenRA.Mods.CN.Effects
 		readonly int pitchRate;
 		readonly int rollRate;
 		readonly int groundLifetime;
+		readonly int groundSink;
 
 		WPos position;
 		WVec velocity;
@@ -67,6 +68,7 @@ namespace OpenRA.Mods.CN.Effects
 			int lifetime,
 			int groundLifetime,
 			int gravity,
+			int groundSink,
 			WeaponInfo explosionWeapon,
 			Actor sourceActor,
 			int yawRate,
@@ -85,6 +87,7 @@ namespace OpenRA.Mods.CN.Effects
 			this.lifetime = lifetime;
 			this.groundLifetime = groundLifetime;
 			this.gravity = gravity;
+			this.groundSink = groundSink;
 			this.explosionWeapon = explosionWeapon;
 			this.sourceActor = sourceActor;
 			this.yawRate = yawRate;
@@ -135,24 +138,32 @@ namespace OpenRA.Mods.CN.Effects
 
 			if (--lifetime <= 0)
 			{
-				ExplodeAndRemove(world);
+				LandOnTerrain(world);
+				world.ScreenMap.Update(this, position, screenMapSize);
 				return;
 			}
 
-			var distanceAboveTerrain = world.Map.DistanceAboveTerrain(position).Length;
-			var terrainZ = position.Z - distanceAboveTerrain;
 			var bottomOffset = ModelBottomOffset();
-			if (position.Z + bottomOffset <= terrainZ)
-			{
-				rotation = WRot.FromYaw(rotation.Yaw);
-				bottomOffset = ModelBottomOffset();
-				position = new WPos(position.X, position.Y, terrainZ - bottomOffset);
-				velocity = WVec.Zero;
-				lifetime = groundLifetime;
-				resting = true;
-			}
+			var terrainZ = TerrainZ(world);
+			if (position.Z + bottomOffset <= terrainZ + groundSink)
+				LandOnTerrain(world);
 
 			world.ScreenMap.Update(this, position, screenMapSize);
+		}
+
+		void LandOnTerrain(World world)
+		{
+			rotation = WRot.FromYaw(rotation.Yaw);
+			var bottomOffset = ModelBottomOffset();
+			position = new WPos(position.X, position.Y, TerrainZ(world) - bottomOffset - groundSink);
+			velocity = WVec.Zero;
+			lifetime = groundLifetime;
+			resting = true;
+		}
+
+		int TerrainZ(World world)
+		{
+			return position.Z - world.Map.DistanceAboveTerrain(position).Length;
 		}
 
 		void ExplodeAndRemove(World world)

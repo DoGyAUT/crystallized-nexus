@@ -28,19 +28,22 @@ namespace OpenRA.Mods.CN.Traits
 		public readonly int Chance = 100;
 
 		[Desc("Horizontal launch speed range per tick.")]
-		public readonly ImmutableArray<WDist> HorizontalVelocity = [new WDist(42), new WDist(112)];
+		public readonly ImmutableArray<WDist> HorizontalVelocity = [new WDist(36), new WDist(90)];
 
 		[Desc("Initial upward velocity range per tick.")]
-		public readonly ImmutableArray<WDist> VerticalVelocity = [new WDist(110), new WDist(220)];
+		public readonly ImmutableArray<WDist> VerticalVelocity = [new WDist(75), new WDist(155)];
 
 		[Desc("Downward velocity added each tick.")]
-		public readonly WDist Gravity = new(12);
+		public readonly WDist Gravity = new(26);
 
 		[Desc("Lifetime range in ticks.")]
 		public readonly ImmutableArray<int> Lifetime = [45, 90];
 
 		[Desc("How long the debris remains on the ground before exploding.")]
 		public readonly ImmutableArray<int> GroundLifetime = [35, 75];
+
+		[Desc("How far the resting debris is sunk into the terrain to avoid visible gaps caused by voxel origins.")]
+		public readonly WDist GroundSink = new(6);
 
 		[WeaponReference]
 		[Desc("Explosion weapon used after the debris has rested on the ground. Empty disables the final explosion.")]
@@ -132,6 +135,7 @@ namespace OpenRA.Mods.CN.Traits
 					Math.Max(1, CommonUtil.RandomInRange(self.World.LocalRandom, Info.Lifetime)),
 					Math.Max(1, CommonUtil.RandomInRange(self.World.LocalRandom, Info.GroundLifetime)),
 					Math.Max(1, Info.Gravity.Length),
+					Math.Max(0, Info.GroundSink.Length),
 					Info.ExplosionWeapon,
 					self,
 					RandomNonZero(self.World.LocalRandom, Info.YawRate, 10),
