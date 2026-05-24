@@ -38,6 +38,7 @@ SonicZap:
 		TrackTarget: true
 		Color: 50F5FF45
 		BeamEdgeSoftness: 0.22
+		BeamBloomIntensity: 3.0
 		Distortion: 0.7
 		DistortionWidth: 0c640
 		DistortionWaveScale: 8

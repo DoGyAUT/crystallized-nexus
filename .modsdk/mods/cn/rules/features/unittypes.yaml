@@ -264,6 +264,7 @@
 		Voice: Move
 	AttackMove:
 		Voice: Move
+	FaceTurretOnOrder:
 	HiddenUnderFog:
 	ActorLostNotification:
 		TextNotification: notification-unit-lost

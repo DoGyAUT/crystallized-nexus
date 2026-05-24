@@ -786,7 +786,7 @@ SONIC:
 		MaxHeightDelta: 3
 	Armament:
 		Weapon: SonicZap
-		LocalOffset: 300,0,1250
+		LocalOffset: 50,0,1100
 	AttackTurreted:
 		Voice: Attack
 		PauseOnCondition: empdisable
