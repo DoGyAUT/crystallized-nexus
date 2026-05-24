@@ -67,6 +67,8 @@ gtmtnk:
 	idle:
 	turret: gtmtnktur
 	barrel: gtmtnkbarl
+	debris1: gtmtnktur_debris
+	debris2: gtmtnkbarl_debris
 
 ltnk:
 	idle:

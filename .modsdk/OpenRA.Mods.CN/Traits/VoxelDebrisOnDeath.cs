@@ -21,10 +21,10 @@ using CommonUtil = OpenRA.Mods.Common.Util;
 
 namespace OpenRA.Mods.CN.Traits
 {
-	[Desc("Spawns rendered voxel turret/barrel pieces as ballistic debris when the actor dies.")]
+	[Desc("Spawns explicitly defined voxel debris sequences as ballistic debris when the actor dies.")]
 	public class VoxelDebrisOnDeathInfo : ConditionalTraitInfo, Requires<RenderVoxelsInfo>, Requires<BodyOrientationInfo>
 	{
-		[Desc("Chance in percent to spawn each rendered voxel piece.")]
+		[Desc("Chance in percent to spawn each debris sequence.")]
 		public readonly int Chance = 100;
 
 		[Desc("Horizontal launch speed range per tick.")]
@@ -94,14 +94,22 @@ namespace OpenRA.Mods.CN.Traits
 			var body = self.Trait<BodyOrientation>();
 			var camera = new WRot(WAngle.Zero, body.CameraPitch - new WAngle(256), new WAngle(256));
 			var lightSource = new WRot(WAngle.Zero, new WAngle(256) - rv.Info.LightPitch, rv.Info.LightYaw);
-			var pieces = EnumerateRenderedPieces(self, body).ToArray();
-			if (pieces.Length == 0)
+			var debrisSequences = EnumerateDebrisSequences(self, rv.Image).ToArray();
+			if (debrisSequences.Length == 0)
 				return;
 
-			foreach (var piece in pieces)
+			var renderedPieces = EnumerateRenderedPieces(self, body).ToArray();
+			var bodyOrientation = body.QuantizeOrientation(self.Orientation);
+			for (var i = 0; i < debrisSequences.Length; i++)
 			{
 				if (Info.Chance < 100 && self.World.LocalRandom.Next(100) >= Info.Chance)
 					continue;
+
+				var sequence = debrisSequences[i];
+				var slot = i < renderedPieces.Length
+					? renderedPieces[i]
+					: new VoxelDebrisPiece(sequence, WVec.Zero, bodyOrientation, true);
+				var piece = new VoxelDebrisPiece(sequence, slot.Offset, slot.Rotation, slot.ShowShadow);
 
 				if (!rv.Renderer.ModelCache.HasModelSequence(rv.Image, piece.Sequence))
 					continue;
@@ -149,6 +157,18 @@ namespace OpenRA.Mods.CN.Traits
 				return value;
 
 			return random.Next(2) == 0 ? -Math.Abs(fallback) : Math.Abs(fallback);
+		}
+
+		static IEnumerable<string> EnumerateDebrisSequences(Actor self, string image)
+		{
+			if (!self.World.Map.Rules.ModelSequences.TryGetValue(image, out var definition))
+				yield break;
+
+			foreach (var node in definition.Value.Nodes)
+			{
+				if (node.Key.StartsWith("debris", StringComparison.OrdinalIgnoreCase))
+					yield return node.Key;
+			}
 		}
 
 		static IEnumerable<VoxelDebrisPiece> EnumerateRenderedPieces(Actor self, BodyOrientation body)
