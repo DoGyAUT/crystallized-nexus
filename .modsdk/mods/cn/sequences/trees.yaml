@@ -36,6 +36,7 @@ tibtre03:
 bigblue:
 	Defaults:
 		Offset: 0, 0, 12
+		IgnoreWorldTint: True
 	idle:
 		Filename: bigblue2.shp
 		ShadowStart: 10

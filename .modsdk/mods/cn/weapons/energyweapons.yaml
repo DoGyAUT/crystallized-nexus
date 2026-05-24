@@ -37,6 +37,12 @@ SonicZap:
 		Blockable: true
 		TrackTarget: true
 		Color: 50F5FF45
+		BeamEdgeSoftness: 0.22
+		Distortion: 0.7
+		DistortionWidth: 0c640
+		DistortionWaveScale: 8
+		DistortionWaveSpeed: 0.035
+		DistortionEdgeSoftness: 0.65
 	Warhead@1Dam: SpreadDamage
 		Range: 0, 32
 		Falloff: 100, 100
@@ -115,7 +121,7 @@ Proton:
 		Speed: 650
 		Blockable: false
 		Shadow: true
-		Inaccuracy: 256
+		Inaccuracy: 0c512
 		Image: dualproton
 	Warhead@1Dam: SpreadDamage
 		Spread: 128

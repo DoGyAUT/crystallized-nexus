@@ -955,7 +955,7 @@ MOBILEMP:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 130
-		Prerequisites: ~gaweap, napuls, ~techlevel.superweapons
+		Prerequisites: ~gaweap, gatech, ~techlevel.superweapons
 		Description: actor-mobilemp.description
 	Valued:
 		Cost: 1000

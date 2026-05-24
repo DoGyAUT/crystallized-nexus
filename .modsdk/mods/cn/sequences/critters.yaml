@@ -104,7 +104,6 @@ floater:
 		Start: 16
 		Tick: 100
 		Offset: 0, 0, 16
-		IgnoreWorldTint: True
 
 floater_medium:
 	Defaults:
@@ -125,7 +124,6 @@ floater_medium:
 		Start: 16
 		Tick: 100
 		Offset: 0, 0, 16
-		IgnoreWorldTint: True
 
 floater_small:
 	Defaults:
@@ -146,4 +144,3 @@ floater_small:
 		Start: 16
 		Tick: 100
 		Offset: 0, 0, 16
-		IgnoreWorldTint: True

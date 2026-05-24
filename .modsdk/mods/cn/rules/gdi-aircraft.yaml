@@ -329,7 +329,7 @@ ORCA_TRAN:
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 50
-		Prerequisites: ~gahpad, gadept, ~techlevel.medium
+		Prerequisites: ~gahpad, gapile, ~techlevel.medium
 		Description: actor-orcatran-description
 	Selectable:
 		Bounds: 905, 1448
@@ -380,7 +380,7 @@ TRNSPORT:
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 60
-		Prerequisites: ~gahpad, gadept, ~techlevel.medium
+		Prerequisites: ~gahpad, gadept, gaarmory, ~techlevel.medium
 		Description: actor-trnsport.description
 	Aircraft:
 		TurnSpeed: 20

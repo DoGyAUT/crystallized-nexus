@@ -20,12 +20,6 @@
 		Interval: 55
 	WithIdleAnimation:
 		Interval: 500, 1000
-	TerrainLightSource:
-		Range: 2c184
-		Intensity: 0.01
-		RedTint: 0.01
-		GreenTint: 0.6
-		BlueTint: 0.01
 	MapEditorData:
 		Categories: Resource spawn
 	AmbientSound:
@@ -42,13 +36,13 @@
 		Dimensions: 1, 1
 	RandomTransformsNearResources@TIBGREEN:
 		Type: Tiberium
-		IntoActors: FONA06, FONA07, FONA08, FONA09, FONA10, FONA11, FONA12, FONA13, FONA14, FONA15 #, TIBTRE01, TIBTRE02, TIBTRE03
+		IntoActors: FONA06, FONA07, FONA08, FONA09, FONA10, FONA11, FONA12, FONA13, FONA14, FONA15
 		Adjacency: 1
 		Density: 2
 		Delay: 2000, 5000
 	RandomTransformsNearResources@TIBBLUE:
 		Type: BlueTiberium
-		IntoActors: FONA01, FONA02, FONA03, FONA04, FONA05 #, BIGBLUE
+		IntoActors: FONA01, FONA02, FONA03, FONA04, FONA05
 		Adjacency: 1
 		Density: 2
 		Delay: 2000, 5000

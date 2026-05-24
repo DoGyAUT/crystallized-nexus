@@ -38,7 +38,7 @@ gharv.colorpicker:
 		LightAmbientColor: -0.1,-0.1,-0.1
 		LightDiffuseColor: 0.8,0.8,0.8
 		LightPitch: 128
-		LightYaw: 768
+		LightYaw: 896
 		Scale: 10
 
 gtmtnk.colorpicker:
@@ -53,7 +53,7 @@ gtmtnk.colorpicker:
 		LightAmbientColor: -0.1,-0.1,-0.1
 		LightDiffuseColor: 0.8,0.8,0.8
 		LightPitch: 128
-		LightYaw: 768
+		LightYaw: 896
 		Scale: 10
 
 subtank.colorpicker:
@@ -68,7 +68,7 @@ subtank.colorpicker:
 		LightAmbientColor: -0.1,-0.1,-0.1
 		LightDiffuseColor: 0.8,0.8,0.8
 		LightPitch: 128
-		LightYaw: 768
+		LightYaw: 896
 		Scale: 10
 
 CAMERA:
@@ -96,6 +96,7 @@ TIBCLOUD1:
 	RenderSprites:
 		Image: tibcloud
 		Palette: effect75
+		BloomGlowIntensity: 0.5
 	WithSpriteBody:
 		Sequence: cloud1
 	Mobile:

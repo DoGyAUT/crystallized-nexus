@@ -8,6 +8,7 @@
 		DeathSequence: die-
 		DeathSequencePalette: apolra
 		DeathPaletteIsPlayerPalette: False
+		FullBrightPaletteIndexRanges: 182, 213, 228, 252
 		DeathTypes:
 			ExplosionDeath: exploding
 			SmallExplosionDeath: exploding
@@ -15,6 +16,7 @@
 		DeathSequence: die-
 		DeathSequencePalette: ra
 		DeathPaletteIsPlayerPalette: False
+		FullBrightPaletteIndexRanges: 160, 160, 192, 192, 227, 227
 		DeathTypes:
 			EnergyDeath: melting
 	WithDeathAnimation:

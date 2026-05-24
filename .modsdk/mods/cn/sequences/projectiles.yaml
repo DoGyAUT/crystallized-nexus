@@ -43,6 +43,8 @@ tiberiumbullet:
 		Facings: 32
 		ZOffset: 1023
 		Offset: 0, 0, 4
+		IgnoreWorldTint: True
+		BloomGlow: True
 
 missile:
 	idle:
@@ -75,6 +77,8 @@ dualproton:
 		Facings: 32
 		ZOffset: 1023
 		Offset: 0, 0, 4
+		IgnoreWorldTint: True
+		BloomGlow: True
 
 railgun_small:
 	idle:
@@ -83,6 +87,8 @@ railgun_small:
 		Facings: 32
 		ZOffset: 1023
 		Offset: 0, 0, 4
+		IgnoreWorldTint: True
+		BloomGlow: True
 
 railgun_large:
 	idle:
@@ -91,3 +97,5 @@ railgun_large:
 		Facings: 32
 		ZOffset: 1023
 		Offset: 0, 0, 4
+		IgnoreWorldTint: True
+		BloomGlow: True

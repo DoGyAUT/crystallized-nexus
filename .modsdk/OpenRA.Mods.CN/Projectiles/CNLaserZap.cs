@@ -169,14 +169,14 @@ namespace OpenRA.Mods.CN.Projectiles
 					var b = wr.Screen3DPosition(Pos + corner);
 					var c = wr.Screen3DPosition(Pos + corner + length);
 					var d = wr.Screen3DPosition(Pos - corner + length);
-					Game.Renderer.WorldRgbaColorRenderer.FillRect(a, b, c, d, color, ignoreWorldTint: true);
+					Game.Renderer.WorldRgbaColorRenderer.FillRect(a, b, c, d, color, ignoreWorldTint: true, isBloomSource: true);
 				}
 				else
 				{
 					var start = wr.Screen3DPosition(Pos);
 					var end = wr.Screen3DPosition(Pos + length);
 					var screenWidth = wr.ScreenVector(new WVec(width, WDist.Zero, WDist.Zero))[0];
-					Game.Renderer.WorldRgbaColorRenderer.DrawLine(start, end, screenWidth, color, ignoreWorldTint: true);
+					Game.Renderer.WorldRgbaColorRenderer.DrawLine(start, end, screenWidth, color, ignoreWorldTint: true, isBloomSource: true);
 				}
 			}
 
@@ -275,7 +275,8 @@ namespace OpenRA.Mods.CN.Projectiles
 						points[i] = new float3(x, y, startF.Z);
 					}
 
-					Game.Renderer.WorldRgbaColorRenderer.DrawLine(points, width, lineColor, false, BlendMode.Alpha, ignoreWorldTint: true);
+					Game.Renderer.WorldRgbaColorRenderer.DrawLine(points, width, lineColor, false, BlendMode.Alpha,
+						ignoreWorldTint: true, isBloomSource: true);
 				}
 			}
 

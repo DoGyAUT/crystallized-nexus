@@ -20,6 +20,8 @@ FLAMEGUY:
 	HitShape:
 	MapEditorData:
 		Categories: System
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 240, 255
 
 GHOST:
 	Inherits: ^Soldier
