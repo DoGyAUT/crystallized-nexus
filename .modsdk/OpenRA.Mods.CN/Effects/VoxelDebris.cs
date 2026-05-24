@@ -144,6 +144,8 @@ namespace OpenRA.Mods.CN.Effects
 			var bottomOffset = ModelBottomOffset();
 			if (position.Z + bottomOffset <= terrainZ)
 			{
+				rotation = WRot.FromYaw(rotation.Yaw);
+				bottomOffset = ModelBottomOffset();
 				position = new WPos(position.X, position.Y, terrainZ - bottomOffset);
 				velocity = WVec.Zero;
 				lifetime = groundLifetime;
