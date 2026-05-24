@@ -19,6 +19,7 @@
 		QuantizedFacings: 0
 		UseClassicPerspectiveFudge: False
 	RenderVoxels:
+	VoxelDebrisOnDeath:
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 
@@ -36,6 +37,7 @@
 		LightYaw: 896
 		Scale: 10
 		FullBrightPaletteIndexRanges: 1, 15, 240, 255
+	VoxelDebrisOnDeath:
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 
@@ -53,6 +55,7 @@
 		LightYaw: 896
 		Scale: 10
 		FullBrightPaletteIndexRanges: 1, 15, 240, 255
+	VoxelDebrisOnDeath:
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 
