@@ -5,6 +5,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using OpenRA.Effects;
@@ -15,6 +16,7 @@ using OpenRA.Mods.Cnc.Traits;
 using OpenRA.Mods.Cnc.Traits.Render;
 using OpenRA.Primitives;
 using OpenRA.Traits;
+using CncUtil = OpenRA.Mods.Cnc.Util;
 
 namespace OpenRA.Mods.CN.Effects
 {
@@ -138,9 +140,11 @@ namespace OpenRA.Mods.CN.Effects
 			}
 
 			var distanceAboveTerrain = world.Map.DistanceAboveTerrain(position).Length;
-			if (distanceAboveTerrain <= 0)
+			var terrainZ = position.Z - distanceAboveTerrain;
+			var bottomOffset = ModelBottomOffset();
+			if (position.Z + bottomOffset <= terrainZ)
 			{
-				position -= new WVec(0, 0, distanceAboveTerrain);
+				position = new WPos(position.X, position.Y, terrainZ - bottomOffset);
 				velocity = WVec.Zero;
 				lifetime = groundLifetime;
 				resting = true;
@@ -167,6 +171,16 @@ namespace OpenRA.Mods.CN.Effects
 			}
 
 			world.AddFrameEndTask(w => { w.Remove(this); w.ScreenMap.Remove(this); });
+		}
+
+		int ModelBottomOffset()
+		{
+			var scaleTransform = CncUtil.ScaleMatrix(scale, scale, scale);
+			var rotationTransform = CncUtil.MakeFloatMatrix(rotation.AsMatrix());
+			var worldTransform = CncUtil.MatrixMultiply(scaleTransform, rotationTransform);
+			var bounds = CncUtil.MatrixAABBMultiply(worldTransform, model[0].Model.Bounds(model[0].FrameFunc()));
+
+			return (int)Math.Floor(Math.Min(bounds[2], bounds[5]));
 		}
 
 		IEnumerable<IRenderable> IEffect.Render(WorldRenderer wr)
