@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using OpenRA.GameRules;
 using OpenRA.Graphics;
 using OpenRA.Mods.CN.Effects;
 using OpenRA.Mods.Cnc.Traits.Render;
@@ -38,6 +39,13 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Lifetime range in ticks.")]
 		public readonly ImmutableArray<int> Lifetime = [45, 90];
 
+		[Desc("How long the debris remains on the ground before exploding.")]
+		public readonly ImmutableArray<int> GroundLifetime = [35, 75];
+
+		[WeaponReference]
+		[Desc("Explosion weapon used after the debris has rested on the ground. Empty disables the final explosion.")]
+		public readonly string Explosion = "VoxelDebrisExplode";
+
 		[Desc("Yaw spin rate range in WAngle units per tick.")]
 		public readonly ImmutableArray<int> YawRate = [-18, 19];
 
@@ -50,7 +58,23 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Screen map bounds used for culling the debris effect.")]
 		public readonly Size ScreenMapSize = new(256, 256);
 
+		public WeaponInfo ExplosionWeapon { get; private set; }
+
 		public override object Create(ActorInitializer init) { return new VoxelDebrisOnDeath(this); }
+
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			if (!string.IsNullOrEmpty(Explosion))
+			{
+				var weaponToLower = Explosion.ToLowerInvariant();
+				if (!rules.Weapons.TryGetValue(weaponToLower, out var weapon))
+					throw new YamlException($"Weapons Ruleset does not contain an entry '{weaponToLower}'");
+
+				ExplosionWeapon = weapon;
+			}
+
+			base.RulesetLoaded(rules, ai);
+		}
 	}
 
 	public class VoxelDebrisOnDeath : ConditionalTrait<VoxelDebrisOnDeathInfo>, INotifyKilled
@@ -98,7 +122,10 @@ namespace OpenRA.Mods.CN.Traits
 					lightSource,
 					self.Owner.InternalName,
 					Math.Max(1, CommonUtil.RandomInRange(self.World.LocalRandom, Info.Lifetime)),
+					Math.Max(1, CommonUtil.RandomInRange(self.World.LocalRandom, Info.GroundLifetime)),
 					Math.Max(1, Info.Gravity.Length),
+					Info.ExplosionWeapon,
+					self,
 					RandomNonZero(self.World.LocalRandom, Info.YawRate, 10),
 					RandomNonZero(self.World.LocalRandom, Info.PitchRate, 8),
 					RandomNonZero(self.World.LocalRandom, Info.RollRate, 8),

@@ -8,11 +8,13 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using OpenRA.Effects;
+using OpenRA.GameRules;
 using OpenRA.Graphics;
 using OpenRA.Mods.Cnc.Graphics;
 using OpenRA.Mods.Cnc.Traits;
 using OpenRA.Mods.Cnc.Traits.Render;
 using OpenRA.Primitives;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Effects
 {
@@ -36,14 +38,18 @@ namespace OpenRA.Mods.CN.Effects
 		readonly float bloomGlowIntensity;
 		readonly Size screenMapSize;
 		readonly int gravity;
+		readonly WeaponInfo explosionWeapon;
+		readonly Actor sourceActor;
 		readonly int yawRate;
 		readonly int pitchRate;
 		readonly int rollRate;
+		readonly int groundLifetime;
 
 		WPos position;
 		WVec velocity;
 		WRot rotation;
 		int lifetime;
+		bool resting;
 
 		public VoxelDebris(
 			World world,
@@ -57,7 +63,10 @@ namespace OpenRA.Mods.CN.Effects
 			WRot lightSource,
 			string ownerInternalName,
 			int lifetime,
+			int groundLifetime,
 			int gravity,
+			WeaponInfo explosionWeapon,
+			Actor sourceActor,
 			int yawRate,
 			int pitchRate,
 			int rollRate,
@@ -72,7 +81,10 @@ namespace OpenRA.Mods.CN.Effects
 			this.camera = camera;
 			this.lightSource = lightSource;
 			this.lifetime = lifetime;
+			this.groundLifetime = groundLifetime;
 			this.gravity = gravity;
+			this.explosionWeapon = explosionWeapon;
+			this.sourceActor = sourceActor;
 			this.yawRate = yawRate;
 			this.pitchRate = pitchRate;
 			this.rollRate = rollRate;
@@ -100,6 +112,18 @@ namespace OpenRA.Mods.CN.Effects
 
 		void IEffect.Tick(World world)
 		{
+			if (resting)
+			{
+				if (--lifetime <= 0)
+				{
+					ExplodeAndRemove(world);
+					return;
+				}
+
+				world.ScreenMap.Update(this, position, screenMapSize);
+				return;
+			}
+
 			position += velocity;
 			velocity -= new WVec(WDist.Zero, WDist.Zero, new WDist(gravity));
 			rotation = new WRot(
@@ -107,13 +131,42 @@ namespace OpenRA.Mods.CN.Effects
 				new WAngle(rotation.Pitch.Angle + pitchRate),
 				new WAngle(rotation.Yaw.Angle + yawRate));
 
-			if (--lifetime <= 0 || world.Map.DistanceAboveTerrain(position).Length <= 0)
+			if (--lifetime <= 0)
 			{
-				world.AddFrameEndTask(w => { w.Remove(this); w.ScreenMap.Remove(this); });
+				ExplodeAndRemove(world);
 				return;
 			}
 
+			var distanceAboveTerrain = world.Map.DistanceAboveTerrain(position).Length;
+			if (distanceAboveTerrain <= 0)
+			{
+				position -= new WVec(0, 0, distanceAboveTerrain);
+				velocity = WVec.Zero;
+				lifetime = groundLifetime;
+				resting = true;
+			}
+
 			world.ScreenMap.Update(this, position, screenMapSize);
+		}
+
+		void ExplodeAndRemove(World world)
+		{
+			if (explosionWeapon != null && sourceActor != null)
+			{
+				var target = Target.FromPos(position);
+				var args = new WarheadArgs
+				{
+					Weapon = explosionWeapon,
+					Source = position,
+					SourceActor = sourceActor,
+					ImpactPosition = position,
+					WeaponTarget = target,
+				};
+
+				explosionWeapon.Impact(target, args);
+			}
+
+			world.AddFrameEndTask(w => { w.Remove(this); w.ScreenMap.Remove(this); });
 		}
 
 		IEnumerable<IRenderable> IEffect.Render(WorldRenderer wr)
