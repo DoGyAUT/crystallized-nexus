@@ -20,6 +20,7 @@
 		UseClassicPerspectiveFudge: False
 	RenderVoxels:
 	VoxelDebrisOnDeath:
+		GroundLifetime: 250, 500
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 
@@ -38,6 +39,7 @@
 		Scale: 10
 		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	VoxelDebrisOnDeath:
+		GroundLifetime: 250, 500
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 
@@ -56,6 +58,7 @@
 		Scale: 10
 		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	VoxelDebrisOnDeath:
+		GroundLifetime: 250, 500
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 

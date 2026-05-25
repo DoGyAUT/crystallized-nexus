@@ -23,30 +23,30 @@ FLAMEGUY:
 	RenderSprites:
 		FullBrightPaletteIndexRanges: 240, 255
 
-GHOST:
-	Inherits: ^Soldier
-	Inherits@CRUSHABLETYPE: ^CrushableInfantrySoft
-	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
-	Inherits@2: ^HealsOnTiberium
-	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
-	Valued:
-		Cost: 1750
-	Tooltip:
-		Name: actor-ghost.name
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Voiced:
-		VoiceSet: Ghost
-	Armor:
-		Type: Medium
-	Mobile:
-		Speed: 56
-	CNHealth:
-		HP: 200
-	Passenger:
-	RevealsShroud:
-		Range: 6c0
+	GHOST:
+		Inherits: ^Soldier
+		Inherits@CRUSHABLETYPE: ^CrushableInfantrySoft
+		Inherits@EXPERIENCE: ^GainsExperience
+		Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
+		Inherits@2: ^HealsOnTiberium
+		Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+		Valued:
+			Cost: 1750
+		Tooltip:
+			Name: actor-ghost.name
+		UpdatesPlayerStatistics:
+			AddToArmyValue: true
+		Voiced:
+			VoiceSet: Ghost
+		Armor:
+			Type: Medium
+		Mobile:
+			Speed: 56
+		CNHealth:
+			HP: 200
+		Passenger:
+		RevealsShroud:
+			Range: 10c0
 	Armament:
 		Weapon: LtRail
 		LocalOffset: 120,0,543
@@ -63,31 +63,31 @@ GHOST:
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
 
-CYBORG:
-	Inherits: ^Cyborg
-	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
-	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
-	Valued:
-		Cost: 650
-	Tooltip:
-		Name: actor-cyborg.name
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Selectable:
-		Bounds: 482, 1870, 0, -603
-		DecorationBounds: 482, 1870, 0, -603
-	Voiced:
-		VoiceSet: Cyborg
-	Mobile:
-		Speed: 56
-	CNHealth:
-		HP: 200
-	Armor:
-		Type: Heavy
-	Passenger:
-	RevealsShroud:
-		Range: 5c0
+	CYBORG:
+		Inherits: ^Cyborg
+		Inherits@EXPERIENCE: ^GainsExperience
+		Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
+		Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+		Valued:
+			Cost: 650
+		Tooltip:
+			Name: actor-cyborg.name
+		UpdatesPlayerStatistics:
+			AddToArmyValue: true
+		Selectable:
+			Bounds: 482, 1870, 0, -603
+			DecorationBounds: 482, 1870, 0, -603
+		Voiced:
+			VoiceSet: Cyborg
+		Mobile:
+			Speed: 56
+		CNHealth:
+			HP: 200
+		Armor:
+			Type: Heavy
+		Passenger:
+		RevealsShroud:
+			Range: 8c0
 	Armament:
 		Weapon: Vulcan3
 	AttackFrontal:
@@ -96,31 +96,31 @@ CYBORG:
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
 
-CYC2:
-	Inherits: ^Cyborg
-	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
-	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
-	Valued:
-		Cost: 2000
-	Tooltip:
-		Name: actor-cyc2.name
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Selectable:
-		Bounds: 482, 1930, -30, -724
-		DecorationBounds: 482, 1930, -30, -724
-	Voiced:
-		VoiceSet: CyborgCommando
-	Mobile:
-		Speed: 56
-	CNHealth:
-		HP: 500
-	Armor:
-		Type: Heavy
-	Passenger:
-	RevealsShroud:
-		Range: 7c0
+	CYC2:
+		Inherits: ^Cyborg
+		Inherits@EXPERIENCE: ^GainsExperience
+		Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
+		Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+		Valued:
+			Cost: 2000
+		Tooltip:
+			Name: actor-cyc2.name
+		UpdatesPlayerStatistics:
+			AddToArmyValue: true
+		Selectable:
+			Bounds: 482, 1930, -30, -724
+			DecorationBounds: 482, 1930, -30, -724
+		Voiced:
+			VoiceSet: CyborgCommando
+		Mobile:
+			Speed: 56
+		CNHealth:
+			HP: 500
+		Armor:
+			Type: Heavy
+		Passenger:
+		RevealsShroud:
+			Range: 10c0
 	Armament:
 		Weapon: CyCannon
 		LocalOffset: 240,120,966
@@ -130,27 +130,27 @@ CYC2:
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
 
-MHIJACK:
-	Inherits: ^Soldier
-	Inherits@2: ^HealsOnTiberium
-	Valued:
-		Cost: 1850
-	Tooltip:
-		Name: actor-mhijack.name
-	UpdatesPlayerStatistics:
-		AddToArmyValue: true
-	Voiced:
-		VoiceSet: Hijacker
-	CNHealth:
-		HP: 300
-	Armor:
-		Type: Light
-	Mobile:
-		Speed: 99
-	-Crushable:
-	CaptureManager:
-	Captures:
-		CaptureTypes: Vehicle
-		PlayerExperience: 10
-	RevealsShroud:
-		Range: 6c0
+	MHIJACK:
+		Inherits: ^Soldier
+		Inherits@2: ^HealsOnTiberium
+		Valued:
+			Cost: 1850
+		Tooltip:
+			Name: actor-mhijack.name
+		UpdatesPlayerStatistics:
+			AddToArmyValue: true
+		Voiced:
+			VoiceSet: Hijacker
+		CNHealth:
+			HP: 300
+		Armor:
+			Type: Light
+		Mobile:
+			Speed: 99
+		-Crushable:
+		CaptureManager:
+		Captures:
+			CaptureTypes: Vehicle
+			PlayerExperience: 10
+		RevealsShroud:
+			Range: 8c0

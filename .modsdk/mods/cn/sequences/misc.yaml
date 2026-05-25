@@ -857,7 +857,7 @@ durasmoke_large:
 		Length: *
 		ZOffset: 1023
 		Offset: 0, 0, 24
-		Tick: 150
+		Tick: 60
 		BlendMode: Alpha
 	idle-overlay:
 		Filename: durasmoke_large.png
