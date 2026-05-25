@@ -84,6 +84,13 @@ CyborgExplode:
 		ExplosionPalette: effect
 		ImpactSounds: expnew10.aud
 
+VoxelDebrisExplode:
+	Inherits@FLASH: ^FlashSmallY
+	Warhead@1Eff: CreateEffect
+		Explosions: unitexplode1_small
+		ExplosionPalette: effect
+		ImpactSounds: expnew10.aud
+
 TiberiumExplosion:
 	Inherits: ^DamagingExplosion
 	Warhead@1Dam: SpreadDamage

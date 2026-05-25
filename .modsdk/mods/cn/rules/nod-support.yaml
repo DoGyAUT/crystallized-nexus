@@ -223,7 +223,7 @@ NALASR:
 	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
 	Inherits@AUTOTARGET: ^AutoTargetGround
 	Valued:
-		Cost: 500
+		Cost: 600
 	Tooltip:
 		Name: actor-nalasr.name
 	Buildable:
@@ -270,7 +270,7 @@ NASAM:
 		BuildPaletteOrder: 100
 		Description: actor-nasam.description
 	CNHealth:
-		HP: 600
+		HP: 500
 	Armor:
 		Type: Light
 	BodyOrientation:
@@ -299,7 +299,7 @@ NAGAT:
 	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
 	Inherits@AUTOTARGET: ^AutoTargetGround
 	Valued:
-		Cost: 500
+		Cost: 600
 	Tooltip:
 		Name: actor-nagat.name
 	Buildable:

@@ -183,6 +183,7 @@ LOBRDG_R_SW:
 	WithSpriteBody:
 	CNOffsetSpriteSequenceShadow:
 		Offset: 0, 0, -49
+		Alpha: 0.45
 	AppearsOnRadar:
 	RadarColorFromTerrain:
 		Terrain: Bridge

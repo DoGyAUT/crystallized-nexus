@@ -101,6 +101,9 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Pulsing energy brightness added on top of the storm tint.")]
 		public readonly float StormPulse = 0.10f;
 
+		[Desc("Low-frequency ion storm pulse speed.")]
+		public readonly float StormPulseSpeed = 0.045f;
+
 		[Desc("Wave frequency for the storm-state distortion.")]
 		public readonly float StormWaveScale = 0.055f;
 
@@ -301,6 +304,7 @@ namespace OpenRA.Mods.CN.Traits
 			shader.SetVec("StormShimmer", info.StormShimmer);
 			shader.SetVec("StormDistortion", info.StormDistortion);
 			shader.SetVec("StormPulse", info.StormPulse);
+			shader.SetVec("StormPulseSpeed", info.StormPulseSpeed);
 			shader.SetVec("StormWaveScale", info.StormWaveScale);
 			shader.SetVec("StormWaveSpeed", info.StormWaveSpeed);
 			shader.PrepareRender();

@@ -58,7 +58,8 @@ namespace OpenRA.Mods.CN.Traits
 		readonly float windDirY;
 
 		WeatherController weatherController;
-		int ticks;
+		float windOffsetX;
+		float windOffsetY;
 
 		public WorldCloudShadow(WorldCloudShadowInfo info)
 		{
@@ -75,8 +76,6 @@ namespace OpenRA.Mods.CN.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			ticks++;
-
 			if (!Game.Settings.Graphics.CloudShadows)
 			{
 				CloudShadowState.Alpha = 0f;
@@ -85,14 +84,16 @@ namespace OpenRA.Mods.CN.Traits
 
 			var intensity = weatherController?.Intensity ?? 0f;
 			var windSpeed = Lerp(info.WindSpeed, info.StormWindSpeed, intensity);
+			windOffsetX += windDirX * windSpeed;
+			windOffsetY += windDirY * windSpeed;
 
 			CloudShadowState.Alpha = Lerp(info.ShadowAlpha, info.StormShadowAlpha, intensity);
 			CloudShadowState.Scale = info.CloudScale;
 			CloudShadowState.Coverage = Lerp(info.CloudCoverage, info.StormCloudCoverage, intensity);
 			CloudShadowState.Edge = info.CloudEdge;
-			CloudShadowState.WindX = windDirX * windSpeed;
-			CloudShadowState.WindY = windDirY * windSpeed;
-			CloudShadowState.Time = ticks;
+			CloudShadowState.WindX = windOffsetX;
+			CloudShadowState.WindY = windOffsetY;
+			CloudShadowState.Time = 1f;
 		}
 
 		static float Lerp(float a, float b, float t) { return a + (b - a) * t; }

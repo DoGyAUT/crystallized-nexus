@@ -123,7 +123,7 @@ GACAN:
 		RequiresCondition: !build-incomplete
 		Type: wall
 	Valued:
-		Cost: 200
+		Cost: 600
 	Tooltip:
 		Name: actor-gacan.name
 	Buildable:
@@ -193,7 +193,7 @@ GASAM:
 		RequiresCondition: !build-incomplete
 		Type: wall
 	Valued:
-		Cost: 200
+		Cost: 500
 	Tooltip:
 		Name: actor-gasam.name
 	Buildable:
@@ -263,7 +263,7 @@ GAGAT:
 		RequiresCondition: !build-incomplete
 		Type: wall
 	Valued:
-		Cost: 200
+		Cost: 800
 	Tooltip:
 		Name: actor-gagat.name
 	Buildable:
@@ -333,7 +333,7 @@ GASEN:
 		RequiresCondition: !build-incomplete
 		Type: wall
 	Valued:
-		Cost: 200
+		Cost: 600
 	Tooltip:
 		Name: actor-gasen.name
 	Buildable:
@@ -398,7 +398,7 @@ GAMORTAR:
 		RequiresCondition: !build-incomplete
 		Type: wall
 	Valued:
-		Cost: 200
+		Cost: 900
 	Tooltip:
 		Name: actor-gamortar.name
 	Buildable:

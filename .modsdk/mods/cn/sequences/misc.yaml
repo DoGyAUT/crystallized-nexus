@@ -194,10 +194,12 @@ explosion:
 		ZRamp: 1
 		Tick: 100
 		IgnoreWorldTint: False
+		BloomGlow: True
 	ionring_mini:
 		Filename: ringmini.shp
 		ZRamp: 1
 		Tick: 100
+		BloomGlow: True
 	sonic_impact:
 		Filename: sonic_impact.shp
 		Palette: sonic
@@ -209,41 +211,49 @@ explosion:
 		Offset: 0, -60, 60
 		Tick: 100
 		IgnoreWorldTint: False
+		BloomGlow: True
 	ionbeam2:
 		Filename: ionbeam.shp
 		Offset: 0, -180, 60
 		Tick: 100
 		IgnoreWorldTint: False
+		BloomGlow: True
 	ionbeam3:
 		Filename: ionbeam.shp
 		Offset: 0, -300, 60
 		Tick: 100
 		IgnoreWorldTint: False
+		BloomGlow: True
 	ionbeam4:
 		Filename: ionbeam.shp
 		Offset: 0, -420, 60
 		Tick: 100
 		IgnoreWorldTint: False
+		BloomGlow: True
 	ionbeam5:
 		Filename: ionbeam.shp
 		Offset: 0, -540, 60
 		Tick: 100
 		IgnoreWorldTint: False
+		BloomGlow: True
 	ionbeam6:
 		Filename: ionbeam.shp
 		Offset: 0, -660, 60
 		Tick: 100
 		IgnoreWorldTint: False
+		BloomGlow: True
 	pulse_explosion:
 		Filename: pulsefx2.shp
 		BlendMode: Additive
 		ZRamp: 1
 		Tick: 80
+		BloomGlow: True
 	pulse_explosion_small:
 		Filename: mempfx.shp
 		BlendMode: Additive
 		ZRamp: 1
 		Tick: 11
+		BloomGlow: True
 	small_watersplash:
 		Filename: h2o_exp2.shp
 		IgnoreWorldTint: False
@@ -473,12 +483,14 @@ explosion:
 		Offset: 0, -125, 125
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	bolt2:
 		Filename: lightning2.shp
 		Length: *
 		Offset: 0, -125, 125
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	bolt3:
 		Filename: lightning1.shp
 		FlipX: true
@@ -486,6 +498,7 @@ explosion:
 		Offset: 0, -125, 125
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	bolt4:
 		Filename: lightning2.shp
 		FlipX: true
@@ -493,6 +506,7 @@ explosion:
 		Offset: 0, -125, 125
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	airexplo01:
 		Filename: airexplo01.png
 		BlendMode: Additive
@@ -569,6 +583,7 @@ explosion:
 	tpiff:
 		Filename: tpiff.shp
 		Length: *
+		BloomGlow: True
 	artexplo01:
 		Filename: artexplo01.png
 		BlendMode: Additive
@@ -661,15 +676,19 @@ explosion:
 	plasmaexpl1:
 		Filename: plasmaexpl1.shp
 		AlphaFade: False
+		BloomGlow: True
 	protexp_medium:
 		Filename: protexp1.shp
 		AlphaFade: False
+		BloomGlow: True
 	protexp_large:
 		Filename: protexp2.shp
 		AlphaFade: False
+		BloomGlow: True
 	protexp_small:
 		Filename: protexp3.shp
-		AlphaFade: False		
+		AlphaFade: False	
+		BloomGlow: True	
 
 shockwave_large:
 	idle:
@@ -784,6 +803,7 @@ flametrailer:
 		Offset: 0, 0, 24
 		AlphaFade: True
 		BlendMode: Additive
+		BloomGlow: True
 
 largesmoke:
 	idle:
@@ -837,7 +857,7 @@ durasmoke_large:
 		Length: *
 		ZOffset: 1023
 		Offset: 0, 0, 24
-		Tick: 150
+		Tick: 60
 		BlendMode: Alpha
 	idle-overlay:
 		Filename: durasmoke_large.png
@@ -873,6 +893,8 @@ htrail:
 		Offset: 0, 0, 48
 		Tick: 10
 		BlendMode: Alpha
+		IgnoreWorldTint: True
+		BloomGlow: True
 
 largefire:
 	idle:
@@ -1802,6 +1824,7 @@ tibpoison:
 lightning:
 	Defaults:
 		IgnoreWorldTint: True
+		BloomGlow: True
 	bolt1:
 		Filename: lightning1.shp
 		Offset: 0, -125, 125
@@ -1826,6 +1849,8 @@ lightning:
 		IgnoreWorldTint: True
 
 tibcloud:
+	Defaults:
+		BloomGlow: True
 	cloud1:
 		Filename: cloud1.shp
 		Length: *

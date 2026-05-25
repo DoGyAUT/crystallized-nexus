@@ -1629,6 +1629,8 @@ naobel:
 		Length: 6
 		Tick: 200
 		ZOffset: 2
+		IgnoreWorldTint: True
+		BloomGlow: True
 	idle-lights:
 		TilesetFilenames:
 			TEMPERATE: naobel_b.shp
@@ -1636,6 +1638,8 @@ naobel:
 			DESERT: naobel_b.shp
 		Length: 7
 		Tick: 400
+		IgnoreWorldTint: True
+		BloomGlow: True
 	make:
 		TilesetFilenames:
 			TEMPERATE: naobelmk.shp
@@ -2120,7 +2124,8 @@ napyra:
 			DESERT: napyra_a.shp
 		Length: 7
 		Tick: 300
-		IgnoreWorldTint: true
+		IgnoreWorldTint: True
+		BloomGlow: True
 	damaged-idle-lights-bright:
 		TilesetFilenames:
 			TEMPERATE: napyra_a.shp
@@ -2128,7 +2133,8 @@ napyra:
 			DESERT: napyra_a.shp
 		Length: 7
 		Tick: 300
-		IgnoreWorldTint: true
+		IgnoreWorldTint: True
+		BloomGlow: True
 	emp-overlay: emp_fx01
 		Length: *
 		Offset: 0, 0, 25

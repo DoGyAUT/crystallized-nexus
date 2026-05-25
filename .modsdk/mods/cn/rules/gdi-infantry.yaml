@@ -361,6 +361,8 @@ JUMPJET:
 		RequiresCondition: !airborne
 	WithShadow@airborne:
 		RequiresCondition: airborne
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 240, 255
 	GrantConditionOnJumpjetLayer:
 		Condition: airborne
 	MobSpawnerMaster:
@@ -371,6 +373,7 @@ JUMPJET:
 
 JUMPJET.Husk:
 	RenderSprites:
+		FullBrightPaletteIndexRanges: 240, 255
 	BodyOrientation:
 		QuantizedFacings: 1
 	HiddenUnderFog:

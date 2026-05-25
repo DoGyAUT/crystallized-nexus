@@ -152,6 +152,8 @@
 		Sequence: repair
 		Position: Center
 		Palette: mouse
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 240, 255
 
 ^Support:
 	Inherits: ^Building

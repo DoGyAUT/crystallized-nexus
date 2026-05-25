@@ -81,6 +81,18 @@ VISC_SML:
 	TransformCrusherOnCrush:
 		IntoActor: visc_lrg
 		CrushClasses: visceroid-fusing
+	KeepNearActors:
+		ActorTypes: visc_lrg
+		SearchRadius: 14
+		LeashRadius: 4
+		FollowRange: 2
+		AttackMove: true
+	CallProtectorsOnDamage:
+		ProtectorActorTypes: visc_lrg
+		SearchRadius: 10
+		MaxProtectors: 3
+		Cooldown: 125
+		AttackRange: 1
 	AmbientSound:
 		SoundFiles: visscream01.aud, visscream02.aud, visscream03.aud, visscream04.aud
 		Delay: 150, 450
@@ -114,6 +126,17 @@ VISC_LRG:
 		Sequence: attack
 	RenderSprites:
 		Image: vislrg
+	SpawnActorOnTimer@OFFSPRING:
+		Actors: visc_sml
+		InitialDelay: 1200, 2400
+		Interval: 2400, 4200
+		SpawnRadius: 2
+		MaxNearbyActors: 12
+		NearbyActorTypes: visc_lrg, visc_sml
+		NearbyScanRadius: 10
+		MaxGlobalActors: 20
+		GlobalActorTypes: visc_lrg, visc_sml
+		RequiresLobbyCreeps: true
 	AmbientSound:
 		SoundFiles: visscream01.aud, visscream02.aud, visscream03.aud, visscream04.aud
 		Delay: 150, 450
@@ -187,6 +210,8 @@ JFISH:
 		TrailWhileStationary: True
 		StationaryInterval: 18
 		MovingInterval: 6
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 240, 255
 
 JFISHM:
 	Inherits: ^Visceroid
@@ -252,6 +277,8 @@ JFISHM:
 		TrailWhileStationary: True
 		StationaryInterval: 18
 		MovingInterval: 6
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 240, 255
 
 JFISHS:
 	Inherits: ^Visceroid
@@ -325,3 +352,5 @@ JFISHS:
 		TrailWhileStationary: True
 		StationaryInterval: 18
 		MovingInterval: 6
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 240, 255

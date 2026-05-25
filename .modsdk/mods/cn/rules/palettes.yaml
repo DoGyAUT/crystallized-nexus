@@ -215,19 +215,19 @@
 		Name: cdvoxels.charred
 		BasePalette: cdvoxels
 		Desaturation: 0.80
-		Darkness: 0.28
+		Darkness: 0.50 #0.28
 		AllowModifiers: True
 	CharredPalette@playertem.charred:
 		Name: playertem.charred
 		BasePalette: playertem
 		Desaturation: 0.80
-		Darkness: 0.28
+		Darkness: 0.50 #0.28
 		AllowModifiers: True
 	CharredPalette@player.charred:
 		Name: player.charred
 		BasePalette: player
 		Desaturation: 0.80
-		Darkness: 0.28
+		Darkness: 0.50 #0.28
 		AllowModifiers: True
 	PaletteFromPaletteWithAlpha@player75alpha:
 		Name: player25alpha

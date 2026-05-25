@@ -42,6 +42,7 @@ subtank:
 bggy:
 	idle:
 	turret: bggytur
+	debris1: bggytur_debris
 
 sapc:
 	idle:
@@ -55,6 +56,9 @@ ttnk:
 	barrel: ttnkbarl
 	barrel1: ttnkbarl
 	barrel2: ttnkbarl2
+	debris1: ttnktur_debris
+	debris2: ttnkbarl_debris
+	debris3: ttnkbarl_debris
 
 hmec:
 	idle:
@@ -62,20 +66,26 @@ hmec:
 hvr:
 	idle:
 	turret: hvrtur
+	debris1: hvrtur_debris
 
 gtmtnk:
 	idle:
 	turret: gtmtnktur
 	barrel: gtmtnkbarl
+	debris1: gtmtnktur_debris
+	debris2: gtmtnkbarl_debris
 
 ltnk:
 	idle:
 	turret: ltnktur
 	barrel: ltnkbarl
+	debris1: ltnktur_debris
+	debris2: ltnkbarl_debris
 
 stnk:
 	idle:
 	turret: stnktur
+	debris1: stnktur_debris
 
 orca_tran:
 	idle:
@@ -107,6 +117,9 @@ dshp:
 	barrel: 4tnkbarl
 	barrel1: 4tnkbarl1
 	barrel2: 4tnkbarl2
+	debris1: 4tnktur_debris
+	debris2: 4tnkbarl_debris
+	debris3: 4tnkbarl_debris
 
 trucka:
 	idle:
@@ -151,6 +164,7 @@ cargocar:
 sonic:
 	idle:
 	turret: sonictur
+	debris1: sonictur_debris
 
 mobilemp:
 	idle: m_emp

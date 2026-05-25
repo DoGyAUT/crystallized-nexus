@@ -157,6 +157,8 @@
 		Palette: player-nomuzzle
 		IsPlayerPalette: true
 		SplitAttackPalette: muzzle
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 240, 255
 
 ^Cyborg:
 	Inherits@1: ^Infantry
@@ -262,6 +264,7 @@
 		Voice: Move
 	AttackMove:
 		Voice: Move
+	FaceTurretOnOrder:
 	HiddenUnderFog:
 	ActorLostNotification:
 		TextNotification: notification-unit-lost
@@ -427,7 +430,7 @@
 		LightAmbientColor: -0.1,-0.1,-0.1
 		LightDiffuseColor: 0.8,0.8,0.8
 		LightPitch: 128
-		LightYaw: 768
+		LightYaw: 896
 		Scale: 10
 		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	RenderSprites:
@@ -480,7 +483,7 @@
 		LightAmbientColor: -0.1,-0.1,-0.1
 		LightDiffuseColor: 0.8,0.8,0.8
 		LightPitch: 128
-		LightYaw: 768
+		LightYaw: 896
 		Scale: 10
 		FullBrightPaletteIndexRanges: 1, 15, 240, 255
 	RenderSprites:

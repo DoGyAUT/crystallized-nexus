@@ -113,6 +113,9 @@ TECH:
 CAARMR:
 	Inherits: ^Building
 	Inherits@shape: ^4x4Shape
+	RevealsShroud:
+		Range: 6c0
+		MaxHeightDelta: 3
 	Tooltip:
 		Name: actor-caarmr-name
 	TooltipDescription@ally:
@@ -149,6 +152,9 @@ CAARMR:
 CAARAY:
 	Inherits: ^Building
 	Inherits@shape: ^2x2Shape
+	RevealsShroud:
+		Range: 6c0
+		MaxHeightDelta: 3
 	Tooltip:
 		Name: actor-caaray-name
 	TooltipDescription@ally:
@@ -193,6 +199,9 @@ CAARAY:
 CAHOSP:
 	Inherits: ^Building
 	Inherits@shape: ^3x4Shape
+	RevealsShroud:
+		Range: 6c0
+		MaxHeightDelta: 3
 	Tooltip:
 		Name: actor-cahosp.name
 	TooltipDescription@ally:

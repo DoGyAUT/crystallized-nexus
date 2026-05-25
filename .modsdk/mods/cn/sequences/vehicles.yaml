@@ -5,6 +5,7 @@
 		Length: *
 		BlendMode: Additive
 		IgnoreWorldTint: True
+		BloomGlow: True
 
 veh_conelight_w:
 	cone:

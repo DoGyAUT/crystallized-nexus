@@ -786,7 +786,7 @@ SONIC:
 		MaxHeightDelta: 3
 	Armament:
 		Weapon: SonicZap
-		LocalOffset: 300,0,1250
+		LocalOffset: 50,0,1100
 	AttackTurreted:
 		Voice: Attack
 		PauseOnCondition: empdisable
@@ -955,7 +955,7 @@ MOBILEMP:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 130
-		Prerequisites: ~gaweap, napuls, ~techlevel.superweapons
+		Prerequisites: ~gaweap, gatech, ~techlevel.superweapons
 		Description: actor-mobilemp.description
 	Valued:
 		Cost: 1000

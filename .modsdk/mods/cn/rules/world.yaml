@@ -19,26 +19,25 @@
 		BlueTint: 1.19
 		Intensity: 0.9
 	TintPostProcessEffect:
+	AreaBeamDistortionRenderer:
 	DayNightCycle:
 		CycleDisplayOrder: 3
 		CycleCategory: events
 		StartDisplayOrder: 4
 		StartCategory: events
+	ExternalCondition@DAYNIGHT_DAWN:
+		Condition: daynight-dawn
+	ExternalCondition@DAYNIGHT_DUSK:
+		Condition: daynight-dusk
+	ExternalCondition@DAYNIGHT_NIGHT:
+		Condition: daynight-night
+	BloomGlowEffect:
+		RequiresCondition: daynight-dawn || daynight-dusk || daynight-night || ionstorm
+		Intensity: 2.5
 	WeatherProfile:
 		WeatherDisplayOrder: 5
 		WeatherCategory: events
 	AtmosphericGradingRenderer:
-	AmbientFogRenderer:
-		FogColor: E8DFC880    # warm sandy haze, alpha 128
-		Alpha: 0.22
-		BaseAlpha: 0.05
-		Scale: 0.0022
-		DetailScale: 0.006
-		WindAngle: 25
-		WindSpeed: 0.014
-		Coverage: 0.42        # was 1.42 — FBM max is ~0.94, so fog never varied
-		Edge: 0.40
-		Pulse: 0.015
 	WaterReflectionRenderer:
 		TerrainTypes: Water
 		TemperateWaterPaletteIndexRanges: 1, 15, 204, 207, 220, 223, 240, 254
@@ -67,13 +66,14 @@
 		ClearDistortion: 4.5
 		ClearWaveScale: 0.038
 		ClearWaveSpeed: 0.05
-		StormTintRed: 0.55
-		StormTintGreen: 1.05
-		StormTintBlue: 0.72
-		StormAlpha: 0.72
-		StormShimmer: 0.08
+		StormTintRed: 0.62
+		StormTintGreen: 1.18
+		StormTintBlue: 1.05
+		StormAlpha: 0.68
+		StormShimmer: 0.10
 		StormDistortion: 7.5
-		StormPulse: 0.12
+		StormPulse: 0.22
+		StormPulseSpeed: 0.045
 		StormWaveScale: 0.062
 		StormWaveSpeed: 0.13
 #	WaterEffectReflectionRenderer:

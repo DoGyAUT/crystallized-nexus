@@ -45,7 +45,8 @@ namespace OpenRA.Mods.CN.Effects
 					wr.Screen3DPosition(end),
 					width,
 					color,
-					ignoreWorldTint: true);
+					ignoreWorldTint: true,
+					isBloomSource: true);
 			}
 
 			public void RenderDebugGeometry(WorldRenderer wr) { }

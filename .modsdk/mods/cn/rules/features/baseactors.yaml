@@ -19,6 +19,8 @@
 		QuantizedFacings: 0
 		UseClassicPerspectiveFudge: False
 	RenderVoxels:
+	VoxelDebrisOnDeath:
+		GroundLifetime: 250, 500
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 
@@ -33,9 +35,11 @@
 		LightAmbientColor: -0.1,-0.1,-0.1
 		LightDiffuseColor: 0.8,0.8,0.8
 		LightPitch: 128
-		LightYaw: 768
+		LightYaw: 896
 		Scale: 10
 		FullBrightPaletteIndexRanges: 1, 15, 240, 255
+	VoxelDebrisOnDeath:
+		GroundLifetime: 250, 500
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 
@@ -50,9 +54,11 @@
 		LightAmbientColor: -0.1,-0.1,-0.1
 		LightDiffuseColor: 0.8,0.8,0.8
 		LightPitch: 128
-		LightYaw: 768
+		LightYaw: 896
 		Scale: 10
 		FullBrightPaletteIndexRanges: 1, 15, 240, 255
+	VoxelDebrisOnDeath:
+		GroundLifetime: 250, 500
 	CNWithVoxelBody:
 		RequiresCondition: !inside-tunnel
 
