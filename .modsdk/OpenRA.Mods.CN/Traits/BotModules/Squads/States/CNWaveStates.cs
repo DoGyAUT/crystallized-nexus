@@ -159,7 +159,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		readonly CPos rallyCell;
 		Actor waveTarget;
 		WPos rallyPos;
-		int ticks;
+		int startTick;
+		int lastProgressTick;
+		long lastDistanceSq;
+
+		const int MaxNoProgressTicks = 225;
+		const int MinProgressDistance = 512;
 
 		public CNWaveMoveToRallyState(CPos rallyCell, Actor waveTarget)
 		{
@@ -170,7 +175,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Activate(CNSquad squad)
 		{
 			rallyPos = squad.World.Map.CenterOfCell(rallyCell);
-			ticks = 0;
+			startTick = squad.World.WorldTick;
+			lastProgressTick = startTick;
+			lastDistanceSq = (squad.CenterPosition() - rallyPos).LengthSquared;
 
 			if (waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld)
 				squad.SetActorToTarget(waveTarget);
@@ -191,8 +198,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			ticks++;
-
 			// Re-target if the original wave target died mid-march so the squad
 			// has a fresh objective to switch to on arrival.
 			if (waveTarget == null || waveTarget.IsDead || !waveTarget.IsInWorld)
@@ -205,13 +210,31 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			var arrivalDist = WDist.FromCells(squad.SquadManager.Info.AttackWaveStagingArrivalCells);
 			var arrivalSq = (long)arrivalDist.Length * arrivalDist.Length;
-			var allArrived = squad.Units
+			var liveUnits = squad.Units
 				.Where(u => u != null && !u.IsDead && u.IsInWorld)
-				.All(u => (u.CenterPosition - rallyPos).LengthSquared <= arrivalSq);
+				.ToList();
+			var arrived = liveUnits.Count(u => (u.CenterPosition - rallyPos).LengthSquared <= arrivalSq);
+			var enoughArrived = liveUnits.Count > 0 && arrived >= System.Math.Max(1, liveUnits.Count * 2 / 3);
 
-			if (allArrived || ticks >= squad.SquadManager.Info.AttackWaveStagingTimeoutTicks)
+			var currentDistanceSq = (squad.CenterPosition() - rallyPos).LengthSquared;
+			var progressThresholdSq = (long)MinProgressDistance * MinProgressDistance;
+			if (currentDistanceSq + progressThresholdSq < lastDistanceSq)
 			{
-				if (waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld)
+				lastDistanceSq = currentDistanceSq;
+				lastProgressTick = squad.World.WorldTick;
+			}
+
+			var nearbyEnemy = squad.World
+				.FindActorsInCircle(squad.CenterPosition(), WDist.FromCells(squad.SquadManager.Info.AttackScanRadius))
+				.FirstOrDefault(a => squad.SquadManager.IsPreferredEnemyUnit(a) && a.CanBeViewedByPlayer(squad.Bot.Player));
+			if (nearbyEnemy != null)
+				squad.SetActorToTarget(nearbyEnemy);
+
+			var timedOut = squad.World.WorldTick - startTick >= squad.SquadManager.Info.AttackWaveStagingTimeoutTicks;
+			var stuck = squad.World.WorldTick - lastProgressTick >= MaxNoProgressTicks;
+			if (enoughArrived || nearbyEnemy != null || timedOut || stuck)
+			{
+				if (nearbyEnemy == null && waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld)
 					squad.SetActorToTarget(waveTarget);
 
 				squad.SquadManager.InitializeSquadStateForRole(squad);

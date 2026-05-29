@@ -194,7 +194,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 		}
 
-		public bool CanAttack(IReadOnlyCollection<Actor> ownUnits, IReadOnlyCollection<Actor> enemyUnits)
+		public bool CanAttack(IReadOnlyCollection<Actor> ownUnits, IReadOnlyCollection<Actor> enemyUnits, double attackThresholdBoost = 0.0)
 		{
 			double attackChance;
 			var inputValues = new Dictionary<FuzzyVariable, double>();
@@ -209,7 +209,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				attackChance = result[fuzzyEngine.OutputByName("AttackOrFlee")];
 			}
 
-			return !double.IsNaN(attackChance) && attackChance < 30.0;
+			// Clamp the boost so the Flee term stays reachable (Flee plateau starts near 35).
+			var boost = Math.Clamp(attackThresholdBoost, 0.0, 10.0);
+			return !double.IsNaN(attackChance) && attackChance < (30.0 + boost);
 		}
 
 		static float NormalizedHealth(IEnumerable<Actor> actors, int normalize)

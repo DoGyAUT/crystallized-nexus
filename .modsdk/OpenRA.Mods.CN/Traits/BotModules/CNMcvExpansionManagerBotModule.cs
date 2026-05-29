@@ -103,6 +103,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum number of path cells an MCV moves in one expansion order before reevaluating the route.")]
 		public readonly int McvSafeMoveWaypointPathCells = 12;
 
+		[Desc("Distance in cells for MCVs to avoid expansion targets already claimed by other MCVs.")]
+		public readonly int McvExpansionCoordinationRadius = 24;
+
+		[Desc("Maximum score penalty for selecting an expansion target that is too close to another MCV's target.")]
+		public readonly int McvExpansionCoordinationPenalty = 768;
+
 		/* those are CheckBase mode options */
 		[Desc("Minimum distance (in cells) from center of the base expansion when checking for MCV deployment location.")]
 		public readonly int CBmodeMinDeployRadius = 2;
@@ -128,6 +134,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum distance in cells from friendly construction yards for frontline outpost candidates.")]
 		public readonly int CBmodeOutpostFriendlyMinRange = 12;
 
+		[Desc("Minimum time in ticks that a newly deployed expansion conyard is protected from being moved again.")]
+		public readonly int ExpansionGoalMinimumHoldTicks = 3000;
+
+		[Desc("Maximum distance in cells for matching a newly deployed conyard to the MCV deploy cell that created it.")]
+		public readonly int ExpansionGoalMatchRadius = 6;
+
 		public override object Create(ActorInitializer init) { return new CNMcvExpansionManagerBotModule(init.Self, this); }
 	}
 
@@ -144,6 +156,13 @@ namespace OpenRA.Mods.Common.Traits
 		const int CBmodPositiveMaxFailedAttempts = 2;
 		const int NegativeMaxFailedAttempts = 0;
 
+		enum ExpansionGoal
+		{
+			Economy,
+			BaseExtension,
+			DefenseOutpost
+		}
+
 		readonly World world;
 		readonly Player player;
 		readonly ActorIndex.OwnerAndNamesAndTrait<TransformsInfo> mcvs;
@@ -158,6 +177,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly Dictionary<Actor, CPos?> activeMCVs = [];
 		readonly Dictionary<Actor, int> mcvRetryCooldown = [];
+		readonly Dictionary<CPos, (ExpansionGoal Goal, int UntilTick)> pendingExpansionGoalLocks = [];
+		readonly Dictionary<Actor, (ExpansionGoal Goal, int UntilTick, CPos DeployCell)> conyardExpansionGoalLocks = [];
 
 		CPos[] enemyBaseLocationsCache = [];
 
@@ -174,6 +195,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool allowfallback = true;
 
 		BotMcvExpansionMode mcvExpansionMode;
+		ExpansionGoal currentExpansionGoal = ExpansionGoal.Economy;
 		int mcvDeploymentMinDeployRadius;
 		int mcvDeploymentMaxDeployRadius;
 		int mcvDeploymentTryMaintainRange;
@@ -243,6 +265,23 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 
 				default:
+					break;
+			}
+		}
+
+		void SetExpansionGoal(ExpansionGoal goal)
+		{
+			currentExpansionGoal = goal;
+
+			switch (goal)
+			{
+				case ExpansionGoal.Economy:
+					SwitchExpansionMode(BotMcvExpansionMode.CheckResource);
+					break;
+
+				case ExpansionGoal.BaseExtension:
+				case ExpansionGoal.DefenseOutpost:
+					SwitchExpansionMode(BotMcvExpansionMode.CheckBase);
 					break;
 			}
 		}
@@ -453,6 +492,94 @@ namespace OpenRA.Mods.Common.Traits
 			return path[Math.Max(0, path.Count - 1 - maxStep)];
 		}
 
+		void TrackExpansionGoal(CPos deployCell)
+		{
+			if (Info.ExpansionGoalMinimumHoldTicks <= 0)
+				return;
+
+			pendingExpansionGoalLocks[deployCell] = (currentExpansionGoal, world.WorldTick + Info.ExpansionGoalMinimumHoldTicks);
+		}
+
+		void CleanupExpansionGoalLocks()
+		{
+			foreach (var kv in conyardExpansionGoalLocks.ToList())
+				if (kv.Key.IsDead || !kv.Key.IsInWorld || world.WorldTick >= kv.Value.UntilTick)
+					conyardExpansionGoalLocks.Remove(kv.Key);
+
+			if (pendingExpansionGoalLocks.Count == 0)
+				return;
+
+			var matchRadius = Math.Max(0, Info.ExpansionGoalMatchRadius);
+			var matchRadiusSq = matchRadius * matchRadius;
+			foreach (var (deployCell, expansionLock) in pendingExpansionGoalLocks.ToList())
+			{
+				if (world.WorldTick >= expansionLock.UntilTick)
+				{
+					pendingExpansionGoalLocks.Remove(deployCell);
+					continue;
+				}
+
+				var conyard = constructionYards.Actors
+					.Where(a => !a.IsDead && !a.Disposed && a.IsInWorld && a.Owner == player
+						&& (a.Location - deployCell).LengthSquared <= matchRadiusSq)
+					.MinByOrDefault(a => (a.Location - deployCell).LengthSquared);
+
+				if (conyard == null)
+					continue;
+
+				conyardExpansionGoalLocks[conyard] = (expansionLock.Goal, expansionLock.UntilTick, deployCell);
+				pendingExpansionGoalLocks.Remove(deployCell);
+			}
+		}
+
+		bool IsExpansionGoalLocked(Actor conyard)
+		{
+			if (!conyardExpansionGoalLocks.TryGetValue(conyard, out var expansionLock))
+				return false;
+
+			if (conyard.IsDead || !conyard.IsInWorld || world.WorldTick >= expansionLock.UntilTick)
+			{
+				conyardExpansionGoalLocks.Remove(conyard);
+				return false;
+			}
+
+			return true;
+		}
+
+		int CalculateExpansionCoordinationPenalty(CPos candidate, Actor mcv, int indiceSideLengthSquare)
+		{
+			var radius = Math.Max(0, Info.McvExpansionCoordinationRadius);
+			if (radius == 0 || Info.McvExpansionCoordinationPenalty <= 0)
+				return 0;
+
+			var radiusSq = radius * radius;
+			var maxPenalty = Math.Max(Info.McvExpansionCoordinationPenalty, indiceSideLengthSquare << 1);
+			var penalty = 0;
+
+			void AddPenalty(CPos target)
+			{
+				var distSq = (candidate - target).LengthSquared;
+				if (distSq > radiusSq)
+					return;
+
+				penalty += maxPenalty * (radiusSq - distSq + 1) / radiusSq;
+			}
+
+			foreach (var (otherMcv, target) in activeMCVs)
+				if (otherMcv != mcv && target.HasValue)
+					AddPenalty(target.Value);
+
+			foreach (var (deployCell, expansionLock) in pendingExpansionGoalLocks)
+				if (world.WorldTick < expansionLock.UntilTick)
+					AddPenalty(deployCell);
+
+			foreach (var (conyard, expansionLock) in conyardExpansionGoalLocks)
+				if (!conyard.IsDead && conyard.IsInWorld && world.WorldTick < expansionLock.UntilTick)
+					AddPenalty(expansionLock.DeployCell);
+
+			return penalty;
+		}
+
 		public (CPos? ExpandLocation, int Attraction, CPos? CheckSpot) GetExpansionCenter(Actor mcv, Mobile mobile, bool allowfallback)
 		{
 			/*
@@ -527,8 +654,10 @@ namespace OpenRA.Mods.Common.Traits
 
 						attraction -= CalculateThreats(indiceSideLengthSquare, i);
 
-						if (ownBaseCenter.HasValue && enemyBaseCenter.HasValue)
+						if (currentExpansionGoal == ExpansionGoal.DefenseOutpost && ownBaseCenter.HasValue && enemyBaseCenter.HasValue)
 							attraction += CalculateFrontlineOutpostBonus(indiceCenter, ownBaseCenter.Value, enemyBaseCenter.Value);
+
+						attraction -= CalculateExpansionCoordinationPenalty(indiceCenter, mcv, indiceSideLengthSquare);
 
 						foreach (var (location, isAlly) in cb_conyardlocs)
 						{
@@ -540,12 +669,6 @@ namespace OpenRA.Mods.Common.Traits
 								else
 									attraction -= indiceSideLengthSquare << 1;
 							}
-						}
-
-						foreach (var (othermcv, dest) in activeMCVs)
-						{
-							if (dest == indiceCenter && othermcv != mcv)
-								attraction -= indiceSideLengthSquare << 1;
 						}
 
 						if (!allowfallback)
@@ -645,6 +768,8 @@ namespace OpenRA.Mods.Common.Traits
 
 						attraction -= CalculateThreats(indiceSideLengthSquare, i);
 
+						attraction -= CalculateExpansionCoordinationPenalty(resCenter, mcv, indiceSideLengthSquare);
+
 						foreach (var (location, isAlly) in cr_refinarylocs)
 						{
 							var sdistance = (resCenter - location).LengthSquared;
@@ -667,12 +792,6 @@ namespace OpenRA.Mods.Common.Traits
 								else
 									attraction -= indiceSideLengthSquare << 1;
 							}
-						}
-
-						foreach (var (othermcv, dest) in activeMCVs)
-						{
-							if (dest == indiceCenter && othermcv != mcv)
-								attraction -= indiceSideLengthSquare << 1;
 						}
 
 						if (!allowfallback)
@@ -729,6 +848,8 @@ namespace OpenRA.Mods.Common.Traits
 				resourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				SwitchExpansionMode(Info.InitialExpansionMode);
+				currentExpansionGoal = Info.InitialExpansionMode == BotMcvExpansionMode.CheckResource
+					? ExpansionGoal.Economy : ExpansionGoal.BaseExtension;
 
 				pathDistanceSquareFactor = resourceMapModule.GetIndiceRowCount() * resourceMapModule.GetIndiceRowCount()
 					+ resourceMapModule.GetIndiceColumnCount() * resourceMapModule.GetIndiceColumnCount();
@@ -736,6 +857,8 @@ namespace OpenRA.Mods.Common.Traits
 				DeployMcvs(bot, false);
 				firstTick = false;
 			}
+
+			CleanupExpansionGoalLocks();
 
 			if (--scanInterval <= 0)
 			{
@@ -840,6 +963,12 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (mustUndeployCoyard != null && mustUndeployCoyard.IsInWorld && !mustUndeployCoyard.IsDead && mustUndeployCoyard.Owner == player)
 			{
+				if (IsExpansionGoalLocked(mustUndeployCoyard))
+				{
+					mustUndeployCoyard = null;
+					return;
+				}
+
 				bot.QueueOrder(new Order("DeployTransform", mustUndeployCoyard, true));
 				mustUndeployCoyard = null;
 
@@ -850,7 +979,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var conyards = constructionYards.Actors
-				.Where(a => !a.IsDead);
+				.Where(a => !a.IsDead && !IsExpansionGoalLocked(a));
 
 			var moveOldConyardFirst = Info.MoveOldConyardFirst ?? world.LocalRandom.Next(2) > 0;
 
@@ -928,6 +1057,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			bot.QueueOrder(new Order("DeployTransform", mcv, true));
+			TrackExpansionGoal(desiredLocation.Value);
 
 			// When we don't have a construction yard, we notify the new location to other traits for defence,
 			// If not, we only notify sometimes, because we are not sure if mcv can successfully deploy at the desired location.
@@ -1065,8 +1195,14 @@ namespace OpenRA.Mods.Common.Traits
 			this.undeployEvenNoBase = undeployEvenNoBase;
 			mustUndeployCoyard = mustUndeploy;
 
-			if (Info.EnableStrategicOutposts && fallback && (cnBaseBuilder?.HasAdequateRefineryCount() ?? false))
-				SwitchExpansionMode(BotMcvExpansionMode.CheckBase);
+			if (mustUndeploy != null)
+				SetExpansionGoal(ExpansionGoal.BaseExtension);
+			else if (Info.EnableStrategicOutposts && fallback && (cnBaseBuilder?.HasAdequateRefineryCount() ?? false))
+				SetExpansionGoal(ExpansionGoal.DefenseOutpost);
+			else if (fallback && !(cnBaseBuilder?.ShouldExpandEconomy() ?? true))
+				SetExpansionGoal(ExpansionGoal.BaseExtension);
+			else
+				SetExpansionGoal(ExpansionGoal.Economy);
 		}
 	}
 }

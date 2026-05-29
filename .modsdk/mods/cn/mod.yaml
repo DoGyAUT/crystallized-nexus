@@ -104,7 +104,7 @@ Rules:
 	cn|rules/features/deathtypes.yaml
 	cn|rules/features/decorations.yaml
 	cn|rules/features/experience.yaml
-	cn|rules/features/handycap.yaml
+	cn|rules/features/handicap.yaml
 	cn|rules/features/locomotors.yaml
 	cn|rules/features/shapes.yaml
 	cn|rules/features/terrain.yaml

@@ -277,6 +277,11 @@ HVR:
 		Voice: Attack
 		PauseOnCondition: empdisable
 	CNWithVoxelTurret
+	VoxelShadowSmoothing:
+		Range: 1c512
+		GroundHeightSmoothingTicks: 3
+		OrientationSmoothingTicks: 5
+		UseTerrainOrientation: false
 	Hovers:
 		RequiresCondition: !empdisable && !repair-docked
 		BobDistance: -64

@@ -160,10 +160,13 @@ Player:
 		AdditionalConstructionYardCount: 1
 		AdditionalConstructionYardCounts:
 			Rush: 0
-			Expansion: 2
+			Turtle: 0
+			Tech: 1
+			Expansion: 3
 			Steamroller: 1
 		BuildAdditionalMCVCashAmount: 9000
 		BuildAdditionalMCVCashAmounts:
+			Turtle: 12000
 			Expansion: 5000
 			Steamroller: 7500
 		EnableStrategicOutposts: true
@@ -171,12 +174,16 @@ Player:
 		McvEnemyBaseHardAvoidanceRadius: 4
 		McvEnemyBaseRoutePenalty: 2048
 		McvSafeMoveWaypointPathCells: 12
+		McvExpansionCoordinationRadius: 24
+		McvExpansionCoordinationPenalty: 768
 		CBmodeFrontlineOutpostBonus: 384
 		CBmodeOutpostPreferredProgress: 58
 		CBmodeOutpostProgressTolerance: 22
 		CBmodeOutpostCorridorWidth: 12
 		CBmodeOutpostEnemyMinRange: 18
 		CBmodeOutpostFriendlyMinRange: 12
+		ExpansionGoalMinimumHoldTicks: 3000
+		ExpansionGoalMatchRadius: 6
 	CaptureManagerBotModule@test:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		CapturingActorTypes: engineer, nengineer

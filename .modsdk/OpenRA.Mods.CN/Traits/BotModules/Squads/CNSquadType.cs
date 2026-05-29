@@ -24,7 +24,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		// Artillery
 		ArtilleryAssault,      // Follows Assault squads, hangs back, bombards
-		ArtilleryDefense,      // Holds defensive line near base
 
 		// Specialized ground
 		SubterraneanAssault,   // SUBTANK: burrow approach → surface → attack → reborrow
@@ -38,8 +37,5 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		// Tactical
 		Raider,                // Targets soft units (harvesters, arty), flees on resistance
-
-		// Defensive
-		Defense,               // Permanently stationed in base, guards perimeter
 	}
 }

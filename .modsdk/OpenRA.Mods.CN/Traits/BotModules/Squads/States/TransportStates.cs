@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
@@ -23,13 +24,37 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 
 			var hasCarriers = squad.CarrierUnits.Any(u => !u.IsDead && u.IsInWorld);
-			var hasPassengers = squad.PassengerUnits.Any(u => !u.IsDead && u.IsInWorld);
+			if (!hasCarriers)
+				return;
 
-			if (hasCarriers && hasPassengers)
+			var hasPassengers = squad.PassengerUnits.Any(u => !u.IsDead && u.IsInWorld);
+			if (hasPassengers)
+			{
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportLoadState());
+				return;
+			}
+
+			// No live passengers walking around, but cargo is already aboard — this happens when
+			// a reformed squad inherits a previously-loaded carrier. Don't sit idle on a loaded
+			// transport: head straight to the attack-move state to deliver the cargo.
+			if (HasCargoAboard(squad))
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportAttackMoveState());
 		}
 
 		public void Deactivate(CNSquad squad) { }
+
+		static bool HasCargoAboard(CNSquad squad)
+		{
+			foreach (var carrier in squad.CarrierUnits)
+			{
+				if (carrier.IsDead || !carrier.IsInWorld)
+					continue;
+				if (carrier.TraitOrDefault<Cargo>()?.IsEmpty() == false)
+					return true;
+			}
+
+			return false;
+		}
 	}
 
 	sealed class AirTransportIdleState : CNStateBase, ICNState
@@ -49,13 +74,208 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 
 			var hasCarriers = squad.CarrierUnits.Any(u => !u.IsDead && u.IsInWorld);
-			var hasPassengers = squad.PassengerUnits.Any(u => !u.IsDead && u.IsInWorld);
+			if (!hasCarriers)
+				return;
 
-			if (hasCarriers && hasPassengers)
-				squad.FuzzyStateMachine.ChangeState(squad, new TransportLoadState());
+			var hasPassengers = squad.PassengerUnits.Any(u => !u.IsDead && u.IsInWorld);
+			if (hasPassengers)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new AirTransportLoadState());
+				return;
+			}
+
+			// No live passengers walking around, but cargo is already aboard — this happens when
+			// a reformed squad inherits a previously-loaded carrier. Don't sit idle on a loaded
+			// air transport (was the main reason AirTransport squads "just stood around in base").
+			if (HasCargoAboard(squad))
+				squad.FuzzyStateMachine.ChangeState(squad, new AirTransportAttackMoveState());
 		}
 
 		public void Deactivate(CNSquad squad) { }
+
+		static bool HasCargoAboard(CNSquad squad)
+		{
+			foreach (var carrier in squad.CarrierUnits)
+			{
+				if (carrier.IsDead || !carrier.IsInWorld)
+					continue;
+				if (carrier.TraitOrDefault<Cargo>()?.IsEmpty() == false)
+					return true;
+			}
+
+			return false;
+		}
+	}
+
+	sealed class AirTransportLoadState : CNStateBase, ICNState
+	{
+		const int MaxLoadTicks = 750;
+		const int LandSearchMaxCells = 10;
+		const int PassengerStagingMinCells = 2;
+		const int PassengerStagingMaxCells = 4;
+
+		int loadStartTick;
+		CPos? landingCell;
+		readonly Dictionary<uint, CPos> passengerStagingCells = [];
+
+		public void Activate(CNSquad squad)
+		{
+			loadStartTick = squad.World.WorldTick;
+			landingCell = null;
+			passengerStagingCells.Clear();
+
+			var carrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead && u.IsInWorld);
+			if (carrier == null)
+				return;
+
+			landingCell = FindLandingCell(squad, carrier);
+			if (!landingCell.HasValue)
+				return;
+
+			StagePassengers(squad, landingCell.Value);
+			squad.Bot.QueueOrder(new Order("Land", carrier, Target.FromCell(squad.World, landingCell.Value), false));
+		}
+
+		public void Tick(CNSquad squad)
+		{
+			if (!squad.IsValid)
+				return;
+
+			var carrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead && u.IsInWorld);
+			if (carrier == null)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+				return;
+			}
+
+			var aircraft = carrier.TraitOrDefault<Aircraft>();
+			var cargo = carrier.TraitOrDefault<Cargo>();
+			var anyCargo = cargo?.IsEmpty() == false;
+			var passengers = squad.PassengerUnits.Where(u => !u.IsDead).ToList();
+
+			if (passengers.Count == 0 && !anyCargo)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+				return;
+			}
+
+			if (anyCargo && passengers.All(u => !u.IsInWorld))
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new AirTransportAttackMoveState());
+				return;
+			}
+
+			if (squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad,
+					anyCargo ? new AirTransportAttackMoveState() : new TransportDoneState());
+				return;
+			}
+
+			if (!landingCell.HasValue)
+				landingCell = FindLandingCell(squad, carrier);
+
+			if (!landingCell.HasValue)
+				return;
+
+			StagePassengers(squad, landingCell.Value);
+
+			if (aircraft == null || !aircraft.AtLandAltitude)
+			{
+				if (carrier.IsIdle)
+					squad.Bot.QueueOrder(new Order("Land", carrier, Target.FromCell(squad.World, landingCell.Value), false));
+
+				return;
+			}
+
+			var idlePassengers = passengers.Where(u => u.IsInWorld && u.IsIdle).ToList();
+			foreach (var passenger in idlePassengers)
+				squad.Bot.QueueOrder(new Order("EnterTransport", passenger, Target.FromActor(carrier), false));
+		}
+
+		public void Deactivate(CNSquad squad) { }
+
+		static CPos? FindLandingCell(CNSquad squad, Actor carrier)
+		{
+			var aircraft = carrier.TraitOrDefault<Aircraft>();
+			if (aircraft == null)
+				return null;
+
+			var map = squad.World.Map;
+			var origin = map.CellContaining(carrier.CenterPosition);
+
+			CPos? best = null;
+			var bestScore = int.MaxValue;
+			for (var dy = -LandSearchMaxCells; dy <= LandSearchMaxCells; dy++)
+			{
+				for (var dx = -LandSearchMaxCells; dx <= LandSearchMaxCells; dx++)
+				{
+					var cell = origin + new CVec(dx, dy);
+					if (!map.Contains(cell) || !aircraft.CanLand(cell, blockedByMobile: false))
+						continue;
+
+					var score = dx * dx + dy * dy;
+					if (score >= bestScore)
+						continue;
+
+					bestScore = score;
+					best = cell;
+				}
+			}
+
+			return best;
+		}
+
+		void StagePassengers(CNSquad squad, CPos landing)
+		{
+			foreach (var passenger in squad.PassengerUnits.Where(u => !u.IsDead && u.IsInWorld))
+			{
+				if (!passengerStagingCells.TryGetValue(passenger.ActorID, out var staging) ||
+					!CanPassengerEnter(passenger, staging))
+				{
+					if (!TryFindPassengerStagingCell(squad, passenger, landing, out staging))
+						continue;
+
+					passengerStagingCells[passenger.ActorID] = staging;
+				}
+
+				if (passenger.IsIdle &&
+					(passenger.CenterPosition - squad.World.Map.CenterOfCell(staging)).Length >
+					WDist.FromCells(1).Length)
+					squad.Bot.QueueOrder(new Order("Move", passenger, Target.FromCell(squad.World, staging), false));
+			}
+		}
+
+		static bool TryFindPassengerStagingCell(CNSquad squad, Actor passenger, CPos landing, out CPos staging)
+		{
+			staging = landing;
+			for (var radius = PassengerStagingMinCells; radius <= PassengerStagingMaxCells; radius++)
+			{
+				for (var dy = -radius; dy <= radius; dy++)
+				{
+					for (var dx = -radius; dx <= radius; dx++)
+					{
+						if (Math.Abs(dx) != radius && Math.Abs(dy) != radius)
+							continue;
+
+						var cell = landing + new CVec(dx, dy);
+						if (!CanPassengerEnter(passenger, cell))
+							continue;
+
+						staging = cell;
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		static bool CanPassengerEnter(Actor passenger, CPos cell)
+		{
+			var mobile = passenger.TraitOrDefault<Mobile>();
+			return mobile != null && passenger.World.Map.Contains(cell) && mobile.CanEnterCell(cell);
+		}
 	}
 
 	sealed class TransportLoadState : CNStateBase, ICNState
@@ -176,11 +396,27 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		int lzIdleStartTick;
 
+		// Per-carrier offset cells around the anchor dropCell so multi-carrier squads don't all
+		// converge on the same tile (which causes pathing collisions and "any-arrived" early
+		// transitions that leave stragglers unloading mid-route).
+		readonly Dictionary<uint, CPos> carrierDropCells = [];
+
+		// Ring offsets around the anchor in stepping-stone order: lead carrier takes the anchor,
+		// followers fan out two cells in cardinal then diagonal directions before tightening up.
+		static readonly CVec[] CarrierOffsets =
+		[
+			new(0, 0),
+			new(2, 0), new(-2, 0), new(0, 2), new(0, -2),
+			new(2, 2), new(-2, -2), new(2, -2), new(-2, 2),
+			new(1, 0), new(-1, 0), new(0, 1), new(0, -1),
+		];
+
 		public void Activate(CNSquad squad)
 		{
 			dropCell = null;
 			lastTarget = null;
 			lzIdleStartTick = 0;
+			carrierDropCells.Clear();
 		}
 
 		public void Tick(CNSquad squad)
@@ -243,6 +479,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				dropCell = FindSaferDropCell(squad, leadCarrier, squad.TargetActor);
 				lastTarget = squad.TargetActor;
+				carrierDropCells.Clear();
 			}
 
 			// Emergency unload: if any carrier is critically damaged, drop passengers now.
@@ -276,26 +513,48 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			var unloadRange = WDist.FromCells(dropCell.HasValue ? DropArriveRangeCells : 12);
+			var unloadRangeSq = (long)unloadRange.Length * unloadRange.Length;
+
+			if (dropCell.HasValue)
+				AssignPerCarrierDropCells(squad, carriers, dropCell.Value, leadCarrier);
+
+			// Arrival: ALL carriers within unloadRange of their assigned cell. Single-carrier
+			// squads behave identically to the previous "any-arrived" check; multi-carrier
+			// squads now wait for stragglers so unloads happen at the LZ, not en route.
+			var allArrived = carriers.Count > 0;
+			foreach (var carrier in carriers)
+			{
+				var arrivalPos = ResolveCarrierTargetPos(squad, carrier, targetPos);
+				if ((carrier.CenterPosition - arrivalPos).LengthSquared > unloadRangeSq)
+				{
+					allArrived = false;
+					break;
+				}
+			}
+
+			if (allArrived)
+			{
+				lzIdleStartTick = 0;
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
+				return;
+			}
 
 			foreach (var carrier in carriers)
 			{
-				if ((carrier.CenterPosition - targetPos).LengthSquared <= (long)unloadRange.Length * unloadRange.Length)
-				{
-					lzIdleStartTick = 0; // Reset LZ counter when arriving at drop zone
-					squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
-					return;
-				}
+				if (!carrier.IsIdle)
+					continue;
 
-				if (carrier.IsIdle)
-				{
-					var moveTarget = dropCell.HasValue
-						? Target.FromCell(squad.World, dropCell.Value)
-						: squad.Target;
+				Target moveTarget;
+				if (carrierDropCells.TryGetValue(carrier.ActorID, out var assigned))
+					moveTarget = Target.FromCell(squad.World, assigned);
+				else if (dropCell.HasValue)
+					moveTarget = Target.FromCell(squad.World, dropCell.Value);
+				else
+					moveTarget = squad.Target;
 
-					// Use Move (not AttackMove) so the carrier ignores enemies and drives
-					// directly to the drop-off point instead of stopping to fight.
-					squad.Bot.QueueOrder(new Order("Move", carrier, moveTarget, false));
-				}
+				// Use Move (not AttackMove) so the carrier ignores enemies and drives
+				// directly to the drop-off point instead of stopping to fight.
+				squad.Bot.QueueOrder(new Order("Move", carrier, moveTarget, false));
 			}
 
 			// Escorts AttackMove to the drop zone — they fight enemies en route and arrive combat-ready.
@@ -308,6 +567,54 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		public void Deactivate(CNSquad squad) { }
+
+		void AssignPerCarrierDropCells(CNSquad squad, List<Actor> carriers, CPos anchor, Actor leadCarrier)
+		{
+			if (carriers.Count == 0)
+				return;
+
+			// Stale entries (dead carriers) are pruned implicitly — only live carriers ever read back.
+			var allAssigned = carriers.All(c => carrierDropCells.ContainsKey(c.ActorID));
+			if (allAssigned)
+				return;
+
+			var mobile = leadCarrier?.TraitOrDefault<Mobile>();
+			var map = squad.World.Map;
+
+			var slot = 0;
+			foreach (var carrier in carriers)
+			{
+				if (carrierDropCells.ContainsKey(carrier.ActorID))
+				{
+					slot++;
+					continue;
+				}
+
+				var assigned = anchor;
+				for (var o = 0; o < CarrierOffsets.Length; o++)
+				{
+					var candidate = anchor + CarrierOffsets[(slot + o) % CarrierOffsets.Length];
+					if (!map.Contains(candidate))
+						continue;
+					if (mobile != null && !mobile.CanEnterCell(candidate))
+						continue;
+
+					assigned = candidate;
+					break;
+				}
+
+				carrierDropCells[carrier.ActorID] = assigned;
+				slot++;
+			}
+		}
+
+		WPos ResolveCarrierTargetPos(CNSquad squad, Actor carrier, WPos fallbackPos)
+		{
+			if (carrierDropCells.TryGetValue(carrier.ActorID, out var cell))
+				return squad.World.Map.CenterOfCell(cell);
+
+			return fallbackPos;
+		}
 
 		static CPos? FindSaferDropCell(CNSquad squad, Actor carrier, Actor target)
 		{

@@ -26,6 +26,7 @@ GASILO:
 		FactionImages:
 			gdi: gasilo.gdi
 			nod: gasilo.nod
+		FullBrightPaletteIndexRanges: 168, 175
 	WithResourceLevelOverlay@FILLSTAGE:
 		RequiresCondition: !build-incomplete
 		Sequence: stages

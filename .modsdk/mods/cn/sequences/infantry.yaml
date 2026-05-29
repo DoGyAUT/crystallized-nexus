@@ -302,14 +302,6 @@ nacad:
 	icon:
 		Filename: nacadicon.shp
 
-nasol2:
-	Inherits: ^BasicInfantry
-	Inherits@attack: ^BasicInfantryAttack
-	Defaults:
-		Filename: nasol2.shp
-	icon:
-		Filename: nasolicon.shp
-
 shadow:
 	Inherits: ^BasicInfantry
 	Inherits@attack: ^BasicInfantryAttack

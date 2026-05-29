@@ -21,21 +21,22 @@ Player:
 		AttackWaveStagingTimeoutTicks: 850
 		AttackWaveStagingArrivalCells: 5
 		WaveHoldScatterCells: 6
-		WaveParticipantRoles: Assault, ArtilleryAssault, SubterraneanAssault, AircraftAttack
-		ArmyCompositionRatio:
-			Assault: 52
-			ArtilleryAssault: 14
+		WaveParticipantRoles: Assault, ArtilleryAssault, SubterraneanAssault
+		RoleQuotas:
+			Assault: 50
+			ArtilleryAssault: 15
 			AircraftAttack: 10
 			SubterraneanAssault: 8
-			SubterraneanTransport: 4
-			Raider: 4
+			Raider: 8
+			AircraftRaider: 5
 			Support: 4
-			AircraftRaider: 4
+		DiversityPenalty: 8
+		IdleSalvageTicks: 300
 		Teams:
 			GDI_BasicInfantry_AntiInfantry:
 				Role: Assault
-				Priority: 100
-				MaxInstances: 8
+				Quality: 60
+				MaxInstances: 6
 				PriorityTargetCapabilities: Infantry
 				ScaleWithBuilding: gapile
 				SquadsPerBuilding: 2
@@ -53,8 +54,8 @@ Player:
 						AllowedTypes: gasol
 			GDI_BasicInfantry_AntiArmor:
 				Role: Assault
-				Priority: 100
-				MaxInstances: 8
+				Quality: 60
+				MaxInstances: 6
 				PriorityTargetCapabilities: Harvester, Vehicle
 				ScaleWithBuilding: gapile
 				SquadsPerBuilding: 2
@@ -72,7 +73,7 @@ Player:
 						AllowedTypes: e2
 			GDI_JumpjetInfantry:
 				Role: Raider
-				Priority: 100
+				Quality: 60
 				MaxInstances: 3
 				PriorityTargetCapabilities: Infantry, Harvester
 				ScaleWithBuilding: gapile
@@ -93,7 +94,7 @@ Player:
 						AllowedTypes: jumpjet
 			GDI_SniperInfantry:
 				Role: Stealth
-				Priority: 95
+				Quality: 55
 				MaxInstances: 2
 				PriorityTargetCapabilities: Infantry, Harvester
 				ScaleWithBuilding: gapile
@@ -113,10 +114,10 @@ Player:
 						AllowedTypes: gasniper
 			GDI_Wolverine_Attack:
 				Role: Assault
-				Priority: 115
-				MaxInstances: 8
+				Quality: 75
+				MaxInstances: 6
 				ScaleWithBuilding: gaweap
-				SquadsPerBuilding: 3
+				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Harvester, Economy, Power, Infantry, InfantryDefense
 				ThreatBonuses:
@@ -133,8 +134,8 @@ Player:
 						AllowedTypes: smech
 			GDI_APC_Attack:
 				Role: Transport
-				Priority: 110
-				MaxInstances: 6
+				Quality: 70
+				MaxInstances: 3
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
@@ -149,16 +150,16 @@ Player:
 					ArmorDefense: -2
 				Slots:
 					1:
-						Count: 1
+						Count: 2
 						AllowedTypes: apc
 						IsCarrier: True
 					2:
-						Count: 5
+						Count: 10
 						AllowedTypes: gasol, e2
 						IsPassenger: True
 			GDI_Medics:
 				Role: Support
-				Priority: 100
+				Quality: 60
 				MaxInstances: 3
 				ScaleWithBuilding: gapile
 				SquadsPerBuilding: 1
@@ -169,10 +170,10 @@ Player:
 						AllowedTypes: medic
 			GDI_Archon_Attack:
 				Role: Assault
-				Priority: 115
-				MaxInstances: 8
+				Quality: 75
+				MaxInstances: 6
 				ScaleWithBuilding: gaweap
-				SquadsPerBuilding: 3
+				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle, ArmorDefense
 				ThreatBonusesPerUnit:
@@ -187,8 +188,8 @@ Player:
 						AllowedTypes: gtmtnk
 			GDI_Titan_Attack:
 				Role: Assault
-				Priority: 115
-				MaxInstances: 8
+				Quality: 75
+				MaxInstances: 6
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
@@ -212,8 +213,8 @@ Player:
 						Optional: True
 			GDI_Mammoth_Attack:
 				Role: Assault
-				Priority: 112
-				MaxInstances: 6
+				Quality: 72
+				MaxInstances: 4
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
 				MinSlotsToActivate: 1
@@ -236,7 +237,7 @@ Player:
 						AllowedTypes: 4tnk
 			GDI_HoverMLRS_Raid:
 				Role: Raider
-				Priority: 100
+				Quality: 60
 				MaxInstances: 3
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
@@ -257,7 +258,7 @@ Player:
 						AllowedTypes: hvr
 			GDI_Juggernaut_Siege:
 				Role: ArtilleryAssault
-				Priority: 124
+				Quality: 84
 				MaxInstances: 5
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 2
@@ -279,7 +280,7 @@ Player:
 						AllowedTypes: jugg
 			GDI_Sonic_Breaker:
 				Role: Assault
-				Priority: 126
+				Quality: 78
 				MaxInstances: 5
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 2
@@ -300,7 +301,7 @@ Player:
 						AllowedTypes: sonic
 			GDI_MammothMkII_Tech:
 				Role: Assault
-				Priority: 128
+				Quality: 80
 				MaxInstances: 3
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
@@ -325,7 +326,7 @@ Player:
 						Optional: True
 			GDI_Orca_Bomber:
 				Role: AircraftAttack
-				Priority: 118
+				Quality: 78
 				MaxInstances: 4
 				ScaleWithBuilding: gahpad
 				SquadsPerBuilding: 1
@@ -346,7 +347,7 @@ Player:
 						AllowedTypes: orca_b
 			GDI_Hornet_Strike:
 				Role: AircraftRaider
-				Priority: 112
+				Quality: 72
 				MaxInstances: 3
 				ScaleWithBuilding: gahpad
 				SquadsPerBuilding: 1
@@ -368,7 +369,7 @@ Player:
 						AllowedTypes: hornet
 			GDI_Orca_Raid:
 				Role: AircraftRaider
-				Priority: 112
+				Quality: 72
 				MaxInstances: 5
 				ScaleWithBuilding: gahpad
 				SquadsPerBuilding: 1
@@ -393,8 +394,8 @@ Player:
 						AllowedTypes: orca_f1
 			GDI_Orca_TransportAttack:
 				Role: AirTransport
-				Priority: 110
-				MaxInstances: 4
+				Quality: 70
+				MaxInstances: 3
 				ScaleWithBuilding: gahpad
 				SquadsPerBuilding: 1
 				MinSlotsToActivate: 1
@@ -423,8 +424,8 @@ Player:
 						IsPassenger: True
 			Nod_BasicInfantry_AntiInfantry:
 				Role: Assault
-				Priority: 100
-				MaxInstances: 8
+				Quality: 60
+				MaxInstances: 6
 				PriorityTargetCapabilities: Infantry
 				ScaleWithBuilding: nahand
 				SquadsPerBuilding: 2
@@ -442,8 +443,8 @@ Player:
 						AllowedTypes: nasol
 			Nod_BasicInfantry_AntiArmor:
 				Role: Assault
-				Priority: 100
-				MaxInstances: 8
+				Quality: 60
+				MaxInstances: 6
 				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
 				ScaleWithBuilding: nahand
 				SquadsPerBuilding: 2
@@ -461,7 +462,7 @@ Player:
 						AllowedTypes: e3
 			Nod_SniperInfantry:
 				Role: Stealth
-				Priority: 95
+				Quality: 55
 				MaxInstances: 2
 				PriorityTargetCapabilities: Infantry, Harvester
 				ScaleWithBuilding: nahand
@@ -481,7 +482,7 @@ Player:
 						AllowedTypes: shadow
 			Nod_AdvancedInfantry:
 				Role: Assault
-				Priority: 100
+				Quality: 60
 				MaxInstances: 6
 				PriorityTargetCapabilities: Harvester, Economy, Power, Infantry, Vehicle
 				ScaleWithBuilding: nahand
@@ -506,7 +507,7 @@ Player:
 						Optional: True
 			Nod_Buggy_Raid:
 				Role: Raider
-				Priority: 100
+				Quality: 60
 				MaxInstances: 4
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
@@ -524,7 +525,7 @@ Player:
 						AllowedTypes: bggy
 			Nod_Bike_Raid:
 				Role: Raider
-				Priority: 100
+				Quality: 60
 				MaxInstances: 4
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
@@ -543,10 +544,10 @@ Player:
 						AllowedTypes: bike
 			Nod_Scorpion_Attack:
 				Role: Assault
-				Priority: 115
-				MaxInstances: 8
+				Quality: 75
+				MaxInstances: 6
 				ScaleWithBuilding: naweap
-				SquadsPerBuilding: 3
+				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle, ArmorDefense
 				ThreatBonuses:
@@ -563,7 +564,8 @@ Player:
 						AllowedTypes: ltnk
 			Nod_Repair:
 				Role: Support
-				Priority: 100
+				Quality: 60
+				StayInBase: True
 				MaxInstances: 2
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
@@ -577,10 +579,10 @@ Player:
 						AllowedTypes: repair
 			Nod_TickTank_Attack:
 				Role: Assault
-				Priority: 115
-				MaxInstances: 8
+				Quality: 75
+				MaxInstances: 6
 				ScaleWithBuilding: naweap
-				SquadsPerBuilding: 3
+				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle, ArmorDefense
 				ThreatBonuses:
@@ -598,7 +600,7 @@ Player:
 						AllowedTypes: ttnk
 			Nod_Acolyte_Tech:
 				Role: Assault
-				Priority: 118
+				Quality: 78
 				MaxInstances: 5
 				PriorityTargetCapabilities: Infantry, Vehicle, Defense, Production
 				ScaleWithBuilding: nahand
@@ -620,7 +622,7 @@ Player:
 						AllowedTypes: acolyte
 			Nod_Artillery_Siege:
 				Role: ArtilleryAssault
-				Priority: 124
+				Quality: 84
 				MaxInstances: 5
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 2
@@ -642,7 +644,7 @@ Player:
 						AllowedTypes: nhwtz
 			Nod_Subtank_Raid:
 				Role: SubterraneanAssault
-				Priority: 118
+				Quality: 78
 				MaxInstances: 4
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 2
@@ -663,7 +665,7 @@ Player:
 						AllowedTypes: subtank
 			Nod_SubAPC_Ambush:
 				Role: SubterraneanTransport
-				Priority: 108
+				Quality: 68
 				MaxInstances: 2
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
@@ -689,7 +691,7 @@ Player:
 						IsPassenger: True
 			Nod_StealthTank_Strike:
 				Role: Stealth
-				Priority: 112
+				Quality: 72
 				MaxInstances: 4
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 2
@@ -710,7 +712,7 @@ Player:
 						AllowedTypes: stnk
 			Nod_Scrin_Strike:
 				Role: AircraftAttack
-				Priority: 118
+				Quality: 78
 				MaxInstances: 4
 				ScaleWithBuilding: nahpad
 				SquadsPerBuilding: 1
@@ -731,7 +733,7 @@ Player:
 						AllowedTypes: scrin
 			Nod_Hydra_Raid:
 				Role: AircraftRaider
-				Priority: 112
+				Quality: 72
 				MaxInstances: 5
 				ScaleWithBuilding: nahpad
 				SquadsPerBuilding: 1

@@ -85,9 +85,10 @@ namespace OpenRA.Mods.Common.Traits
 			// If we can't place any structures, give a nudge to BaseExpansionModules and hope it gets fixed.
 			if (failCount >= baseBuilder.Info.MaximumFailedPlacementAttempts)
 			{
-				if (baseBuilder.BaseExpansionModules != null && baseCenterKeepsFailing != null)
+				var hasBaseExpansionModules = baseBuilder.BaseExpansionModules != null && baseBuilder.BaseExpansionModules.Length > 0;
+				if (hasBaseExpansionModules)
 				{
-					if (!baseBuilder.Info.DefenseTypes.Contains(lastFailedBuilding))
+					if (baseCenterKeepsFailing != null && !baseBuilder.Info.DefenseTypes.Contains(lastFailedBuilding))
 					{
 						var maxRadius = baseBuilder.GetEffectiveMaxBaseRadius();
 						var stuckConyard = baseBuilder.ConstructionYardBuildings.Actors
@@ -102,13 +103,14 @@ namespace OpenRA.Mods.Common.Traits
 					}
 
 					failCount = 0;
+					baseCenterKeepsFailing = null;
 				}
 
 				// No BaseExpansionModules exist. Only bother resetting failCount when either
 				// a) the number of buildings has decreased since last failure M ticks ago,
 				// or b) number of BaseProviders (construction yard or similar) has increased since then.
 				// Otherwise reset failRetryTicks instead to wait again.
-				else if (baseBuilder.BaseExpansionModules == null && --failRetryTicks <= 0)
+				else if (--failRetryTicks <= 0)
 				{
 					var currentBuildings = baseBuilder.GetCachedPlayerBuildings().Count;
 					var baseProviders = world.ActorsHavingTrait<BaseProvider>().Count(a => a.Owner == player);
@@ -528,6 +530,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else if (currentBuilding != null && currentBuilding.Done)
 			{
+				baseCenterKeepsFailing = null;
+
 				// Production is complete
 				// Choose the placement logic
 				// HACK: HACK HACK HACK
@@ -621,6 +625,7 @@ namespace OpenRA.Mods.Common.Traits
 				else
 				{
 					failCount = 0;
+					baseCenterKeepsFailing = null;
 					if (type == BuildingType.Defense)
 						defensePlacementAttempt = 0;
 
@@ -707,7 +712,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (!baseBuilder.Info.BuildingLimits.TryGetValue(actor.Name, out var limit))
 					return true;
 
-				return CountExistingAndQueuedBuilding(actor.Name) < limit;
+				return CountExistingAndQueuedBuilding(actor.Name) < baseBuilder.GetScaledBuildingLimit(limit);
 			});
 
 			if (orderBy != null)
@@ -1098,7 +1103,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (count * 100 > frac.Value * playerBuildings.Length)
 					continue;
 
-				if (baseBuilder.Info.BuildingLimits.TryGetValue(name, out var limit) && limit <= count)
+				if (baseBuilder.Info.BuildingLimits.TryGetValue(name, out var limit) && baseBuilder.GetScaledBuildingLimit(limit) <= count)
 					continue;
 
 				// DefenseRoleLimits: scale-based cap relative to base size (replaces hard limits for defenses)
@@ -1451,6 +1456,11 @@ namespace OpenRA.Mods.Common.Traits
 			// BaseGrid prefers a shared footprint-aware base raster, then falls back to compact placement.
 			(CPos? Location, CPos Center, int Variant) FindPos(CPos center, CPos target, CPos gridAnchor, int minRange, int maxRange)
 			{
+				var isTech = baseBuilder.Info.TechTypes.Contains(actorType);
+				var techDangerHotspots = isTech
+					? baseBuilder.GetDefensePlacementThreats(center)
+					: Array.Empty<CNBaseBuilderBotModule.DefensePlacementThreat>();
+
 				var actorVariant = 0;
 				var buildingVariantInfo = actorInfo.TraitInfoOrDefault<PlaceBuildingVariantsInfo>();
 				var variantActorInfo = actorInfo;
@@ -1534,6 +1544,33 @@ namespace OpenRA.Mods.Common.Traits
 						cells = allCells.Shuffle(world.LocalRandom);
 					else
 						cells = allCells;
+
+					if (isTech)
+					{
+						CPos? bestCell = null;
+						var bestScore = long.MaxValue;
+						foreach (var cell in cells)
+						{
+							if (!world.CanPlaceBuilding(cell, variantActorInfo, vbi, null))
+								continue;
+
+							if (distanceToBaseIsImportant && !vbi.IsCloseEnoughToBase(world, player, variantActorInfo, cell))
+								continue;
+
+							if (!RespectsGeneralBuildingSpacing(cell, vbi))
+								continue;
+
+							var score = baseBuilder.ScoreTechPlacementSafety(cell, center, techDangerHotspots)
+								+ ScoreBaseGridAlignment(cell, vbi, gridAnchor);
+							if (score >= bestScore)
+								continue;
+
+							bestScore = score;
+							bestCell = cell;
+						}
+
+						return bestCell.HasValue ? (bestCell.Value, center, actorVariant) : (null, center, 0);
+					}
 
 					foreach (var cell in cells)
 					{
@@ -2365,7 +2402,7 @@ namespace OpenRA.Mods.Common.Traits
 					&& (a.Location - center).LengthSquared <= effectiveMaxRadiusSq)
 				.ToList();
 
-			if (coreBuildings.Count < baseBuilder.Info.BasePerimeterWallMinimumStructures)
+			if (coreBuildings.Count < baseBuilder.GetActiveBasePerimeterWallMinimumStructures())
 			{
 				minX = maxX = minY = maxY = 0;
 				return false;

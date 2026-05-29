@@ -70,6 +70,14 @@ Player:
 		HarvesterLocomotors: tracked
 		VeinsOnlyBuildingTypes: nawast
 		VeinsOnlyResourceTypes: Veins
+
+		# --- Bankruptcy recovery (selling buildings to fund refinery / harvester / MCV; kamikaze on terminal) ---
+		HarvesterTypes: gharv, nharv
+		McvTypes: gmcv, nmcv
+		McvFactoryTypes: gaweap, naweap
+		BankruptcyRecoveryMaxCash: 500
+		BankruptcyKamikazeEnabled: true
+		BankruptcyKamikazeMaxCash: 200
 		
 		# Defense placement and memory.
 		MinimumDefenseRadius: 3
@@ -91,11 +99,26 @@ Player:
 		DefenseDangerMemoryDecayAmount: 12
 		DefensePlacementDangerWeight: 80
 		DefensePlacementEnemyDirectionWeight: 70
+		TechPlacementDangerAvoidanceWeight: 120
+		TechPlacementCoreBiasWeight: 2
 		
 		# Base layout.
 		DynamicBaseRadius: true
 		RadiusPerBuilding: 0.4
 		MaxDynamicBaseRadius: 25
+
+		# Per-profile base-layout overrides.
+		# Turtle: compact cluster that grows slowly with tight perimeter walls.
+		# Expansion: spreads out fast, walls form later (more focus on satellite bases).
+		ProfileMaxDynamicBaseRadius:
+			Turtle: 18
+			Expansion: 38
+		ProfileRadiusPerBuildingCentum:
+			Turtle: 20
+			Expansion: 70
+		ProfileBasePerimeterWallMinimumStructures:
+			Turtle: 4
+			Expansion: 14
 		DefaultLayout: BaseGrid
 		SameTypeMinSpacing: 1
 		GlobalMinSpacing: 2
@@ -149,6 +172,22 @@ Player:
 				Layout: Coverage
 				MinSpacing: 15
 		
+		# --- Economy overflow scaling ---
+		# Generic cash/income trend signal. Drives runtime scaling of BuildingLimits,
+		# refinery target, unit-builder cash reserve / queue depth, wave timing, and
+		# fuzzy attack/flee aggressiveness. Handicap-agnostic — also lights up on
+		# resource-rich maps without any handicap configured.
+		EconomyOverflowSampleInterval: 25
+		EconomyOverflowSampleWindow: 12
+		EconomyOverflowCashFloor: 3000
+		EconomyOverflowCashCeiling: 12000
+		EconomyOverflowIncomeFloor: 20
+		EconomyOverflowIncomeCeiling: 90
+		EconomyOverflowCashWeight: 50
+		EconomyOverflowIncomeWeight: 50
+		EconomyOverflowBuildingLimitBonusPct: 75
+		EconomyOverflowRefineryBonus: 2
+
 		# Hard caps.
 		BuildingLimits:
 			gapile: 6
@@ -183,12 +222,12 @@ Player:
 		# Neutral base building targets.
 		# Tech-stage overlays are applied first, then profile budgets scale Production/Tech/Defense behavior in code.
 		BuildingFractions:
-			gapile: 10
-			nahand: 10
-			gaweap: 10
-			naweap: 10
-			gahpad: 16
-			nahpad: 16
+			gapile: 15
+			nahand: 15
+			gaweap: 15
+			naweap: 15
+			gahpad: 20
+			nahpad: 20
 			gadept: 4
 			garadr: 5
 			naradr: 5

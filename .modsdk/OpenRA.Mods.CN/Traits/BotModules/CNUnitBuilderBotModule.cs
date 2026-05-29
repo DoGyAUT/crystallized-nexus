@@ -65,6 +65,15 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Additional reserve per available production queue to avoid spending to zero across many factories.")]
 		public readonly int AdditionalCashReservePerQueue = 200;
 
+		[Desc("Percent cut applied to the computed cash reserve at EconomyOverflow factor 1.0 (drains hoarded cash when surplus).")]
+		public readonly int EconomyOverflowReserveCutPct = 80;
+
+		[Desc("Max items queued per production queue when EconomyOverflow exceeds the unlock threshold.")]
+		public readonly int EconomyOverflowMaxQueuedItemsPerQueue = 2;
+
+		[Desc("EconomyOverflow factor (milli, 0..1000) at which the bot starts queueing more items per queue.")]
+		public readonly int EconomyOverflowMaxQueuedThresholdMilli = 500;
+
 		public readonly int RushProductionMinCashRequirement = -1;
 		public readonly int TurtleProductionMinCashRequirement = -1;
 		public readonly int TechProductionMinCashRequirement = -1;
@@ -92,6 +101,9 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Should visibility be considered when searching for capturable targets?")]
 		public readonly bool CheckCaptureTargetsForVisibility = true;
 
+		[Desc("Per-existing-squad score penalty applied to a template during template-selection. Higher values diversify production faster (default 1500). Set lower to favor specialization, higher to force rotation.")]
+		public readonly int TemplateActiveSquadPenalty = 1500;
+
 		public override object Create(ActorInitializer init) => new CNUnitBuilderBotModule(init.Self, this);
 	}
 
@@ -105,12 +117,11 @@ namespace OpenRA.Mods.CN.Traits
 		}
 
 		const int FeedbackTime = 30;
-		const int MaxQueuedItemsPerQueue = 1;
+		const int BaseMaxQueuedItemsPerQueue = 1;
 		const int ReservationStallTicks = 15 * FeedbackTime;
 		const int TemplateRecentBuildWindow = 6 * FeedbackTime;
 		const int TemplateRecentBuildPenaltyStep = 320;
 		const int TemplateReservationPenalty = 100;
-		const int TemplateActiveSquadPenalty = 600;
 		const int TemplateDeficitBonus = 500;
 
 		readonly World world;
@@ -121,6 +132,7 @@ namespace OpenRA.Mods.CN.Traits
 
 		CNSquadManagerBotModule squadManager;
 		CNBotProfileBotModule profileModule;
+		CNBaseBuilderBotModule baseBuilder;
 		PlayerResources playerResources;
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
@@ -151,6 +163,10 @@ namespace OpenRA.Mods.CN.Traits
 
 			if (profileModule == null || !profileModule.IsTraitEnabled())
 				profileModule = player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>()
+					.FirstOrDefault(t => t.IsTraitEnabled());
+
+			if (baseBuilder == null || !baseBuilder.IsTraitEnabled())
+				baseBuilder = player.PlayerActor.TraitsImplementing<CNBaseBuilderBotModule>()
 					.FirstOrDefault(t => t.IsTraitEnabled());
 		}
 
@@ -325,12 +341,7 @@ namespace OpenRA.Mods.CN.Traits
 					world.WorldTick < delay)
 					continue;
 
-				if (Info.UnitLimits != null &&
-					Info.UnitLimits.TryGetValue(typeName, out var limit) &&
-					existingByType.GetValueOrDefault(typeName) >= limit)
-					continue;
-
-				if (ReachedTemplateCap(typeName, existingByType))
+				if (ReachedUnitCap(typeName, existingByType))
 					continue;
 
 				if (!IsBuildable(typeName, queuesByCategory, preferredQueueCategory))
@@ -412,12 +423,7 @@ namespace OpenRA.Mods.CN.Traits
 					Info.UnitDelays.TryGetValue(unit.Name, out var delay) &&
 					world.WorldTick < delay)
 					continue;
-				if (Info.UnitLimits != null &&
-					Info.UnitLimits.TryGetValue(unit.Name, out var limit) &&
-					existingByType.GetValueOrDefault(unit.Name) >= limit)
-					continue;
-
-				if (ReachedTemplateCap(unit.Name, existingByType))
+				if (ReachedUnitCap(unit.Name, existingByType))
 					continue;
 
 				var owned = existingByType.GetValueOrDefault(unit.Name);
@@ -494,7 +500,7 @@ namespace OpenRA.Mods.CN.Traits
 				return;
 
 			var existingByType = BuildExistingCounts(queuesByCategory);
-			if (ReachedTemplateCap(typeName, existingByType))
+			if (ReachedUnitCap(typeName, existingByType))
 				return;
 
 			foreach (var queueType in buildable.Queue)
@@ -514,7 +520,7 @@ namespace OpenRA.Mods.CN.Traits
 			var result = new List<ProductionQueue>();
 			foreach (var queue in queuesByCategory[queueType])
 			{
-				if (queue.AllQueued().Count() > MaxQueuedItemsPerQueue)
+				if (queue.AllQueued().Count() > GetMaxQueuedItemsPerQueue())
 					continue;
 
 				result.Add(queue);
@@ -599,7 +605,7 @@ namespace OpenRA.Mods.CN.Traits
 			string bestTemplate = null;
 			var bestScore = int.MinValue;
 
-			foreach (var kv in squadManager.Info.Teams.OrderByDescending(t => squadManager.GetEffectivePriority(t.Value)))
+			foreach (var kv in squadManager.Info.Teams.OrderByDescending(t => squadManager.GetEffectiveScore(t.Value)))
 			{
 				var templateName = kv.Key;
 				var template = kv.Value;
@@ -610,13 +616,13 @@ namespace OpenRA.Mods.CN.Traits
 				if (next == null)
 					continue;
 
-				var score = squadManager.GetEffectivePriority(template) * 100;
+				var score = squadManager.GetEffectiveScore(template) * 100;
 				if (HasExistingTemplateQueueDeficit(templateName, queue, existingByType))
 					score += TemplateDeficitBonus;
 
 				var currentCount = CountReservedTemplateSquads(templateName);
-				score += Math.Max(0, (template.MaxInstances - currentCount) * 10);
-				score -= currentCount * TemplateActiveSquadPenalty;
+				score += Math.Max(0, (squadManager.GetEffectiveMaxInstances(template) - currentCount) * 10);
+				score -= currentCount * Info.TemplateActiveSquadPenalty;
 				score -= CountReservedTemplateQueues(templateName, queue.Actor.ActorID) * TemplateReservationPenalty;
 				score -= GetRecentTemplatePenalty(templateName);
 
@@ -699,7 +705,7 @@ namespace OpenRA.Mods.CN.Traits
 					string.Equals(s.TemplateName, templateName, StringComparison.OrdinalIgnoreCase) &&
 					(!s.IsOperational || s.AllowsOperationalReinforcement))
 				.OrderBy(s => s.IsOperational ? 1 : 0)
-				.ThenByDescending(s => s.TemplateInfo != null ? squadManager.GetEffectivePriority(s.TemplateInfo) : 0))
+				.ThenByDescending(s => s.TemplateInfo != null ? squadManager.GetEffectiveScore(s.TemplateInfo) : 0))
 			{
 				foreach (var assignment in OrderedAssignments(squad.SlotAssignments))
 				{
@@ -712,7 +718,11 @@ namespace OpenRA.Mods.CN.Traits
 				}
 			}
 
-			if (CountReservedTemplateSquads(templateName) >= template.MaxInstances)
+			// Use the squad manager's effective (ScaleWithBuilding-aware) cap so we don't queue
+			// units for template instances the manager will refuse to form (they'd sit idle in the pool).
+			var reservedTemplateInstances = CountReservedTemplateSquads(templateName)
+				+ CountReservedTemplateQueues(templateName, queue.Actor.ActorID);
+			if (reservedTemplateInstances >= squadManager.GetEffectiveMaxInstances(template))
 				return null;
 
 			foreach (var slot in OrderedSlots(template.Slots.Values))
@@ -765,7 +775,7 @@ namespace OpenRA.Mods.CN.Traits
 
 			foreach (var typeName in slotInfo.AllowedTypes)
 			{
-				if (ReachedTemplateCap(typeName, existingByType))
+				if (ReachedUnitCap(typeName, existingByType))
 					continue;
 
 				var actorInfo = world.Map.Rules.Actors.GetValueOrDefault(typeName);
@@ -785,8 +795,26 @@ namespace OpenRA.Mods.CN.Traits
 
 		int GetDesiredReserve(ILookup<string, ProductionQueue> queuesByCategory)
 		{
+			if (baseBuilder != null && !baseBuilder.HasEconomyRecoveryPath())
+				return 0;
+
 			var queueCount = queuesByCategory.SelectMany(g => g).Count();
-			return GetActiveDesiredCashReserve() + queueCount * GetActiveAdditionalCashReservePerQueue();
+			var raw = GetActiveDesiredCashReserve() + queueCount * GetActiveAdditionalCashReservePerQueue();
+
+			var milli = baseBuilder?.EconomyOverflowMilli ?? 0;
+			if (milli <= 0 || Info.EconomyOverflowReserveCutPct <= 0)
+				return raw;
+
+			var cut = (raw * Info.EconomyOverflowReserveCutPct * milli) / (100 * 1000);
+			return Math.Max(0, raw - cut);
+		}
+
+		int GetMaxQueuedItemsPerQueue()
+		{
+			var milli = baseBuilder?.EconomyOverflowMilli ?? 0;
+			return milli >= Info.EconomyOverflowMaxQueuedThresholdMilli
+				? Math.Max(BaseMaxQueuedItemsPerQueue, Info.EconomyOverflowMaxQueuedItemsPerQueue)
+				: BaseMaxQueuedItemsPerQueue;
 		}
 
 		bool HasBudgetFor(ActorInfo actorInfo, int committedCost, ILookup<string, ProductionQueue> queuesByCategory)
@@ -892,13 +920,47 @@ namespace OpenRA.Mods.CN.Traits
 			return true;
 		}
 
-		bool ReachedTemplateCap(string typeName, Dictionary<string, int> existingByType)
+		bool ReachedUnitCap(string typeName, Dictionary<string, int> existingByType)
 		{
+			if (string.IsNullOrEmpty(typeName))
+				return false;
+
+			var existing = existingByType.GetValueOrDefault(typeName);
+			var configuredLimit = GetActiveUnitLimit(typeName);
+			if (configuredLimit > 0 && existing >= configuredLimit)
+				return true;
+
 			if (squadManager == null || squadManager.IsTraitDisabled)
 				return false;
 
 			var templateCap = squadManager.GetTemplateUnitCap(typeName);
-			return templateCap > 0 && existingByType.GetValueOrDefault(typeName) >= templateCap;
+			return templateCap > 0 && existing >= templateCap;
+		}
+
+		int GetActiveUnitLimit(string typeName)
+		{
+			return TryGetUnitLimit(Info.UnitLimits, typeName, out var limit) ? limit : 0;
+		}
+
+		static bool TryGetUnitLimit(Dictionary<string, int> limits, string typeName, out int limit)
+		{
+			limit = 0;
+			if (limits == null || limits.Count == 0)
+				return false;
+
+			if (limits.TryGetValue(typeName, out limit))
+				return true;
+
+			foreach (var kv in limits)
+			{
+				if (!string.Equals(kv.Key, typeName, StringComparison.OrdinalIgnoreCase))
+					continue;
+
+				limit = kv.Value;
+				return true;
+			}
+
+			return false;
 		}
 
 		bool HasAdequateAirRearmBuildings(ActorInfo actorInfo, Dictionary<string, int> existingByType)

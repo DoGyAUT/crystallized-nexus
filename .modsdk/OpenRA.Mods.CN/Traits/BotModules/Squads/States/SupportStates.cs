@@ -17,19 +17,37 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	/// <summary>
-	/// Idle: scan for an active Assault, Rush, Protection, or Defense squad to attach to.
+	/// Idle: scan for an active Assault, Rush, or Protection squad to attach to.
 	/// </summary>
 	sealed class SupportIdleState : CNStateBase, ICNState
 	{
-		int scanTicks;
 		const int ScanInterval = 3;
+		int scanTicks;
+		int idleTicks;
 
-		public void Activate(CNSquad squad) { scanTicks = 0; }
+		public void Activate(CNSquad squad)
+		{
+			scanTicks = 0;
+			idleTicks = 0;
+		}
 
 		public void Tick(CNSquad squad)
 		{
 			if (!squad.IsOperational)
 				return;
+
+			if (squad.TemplateInfo?.StayInBase == true)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new SupportGuardState());
+				return;
+			}
+
+			idleTicks++;
+			if (idleTicks >= squad.SquadManager.Info.MaxIdleScanTicks)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new SupportGuardState());
+				return;
+			}
 
 			if (--scanTicks > 0)
 				return;
@@ -44,8 +62,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				.Where(s => s != squad && s.IsOperational &&
 							(s.Type == CNSquadType.Assault ||
 							 s.Type == CNSquadType.Rush ||
-							 s.Type == CNSquadType.Protection ||
-							 s.Type == CNSquadType.Defense))
+							 s.Type == CNSquadType.Protection))
 				.OrderBy(s =>
 				{
 					var sCenter = s.CenterUnit();
@@ -76,7 +93,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 
 			// Flee from any nearby attacker — support units never fight back.
-			if (IsUnderThreat(squad))
+			if (SupportStateHelpers.IsUnderThreat(squad))
 			{
 				Retreat(squad, flee: true, rearm: false, repair: false);
 				squad.AttachedTo = null;
@@ -111,7 +128,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					.Where(t => t.Health != null && t.Health.DamageState > DamageState.Undamaged);
 
 				var bestTarget = targets
-					.Where(t => CanHeal(unit, t.Actor))
+					.Where(t => SupportStateHelpers.CanHeal(unit, t.Actor))
 					.OrderBy(t => (float)t.Health.HP / t.Health.MaxHP)
 					.ThenByDescending(t => t.Actor.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0)
 					.Select(t => t.Actor)
@@ -132,13 +149,123 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		public void Deactivate(CNSquad squad) { }
+	}
+
+	sealed class SupportGuardState : CNStateBase, ICNState
+	{
+		public void Activate(CNSquad squad) { }
+
+		public void Tick(CNSquad squad)
+		{
+			if (!squad.IsOperational)
+				return;
+
+			if (SupportStateHelpers.IsUnderThreat(squad))
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new SupportFleeState());
+				return;
+			}
+
+			var baseCenter = SupportStateHelpers.FindBaseCenter(squad);
+			if (baseCenter == null)
+				return;
+
+			var garrisonRadius = WDist.FromCells(squad.SquadManager.Info.BaseGarrisonRadius);
+			foreach (var unit in squad.OrderableUnits)
+			{
+				if (!unit.IsIdle)
+					continue;
+
+				var distanceFromBase = (unit.CenterPosition - baseCenter.Value).Length;
+				if (distanceFromBase > garrisonRadius.Length)
+				{
+					squad.Bot.QueueOrder(new Order("Move", unit,
+						Target.FromCell(squad.World, squad.World.Map.CellContaining(baseCenter.Value)), false));
+					continue;
+				}
+
+				var bestTarget = squad.World
+					.FindActorsInCircle(unit.CenterPosition, WDist.FromCells(6))
+					.Where(a => !a.IsDead && a.IsInWorld && a.Owner == unit.Owner && a != unit)
+					.Select(a => new { Actor = a, Health = a.TraitOrDefault<IHealth>() })
+					.Where(t => t.Health != null && t.Health.DamageState > DamageState.Undamaged)
+					.Where(t => SupportStateHelpers.CanHeal(unit, t.Actor))
+					.OrderBy(t => (float)t.Health.HP / t.Health.MaxHP)
+					.ThenByDescending(t => t.Actor.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0)
+					.Select(t => t.Actor)
+					.FirstOrDefault();
+
+				if (bestTarget != null)
+				{
+					if (unit.Info.HasTraitInfo<RepairsUnitsInfo>())
+						squad.Bot.QueueOrder(new Order("Repair", unit, Target.FromActor(bestTarget), false));
+					else
+						squad.Bot.QueueOrder(new Order("Heal", unit, Target.FromActor(bestTarget), false));
+				}
+			}
+		}
+
+		public void Deactivate(CNSquad squad) { }
+	}
+
+	sealed class SupportFleeState : CNStateBase, ICNState
+	{
+		const int FleeDuration = 90;
+		int fleeTicks;
+
+		public void Activate(CNSquad squad)
+		{
+			fleeTicks = FleeDuration;
+			Retreat(squad, flee: true, rearm: false, repair: false);
+		}
+
+		public void Tick(CNSquad squad)
+		{
+			if (!squad.IsOperational)
+				return;
+
+			if (--fleeTicks <= 0 || !SupportStateHelpers.IsUnderThreat(squad))
+				squad.FuzzyStateMachine.ChangeState(squad, new SupportGuardState());
+		}
+
+		public void Deactivate(CNSquad squad) { }
+	}
+
+	static class SupportStateHelpers
+	{
+		public static WPos? FindBaseCenter(CNSquad squad)
+		{
+			var center = squad.CenterUnit();
+			var buildings = squad.SquadManager.GetCachedOwnBuildings()
+				.Where(a => IsBaseAnchor(a))
+				.ToArray();
+
+			if (buildings.Length > 0)
+				return buildings
+					.OrderBy(a => center != null ? (a.CenterPosition - center.CenterPosition).LengthSquared : 0)
+					.First()
+					.CenterPosition;
+
+			if (squad.SquadManager.GetCachedOwnBuildings().Count == 0)
+				return center?.CenterPosition;
+
+			return squad.World.Map.CenterOfCell(squad.SquadManager.GetRandomBaseCenter());
+		}
+
+		static bool IsBaseAnchor(Actor actor)
+		{
+			if (actor.Info.Name == "gacnst" || actor.Info.Name == "nacnst" ||
+				actor.Info.Name == "gproc" || actor.Info.Name == "nproc")
+				return true;
+
+			return actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains("Economy") ?? false;
+		}
 
 		/// <summary>
 		/// True when any enemy with a weapon is within DangerScanRadius, regardless of own buildings.
-		/// Unlike the base ShouldFlee, this does NOT exempt the area around own structures — support
-		/// units must flee even during a base attack.
+		/// Unlike the base ShouldFlee, this does NOT exempt the area around own structures.
 		/// </summary>
-		static bool IsUnderThreat(CNSquad squad)
+		public static bool IsUnderThreat(CNSquad squad)
 		{
 			if (!squad.IsValid)
 				return false;
@@ -150,16 +277,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		/// <summary>Returns true if the healer can target the given actor.</summary>
-		static bool CanHeal(Actor unit, Actor target)
+		public static bool CanHeal(Actor unit, Actor target)
 		{
-			var isMedic = !unit.Info.HasTraitInfo<RepairsUnitsInfo>();
+			var isMechanic = unit.Info.HasTraitInfo<RepairsUnitsInfo>();
+			var targetIsBuilding = target.Info.HasTraitInfo<BuildingInfo>();
+			if (targetIsBuilding)
+				return isMechanic;
+
+			var isMedic = !isMechanic;
 			var targetIsMechanical = target.Info.HasTraitInfo<MobileInfo>() &&
 									 target.GetEnabledTargetTypes().Overlaps(new BitSet<TargetableType>("Vehicle", "Tank"));
 
 			if (isMedic && targetIsMechanical)
 				return false;
 
-			var isMechanic = unit.Info.HasTraitInfo<RepairsUnitsInfo>();
 			var targetIsInfantry = target.Info.HasTraitInfo<MobileInfo>() &&
 								   target.GetEnabledTargetTypes().Overlaps(new BitSet<TargetableType>("Infantry"));
 

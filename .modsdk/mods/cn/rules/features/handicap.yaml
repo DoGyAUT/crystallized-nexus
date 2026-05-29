@@ -1,0 +1,25 @@
+^PlayerHandicaps:
+	HandicapFirepowerMultiplier:
+		Modifiers:
+			Easy: 100
+			Normal: 100
+			Hard: 100
+			Brutal: 100
+	HandicapDamageMultiplier:
+		Modifiers:
+			Easy: 100
+			Normal: 100
+			Hard: 100
+			Brutal: 100
+	HandicapProductionTimeMultiplier:
+		Modifiers:
+			Easy: 100
+			Normal: 100
+			Hard: 100
+			Brutal: 75
+	HandicapIncomeMultiplier:
+		Modifiers:
+			Easy: 75
+			Normal: 100
+			Hard: 150
+			Brutal: 200

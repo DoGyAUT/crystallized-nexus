@@ -1,3 +1,28 @@
+20mmAutoCannon:
+	Inherits: ^Cannon
+	Inherits@DefaultWahead: ^SmallExplosionWarhead
+	-Warhead@FLASH:
+	Inherits@FLASH: ^FlashSmallY
+	ReloadDelay: 100
+	Burst: 4
+	BurstDelays: 6
+	Report: 20mm_v1.wav, 20mm_v2.wav, 20mm_v3.wav
+	Projectile: Bullet
+		Inaccuracy: 1c0
+	Warhead@1Dam: SpreadDamage
+		Damage: 20
+	Warhead@2Eff: CreateEffect
+		Explosions: heexplosion01
+		ExplosionPalette: effect
+		ImpactSounds: explosion01.ogg, explosion02.ogg
+		ValidTargets: Ground, Trees, DeadInfantry
+	Warhead@5Eff: CreateEffect
+		Explosions: grenexplo1
+		ExplosionPalette: effect
+		ImpactSounds: expnew13.aud
+		ValidTargets: Vehicle, Cyborg, Building
+		InvalidTargets: Infantry
+
 57mm:
 	Inherits: ^Cannon
 	ReloadDelay: 100

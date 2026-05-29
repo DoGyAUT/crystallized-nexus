@@ -163,17 +163,14 @@ VEINHOLE:
 	Interactable:
 	CNHealth:
 		HP: 2500
+	Targetable:
+		TargetTypes: Ground, Trees, NoAutoTarget
+		RequiresForceFire: true
 	ChangesHealth:
 		Step: 50
 		Delay: 10
 		StartIfBelow: 100
 		DamageCooldown: 500
-#	TerrainLightSource:
-#		Range: 6c184
-#		Intensity: 0.01
-#		RedTint: 1.0
-#		GreenTint: 0.5
-#		BlueTint: 0.01
 	WithIdleAnimation:
 		Interval: 50, 500
 	SpawnActorOnDamage@TIBCLOUD:
@@ -187,7 +184,7 @@ VEINHOLE:
 		Sequence: active
 	SeedsResource:
 		ResourceType: Veins
-		Interval: 5
+		Interval: 50
 	AmbientSound:
 		SoundFiles: veinhole01.aud, veinhole02.aud, veinhole03.aud, veinhole04.aud, veinhole05.aud, veinhole06.aud, veinhole07.aud
 		Delay: 150, 450

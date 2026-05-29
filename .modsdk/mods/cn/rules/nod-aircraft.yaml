@@ -199,8 +199,6 @@ HYDRA:
 		FullSequence: pip-ammo
 		EmptySequence: pip-ammoempty
 		Palette: pips
-	WithShadow:
 	CNWithVoxelBody:
-		ShowShadow: False
 	BotCapabilities:
 		Capabilities: Aircraft, AntiInfantry

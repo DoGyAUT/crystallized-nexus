@@ -72,7 +72,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				if (activeAttackers.Count == 0)
 					return false;
 
-				return !CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, activeAttackers);
+				return !CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, activeAttackers, squad.SquadManager.GetAttackFuzzyBoost());
 			});
 		}
 
@@ -495,10 +495,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			if (squad.IsTargetValid && !CNSquadHelper.CanSquadEngage(squad, squad.TargetActor))
+				squad.SetActorToTarget(null);
+
 			if (!squad.IsTargetValid)
 			{
 				var target = squad.SquadManager.FindClosestEnemy(leader,
-					WDist.FromCells(squad.SquadManager.Info.ProtectionScanRadius));
+					WDist.FromCells(squad.SquadManager.Info.ProtectionScanRadius),
+					a => CNSquadHelper.CanSquadEngage(squad, a));
 				squad.SetActorToTarget(target);
 				if (target == null)
 				{
@@ -507,8 +511,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				}
 			}
 
+			var attackers = squad.OrderableUnits
+				.Where(u => !u.IsDead && CanAttackTarget(u, squad.TargetActor))
+				.ToArray();
+			if (attackers.Length == 0)
+			{
+				squad.SetActorToTarget(null);
+				squad.FuzzyStateMachine.ChangeState(squad, new ProtectionFleeState());
+				return;
+			}
+
 			squad.Bot.QueueOrder(new Order("AttackMove", null, squad.Target, false,
-				groupedActors: squad.OrderableUnits.ToArray()));
+				groupedActors: attackers));
 
 			if (!squad.IsTargetVisible)
 			{

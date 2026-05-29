@@ -119,7 +119,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		protected virtual bool ShouldFlee(CNSquad squad)
 		{
 			return ShouldFlee(squad, enemies =>
-				!CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, enemies));
+				!CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
 		}
 
 		protected bool ShouldFlee(CNSquad squad, Func<IReadOnlyCollection<Actor>, bool> flee)

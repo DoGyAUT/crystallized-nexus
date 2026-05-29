@@ -349,7 +349,10 @@ GASEN:
 		Height: 768
 	BodyOrientation:
 		QuantizedFacings: 32
+	RevealsShroud:
+		Range: 7c0
 	DetectCloaked:
+		Range: 7c0
 		RequiresCondition: !empdisable && !disabled
 	Turreted:
 		TurnSpeed: 40
@@ -360,13 +363,18 @@ GASEN:
 		PauseOnCondition: empdisable || disabled
 	WithSpriteTurret:
 		RequiresCondition: !build-incomplete
-		Recoils: false
+		Recoils: true
 		Sequence: turret-sensor
+	WithMuzzleOverlay:
 	IsometricSelectable:
 		Height: 48
 	Armament:
-		Weapon: VulcanTower
-		LocalOffset: 849,0,1448
+		Weapon: 20mmAutoCannon
+		LocalOffset: 910,0,1570
+		MuzzleSequence: muzzle_cannon
+		MuzzlePalette: effect
+		Recoil: 128
+		RecoilRecovery: 32
 	Power:
 		RequiresCondition: !disabled
 		Amount: -30

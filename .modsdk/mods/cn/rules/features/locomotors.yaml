@@ -8,20 +8,20 @@
 		SlopeDownhillCostModifier: 78
 		TerrainSpeeds:
 			Clear: 95
-			Road: 110
-			Bridge: 110
-			Rail: 90
-			DirtRoad: 105
-			Rough: 85
-			Tree: 65
+			Road: 100
+			Bridge: 100
+			Rail: 95
+			DirtRoad: 98
+			Rough: 88
+			Tree: 70
 				PathingCost: 300
-			Tiberium: 85
+			Tiberium: 88
 				PathingCost: 220
-			BlueTiberium: 85
+			BlueTiberium: 88
 				PathingCost: 220
-			RedTiberium: 80
+			RedTiberium: 84
 				PathingCost: 280
-			Veins: 65
+			Veins: 72
 				PathingCost: 500
 	Locomotor@FLAMEGUY:
 		Name: flameguy
@@ -30,21 +30,21 @@
 		SlopeUphillCostModifier: 155
 		SlopeDownhillCostModifier: 78
 		TerrainSpeeds:
-			Clear: 100
-			Road: 110
-			Bridge: 110
-			Rail: 90
-			DirtRoad: 105
-			Rough: 85
-			Tree: 70
+			Clear: 98
+			Road: 100
+			Bridge: 100
+			Rail: 95
+			DirtRoad: 98
+			Rough: 88
+			Tree: 74
 				PathingCost: 250
-			Tiberium: 90
+			Tiberium: 92
 				PathingCost: 220
-			BlueTiberium: 90
+			BlueTiberium: 92
 				PathingCost: 220
-			RedTiberium: 85
+			RedTiberium: 88
 				PathingCost: 280
-			Veins: 60
+			Veins: 70
 				PathingCost: 500
 	JumpjetLocomotor@JUMPJET:
 		Name: jumpjet
@@ -52,33 +52,33 @@
 		SharesCell: true
 		JumpjetTransitionCost: 100
 		TerrainSpeeds:
-			Clear: 90
+			Clear: 95
 			Road: 100
 			Bridge: 100
-			Rail: 90
+			Rail: 95
 			DirtRoad: 100
-			Rough: 80
-			Tiberium: 85
-			BlueTiberium: 85
-			RedTiberium: 80
-			Veins: 55
-			Jumpjet: 115
+			Rough: 86
+			Tiberium: 90
+			BlueTiberium: 90
+			RedTiberium: 85
+			Veins: 65
+			Jumpjet: 100
 	Locomotor@WHEELED:
 		Name: wheeled
 		Crushes: crate, infantry
 		SlopeUphillCostModifier: 320
 		SlopeDownhillCostModifier: 63
 		TerrainSpeeds:
-			Clear: 78
-			Road: 120
-			Bridge: 120
-			Rail: 45
+			Clear: 88
+			Road: 100
+			Bridge: 100
+			Rail: 60
 			DirtRoad: 95
-			Rough: 38
-			Tiberium: 45
-			BlueTiberium: 45
-			RedTiberium: 40
-			Veins: 35
+			Rough: 55
+			Tiberium: 60
+			BlueTiberium: 60
+			RedTiberium: 55
+			Veins: 45
 				PathingCost: 120
 	Locomotor@HEAVYWHEELED:
 		Name: heavywheeled
@@ -86,16 +86,16 @@
 		SlopeUphillCostModifier: 340
 		SlopeDownhillCostModifier: 60
 		TerrainSpeeds:
-			Clear: 72
-			Road: 115
-			Bridge: 115
-			Rail: 40
-			DirtRoad: 90
-			Rough: 32
-			Tiberium: 40
-			BlueTiberium: 40
-			RedTiberium: 35
-			Veins: 30
+			Clear: 82
+			Road: 100
+			Bridge: 100
+			Rail: 55
+			DirtRoad: 96
+			Rough: 48
+			Tiberium: 52
+			BlueTiberium: 52
+			RedTiberium: 48
+			Veins: 40
 				PathingCost: 140
 	Locomotor@TRACKED:
 		Name: tracked
@@ -103,131 +103,131 @@
 		SlopeUphillCostModifier: 300
 		SlopeDownhillCostModifier: 65
 		TerrainSpeeds:
-			Clear: 82
-			Road: 110
-			Bridge: 110
+			Clear: 88
+			Road: 100
+			Bridge: 100
 			Rail: 100
-			DirtRoad: 95
-			Rough: 70
-			Tiberium: 75
-			BlueTiberium: 75
-			RedTiberium: 70
-			Veins: 60
+			DirtRoad: 98
+			Rough: 78
+			Tiberium: 80
+			BlueTiberium: 80
+			RedTiberium: 75
+			Veins: 66
 	Locomotor@HEAVYTRACKED:
 		Name: heavytracked
 		Crushes: wall, crate, infantry, lightvehicle, heavyinfantry, vehiclehusk
 		SlopeUphillCostModifier: 320
 		SlopeDownhillCostModifier: 63
 		TerrainSpeeds:
-			Clear: 78
-			Road: 105
-			Bridge: 105
+			Clear: 84
+			Road: 98
+			Bridge: 98
 			Rail: 95
-			DirtRoad: 90
-			Rough: 65
-			Tiberium: 70
-			BlueTiberium: 70
-			RedTiberium: 65
-			Veins: 55
+			DirtRoad: 94
+			Rough: 72
+			Tiberium: 74
+			BlueTiberium: 74
+			RedTiberium: 70
+			Veins: 62
 	Locomotor@WALKER:
 		Name: walker
 		Crushes: wall, crate, infantry, lightvehicle, vehiclehusk
 		SlopeUphillCostModifier: 185
 		SlopeDownhillCostModifier: 70
 		TerrainSpeeds:
-			Clear: 85
+			Clear: 88
 			Road: 100
 			Bridge: 100
-			Rail: 90
-			DirtRoad: 95
-			Rough: 85
-			Tiberium: 85
-			BlueTiberium: 85
-			RedTiberium: 80
-			Veins: 75
+			Rail: 92
+			DirtRoad: 96
+			Rough: 88
+			Tiberium: 88
+			BlueTiberium: 88
+			RedTiberium: 84
+			Veins: 78
 	Locomotor@LIGHTWALKER:
 		Name: lightwalker
 		Crushes: wall, crate
 		SlopeUphillCostModifier: 165
 		SlopeDownhillCostModifier: 72
 		TerrainSpeeds:
-			Clear: 85
+			Clear: 90
 			Road: 100
 			Bridge: 100
-			Rail: 90
-			DirtRoad: 95
-			Rough: 85
-			Tiberium: 85
-			BlueTiberium: 85
-			RedTiberium: 80
-			Veins: 75
+			Rail: 94
+			DirtRoad: 98
+			Rough: 90
+			Tiberium: 90
+			BlueTiberium: 90
+			RedTiberium: 86
+			Veins: 80
 	Locomotor@HEAVYWALKER:
 		Name: heavywalker
 		Crushes: wall, crate, infantry, lightvehicle, heavyinfantry, vehiclehusk
 		SlopeUphillCostModifier: 200
 		SlopeDownhillCostModifier: 68
 		TerrainSpeeds:
-			Clear: 78
-			Road: 95
-			Bridge: 95
-			Rail: 85
-			DirtRoad: 90
-			Rough: 80
-			Tiberium: 80
-			BlueTiberium: 80
-			RedTiberium: 75
-			Veins: 70
+			Clear: 82
+			Road: 96
+			Bridge: 96
+			Rail: 88
+			DirtRoad: 92
+			Rough: 84
+			Tiberium: 84
+			BlueTiberium: 84
+			RedTiberium: 80
+			Veins: 74
 	Locomotor@AMPHIBIOUS:
 		Name: amphibious
 		Crushes: wall, crate, infantry
 		SlopeUphillCostModifier: 300
 		SlopeDownhillCostModifier: 65
 		TerrainSpeeds:
-			Clear: 75
+			Clear: 82
 			Road: 100
 			Bridge: 100
 			Rail: 95
-			DirtRoad: 90
-			Rough: 65
-			Tiberium: 70
-			BlueTiberium: 70
-			RedTiberium: 65
-			Veins: 60
-			Water: 80
+			DirtRoad: 95
+			Rough: 72
+			Tiberium: 76
+			BlueTiberium: 76
+			RedTiberium: 70
+			Veins: 64
+			Water: 90
 	SubterraneanLocomotor@SUBTERRANEAN:
 		Name: subterranean
 		Crushes: wall, crate, infantry
 		SlopeUphillCostModifier: 200
 		SlopeDownhillCostModifier: 68
 		TerrainSpeeds:
-			Clear: 75
+			Clear: 80
 			Road: 100
 			Bridge: 100
 			Rail: 95
-			DirtRoad: 90
-			Rough: 70
-			Tiberium: 70
-			BlueTiberium: 70
-			RedTiberium: 65
-			Veins: 60
-			Subterranean: 120
+			DirtRoad: 94
+			Rough: 74
+			Tiberium: 74
+			BlueTiberium: 74
+			RedTiberium: 70
+			Veins: 64
+			Subterranean: 100
 		SubterraneanTransitionTerrainTypes: Clear, Rough
 		SubterraneanTransitionCost: 120
 	Locomotor@HOVER:
 		Name: hover
 		Crushes: wall, crate, infantry
 		TerrainSpeeds:
-			Clear: 95
+			Clear: 100
 			Road: 100
 			Bridge: 100
-			Rail: 95
+			Rail: 98
 			DirtRoad: 100
-			Rough: 90
+			Rough: 96
 			Water: 100
-			Tiberium: 95
-			BlueTiberium: 95
-			RedTiberium: 90
-			Veins: 85
+			Tiberium: 100
+			BlueTiberium: 100
+			RedTiberium: 95
+			Veins: 90
 	Locomotor@TIBCLOUD:
 		Name: tibcloud
 		SharesCell: true

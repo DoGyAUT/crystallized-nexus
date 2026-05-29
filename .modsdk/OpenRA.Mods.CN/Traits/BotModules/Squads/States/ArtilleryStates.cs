@@ -16,69 +16,31 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	/// <summary>
-	/// Idle: wait for an Assault/Rush squad to attach to, or find an enemy building.
-	/// For ArtilleryDefense: just hold near base and scan for threats.
+	/// Idle: wait for an Assault/Rush squad to attach to.
 	/// </summary>
 	sealed class ArtilleryIdleState : CNStateBase, ICNState
 	{
-		CPos? holdCell;
-		const int HoldRadiusCells = 6;
-
-		public void Activate(CNSquad squad) { holdCell = null; }
+		public void Activate(CNSquad squad) { }
 
 		public void Tick(CNSquad squad)
 		{
 			if (!squad.IsValid)
 				return;
 
-			if (squad.Type == CNSquadType.ArtilleryAssault)
+			// Find the squad we should attach to.
+			if (squad.AttachedTo == null || !squad.AttachedTo.IsValid)
 			{
-				// Find the squad we should attach to
-				if (squad.AttachedTo == null || !squad.AttachedTo.IsValid)
-				{
-					var attachable = squad.SquadManager.Squads
-						.Where(s => s.IsValid &&
-							(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush))
-						.ToArray();
+				var attachable = squad.SquadManager.Squads
+					.Where(s => s.IsValid &&
+						(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush))
+					.ToArray();
 
-					squad.AttachedTo = attachable.FirstOrDefault(s => s.IsTargetValid) ??
-						attachable.FirstOrDefault();
-				}
-
-				if (squad.AttachedTo != null)
-					squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryHangBackState());
+				squad.AttachedTo = attachable.FirstOrDefault(s => s.IsTargetValid) ??
+					attachable.FirstOrDefault();
 			}
-			else
-			{
-				// ArtilleryDefense: look for nearby threats
-				var center = squad.CenterUnit();
-				if (center == null)
-					return;
 
-				var threat = squad.SquadManager.FindClosestEnemy(center,
-					WDist.FromCells(squad.SquadManager.Info.DangerScanRadius));
-
-				if (threat != null)
-				{
-					squad.SetActorToTarget(threat);
-					squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryBombardState());
-				}
-				else
-				{
-					// Hold near one stable base cell instead of re-rolling a building every tick.
-					holdCell ??= squad.SquadManager.GetRandomBaseCenter();
-					var holdPos = squad.World.Map.CenterOfCell(holdCell.Value);
-					var holdRadiusSq = (long)WDist.FromCells(HoldRadiusCells).Length *
-						WDist.FromCells(HoldRadiusCells).Length;
-					var movers = squad.OrderableUnits
-						.Where(u => u.IsIdle && (u.CenterPosition - holdPos).LengthSquared > holdRadiusSq)
-						.ToArray();
-
-					if (movers.Length > 0)
-						squad.Bot.QueueOrder(new Order("Move", null, Target.FromCell(squad.World, holdCell.Value), false,
-							groupedActors: movers));
-				}
-			}
+			if (squad.AttachedTo != null)
+				squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryHangBackState());
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -220,11 +182,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 						}
 					}
 
-					// No target found (or no center unit) — go back to hang-back or idle
-					if (squad.Type == CNSquadType.ArtilleryAssault)
-						squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryHangBackState());
-					else
-						squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryIdleState());
+					// No target found (or no center unit) — go back to hang-back.
+					squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryHangBackState());
 					return;
 				}
 

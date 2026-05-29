@@ -64,6 +64,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// --- Targeting ---
 		internal Target Target { get; private set; }
 		internal Actor TargetActor { get; private set; }
+		internal int NoTargetIdleTicks;
 
 		// --- Slot assignments (from template) ---
 		public readonly List<CNSlotAssignment> SlotAssignments = [];
@@ -72,7 +73,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public WDist ArtilleryHangBackRange;  // Artillery: how far behind frontline to stay
 		public CNSquad AttachedTo;            // ArtilleryAssault/Support: squad to follow
 		public string[] PreferredTargetCapabilities; // BotCapabilities tags to prioritize as targets (Raider, Stealth, SubAssault, ...)
-
 
 		// --- Mob-Awareness ---
 		/// <summary>True if any unit in this squad is a MobSpawnerMaster.</summary>
@@ -129,14 +129,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public bool IsTemplateBacked => TemplateInfo != null;
 
 		/// <summary>
-		/// True for roles that stay near the base (defense, protection).
-		/// These squads may be reinforced while operational. Attack/away roles should
-		/// not receive single replacement units mid-mission.
+		/// True for reactive/home roles that may be reinforced while operational.
+		/// Attack/away roles should not receive single replacement units mid-mission.
 		/// </summary>
 		public bool AllowsOperationalReinforcement =>
-			Type == CNSquadType.Defense ||
-			Type == CNSquadType.ArtilleryDefense ||
-			Type == CNSquadType.Protection;
+			Type == CNSquadType.Protection ||
+			(Type == CNSquadType.Support && TemplateInfo?.StayInBase == true);
 
 		public CNSquad(
 			IBot bot,
@@ -203,6 +201,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			TargetActor = actor;
 			Target = actor != null ? Target.FromActor(actor) : Target.Invalid;
+			if (actor != null)
+				NoTargetIdleTicks = 0;
 		}
 
 		public void SetPositionToTarget(WPos pos)

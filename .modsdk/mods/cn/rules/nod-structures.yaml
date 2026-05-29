@@ -110,7 +110,7 @@ NAPOWR:
 	Armor:
 		Type: Light
 	RevealsShroud:
-		Range: 4c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@SMOKE:
 		RequiresCondition: !build-incomplete && !empdisable
@@ -170,6 +170,8 @@ NPROC:
 		Actor: NHARV
 		SpawnOffset: 2,1
 		Facing: 640
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 168, 175
 	WithIdleOverlay@LIGHTS:
 		RequiresCondition: !build-incomplete
 		Sequence: idle-lights
@@ -256,7 +258,7 @@ NAAPWR:
 	Armor:
 		Type: Light
 	RevealsShroud:
-		Range: 4c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@SMOKE1:
 		RequiresCondition: !build-incomplete && !empdisable
@@ -426,7 +428,7 @@ NAWEAP:
 	Armor:
 		Type: Heavy
 	RevealsShroud:
-		Range: 4c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	RallyPoint:
 		Palette: mouse
@@ -574,10 +576,10 @@ NARADR:
 	InfiltrateForExploration:
 		PlayerExperience: 10
 	DetectCloaked:
-		Range: 10c0
+		Range: 15c0
 	RenderDetectionCircle:
 	RevealsShroud:
-		Range: 10c0
+		Range: 15c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@DISH:
 		RequiresCondition: !build-incomplete
@@ -611,7 +613,7 @@ NATECH:
 	Armor:
 		Type: Light
 	RevealsShroud:
-		Range: 4c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@LIGHTS:
 		RequiresCondition: !build-incomplete && !disabled
@@ -650,7 +652,7 @@ NASTLH:
 	Armor:
 		Type: Light
 	RevealsShroud:
-		Range: 6c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@pulse:
 		RequiresCondition: !build-incomplete && !empdisable && !disabled
@@ -697,7 +699,7 @@ NAPYRA:
 	Armor:
 		Type: Heavy
 	RevealsShroud:
-		Range: 7c73
+		Range: 5c0
 	Production@Tech:
 		Produces: Tech
 		MoveIntoWorld: False
@@ -752,7 +754,7 @@ NATMPL:
 	Armor:
 		Type: Medium
 	RevealsShroud:
-		Range: 6c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	Power:
 		Amount: -200
@@ -810,7 +812,7 @@ NAMISL:
 	Armor:
 		Type: Medium
 	RevealsShroud:
-		Range: 4c0
+		Range: 5c0
 	WithIdleOverlay@LIGHTS:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights

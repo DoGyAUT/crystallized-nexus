@@ -9,9 +9,11 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using OpenRA.Mods.CN.Traits;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads
@@ -61,19 +63,60 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		// --- Enemy finding ---
 
-		/// <summary>Closest enemy unit visible to the player (wide scan).</summary>
-		public static Actor FindClosestEnemyUnit(CNSquad squad)
+		/// <summary>
+		/// True if at least one orderable unit in the squad has an active armament whose weapon
+		/// can target the given actor's enabled target types. Used to skip targets the squad
+		/// physically cannot damage (e.g. ground-only squad picking an aircraft as closest enemy).
+		/// </summary>
+		public static bool CanSquadEngage(CNSquad squad, Actor target)
 		{
-			return squad.SquadManager.FindClosestEnemy(squad.CenterUnit());
+			if (squad == null || target == null || target.IsDead || !target.IsInWorld)
+				return false;
+
+			var targetTypes = target.GetEnabledTargetTypes();
+			if (targetTypes.IsEmpty)
+				return false;
+
+			foreach (var unit in squad.OrderableUnits)
+			{
+				if (unit == null || unit.IsDead || !unit.IsInWorld)
+					continue;
+				if (UnitHasWeaponFor(unit, targetTypes))
+					return true;
+			}
+
+			return false;
 		}
 
-		/// <summary>Closest enemy building (no shroud check — bots know building locations).</summary>
+		static bool UnitHasWeaponFor(Actor unit, BitSet<TargetableType> targetTypes)
+		{
+			if (!unit.Info.HasTraitInfo<AttackBaseInfo>())
+				return false;
+
+			foreach (var arm in unit.TraitsImplementing<Armament>())
+			{
+				if (arm.IsTraitDisabled || arm.IsTraitPaused)
+					continue;
+				if (arm.Weapon.IsValidTarget(targetTypes))
+					return true;
+			}
+
+			return false;
+		}
+
+		/// <summary>Closest enemy unit visible to the player and engageable by the squad (wide scan).</summary>
+		public static Actor FindClosestEnemyUnit(CNSquad squad)
+		{
+			return squad.SquadManager.FindClosestEnemy(squad.CenterUnit(), a => CanSquadEngage(squad, a));
+		}
+
+		/// <summary>Closest enemy building engageable by the squad (no shroud check).</summary>
 		public static Actor FindClosestEnemyBuilding(CNSquad squad)
 		{
 			var center = squad.CenterUnit();
 			if (center == null)
 				return null;
-			return squad.SquadManager.FindClosestEnemyBuilding(center);
+			return squad.SquadManager.FindClosestEnemyBuilding(center, a => CanSquadEngage(squad, a));
 		}
 
 		/// <summary>
@@ -88,7 +131,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var nonDefense = squad.World.ActorsHavingTrait<Building>()
 				.Where(a => squad.SquadManager.IsLiveEnemyActor(a) &&
-				            !(a.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains("Defense") ?? false))
+				            !(a.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains("Defense") ?? false) &&
+				            CanSquadEngage(squad, a))
 				.MinByOrDefault(a => (a.CenterPosition - center.CenterPosition).LengthSquared);
 
 			return nonDefense ?? FindClosestEnemyBuilding(squad);
@@ -115,6 +159,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				if (!squad.SquadManager.IsPreferredEnemyUnit(actor))
 					return;
 				if (!actor.CanBeViewedByPlayer(squad.Bot.Player))
+					return;
+				if (!CanSquadEngage(squad, actor))
 					return;
 
 				var caps = actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;

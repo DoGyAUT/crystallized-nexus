@@ -114,7 +114,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		protected override bool ShouldFlee(CNSquad squad)
 		{
 			return ShouldFlee(squad, enemies =>
-				!CNAttackOrFleeFuzzy.Raider.CanAttack(squad.Units, enemies));
+				!CNAttackOrFleeFuzzy.Raider.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
 		}
 	}
 

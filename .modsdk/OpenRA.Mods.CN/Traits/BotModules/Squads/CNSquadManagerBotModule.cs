@@ -67,8 +67,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Squad behavior type for this team.")]
 		public readonly CNSquadType Role;
 
-		[Desc("Higher priority templates get first pick of available units.")]
-		public readonly int Priority = 50;
+		[Desc("Template quality within its role. Role quotas decide which role is needed; quality decides which template within that role wins.")]
+		public readonly int Quality = 50;
 
 		[Desc("Maximum number of simultaneous active squads of this template.")]
 		public readonly int MaxInstances = 1;
@@ -88,6 +88,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		[Desc("If true, units in active squads of this template can be poached by higher-priority templates.")]
 		public readonly bool Poachable = false;
+
+		[Desc("If true, support squads stay near the base instead of attaching to attack squads.")]
+		public readonly bool StayInBase = false;
 
 		[Desc("When set, limits MaxInstances based on how many of this building type the player owns. " +
 			"Effective MaxInstances = min(MaxInstances, numberOfBuildings * SquadsPerBuilding) when buildingCount > 0, else 0.")]
@@ -140,6 +143,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Delay (ticks) between attack force creation attempts.")]
 		public readonly int AttackForceInterval = 75;
 
+		[Desc("Ticks an offensive template squad may remain idle without a valid target before its units are released back to the assignment pool.")]
+		public readonly int NoTargetIdleReleaseTicks = 300;
+
 		[Desc("Delay (ticks) between rush attack attempts.")]
 		public readonly int RushInterval = 600;
 
@@ -174,9 +180,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("How many cells support squads stay behind their attached squad.")]
 		public readonly int SupportFollowRangeCells = 10;
 
-		[Desc("Target role shares used for all priority and share calculations regardless of active profile. " +
-			"This is the only remaining global strategic dictionary for role distribution.")]
-		public readonly Dictionary<CNSquadType, int> ArmyCompositionRatio = [];
+		[Desc("Target role shares for the offensive role-bucket tournament. Protection is excluded and should not be configured here.")]
+		public readonly Dictionary<CNSquadType, int> RoleQuotas = [];
+
+		[Desc("Score penalty per already active squad of the same template.")]
+		public readonly int DiversityPenalty = 8;
+
+		[Desc("Ticks an idle unit may wait before the salvage pass forces it into any matching offensive template.")]
+		public readonly int IdleSalvageTicks = 300;
+
+		[Desc("Ticks a support squad scans for an attach target before falling back to base garrison duty.")]
+		public readonly int MaxIdleScanTicks = 600;
+
+		[Desc("Cells support garrison squads are allowed to roam from the base center.")]
+		public readonly int BaseGarrisonRadius = 8;
+
+		[Desc("Maximum absolute contribution from per-unit threat bonuses per template. " +
+			"Prevents swarms from locking the bot into a single counter-template. 0 disables the cap.")]
+		public readonly int MaxThreatBonusFromPerUnit = 40;
 
 		[Desc("Enemy target types to never attack.")]
 		public readonly BitSet<TargetableType> IgnoredEnemyTargetTypes;
@@ -215,20 +236,32 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Max ticks a wave waits at the rally point for stragglers before transitioning to attack.")]
 		public readonly int AttackWaveStagingTimeoutTicks = 600;
 
+		[Desc("Hard timeout for a launched wave. If participants are still in hold/rally after this many ticks, " +
+			"force them into their role state and allow the next wave.")]
+		public readonly int AttackWaveMaxActiveTicks = 1800;
+
+		[Desc("Percent cut to AttackWaveInterval at EconomyOverflow factor 1.0 (faster waves when bot has surplus economy).")]
+		public readonly int EconomyOverflowWaveIntervalCutPct = 40;
+
+		[Desc("Percent cut to the current AttackWaveMinReadySquads threshold at EconomyOverflow factor 1.0 (lower bar to launch).")]
+		public readonly int EconomyOverflowWaveMinReadyCutPct = 40;
+
+		[Desc("Max additive boost to the fuzzy attack-or-flee threshold at EconomyOverflow factor 1.0 (more aggressive engagements). Internally clamped to 0..10.")]
+		public readonly double EconomyOverflowFuzzyAttackBoost = 8.0;
+
 		[Desc("Cells of arrival tolerance at the rally point.")]
 		public readonly int AttackWaveStagingArrivalCells = 5;
 
 		[Desc("Cells of random scatter around the hold position so wave-holding squads don't stack on top of each other.")]
 		public readonly int WaveHoldScatterCells = 4;
 
-		[Desc("Squad roles that participate in coordinated waves. Defense and Protection are always excluded regardless of this list. " +
+		[Desc("Squad roles that participate in coordinated waves. Protection is always excluded regardless of this list. " +
 			"Roles not listed attack independently as soon as they are formed.")]
 		public readonly CNSquadType[] WaveParticipantRoles =
 		[
 			CNSquadType.Assault,
 			CNSquadType.ArtilleryAssault,
 			CNSquadType.SubterraneanAssault,
-			CNSquadType.AircraftAttack,
 		];
 
 		[Desc("Team template definitions.")]
@@ -250,15 +283,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			base.RulesetLoaded(rules, ai);
 
-			// Defense and Protection are reactive roles — putting them into a wave
-			// would leave the base undefended between waves.
+			// Protection is reactive — putting it into a wave would leave the base
+			// without emergency response units between waves.
 			if (WaveParticipantRoles != null)
 			{
 				foreach (var role in WaveParticipantRoles)
-					if (role == CNSquadType.Defense || role == CNSquadType.Protection)
+					if (role == CNSquadType.Protection)
 						throw new YamlException(
 							$"CNSquadManagerBotModule on {ai.Name}: WaveParticipantRoles must not contain {role} — " +
-							"reactive defense roles are excluded from coordinated waves by design.");
+							"reactive protection is excluded from coordinated waves by design.");
 			}
 		}
 
@@ -292,9 +325,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int cleanupTicks;
 		int threatScanTicks;
 
-		// Sorted by effective priority (base + active threat bonuses).
-		IReadOnlyList<KeyValuePair<string, CNTeamTemplateInfo>> orderedTeams = [];
-
 		// Union of all ThreatBonus/ThreatBonusesGlobal keys — built once at enable.
 		readonly HashSet<string> allTrackedVisibleTags = [];
 		readonly HashSet<string> allTrackedGlobalTags = [];
@@ -319,14 +349,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		IReadOnlyList<Actor> cachedEnemyBuildings = [];
 		int cachedEnemyBuildingsTick = -1;
 
+		const int MaxTrackedAttackers = 4;
+		const int MaxRespondToAttackCooldown = 30;
 		// Reactive defense — tracks multiple simultaneous attackers
 		readonly List<Actor> recentAttackers = [];
-		const int MaxTrackedAttackers = 4;
 		int respondToAttackCooldown;
-		const int MaxRespondToAttackCooldown = 30;
 
 		// Nemesis system
 		CombatAnalysisBotModule combatAnalysis;
+		CNBaseBuilderBotModule baseBuilder;
 		CPos initialBaseCenter;
 
 		// Wave manager state
@@ -334,7 +365,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int waveGrowthTicks;
 		int waveSkipCount;
 		int waveCurrentMinReady;
+		int waveStartedTick;
 		HashSet<CNSquadType> waveEligibleRoleSet = [];
+		readonly Dictionary<Actor, int> idleTickCounters = [];
 
 		public bool IsWaveLaunched { get; private set; }
 		public Actor WaveTarget { get; private set; }
@@ -372,6 +405,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			combatAnalysis = Player.PlayerActor
 				.TraitsImplementing<CombatAnalysisBotModule>()
 				.FirstOrDefault();
+			baseBuilder = Player.PlayerActor
+				.TraitsImplementing<CNBaseBuilderBotModule>()
+				.FirstOrDefault();
 			foreach (var (_, template) in Info.Teams)
 			{
 				foreach (var tag in template.ThreatBonuses.Keys)
@@ -384,8 +420,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					allTrackedGlobalPerUnitTags.Add(tag);
 			}
 
-			RebuildOrderedTeams();
-
 			var random = World.LocalRandom;
 			assignRolesTicks = random.Next(0, Info.AssignRolesInterval);
 			attackForceTicks = random.Next(0, Info.AttackForceInterval);
@@ -395,7 +429,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			// Wave system init
 			waveEligibleRoleSet = new HashSet<CNSquadType>(Info.WaveParticipantRoles ?? []);
-			waveEligibleRoleSet.Remove(CNSquadType.Defense);
 			waveEligibleRoleSet.Remove(CNSquadType.Protection);
 
 			var staggerWindow = Math.Max(1, Info.AttackWaveInterval / 4);
@@ -403,6 +436,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			waveCurrentMinReady = Math.Max(1, Info.AttackWaveMinReadySquads);
 			waveGrowthTicks = Info.AttackWaveSizeGrowthInterval;
 			waveSkipCount = 0;
+			waveStartedTick = 0;
 			IsWaveLaunched = false;
 			WaveTarget = null;
 			WaveParticipants.Clear();
@@ -425,13 +459,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 				CleanSquads();
 				activeUnits.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
+				foreach (var actor in idleTickCounters.Keys
+					.Where(a => a == null || a.IsDead || !a.IsInWorld)
+					.ToList())
+					idleTickCounters.Remove(actor);
 			}
+
+			TrackIdleTime();
 
 			if (--attackForceTicks <= 0)
 			{
 				attackForceTicks = Info.AttackForceInterval;
 				foreach (var squad in Squads.ToList())
+				{
 					squad.Update();
+					ReleaseStaleNoTargetSquad(squad);
+				}
 			}
 
 			if (Info.AttackWaveEnabled)
@@ -527,8 +570,26 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (!ShouldRespondToAttack(defended, attacker))
 				return;
 
+			var idleUnits = World.ActorsHavingTrait<Mobile>()
+				.Where(a => a.Owner == Player &&
+							!a.IsDead &&
+							a.IsInWorld &&
+							!activeUnits.Contains(a) &&
+							!a.Info.HasTraitInfo<MobSpawnerSlaveInfo>() &&
+							CanActorAttackTarget(a, attacker))
+				.Take(8)
+				.ToList();
+
 			var protectSquad = Squads.FirstOrDefault(s =>
 				s.Type == CNSquadType.Protection && s.IsValid && !s.IsTemplateBacked);
+
+			if (protectSquad == null && idleUnits.Count == 0)
+				return;
+
+			if (protectSquad != null &&
+				!CNSquadHelper.CanSquadEngage(protectSquad, attacker) &&
+				idleUnits.Count == 0)
+				return;
 
 			if (protectSquad == null)
 			{
@@ -537,16 +598,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			protectSquad.SetActorToTarget(attacker);
-
-			var idleUnits = World.ActorsHavingTrait<Mobile>()
-				.Where(a => a.Owner == Player &&
-							!a.IsDead &&
-							a.IsInWorld &&
-							!activeUnits.Contains(a) &&
-							!a.Info.HasTraitInfo<MobSpawnerSlaveInfo>() &&
-							a.Info.HasTraitInfo<AttackBaseInfo>())
-				.Take(8)
-				.ToList();
 
 			foreach (var unit in idleUnits)
 			{
@@ -563,6 +614,57 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				UnregisterSquad(protectSquad);
 		}
 
+		void TrackIdleTime()
+		{
+			var seen = new HashSet<Actor>();
+
+			void Track(Actor actor)
+			{
+				if (actor.Owner != Player || actor.IsDead || !actor.IsInWorld || actor.Info.HasTraitInfo<MobSpawnerSlaveInfo>())
+					return;
+
+				seen.Add(actor);
+				if (activeUnits.Contains(actor) || actor.CurrentActivity is Enter)
+				{
+					idleTickCounters.Remove(actor);
+					return;
+				}
+
+				idleTickCounters[actor] = idleTickCounters.GetValueOrDefault(actor) + 1;
+			}
+
+			foreach (var actor in World.ActorsHavingTrait<Mobile>())
+				Track(actor);
+			foreach (var actor in World.ActorsHavingTrait<Aircraft>())
+				Track(actor);
+
+			foreach (var actor in idleTickCounters.Keys.Where(a => !seen.Contains(a)).ToList())
+				idleTickCounters.Remove(actor);
+		}
+
+		static bool CanActorAttackTarget(Actor actor, Actor target)
+		{
+			if (actor == null || target == null || actor.IsDead || target.IsDead)
+				return false;
+
+			if (!actor.Info.HasTraitInfo<AttackBaseInfo>())
+				return false;
+
+			var targetTypes = target.GetEnabledTargetTypes();
+			if (targetTypes.IsEmpty)
+				return false;
+
+			foreach (var arm in actor.TraitsImplementing<Armament>())
+			{
+				if (arm.IsTraitDisabled || arm.IsTraitPaused)
+					continue;
+				if (arm.Weapon.IsValidTarget(targetTypes))
+					return true;
+			}
+
+			return false;
+		}
+
 		void INotifyActorDisposing.Disposing(Actor self)
 		{
 			Squads.Clear();
@@ -575,8 +677,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public Dictionary<string, int> GetCurrentDemand(Dictionary<string, int> existingByType = null)
 		{
-			RebuildOrderedTeams();
-
 			var demand = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
 			foreach (var squad in Squads)
@@ -599,10 +699,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (missing <= 0)
 						continue;
 
-					AddPreferredDemand(
-						demand,
-						assignment.SlotInfo,
-						GetDemandScore(squad.TemplateInfo, assignment.SlotInfo, missing, true),
+						AddPreferredDemand(
+							demand,
+							assignment.SlotInfo,
+							GetUnitDemandScore(squad.TemplateInfo, assignment.SlotInfo, missing, true),
 					existingByType);
 				}
 			}
@@ -631,7 +731,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 						AddPreferredDemand(
 							demand,
 							slot,
-							GetDemandScore(template, slot, slot.Count, false),
+							GetUnitDemandScore(template, slot, slot.Count, false),
 							existingByType);
 					}
 				}
@@ -640,7 +740,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return demand;
 		}
 
-		int GetEffectiveMaxInstances(CNTeamTemplateInfo template)
+		public int GetEffectiveMaxInstances(CNTeamTemplateInfo template)
 		{
 			if (template.ScaleWithBuilding == null)
 				return template.MaxInstances;
@@ -729,9 +829,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 		}
 
-		int GetDemandScore(CNTeamTemplateInfo template, CNSlotInfo slot, int missingCount, bool existingSquad)
+		int GetUnitDemandScore(CNTeamTemplateInfo template, CNSlotInfo slot, int missingCount, bool existingSquad)
 		{
-			var score = EffectivePriority(template) * 100 + missingCount * 10;
+			var score = EffectiveScore(template) * 100 + missingCount * 10;
 
 			if (!slot.Optional)
 				score += 40;
@@ -763,53 +863,219 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (idleUnits.Count == 0)
 				return;
 
-			RebuildOrderedTeams();
-
 			var claimedThisPass = new HashSet<Actor>();
 			var claimedOwners = new Dictionary<Actor, CNSquad>();
 			var availableByType = BuildAvailableUnitsByType(idleUnits, claimedThisPass);
 
 			ReinforceExistingSquads(claimedThisPass, claimedOwners, availableByType);
-
-			var templateCounts = BuildTemplateSquadCounts();
-			foreach (var (templateName, template) in OrderedTemplates())
-			{
-				if (!TemplateAppliesToFaction(template))
-					continue;
-				if (templateCounts.GetValueOrDefault(templateName) >= GetEffectiveMaxInstances(template))
-					continue;
-
-				var assignments = TryFillSlots(template, availableByType, claimedThisPass);
-				if (assignments == null)
-					continue;
-
-				var fulfilledCount = assignments.Count(a => a.IsFulfilled && !a.SlotInfo.Optional);
-				if (fulfilledCount < template.MinSlotsToActivate)
-					continue;
-
-				var squad = RegisterSquad(bot, template.Role, templateName, template);
-				squad.ArtilleryHangBackRange = WDist.FromCells(Info.ArtilleryHangBackCells);
-
-				foreach (var assignment in assignments)
-				{
-					squad.SlotAssignments.Add(assignment);
-					ApplyAssignmentToSquad(squad, assignment, claimedThisPass, claimedOwners);
-				}
-
-				if (template.AttachToRole.Length > 0)
-				{
-					var attachTarget = Squads.FirstOrDefault(s =>
-						s != squad &&
-						s.IsValid &&
-						template.AttachToRole.Contains(s.Type));
-					squad.AttachedTo = attachTarget;
-				}
-
-				InitializeSquadState(squad);
-			}
+			RunOffensivePass(bot, claimedThisPass, claimedOwners, availableByType);
+			RunIdleSalvagePass(bot, claimedThisPass, claimedOwners, availableByType);
 
 			if (claimedThisPass.Count > 0)
 				EvictPoached(claimedOwners);
+		}
+
+		void RunOffensivePass(
+			IBot bot,
+			HashSet<Actor> claimedThisPass,
+			Dictionary<Actor, CNSquad> claimedOwners,
+			Dictionary<string, List<Actor>> availableByType)
+		{
+			var exhaustedRoles = new HashSet<CNSquadType>();
+
+			while (HasAvailableUnit(availableByType, claimedThisPass))
+			{
+				var role = PickNeededRole(exhaustedRoles);
+				if (role == null)
+					return;
+
+				if (TryCreateBestTemplateForRole(bot, role.Value, claimedThisPass, claimedOwners, availableByType))
+					continue;
+
+				exhaustedRoles.Add(role.Value);
+			}
+		}
+
+		void RunIdleSalvagePass(
+			IBot bot,
+			HashSet<Actor> claimedThisPass,
+			Dictionary<Actor, CNSquad> claimedOwners,
+			Dictionary<string, List<Actor>> availableByType)
+		{
+			if (Info.IdleSalvageTicks <= 0)
+				return;
+
+			foreach (var idleUnit in IdleSalvageCandidates(availableByType, claimedThisPass).ToList())
+			{
+				var candidates = OrderedTemplates()
+					.Where(kv => IsAttackRole(kv.Value.Role) &&
+						TemplateAppliesToFaction(kv.Value) &&
+						TemplateAcceptsUnit(kv.Value, idleUnit) &&
+						CountTemplateSquads(kv.Key) < GetEffectiveMaxInstances(kv.Value))
+					.OrderByDescending(kv => EffectiveScore(kv.Value))
+					.ToList();
+
+				foreach (var (templateName, template) in candidates)
+				{
+					var trialClaimed = new HashSet<Actor>(claimedThisPass);
+					var assignments = TryFillSlots(template, availableByType, trialClaimed);
+					if (!CanActivateTemplate(template, assignments))
+						continue;
+
+					CreateSquadFromAssignments(bot, templateName, template, assignments, claimedThisPass, claimedOwners);
+					break;
+				}
+			}
+		}
+
+		bool TryCreateBestTemplateForRole(
+			IBot bot,
+			CNSquadType role,
+			HashSet<Actor> claimedThisPass,
+			Dictionary<Actor, CNSquad> claimedOwners,
+			Dictionary<string, List<Actor>> availableByType)
+		{
+			var candidates = OrderedTemplates()
+				.Where(kv => kv.Value.Role == role &&
+					TemplateAppliesToFaction(kv.Value) &&
+					CountTemplateSquads(kv.Key) < GetEffectiveMaxInstances(kv.Value))
+				.OrderByDescending(kv => EffectiveScore(kv.Value))
+				.ToList();
+
+			foreach (var (templateName, template) in candidates)
+			{
+				var trialClaimed = new HashSet<Actor>(claimedThisPass);
+				var assignments = TryFillSlots(template, availableByType, trialClaimed);
+				if (!CanActivateTemplate(template, assignments))
+					continue;
+
+				CreateSquadFromAssignments(bot, templateName, template, assignments, claimedThisPass, claimedOwners);
+				return true;
+			}
+
+			return false;
+		}
+
+		void CreateSquadFromAssignments(
+			IBot bot,
+			string templateName,
+			CNTeamTemplateInfo template,
+			List<CNSlotAssignment> assignments,
+			HashSet<Actor> claimedThisPass,
+			Dictionary<Actor, CNSquad> claimedOwners)
+		{
+			var squad = RegisterSquad(bot, template.Role, templateName, template);
+			squad.ArtilleryHangBackRange = WDist.FromCells(Info.ArtilleryHangBackCells);
+
+			foreach (var assignment in assignments)
+			{
+				squad.SlotAssignments.Add(assignment);
+				ApplyAssignmentToSquad(squad, assignment, claimedThisPass, claimedOwners);
+			}
+
+			if (template.AttachToRole.Length > 0)
+			{
+				var attachTarget = Squads.FirstOrDefault(s =>
+					s != squad &&
+					s.IsValid &&
+					template.AttachToRole.Contains(s.Type));
+				squad.AttachedTo = attachTarget;
+			}
+
+			foreach (var unit in squad.Units)
+				idleTickCounters.Remove(unit);
+			foreach (var passenger in squad.PassengerUnits)
+				idleTickCounters.Remove(passenger);
+
+			InitializeSquadState(squad);
+		}
+
+		static bool CanActivateTemplate(CNTeamTemplateInfo template, List<CNSlotAssignment> assignments)
+		{
+			if (assignments == null)
+				return false;
+
+			var fulfilledCount = assignments.Count(a => a.IsFulfilled && !a.SlotInfo.Optional);
+			return fulfilledCount >= template.MinSlotsToActivate;
+		}
+
+		CNSquadType? PickNeededRole(HashSet<CNSquadType> exhaustedRoles)
+		{
+			if (Info.RoleQuotas == null || Info.RoleQuotas.Count == 0)
+				return null;
+
+			var activeCounts = new Dictionary<CNSquadType, int>();
+			var activeAttackSquadsTotal = 0;
+			foreach (var squad in Squads)
+			{
+				if (!squad.IsValid || !squad.IsTemplateBacked || !IsAttackRole(squad.Type))
+					continue;
+
+				activeCounts[squad.Type] = activeCounts.GetValueOrDefault(squad.Type) + 1;
+				activeAttackSquadsTotal++;
+			}
+
+			CNSquadType? bestRole = null;
+			var bestDeficit = int.MinValue;
+
+			foreach (var (role, quota) in Info.RoleQuotas)
+			{
+				if (quota <= 0 || exhaustedRoles.Contains(role) || !IsAttackRole(role))
+					continue;
+
+				var currentShare = activeAttackSquadsTotal > 0
+					? activeCounts.GetValueOrDefault(role) * 100 / activeAttackSquadsTotal
+					: 0;
+				var deficit = activeAttackSquadsTotal == 0 ? 1 : quota - currentShare;
+
+				if (deficit <= bestDeficit)
+					continue;
+
+				bestDeficit = deficit;
+				bestRole = role;
+			}
+
+			return bestDeficit > 0 ? bestRole : null;
+		}
+
+		static bool IsAttackRole(CNSquadType role) => role != CNSquadType.Protection;
+
+		static bool HasAvailableUnit(Dictionary<string, List<Actor>> availableByType, HashSet<Actor> claimed)
+		{
+			foreach (var (_, actors) in availableByType)
+				foreach (var actor in actors)
+					if (actor != null && !actor.IsDead && actor.IsInWorld && !claimed.Contains(actor))
+						return true;
+
+			return false;
+		}
+
+		IEnumerable<Actor> IdleSalvageCandidates(Dictionary<string, List<Actor>> availableByType, HashSet<Actor> claimed)
+		{
+			foreach (var (_, actors) in availableByType)
+				foreach (var actor in actors)
+				{
+					if (actor == null || actor.IsDead || !actor.IsInWorld || claimed.Contains(actor))
+						continue;
+
+					if (idleTickCounters.GetValueOrDefault(actor) >= Info.IdleSalvageTicks)
+						yield return actor;
+				}
+		}
+
+		static bool TemplateAcceptsUnit(CNTeamTemplateInfo template, Actor unit)
+		{
+			foreach (var (_, slot) in template.Slots)
+			{
+				if (slot.IsPassenger)
+					continue;
+
+				foreach (var type in slot.AllowedTypes)
+					if (string.Equals(type, unit.Info.Name, StringComparison.OrdinalIgnoreCase))
+						return true;
+			}
+
+			return false;
 		}
 
 		void ReinforceExistingSquads(
@@ -851,6 +1117,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 						activeUnits.Add(actor);
 						claimedOwners[actor] = squad;
+						idleTickCounters.Remove(actor);
 					}
 				}
 			}
@@ -1002,26 +1269,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return template.Factions.Length == 0 || template.Factions.Contains(Player.Faction.InternalName);
 		}
 
-		IEnumerable<KeyValuePair<string, CNTeamTemplateInfo>> OrderedTemplates() => orderedTeams;
+		IEnumerable<KeyValuePair<string, CNTeamTemplateInfo>> OrderedTemplates() =>
+			Info.Teams.OrderByDescending(kv => EffectiveScore(kv.Value));
 
-		public int GetEffectivePriority(CNTeamTemplateInfo template) => EffectivePriority(template);
+		public int GetEffectiveScore(CNTeamTemplateInfo template) => EffectiveScore(template);
 
 		public bool IsUnitAssignedToSquad(Actor actor)
 		{
 			return actor != null && activeUnits.Contains(actor);
 		}
 
-		void RebuildOrderedTeams()
-		{
-			orderedTeams = Info.Teams
-				.OrderByDescending(kv => EffectivePriority(kv.Value))
-				.ToList();
-		}
-
-		int EffectivePriority(CNTeamTemplateInfo template)
+		int EffectiveScore(CNTeamTemplateInfo template)
 		{
 			var bonus = 0;
-			bonus += GetProfileRoleTargetShareModifier(template.Role);
 
 			foreach (var (tag, value) in template.ThreatBonuses)
 				if (activeVisibleThreatTags.Contains(tag))
@@ -1029,47 +1289,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			foreach (var (tag, value) in template.ThreatBonusesGlobal)
 				if (activeGlobalThreatTags.Contains(tag))
 					bonus += value;
+
+			// Per-unit bonuses are summed separately and clamped so a swarm of one enemy type
+			// can't pin the bot into a single counter-template forever.
+			var perUnitBonus = 0;
 			foreach (var (tag, value) in template.ThreatBonusesPerUnit)
 				if (activeVisibleThreatCounts.TryGetValue(tag, out var vCount))
-					bonus += value * vCount;
+					perUnitBonus += value * vCount;
 			foreach (var (tag, value) in template.ThreatBonusesGlobalPerUnit)
 				if (activeGlobalThreatCounts.TryGetValue(tag, out var gCount))
-					bonus += value * gCount;
-			return template.Priority + bonus;
-		}
+					perUnitBonus += value * gCount;
 
-		int GetProfileRoleTargetShareModifier(CNSquadType role)
-		{
-			var shares = Info.ArmyCompositionRatio;
-			if (shares == null || shares.Count == 0)
-				return 0;
+			if (Info.MaxThreatBonusFromPerUnit > 0)
+				perUnitBonus = Math.Clamp(perUnitBonus, -Info.MaxThreatBonusFromPerUnit, Info.MaxThreatBonusFromPerUnit);
 
-			if (!TryGetCNSquadTypeValue(shares, role, out var targetShare))
-				targetShare = 0;
-
-			var activeTemplateSquads = Squads.Count(s => s.IsValid && s.IsTemplateBacked);
-			if (activeTemplateSquads == 0)
-				return targetShare > 0 ? Math.Min(30, targetShare) : -10;
-
-			var activeRoleSquads = Squads.Count(s => s.IsValid && s.IsTemplateBacked && s.Type == role);
-			if (targetShare <= 0)
-				return activeTemplateSquads >= 3 ? -35 : -10;
-
-			var desiredSquads = Math.Max(1, (activeTemplateSquads + 1) * targetShare / 100);
-			if (activeRoleSquads < desiredSquads)
-				return Math.Min(50, (desiredSquads - activeRoleSquads) * 18 + targetShare / 3);
-
-			var currentShare = activeRoleSquads * 100 / activeTemplateSquads;
-			if (currentShare > targetShare + 10)
-				return -Math.Min(60, (currentShare - targetShare) * 2);
-
-			return Math.Min(12, targetShare / 4);
-		}
-
-		static bool TryGetCNSquadTypeValue(Dictionary<CNSquadType, int> map, CNSquadType role, out int value)
-		{
-			value = 0;
-			return map != null && map.TryGetValue(role, out value);
+			bonus += perUnitBonus;
+			return template.Quality + bonus - Info.DiversityPenalty * Squads.Count(s => s.IsValid && s.IsTemplateBacked && s.TemplateInfo == template);
 		}
 
 		static bool HasCapability(Actor actor, string capability)
@@ -1132,7 +1367,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				(activeGlobalThreatTags, scratchGlobalThreatTags) = (scratchGlobalThreatTags, activeGlobalThreatTags);
 				(activeVisibleThreatCounts, scratchVisibleThreatCounts) = (scratchVisibleThreatCounts, activeVisibleThreatCounts);
 				(activeGlobalThreatCounts, scratchGlobalThreatCounts) = (scratchGlobalThreatCounts, activeGlobalThreatCounts);
-				RebuildOrderedTeams();
 			}
 		}
 
@@ -1223,14 +1457,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					squad.FuzzyStateMachine.ChangeState(squad, new CNGroundIdleState());
 					break;
 				case CNSquadType.ArtilleryAssault:
-				case CNSquadType.ArtilleryDefense:
 					squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryIdleState());
 					break;
 				case CNSquadType.Protection:
 					squad.FuzzyStateMachine.ChangeState(squad, new ProtectionIdleState());
-					break;
-				case CNSquadType.Defense:
-					squad.FuzzyStateMachine.ChangeState(squad, new DefenseIdleState());
 					break;
 				case CNSquadType.SubterraneanAssault:
 					squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultIdleState());
@@ -1295,7 +1525,38 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			EvaluateWaveTrigger(bot);
-			waveCooldownTicks = Math.Max(1, Info.AttackWaveInterval);
+			waveCooldownTicks = Math.Max(1, GetScaledAttackWaveInterval());
+		}
+
+		int GetScaledAttackWaveInterval()
+		{
+			var baseInterval = Info.AttackWaveInterval;
+			var milli = baseBuilder?.EconomyOverflowMilli ?? 0;
+			if (milli <= 0 || Info.EconomyOverflowWaveIntervalCutPct <= 0)
+				return baseInterval;
+
+			var cut = (baseInterval * Info.EconomyOverflowWaveIntervalCutPct * milli) / (100 * 1000);
+			return Math.Max(1, baseInterval - cut);
+		}
+
+		int GetScaledWaveMinReadyThreshold()
+		{
+			var threshold = Math.Max(1, waveCurrentMinReady);
+			var milli = baseBuilder?.EconomyOverflowMilli ?? 0;
+			if (milli <= 0 || Info.EconomyOverflowWaveMinReadyCutPct <= 0)
+				return threshold;
+
+			var cut = (threshold * Info.EconomyOverflowWaveMinReadyCutPct * milli) / (100 * 1000);
+			return Math.Max(1, threshold - cut);
+		}
+
+		public double GetAttackFuzzyBoost()
+		{
+			var milli = baseBuilder?.EconomyOverflowMilli ?? 0;
+			if (milli <= 0 || Info.EconomyOverflowFuzzyAttackBoost <= 0.0)
+				return 0.0;
+
+			return Info.EconomyOverflowFuzzyAttackBoost * (milli / 1000.0);
 		}
 
 		void EvaluateWaveTrigger(IBot bot)
@@ -1315,7 +1576,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				ready.Add(squad);
 			}
 
-			var threshold = Math.Max(1, waveCurrentMinReady);
+			var threshold = GetScaledWaveMinReadyThreshold();
 			var canLaunchNormally = ready.Count >= threshold;
 			var fallbackTriggered =
 				!canLaunchNormally &&
@@ -1349,11 +1610,30 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			foreach (var s in participants)
 				WaveParticipants.Add(s);
 
+			waveStartedTick = World.WorldTick;
 			IsWaveLaunched = true;
 		}
 
 		void MonitorActiveWave()
 		{
+			var waveExpired = World.WorldTick - waveStartedTick >= Math.Max(1, Info.AttackWaveMaxActiveTicks);
+			if (waveExpired)
+			{
+				foreach (var squad in WaveParticipants.ToList())
+				{
+					if (squad == null || !squad.IsValid)
+						continue;
+
+					if (WaveTarget != null && !WaveTarget.IsDead && WaveTarget.IsInWorld)
+						squad.SetActorToTarget(WaveTarget);
+
+					InitializeSquadStateForRole(squad);
+				}
+
+				ClearActiveWave();
+				return;
+			}
+
 			// Drop participants that died or already moved on (e.g. transitioned past MoveToRally).
 			WaveParticipants.RemoveWhere(s =>
 				s == null || !s.IsValid || !s.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>());
@@ -1367,6 +1647,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			IsWaveLaunched = false;
 			WaveTarget = null;
+			waveStartedTick = 0;
 			WaveParticipants.Clear();
 		}
 
@@ -1504,7 +1785,107 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					UnregisterSquad(Squads[i]);
 		}
 
-		public Actor FindClosestEnemy(Actor sourceActor)
+		void ReleaseStaleNoTargetSquad(CNSquad squad)
+		{
+			if (squad == null || !Squads.Contains(squad) || !IsReleasableNoTargetSquad(squad))
+				return;
+
+			if (!IsNoTargetIdleState(squad) || squad.IsTargetValid || HasBusyOrderableUnits(squad))
+			{
+				squad.NoTargetIdleTicks = 0;
+				return;
+			}
+
+			squad.NoTargetIdleTicks += Math.Max(1, Info.AttackForceInterval);
+			if (squad.NoTargetIdleTicks >= Math.Max(1, Info.NoTargetIdleReleaseTicks))
+				UnregisterSquad(squad);
+		}
+
+		static bool IsReleasableNoTargetSquad(CNSquad squad)
+		{
+			if (!squad.IsValid || !squad.IsTemplateBacked)
+				return false;
+
+			switch (squad.Type)
+			{
+				case CNSquadType.Assault:
+				case CNSquadType.Rush:
+				case CNSquadType.Raider:
+				case CNSquadType.Stealth:
+				case CNSquadType.SubterraneanAssault:
+				case CNSquadType.SubterraneanTransport:
+				case CNSquadType.ArtilleryAssault:
+				case CNSquadType.AircraftAttack:
+				case CNSquadType.AircraftRaider:
+				case CNSquadType.Transport:
+				case CNSquadType.AirTransport:
+					return true;
+				default:
+					return false;
+			}
+		}
+
+		static bool IsNoTargetIdleState(CNSquad squad)
+		{
+			var isAttackIdle = squad.FuzzyStateMachine.IsInState<CNGroundIdleState>() ||
+				squad.FuzzyStateMachine.IsInState<RaiderIdleState>() ||
+				squad.FuzzyStateMachine.IsInState<StealthIdleState>() ||
+				squad.FuzzyStateMachine.IsInState<SubAssaultIdleState>() ||
+				squad.FuzzyStateMachine.IsInState<ArtilleryIdleState>() ||
+				squad.FuzzyStateMachine.IsInState<AircraftAttackIdleState>() ||
+				squad.FuzzyStateMachine.IsInState<AircraftRaiderIdleState>();
+
+			if (isAttackIdle)
+				return true;
+
+			var isTransportIdle = squad.FuzzyStateMachine.IsInState<TransportIdleState>() ||
+				squad.FuzzyStateMachine.IsInState<AirTransportIdleState>() ||
+				squad.FuzzyStateMachine.IsInState<SubTransportIdleState>();
+
+			if (!isTransportIdle)
+				return false;
+
+			// Transport already carrying — actively working, not idle.
+			if (HasCargo(squad))
+				return false;
+
+			// Carrier alive but cargo empty: squad is waiting for passengers to walk over and board.
+			// Releasing here destroys the (often expensive) carrier reservation, which is why
+			// AirTransport squads in particular were chronically passive.
+			return !HasLiveCarrier(squad);
+		}
+
+		static bool HasLiveCarrier(CNSquad squad)
+		{
+			foreach (var carrier in squad.CarrierUnits)
+				if (!carrier.IsDead && carrier.IsInWorld)
+					return true;
+
+			return false;
+		}
+
+		static bool HasBusyOrderableUnits(CNSquad squad)
+		{
+			foreach (var unit in squad.OrderableUnits)
+				if (!unit.IsIdle)
+					return true;
+
+			return false;
+		}
+
+		static bool HasCargo(CNSquad squad)
+		{
+			foreach (var carrier in squad.CarrierUnits)
+			{
+				var cargo = carrier.TraitOrDefault<Cargo>();
+				if (cargo != null && !cargo.IsEmpty())
+					return true;
+			}
+
+			return false;
+		}
+
+		public Actor FindClosestEnemy(Actor sourceActor, Func<Actor, bool> additionalFilter = null)
 		{
 			if (sourceActor == null)
 				return null;
@@ -1512,17 +1893,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			var nemesis = combatAnalysis?.GetNemesis();
 			if (nemesis != null)
 			{
-				var nemesisTarget = FindClosestEnemy(sourceActor, WDist.FromCells(Info.AttackScanRadius), nemesis)
-					?? FindClosestEnemy(sourceActor, WDist.FromCells(Info.AttackScanRadius * 4), nemesis);
+				var nemesisTarget = FindClosestEnemy(sourceActor, WDist.FromCells(Info.AttackScanRadius), nemesis, additionalFilter)
+					?? FindClosestEnemy(sourceActor, WDist.FromCells(Info.AttackScanRadius * 4), nemesis, additionalFilter);
 				if (nemesisTarget != null)
 					return nemesisTarget;
 			}
 
-			return FindClosestEnemy(sourceActor, WDist.FromCells(Info.AttackScanRadius))
-				?? FindClosestEnemy(sourceActor, WDist.FromCells(Info.AttackScanRadius * 4));
+			return FindClosestEnemy(sourceActor, WDist.FromCells(Info.AttackScanRadius), additionalFilter)
+				?? FindClosestEnemy(sourceActor, WDist.FromCells(Info.AttackScanRadius * 4), additionalFilter);
 		}
 
-		public Actor FindClosestEnemy(Actor sourceActor, WDist radius)
+		public Actor FindClosestEnemy(Actor sourceActor, WDist radius, Func<Actor, bool> additionalFilter = null)
 		{
 			if (sourceActor == null)
 				return null;
@@ -1530,11 +1911,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return World.FindActorsInCircle(sourceActor.CenterPosition, radius)
 				.Where(a => IsPreferredEnemyUnit(a) &&
 							a.CanBeViewedByPlayer(Player) &&
-							!a.Info.HasTraitInfo<LineBuildInfo>())
+							!a.Info.HasTraitInfo<LineBuildInfo>() &&
+							(additionalFilter == null || additionalFilter(a)))
 				.MinByOrDefault(a => (a.CenterPosition - sourceActor.CenterPosition).LengthSquared);
 		}
 
-		Actor FindClosestEnemy(Actor sourceActor, WDist radius, Player preferredOwner)
+		Actor FindClosestEnemy(Actor sourceActor, WDist radius, Player preferredOwner, Func<Actor, bool> additionalFilter = null)
 		{
 			if (sourceActor == null)
 				return null;
@@ -1543,16 +1925,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				.Where(a => IsPreferredEnemyUnit(a) &&
 							a.CanBeViewedByPlayer(Player) &&
 							a.Owner == preferredOwner &&
-							!a.Info.HasTraitInfo<LineBuildInfo>())
+							!a.Info.HasTraitInfo<LineBuildInfo>() &&
+							(additionalFilter == null || additionalFilter(a)))
 				.MinByOrDefault(a => (a.CenterPosition - sourceActor.CenterPosition).LengthSquared);
 		}
 
-		public Actor FindClosestEnemyBuilding(Actor sourceActor)
+		public Actor FindClosestEnemyBuilding(Actor sourceActor, Func<Actor, bool> additionalFilter = null)
 		{
 			if (sourceActor == null)
 				return null;
 
 			var enemyBuildings = GetCachedEnemyBuildings();
+			if (additionalFilter != null)
+				enemyBuildings = enemyBuildings.Where(additionalFilter).ToList();
 
 			var nemesis = combatAnalysis?.GetNemesis();
 			if (nemesis != null)
@@ -1659,9 +2044,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				(a.CenterPosition - target.CenterPosition).LengthSquared);
 		}
 
-		static int CompareReinforcementPriority(CNSquad a, CNSquad b)
+		int CompareReinforcementPriority(CNSquad a, CNSquad b)
 		{
-			var priority = b.TemplateInfo.Priority.CompareTo(a.TemplateInfo.Priority);
+			var priority = EffectiveScore(b.TemplateInfo).CompareTo(EffectiveScore(a.TemplateInfo));
 			if (priority != 0)
 				return priority;
 

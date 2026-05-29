@@ -105,7 +105,7 @@ GAPOWR:
 	Armor:
 		Type: Light
 	RevealsShroud:
-		Range: 4c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@LIGHTS:
 		RequiresCondition: !build-incomplete && !empdisable
@@ -412,7 +412,7 @@ GAWEAP:
 	CNHealth:
 		HP: 1000
 	RevealsShroud:
-		Range: 4c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	Armor:
 		Type: Heavy
@@ -670,10 +670,10 @@ GARADR:
 	InfiltrateForExploration:
 		PlayerExperience: 10
 	DetectCloaked:
-		Range: 10c0
+		Range: 15c0
 	RenderDetectionCircle:
 	RevealsShroud:
-		Range: 10c0
+		Range: 15c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@DISH:
 		RequiresCondition: !build-incomplete
@@ -710,7 +710,7 @@ GAARMORY:
 	Armor:
 		Type: Medium
 	RevealsShroud:
-		Range: 7c73
+		Range: 5c0
 	Production@Tech:
 		Produces: Tech
 		MoveIntoWorld: False
@@ -751,7 +751,7 @@ GATECH:
 	Armor:
 		Type: Light
 	RevealsShroud:
-		Range: 4c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@LIGHTS:
 		RequiresCondition: !build-incomplete && !disabled
@@ -801,7 +801,7 @@ GAPLUG:
 	Armor:
 		Type: Medium
 	RevealsShroud:
-		Range: 6c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	IonCannonPower:
 		Cursor: ioncannon
@@ -1028,7 +1028,7 @@ GAFIRE:
 		Footprint: xxx xxx
 		Dimensions: 3,2
 	RevealsShroud:
-		Range: 6c0
+		Range: 5c0
 		MaxHeightDelta: 3
 	CNHealth:
 		HP: 1000

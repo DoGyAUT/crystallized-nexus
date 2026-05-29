@@ -346,7 +346,7 @@ ORCA_TRAN:
 		Roll: 90
 		RollSpeed: 15
 	CNHealth:
-		HP: 200
+		HP: 500
 	Armor:
 		Type: Light
 	Cargo:

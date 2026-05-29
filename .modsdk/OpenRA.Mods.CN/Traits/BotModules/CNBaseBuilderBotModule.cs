@@ -132,6 +132,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum number of non-wall core structures before the AI starts a perimeter wall.")]
 		public readonly int BasePerimeterWallMinimumStructures = 8;
 
+		[Desc("Per-profile BasePerimeterWallMinimumStructures override (BotProfile name keyed).")]
+		public readonly FrozenDictionary<string, int> ProfileBasePerimeterWallMinimumStructures = null;
+
 		[Desc("Extra cells between the core base footprint and the perimeter wall.")]
 		public readonly int BasePerimeterWallPadding = 4;
 
@@ -177,6 +180,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("When DynamicBaseRadius is true, radius cannot exceed this value.")]
 		public readonly int MaxDynamicBaseRadius = 30;
+
+		[Desc("Per-profile MaxDynamicBaseRadius override (keyed by BotProfile name: Rush, Turtle, Tech, Expansion, Steamroller).")]
+		public readonly FrozenDictionary<string, int> ProfileMaxDynamicBaseRadius = null;
+
+		[Desc("Per-profile RadiusPerBuilding override expressed as cells × 100 (e.g. 50 = 0.5). Keyed by BotProfile name.")]
+		public readonly FrozenDictionary<string, int> ProfileRadiusPerBuildingCentum = null;
 
 		[Desc("Default layout mode for all buildings not listed in BuildingLayouts.")]
 		public readonly BaseBuildingLayout DefaultLayout = BaseBuildingLayout.Random;
@@ -321,6 +330,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How strongly the nearest known enemy base/building influences defense placement when no stronger danger hotspot exists.")]
 		public readonly int DefensePlacementEnemyDirectionWeight = 70;
 
+		[Desc("How strongly remembered danger hotspots make tech-building placement avoid exposed cells.")]
+		public readonly int TechPlacementDangerAvoidanceWeight = 120;
+
+		[Desc("How strongly tech-building placement prefers cells close to the chosen base/production core.")]
+		public readonly int TechPlacementCoreBiasWeight = 2;
+
 		[Desc("Try to build another production building if there is too much cash.")]
 		public readonly int NewProductionCashThreshold = 5000;
 
@@ -370,6 +385,37 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Only queue construction of a new structure when above this requirement.")]
 		public readonly int ProductionMinCashRequirement = 500;
 
+		// --- Economy overflow signal ---
+		[Desc("Ticks between economy samples used to compute the EconomyOverflow signal.")]
+		public readonly int EconomyOverflowSampleInterval = 25;
+
+		[Desc("Number of samples retained for the EconomyOverflow moving average.")]
+		public readonly int EconomyOverflowSampleWindow = 12;
+
+		[Desc("Average cash below this contributes 0 to the EconomyOverflow signal.")]
+		public readonly int EconomyOverflowCashFloor = 3000;
+
+		[Desc("Average cash at/above this contributes the maximum to the EconomyOverflow signal.")]
+		public readonly int EconomyOverflowCashCeiling = 12000;
+
+		[Desc("Credits-per-tick income rate below this contributes 0 to the EconomyOverflow signal.")]
+		public readonly int EconomyOverflowIncomeFloor = 20;
+
+		[Desc("Credits-per-tick income rate at/above this contributes the maximum to the EconomyOverflow signal.")]
+		public readonly int EconomyOverflowIncomeCeiling = 90;
+
+		[Desc("Weight (out of 100) of the cash score in the EconomyOverflow signal.")]
+		public readonly int EconomyOverflowCashWeight = 50;
+
+		[Desc("Weight (out of 100) of the income score in the EconomyOverflow signal.")]
+		public readonly int EconomyOverflowIncomeWeight = 50;
+
+		[Desc("Percent bonus to per-type BuildingLimits at EconomyOverflow factor 1.0.")]
+		public readonly int EconomyOverflowBuildingLimitBonusPct = 75;
+
+		[Desc("Additional refinery target slots at EconomyOverflow factor 1.0 (still bounded by map-supported capacity).")]
+		public readonly int EconomyOverflowRefineryBonus = 2;
+
 		[Desc("Delay (in ticks) between reassigning rally points.")]
 		public readonly int AssignRallyPointsInterval = 100;
 
@@ -415,6 +461,24 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Do not sell a building for refinery recovery unless this much cash is still missing after accounting for current reserves.")]
 		public readonly int BankruptcyRecoveryMinimumShortfall = 100;
 
+		[Desc("Hard cash ceiling: bankruptcy recovery (tiers 1-3) never fires while the bot has more than this in cash+resources, even when other conditions match. Prevents premature selling during transient cash dips.")]
+		public readonly int BankruptcyRecoveryMaxCash = 500;
+
+		[Desc("Harvester actor types. Used by bankruptcy recovery to detect missing harvesters and queue replacements.")]
+		public readonly FrozenSet<string> HarvesterTypes = FrozenSet<string>.Empty;
+
+		[Desc("MCV actor types. Used by bankruptcy recovery when the bot has lost its construction yard but can still produce an MCV from a factory.")]
+		public readonly FrozenSet<string> McvTypes = FrozenSet<string>.Empty;
+
+		[Desc("Factory actor types that can produce an MCV. Used by bankruptcy recovery and terminal-state detection.")]
+		public readonly FrozenSet<string> McvFactoryTypes = FrozenSet<string>.Empty;
+
+		[Desc("If true, a bot with no path to economic recovery sells all remaining buildings and AttackMoves every unit toward the nearest enemy structure (terminal kamikaze).")]
+		public readonly bool BankruptcyKamikazeEnabled = true;
+
+		[Desc("Cash threshold below which terminal kamikaze may fire (avoids triggering while the bot still has buying power).")]
+		public readonly int BankruptcyKamikazeMaxCash = 200;
+
 		public override object Create(ActorInitializer init) { return new CNBaseBuilderBotModule(init.Self, this); }
 	}
 
@@ -444,8 +508,35 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.DynamicBaseRadius)
 				return Info.MaxBaseRadius;
 
-			var dynamic = Info.MaxBaseRadius + (int)(playerBuildingCount * Info.RadiusPerBuilding);
-			return Math.Min(dynamic, Info.MaxDynamicBaseRadius);
+			var dynamic = Info.MaxBaseRadius + (int)(playerBuildingCount * GetActiveRadiusPerBuilding());
+			return Math.Min(dynamic, GetActiveMaxDynamicBaseRadius());
+		}
+
+		public int GetActiveMaxDynamicBaseRadius()
+		{
+			if (profileModule != null && Info.ProfileMaxDynamicBaseRadius != null &&
+				Info.ProfileMaxDynamicBaseRadius.TryGetValue(profileModule.ActiveProfile.ToString(), out var v))
+				return v;
+
+			return Info.MaxDynamicBaseRadius;
+		}
+
+		public float GetActiveRadiusPerBuilding()
+		{
+			if (profileModule != null && Info.ProfileRadiusPerBuildingCentum != null &&
+				Info.ProfileRadiusPerBuildingCentum.TryGetValue(profileModule.ActiveProfile.ToString(), out var centum))
+				return centum / 100f;
+
+			return Info.RadiusPerBuilding;
+		}
+
+		public int GetActiveBasePerimeterWallMinimumStructures()
+		{
+			if (profileModule != null && Info.ProfileBasePerimeterWallMinimumStructures != null &&
+				Info.ProfileBasePerimeterWallMinimumStructures.TryGetValue(profileModule.ActiveProfile.ToString(), out var v))
+				return v;
+
+			return Info.BasePerimeterWallMinimumStructures;
 		}
 
 		public CPos DefenseCenter { get; private set; }
@@ -493,6 +584,7 @@ namespace OpenRA.Mods.Common.Traits
 		int checkBestResourceLocationTicks;
 		int sellRefineryTick;
 		int bankruptcyRecoveryTick;
+		bool terminalRecoveryTriggered;
 		int defenseDangerMemoryDecayTick;
 		int nextDefenseDangerMemoryRecordTick;
 		int nextDefenseCenterUpdateTick;
@@ -503,6 +595,22 @@ namespace OpenRA.Mods.Common.Traits
 		TechStage ActiveTechStage => profileModule?.ActiveTechStage ?? TechStage.Early;
 
 		public PlayerResources PlayerResources => playerResources;
+
+		// --- Economy overflow signal state ---
+		readonly Queue<(int Cash, int Earned, int Tick)> economySamples = new();
+		int economyOverflowTick;
+		int cachedEconomyOverflowMilli;
+		int cachedIncomeRate;
+
+		// Generic "economy overflow" factor (0..1000, milli units) sampled from cash + earned-income trend.
+		// Handicap-agnostic so it rewards both handicap bonuses and resource-rich maps.
+		public int EconomyOverflowMilli => cachedEconomyOverflowMilli;
+		public float EconomyOverflow => cachedEconomyOverflowMilli / 1000f;
+
+		// Credits-per-tick rate (latest Earned minus oldest sample / dt). Stays positive for a few
+		// hundred ticks after the last harvester dump; bankruptcy recovery uses this to wait through
+		// transient cash dips instead of selling buildings unnecessarily.
+		public int IncomeRate => cachedIncomeRate;
 
 		IReadOnlyList<Actor> cachedPlayerBuildings = [];
 		int cachedPlayerBuildingsTick = -1;
@@ -809,7 +917,8 @@ namespace OpenRA.Mods.Common.Traits
 			DefenseCenter = newLocation;
 		}
 
-		bool IBotRequestPauseUnitProduction.PauseUnitProduction => !IsTraitDisabled && !HasMinimalRefineryCount() && !RefineryExpansionBlocked;
+		bool IBotRequestPauseUnitProduction.PauseUnitProduction => !IsTraitDisabled && !HasMinimalRefineryCount() &&
+			HasEconomyRecoveryPath() && !RefineryExpansionBlocked;
 
 		void IBotTick.BotTick(IBot bot)
 		{
@@ -818,6 +927,12 @@ namespace OpenRA.Mods.Common.Traits
 				ResourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				firstTick = false;
+			}
+
+			if (--economyOverflowTick <= 0)
+			{
+				economyOverflowTick = Math.Max(1, Info.EconomyOverflowSampleInterval);
+				UpdateEconomyOverflow();
 			}
 
 			if (--assignRallyPointsTicks <= 0)
@@ -842,10 +957,18 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				checkBestResourceLocationTicks = Info.CheckBestResourceLocationInterval;
 
-				// Clear outdated refinery requests that add too many refinery to a map indice
-				if (ResourceMapModule != null)
+				// Clear outdated refinery requests: dead/disposed MCVs would otherwise block
+				// recovery checks (TryRecoverRefinery) indefinitely. Also drop requests whose
+				// target indice can no longer support another refinery.
+				foreach (var mcv in RequestedRefineries.Keys.ToList())
 				{
-					foreach (var mcv in RequestedRefineries.Keys.ToList())
+					if (mcv == null || mcv.IsDead || mcv.Disposed || !mcv.IsInWorld || mcv.Owner != player)
+					{
+						RequestedRefineries.Remove(mcv);
+						continue;
+					}
+
+					if (ResourceMapModule != null)
 					{
 						var requestedIndice = ResourceMapModule.FindClosestIndiceFromCPos(RequestedRefineries[mcv].ResourceLoc);
 						if (!CanSupportAnotherRefinery(requestedIndice, 0))
@@ -1166,6 +1289,30 @@ namespace OpenRA.Mods.Common.Traits
 			return score;
 		}
 
+		public long ScoreTechPlacementSafety(CPos cell, CPos coreCenter, DefensePlacementThreat[] dangerHotspots)
+		{
+			var score = (long)(cell - coreCenter).LengthSquared * Math.Max(0, Info.TechPlacementCoreBiasWeight);
+
+			if (dangerHotspots == null || dangerHotspots.Length == 0 || Info.TechPlacementDangerAvoidanceWeight <= 0)
+				return score;
+
+			var radius = Math.Max(1, Info.MaximumDefenseRadius + 6);
+			var radiusSq = radius * radius;
+			foreach (var threat in dangerHotspots)
+			{
+				if (threat.Weight <= 0)
+					continue;
+
+				var distanceSq = (cell - threat.Location).LengthSquared;
+				if (distanceSq >= radiusSq)
+					continue;
+
+				score += (long)threat.Weight * Info.TechPlacementDangerAvoidanceWeight * (radiusSq - distanceSq) / (100 * radiusSq);
+			}
+
+			return score;
+		}
+
 		sealed class DefenseDangerHotspot
 		{
 			readonly Dictionary<DefenseRole, int> roleWeights = [];
@@ -1317,6 +1464,21 @@ namespace OpenRA.Mods.Common.Traits
 		public bool HasMinimalRefineryCount() =>
 			AIUtils.CountActorByCommonName(RefineryBuildings) >= GetActiveInititalMinimumRefineryCount();
 
+		public bool HasEconomyRecoveryPath()
+		{
+			return HasEconomyRecoveryPath(GetCachedQueues());
+		}
+
+		bool HasEconomyRecoveryPath(ILookup<string, ProductionQueue> queuesByCategory)
+		{
+			return AIUtils.CountActorByCommonName(ConstructionYardBuildings) > 0 ||
+				AIUtils.CountActorByCommonName(RefineryBuildings) > 0 ||
+				HasQueuedOrProducingActor(Info.RefineryTypes, queuesByCategory) ||
+				HasQueuedOrProducingActor(Info.McvTypes, queuesByCategory) ||
+				GetCheapestBuildableActorCost(Info.RefineryTypes, queuesByCategory) > 0 ||
+				GetCheapestBuildableActorCost(Info.McvTypes, queuesByCategory) > 0;
+		}
+
 		public int GetTargetRefineryCount()
 		{
 			var productions = AIUtils.CountActorByCommonName(ProductionBuildings);
@@ -1336,10 +1498,67 @@ namespace OpenRA.Mods.Common.Traits
 			if (RequestedRefineries.Count > 0)
 				target += 1;
 
+			if (Info.EconomyOverflowRefineryBonus > 0 && cachedEconomyOverflowMilli > 0)
+				target += (Info.EconomyOverflowRefineryBonus * cachedEconomyOverflowMilli) / 1000;
+
 			var supportedCapacity = GetSupportedRefineryCapacity();
 			target = Math.Min(target, supportedCapacity);
 
 			return Math.Max(activeMinRefinery, target);
+		}
+
+		void UpdateEconomyOverflow()
+		{
+			if (playerResources == null)
+				return;
+
+			var cash = playerResources.GetCashAndResources();
+			var earned = playerResources.Earned;
+			var tick = world.WorldTick;
+
+			economySamples.Enqueue((cash, earned, tick));
+
+			var window = Math.Max(1, Info.EconomyOverflowSampleWindow);
+			while (economySamples.Count > window)
+				economySamples.Dequeue();
+
+			if (economySamples.Count < 2)
+			{
+				cachedEconomyOverflowMilli = 0;
+				return;
+			}
+
+			long cashSum = 0;
+			foreach (var s in economySamples)
+				cashSum += s.Cash;
+			var avgCash = (int)(cashSum / economySamples.Count);
+
+			var oldest = economySamples.Peek();
+			var dt = Math.Max(1, tick - oldest.Tick);
+			var incomeRate = (earned - oldest.Earned) / dt;
+			cachedIncomeRate = incomeRate;
+
+			var cashFloor = Info.EconomyOverflowCashFloor;
+			var cashCeil = Math.Max(cashFloor + 1, Info.EconomyOverflowCashCeiling);
+			var cashScoreMilli = Math.Clamp(((long)(avgCash - cashFloor) * 1000) / (cashCeil - cashFloor), 0L, 1000L);
+
+			var incomeFloor = Info.EconomyOverflowIncomeFloor;
+			var incomeCeil = Math.Max(incomeFloor + 1, Info.EconomyOverflowIncomeCeiling);
+			var incomeScoreMilli = Math.Clamp(((long)(incomeRate - incomeFloor) * 1000) / (incomeCeil - incomeFloor), 0L, 1000L);
+
+			var weightSum = Math.Max(1, Info.EconomyOverflowCashWeight + Info.EconomyOverflowIncomeWeight);
+			var blended = (cashScoreMilli * Info.EconomyOverflowCashWeight + incomeScoreMilli * Info.EconomyOverflowIncomeWeight) / weightSum;
+
+			cachedEconomyOverflowMilli = (int)Math.Clamp(blended, 0L, 1000L);
+		}
+
+		public int GetScaledBuildingLimit(int baseLimit)
+		{
+			if (baseLimit <= 0 || cachedEconomyOverflowMilli <= 0 || Info.EconomyOverflowBuildingLimitBonusPct <= 0)
+				return baseLimit;
+
+			var bonus = (baseLimit * Info.EconomyOverflowBuildingLimitBonusPct * cachedEconomyOverflowMilli) / (100 * 1000);
+			return baseLimit + bonus;
 		}
 
 		public bool HasEconomicFloat()
@@ -1696,13 +1915,22 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		int GetCheapestBuildableRefineryCost(ILookup<string, ProductionQueue> queuesByCategory)
+			=> GetCheapestBuildableActorCost(Info.RefineryTypes, queuesByCategory);
+
+		bool HasQueuedOrProducingRefinery(ILookup<string, ProductionQueue> queuesByCategory)
+			=> HasQueuedOrProducingActor(Info.RefineryTypes, queuesByCategory);
+
+		int GetCheapestBuildableActorCost(IReadOnlyCollection<string> types, ILookup<string, ProductionQueue> queuesByCategory)
 		{
+			if (types == null || types.Count == 0)
+				return -1;
+
 			var best = int.MaxValue;
 			foreach (var queue in queuesByCategory.SelectMany(q => q))
 			{
 				foreach (var item in queue.BuildableItems())
 				{
-					if (!Info.RefineryTypes.Contains(item.Name))
+					if (!types.Contains(item.Name))
 						continue;
 
 					best = Math.Min(best, queue.GetProductionCost(item));
@@ -1712,14 +1940,17 @@ namespace OpenRA.Mods.Common.Traits
 			return best == int.MaxValue ? -1 : best;
 		}
 
-		bool HasQueuedOrProducingRefinery(ILookup<string, ProductionQueue> queuesByCategory)
+		bool HasQueuedOrProducingActor(IReadOnlyCollection<string> types, ILookup<string, ProductionQueue> queuesByCategory)
 		{
-			if (BuildingsBeingProduced.Keys.Any(Info.RefineryTypes.Contains))
+			if (types == null || types.Count == 0)
+				return false;
+
+			if (BuildingsBeingProduced.Keys.Any(types.Contains))
 				return true;
 
 			return queuesByCategory.SelectMany(q => q)
 				.SelectMany(q => q.AllQueued())
-				.Any(p => Info.RefineryTypes.Contains(p.Item));
+				.Any(p => types.Contains(p.Item));
 		}
 
 		Actor ChooseEmergencySellCandidate()
@@ -1794,33 +2025,244 @@ namespace OpenRA.Mods.Common.Traits
 
 		void TryRecoverBankruptEconomy(IBot bot, ILookup<string, ProductionQueue> queuesByCategory)
 		{
-			if (Info.RefineryTypes.Count == 0)
+			// Recovery tiers — each returns true if it took an action (queued a sell), false otherwise.
+			// Tier 1: missing refinery, conyard alive → sell to fund refinery.
+			if (TryRecoverRefinery(bot, queuesByCategory))
 				return;
+
+			// Tier 2: refinery alive but no harvester → sell to fund harvester.
+			if (TryRecoverHarvester(bot, queuesByCategory))
+				return;
+
+			// Tier 3: no conyard but a factory can still produce an MCV → sell to fund MCV.
+			if (TryRecoverMcv(bot, queuesByCategory))
+				return;
+
+			// Tier 4: no path back. Spend remaining buildings on a kamikaze attack so the bot dies
+			// loudly instead of sitting on a useless rump base.
+			TryTerminalRecovery(bot, queuesByCategory);
+		}
+
+		bool TryRecoverRefinery(IBot bot, ILookup<string, ProductionQueue> queuesByCategory)
+		{
+			if (Info.RefineryTypes.Count == 0)
+				return false;
 
 			if (AIUtils.CountActorByCommonName(RefineryBuildings) > 0)
-				return;
+				return false;
 
 			if (RequestedRefineries.Count > 0 || HasQueuedOrProducingRefinery(queuesByCategory))
-				return;
+				return false;
 
 			if (AIUtils.CountActorByCommonName(ConstructionYardBuildings) <= 0)
-				return;
+				return false;
 
 			var refineryCost = GetCheapestBuildableRefineryCost(queuesByCategory);
 			if (refineryCost <= 0)
-				return;
+				return false;
 
 			var cash = playerResources.GetCashAndResources();
+			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
+				return false;
+
 			var shortfall = refineryCost - cash;
 			if (shortfall <= Info.BankruptcyRecoveryMinimumShortfall)
-				return;
+				return false;
+
+			// Active income → wait for cash to accumulate instead of preemptively selling.
+			// The sampling window (~300 ticks) keeps this positive for a while after the last
+			// harvester dump, which naturally debounces brief refinery losses.
+			if (cachedIncomeRate > 0)
+				return false;
 
 			var sellCandidate = ChooseEmergencySellCandidate();
 			if (sellCandidate == null)
-				return;
+				return false;
 
 			AIUtils.BotDebug($"CN AI: Selling {sellCandidate} to recover refinery economy. Cash {cash}, refinery cost {refineryCost}.");
 			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
+			return true;
+		}
+
+		bool TryRecoverHarvester(IBot bot, ILookup<string, ProductionQueue> queuesByCategory)
+		{
+			if (Info.HarvesterTypes.Count == 0)
+				return false;
+
+			// Only meaningful while we still have at least one refinery to dock at.
+			if (AIUtils.CountActorByCommonName(RefineryBuildings) <= 0)
+				return false;
+
+			if (HasLiveHarvester())
+				return false;
+
+			if (HasQueuedOrProducingActor(Info.HarvesterTypes, queuesByCategory))
+				return false;
+
+			var harvesterCost = GetCheapestBuildableActorCost(Info.HarvesterTypes, queuesByCategory);
+			if (harvesterCost <= 0)
+				return false;
+
+			var cash = playerResources.GetCashAndResources();
+			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
+				return false;
+
+			var shortfall = harvesterCost - cash;
+			if (shortfall <= Info.BankruptcyRecoveryMinimumShortfall)
+				return false;
+
+			// Active income → another harvester is probably still dumping. Wait it out.
+			if (cachedIncomeRate > 0)
+				return false;
+
+			var sellCandidate = ChooseEmergencySellCandidate();
+			if (sellCandidate == null)
+				return false;
+
+			AIUtils.BotDebug($"CN AI: Selling {sellCandidate} to recover harvester. Cash {cash}, harvester cost {harvesterCost}.");
+			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
+			return true;
+		}
+
+		bool TryRecoverMcv(IBot bot, ILookup<string, ProductionQueue> queuesByCategory)
+		{
+			if (Info.McvTypes.Count == 0)
+				return false;
+
+			// Skip if we still have a conyard — the standard tech ladder will re-deploy from there.
+			if (AIUtils.CountActorByCommonName(ConstructionYardBuildings) > 0)
+				return false;
+
+			if (HasQueuedOrProducingActor(Info.McvTypes, queuesByCategory))
+				return false;
+
+			var mcvCost = GetCheapestBuildableActorCost(Info.McvTypes, queuesByCategory);
+			if (mcvCost <= 0)
+				return false;
+
+			var cash = playerResources.GetCashAndResources();
+			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
+				return false;
+
+			var shortfall = mcvCost - cash;
+			if (shortfall <= Info.BankruptcyRecoveryMinimumShortfall)
+				return false;
+
+			// Active income → economy is still alive (e.g. lost conyard mid-game while a refinery
+			// still works). Wait for the next dump before tearing down buildings.
+			if (cachedIncomeRate > 0)
+				return false;
+
+			var sellCandidate = ChooseEmergencySellCandidate();
+			if (sellCandidate == null)
+				return false;
+
+			AIUtils.BotDebug($"CN AI: Selling {sellCandidate} to recover MCV. Cash {cash}, MCV cost {mcvCost}.");
+			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
+			return true;
+		}
+
+		void TryTerminalRecovery(IBot bot, ILookup<string, ProductionQueue> queuesByCategory)
+		{
+			if (!Info.BankruptcyKamikazeEnabled || terminalRecoveryTriggered)
+				return;
+
+			var cash = playerResources.GetCashAndResources();
+			if (cash > Info.BankruptcyKamikazeMaxCash)
+				return;
+
+			if (HasEconomyRecoveryPath(queuesByCategory))
+				return;
+
+			terminalRecoveryTriggered = true;
+			AIUtils.BotDebug($"CN AI: Terminal bankruptcy — selling all and going kamikaze. Cash {cash}.");
+
+			ExecuteKamikaze(bot);
+		}
+
+		bool HasLiveHarvester()
+		{
+			foreach (var actor in world.ActorsHavingTrait<Harvester>())
+				if (actor.Owner == player && !actor.IsDead && actor.IsInWorld)
+					return true;
+
+			return false;
+		}
+
+		void ExecuteKamikaze(IBot bot)
+		{
+			// Pick a target: nearest enemy building if any.
+			Actor target = null;
+			var anyOwnUnit = world.ActorsHavingTrait<Mobile>()
+				.FirstOrDefault(a => a.Owner == player && !a.IsDead && a.IsInWorld);
+
+			if (anyOwnUnit != null)
+				target = FindClosestEnemyBuilding(anyOwnUnit);
+
+			if (target == null)
+			{
+				target = world.Actors.FirstOrDefault(a =>
+					!a.IsDead && a.IsInWorld &&
+					a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy &&
+					a.Info.HasTraitInfo<BuildingInfo>());
+			}
+
+			if (target != null)
+			{
+				var attackTarget = Target.FromCell(world, world.Map.CellContaining(target.CenterPosition));
+
+				foreach (var unit in world.ActorsHavingTrait<Mobile>())
+				{
+					if (unit.Owner != player || unit.IsDead || !unit.IsInWorld)
+						continue;
+					bot.QueueOrder(new Order("AttackMove", unit, attackTarget, false));
+				}
+
+				foreach (var aircraft in world.ActorsHavingTrait<Aircraft>())
+				{
+					if (aircraft.Owner != player || aircraft.IsDead || !aircraft.IsInWorld)
+						continue;
+					bot.QueueOrder(new Order("AttackMove", aircraft, attackTarget, false));
+				}
+			}
+
+			// Sell every remaining building so the cash refund fuels the dying attack and the
+			// rump base disappears instead of sitting around as a passive husk.
+			foreach (var building in world.ActorsHavingTrait<Building>())
+			{
+				if (building.Owner != player || building.IsDead || !building.IsInWorld)
+					continue;
+				bot.QueueOrder(new Order("Sell", building, Target.FromActor(building), false));
+			}
+		}
+
+		Actor FindClosestEnemyBuilding(Actor sourceActor)
+		{
+			if (sourceActor == null)
+				return null;
+
+			Actor closest = null;
+			var bestDistSq = long.MaxValue;
+			var sourcePos = sourceActor.CenterPosition;
+
+			foreach (var actor in world.Actors)
+			{
+				if (actor.IsDead || !actor.IsInWorld)
+					continue;
+				if (actor.Owner.RelationshipWith(player) != PlayerRelationship.Enemy)
+					continue;
+				if (!actor.Info.HasTraitInfo<BuildingInfo>())
+					continue;
+
+				var distSq = (actor.CenterPosition - sourcePos).LengthSquared;
+				if (distSq < bestDistSq)
+				{
+					bestDistSq = distSq;
+					closest = actor;
+				}
+			}
+
+			return closest;
 		}
 
 		void IGameSaveTraitData.ResolveTraitData(Actor self, MiniYaml data)
