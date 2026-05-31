@@ -133,7 +133,6 @@ Proton:
 
 ObeliskLaserFire:
 	Inherits: ^Laser
-	Inherits@FLASH: ^FlashSmallW
 	ReloadDelay: 120
 	Range: 10c512
 	Report: obelray1.aud
@@ -149,10 +148,12 @@ ObeliskLaserFire:
 		Damage: 125
 	Warhead@2Sparks: SparkBurst
 		Count: 50
+	Warhead@3Eff: CreateEffect
+		Explosions: laserexplo
+		ExplosionPalette: effect
 
 TurretLaserFire:
 	Inherits: ^Laser
-	Inherits@FLASH: ^FlashMicroW
 	ReloadDelay: 50
 	Range: 7c512
 	Report: laser01.aud, laser02.aud, laser03.aud, laser04.aud, laser05.aud
@@ -166,6 +167,32 @@ TurretLaserFire:
 		SecondaryBeamColor: FF2A2A20
 	Warhead@1Dam: SpreadDamage
 		Damage: 25
+
+StingOfNodLaser:
+	Inherits: ^Laser
+	ReloadDelay: 170
+	Range: 9c512
+	Report: obelray1.aud
+	ValidTargets: Ground, Trees
+	Projectile: CNLaserZap
+		Width: 96
+		Duration: 18
+		DamageDuration: 18
+		DamageInterval: 3
+		Color: FF3030F0
+		SecondaryBeamWidth: 320
+		SecondaryBeamColor: FF181820
+	Warhead@1Dam: SpreadDamage
+		Damage: 200
+		Spread: 0c512
+	Warhead@2Sparks: SparkBurst
+		Count: 80
+	Warhead@3Eff: CreateEffect
+		Explosions: laserexplo
+		ExplosionPalette: effect
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: MediumScorch
+		InvalidTargets: Vehicle, Building, Wall
 
 LaserFence:
 	TargetActorCenter: true

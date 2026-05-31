@@ -49,30 +49,46 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		/// <summary>
+		/// How strongly a building pulls the deep-insertion point toward itself. High-value soft
+		/// targets (economy/production/tech) dominate so subtanks surface in the vulnerable core.
+		/// </summary>
+		static int InsertionValueWeight(Actor b)
+		{
+			var weight = 1;
+			if (HasCapability(b, "Superweapon")) weight += 8;
+			if (HasCapability(b, "Tech")) weight += 6;
+			if (HasCapability(b, "Economy")) weight += 6;
+			if (HasCapability(b, "Production")) weight += 5;
+			if (HasCapability(b, "Power")) weight += 3;
+			return weight;
+		}
+
+		/// <summary>
 		/// Returns the cell to burrow toward for a deep-insertion attack.
-		/// Computes the centroid of all non-defense enemy buildings and pushes
-		/// slightly past it, away from our base — so units surface in the heart
-		/// of the enemy base rather than at the defended perimeter.
+		/// Computes a value-weighted centroid of all non-defense enemy buildings — economy,
+		/// production and tech pull hard — and pushes slightly past it, away from our base.
+		/// This surfaces units in the soft economic heart rather than the defended perimeter
+		/// (a plain centroid would be dragged forward by front-line refineries/power).
 		/// </summary>
 		public static CPos FindDeepInsertionCell(CNSquad squad, Actor source)
 		{
-			long sumX = 0, sumY = 0;
-			var count = 0;
+			long sumX = 0, sumY = 0, totalWeight = 0;
 
 			foreach (var b in squad.SquadManager.GetCachedEnemyBuildings())
 			{
 				if (HasCapability(b, "Defense"))
 					continue;
 
-				sumX += b.CenterPosition.X;
-				sumY += b.CenterPosition.Y;
-				count++;
+				var weight = InsertionValueWeight(b);
+				sumX += (long)b.CenterPosition.X * weight;
+				sumY += (long)b.CenterPosition.Y * weight;
+				totalWeight += weight;
 			}
 
 			WPos targetPos;
-			if (count > 0)
+			if (totalWeight > 0)
 			{
-				targetPos = new WPos((int)(sumX / count), (int)(sumY / count), 0);
+				targetPos = new WPos((int)(sumX / totalWeight), (int)(sumY / totalWeight), 0);
 			}
 			else
 			{

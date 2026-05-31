@@ -1177,9 +1177,9 @@ gasand:
 gawall:
 	Defaults:
 		TilesetFilenames:
-			TEMPERATE: gtwall.shp
+			TEMPERATE: gawall.shp
 			SNOW: gawall.shp
-			DESERT: gtwall.shp
+			DESERT: gawall.shp
 		Offset: 0, -12, 12
 		DepthSprite: isodepth.shp
 	idle:
@@ -1821,6 +1821,7 @@ nagat:
 		Facings: 8
 		Length: 6
 		IgnoreWorldTint: True
+		BloomGlow: True
 	emp-overlay:
 		Filename: emp_fx01.shp
 		TilesetFilenames:
@@ -2249,6 +2250,7 @@ gactwr:
 		Facings: 8
 		Length: 6
 		IgnoreWorldTint: True
+		BloomGlow: True
 	muzzle_cannon:
 		TilesetFilenames:
 			TEMPERATE: tankmuzzle_medium.png
@@ -2260,6 +2262,7 @@ gactwr:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	muzzle_missile:
 		TilesetFilenames:
 			TEMPERATE: tankmuzzle_small.png
@@ -2271,6 +2274,7 @@ gactwr:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	muzzle_mortar:
 		TilesetFilenames:
 			TEMPERATE: tankmuzzle_small.png
@@ -2282,6 +2286,7 @@ gactwr:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	emp-overlay:
 		Filename: emp_fx01.shp
 		TilesetFilenames:
@@ -3051,6 +3056,7 @@ gasilo.nod:
 			SNOW: gasilo_a.shp
 			DESERT: gtsilo_a.shp
 		Length: 4
+		BloomGlowIntensity: 0.5
 	damaged-stages:
 		TilesetFilenames:
 			TEMPERATE: gtsilo_a.shp
@@ -3058,6 +3064,7 @@ gasilo.nod:
 			DESERT: gtsilo_a.shp
 		Start: 4
 		Length: 4
+		BloomGlowIntensity: 0.5
 	idle-underlay:
 		ShadowStart: 3
 		ZOffset: -512

@@ -101,9 +101,6 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Should visibility be considered when searching for capturable targets?")]
 		public readonly bool CheckCaptureTargetsForVisibility = true;
 
-		[Desc("Per-existing-squad score penalty applied to a template during template-selection. Higher values diversify production faster (default 1500). Set lower to favor specialization, higher to force rotation.")]
-		public readonly int TemplateActiveSquadPenalty = 1500;
-
 		public override object Create(ActorInitializer init) => new CNUnitBuilderBotModule(init.Self, this);
 	}
 
@@ -119,16 +116,11 @@ namespace OpenRA.Mods.CN.Traits
 		const int FeedbackTime = 30;
 		const int BaseMaxQueuedItemsPerQueue = 1;
 		const int ReservationStallTicks = 15 * FeedbackTime;
-		const int TemplateRecentBuildWindow = 6 * FeedbackTime;
-		const int TemplateRecentBuildPenaltyStep = 320;
-		const int TemplateReservationPenalty = 100;
-		const int TemplateDeficitBonus = 500;
 
 		readonly World world;
 		readonly Player player;
 		readonly List<string> externalBuildRequests = [];
 		readonly Dictionary<uint, QueueReservation> queueReservations = [];
-		readonly Dictionary<string, int> templateRecentBuildTicks = new(StringComparer.OrdinalIgnoreCase);
 
 		CNSquadManagerBotModule squadManager;
 		CNBotProfileBotModule profileModule;
@@ -562,8 +554,6 @@ namespace OpenRA.Mods.CN.Traits
 				return false;
 
 			reservation.LastProgressTick = world.WorldTick;
-			if (!string.IsNullOrEmpty(reservation.TemplateName))
-				templateRecentBuildTicks[reservation.TemplateName] = world.WorldTick;
 			existingByType[next.Name] = existingByType.GetValueOrDefault(next.Name) + 1;
 			committedCost += next.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
 
@@ -602,38 +592,35 @@ namespace OpenRA.Mods.CN.Traits
 			if (squadManager == null || squadManager.IsTraitDisabled)
 				return null;
 
-			string bestTemplate = null;
-			var bestScore = int.MinValue;
+			// Templates that still need a unit built for this queue, split so partially-built
+			// squads (reinforcement deficit) are finished before fresh templates are started.
+			var deficit = new List<KeyValuePair<string, CNTeamTemplateInfo>>();
+			var fresh = new List<KeyValuePair<string, CNTeamTemplateInfo>>();
 
-			foreach (var kv in squadManager.Info.Teams.OrderByDescending(t => squadManager.GetEffectiveScore(t.Value)))
+			foreach (var kv in squadManager.Info.Teams)
 			{
-				var templateName = kv.Key;
-				var template = kv.Value;
-				if (!TemplateAppliesToFaction(template))
+				if (!TemplateAppliesToFaction(kv.Value))
 					continue;
 
-				var next = GetReservedTemplateBuild(queue, templateName, existingByType);
-				if (next == null)
+				// Returns null when the template needs nothing right now or is at its instance cap.
+				if (GetReservedTemplateBuild(queue, kv.Key, existingByType) == null)
 					continue;
 
-				var score = squadManager.GetEffectiveScore(template) * 100;
-				if (HasExistingTemplateQueueDeficit(templateName, queue, existingByType))
-					score += TemplateDeficitBonus;
-
-				var currentCount = CountReservedTemplateSquads(templateName);
-				score += Math.Max(0, (squadManager.GetEffectiveMaxInstances(template) - currentCount) * 10);
-				score -= currentCount * Info.TemplateActiveSquadPenalty;
-				score -= CountReservedTemplateQueues(templateName, queue.Actor.ActorID) * TemplateReservationPenalty;
-				score -= GetRecentTemplatePenalty(templateName);
-
-				if (score > bestScore)
-				{
-					bestScore = score;
-					bestTemplate = templateName;
-				}
+				if (HasExistingTemplateQueueDeficit(kv.Key, queue, existingByType))
+					deficit.Add(kv);
+				else
+					fresh.Add(kv);
 			}
 
-			return bestTemplate;
+			// Weighted-random rotation: every eligible template can win, biased only lightly
+			// toward higher EffectiveScore (tag/need score) via TemplateSelectionSharpness, so
+			// the bot keeps using all templates instead of locking onto the single best one.
+			var pool = deficit.Count > 0 ? deficit : fresh;
+			if (pool.Count == 0)
+				return null;
+
+			var ordered = squadManager.WeightedTemplateOrder(pool, kv => squadManager.GetEffectiveScore(kv.Value));
+			return ordered[0].Key;
 		}
 
 		int CountReservedTemplateQueues(string templateName, uint excludingQueueActorId)
@@ -651,20 +638,6 @@ namespace OpenRA.Mods.CN.Traits
 			}
 
 			return count;
-		}
-
-		int GetRecentTemplatePenalty(string templateName)
-		{
-			if (!templateRecentBuildTicks.TryGetValue(templateName, out var lastBuildTick))
-				return 0;
-
-			var ticksSinceLastBuild = world.WorldTick - lastBuildTick;
-			if (ticksSinceLastBuild >= TemplateRecentBuildWindow)
-				return 0;
-
-			var remainingTicks = TemplateRecentBuildWindow - ticksSinceLastBuild;
-			var penaltySteps = Math.Max(1, (remainingTicks + FeedbackTime - 1) / FeedbackTime);
-			return penaltySteps * TemplateRecentBuildPenaltyStep;
 		}
 
 		bool HasExistingTemplateQueueDeficit(string templateName, ProductionQueue queue, Dictionary<string, int> existingByType)
@@ -985,7 +958,6 @@ namespace OpenRA.Mods.CN.Traits
 		void INotifyActorDisposing.Disposing(Actor self)
 		{
 			queueReservations.Clear();
-			templateRecentBuildTicks.Clear();
 		}
 	}
 }

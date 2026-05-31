@@ -425,7 +425,6 @@ engine/
 .continue/
 .continueignore
 .continuerules
-CLAUDE.md
 **/.claude/
 
 # Local build verification output

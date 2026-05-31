@@ -51,6 +51,7 @@ gharv:
 		Length: *
 		ZRamp: 1
 		Offset: 0, 0, 1
+		IgnoreWorldTint: True
 	icon:
 		Filename: gharvicon.shp
 
@@ -61,6 +62,7 @@ nharv:
 		Length: *
 		ZRamp: 1
 		Offset: 0, 0, 1
+		IgnoreWorldTint: True
 	icon:
 		Filename: npharvicon.shp
 
@@ -74,6 +76,7 @@ hvr:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	icon:
 		Filename: hovricon.shp
 
@@ -87,6 +90,7 @@ gtmtnk:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	icon:
 		Filename: archonicon.shp
 
@@ -100,6 +104,7 @@ gtmtnk:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	muzzle_rockets:
 		Filename: tankmuzzle_small.png
 		Facings: -32
@@ -108,6 +113,7 @@ gtmtnk:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	icon:
 		Filename: 4tnkicon.shp
 
@@ -225,6 +231,7 @@ art2:
 		Facings: 8
 		Length: 26
 		IgnoreWorldTint: True
+		BloomGlow: True
 
 nhwtz:
 	Inherits: ^VehicleOverlays
@@ -236,6 +243,7 @@ nhwtz:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	icon:
 		Filename: artyicon.shp
 
@@ -254,6 +262,7 @@ hmec:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	muzzle_missile:
 		Filename: tankmuzzle_small.png
 		Facings: -32
@@ -262,6 +271,7 @@ hmec:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	muzzle_mg:
 		Combine:
 			0:
@@ -291,6 +301,7 @@ hmec:
 		Facings: 8
 		Length: 6
 		IgnoreWorldTint: True
+		BloomGlow: True
 	icon:
 		Filename: hmecicon.shp
 
@@ -304,6 +315,7 @@ bike:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	icon:
 		Filename: cyclicon.shp
 
@@ -340,6 +352,7 @@ bggy:
 		Facings: 8
 		Length: 6
 		IgnoreWorldTint: True
+		BloomGlow: True
 	icon:
 		Filename: bggyicon.shp
 		Offset: 0, 0
@@ -358,109 +371,6 @@ sonic:
 	Inherits: ^VehicleOverlays
 	Defaults:
 		Offset: 0, 5, 64
-	muzzle:
-		Combine:
-			0:
-				Filename: trnd_0.shp
-				Length: 30
-			1:
-				Filename: trnd_31.shp
-				Length: 30
-			2:
-				Filename: trnd_30.shp
-				Length: 30
-			3:
-				Filename: trnd_29.shp
-				Length: 30
-			4:
-				Filename: trnd_28.shp
-				Length: 30
-			5:
-				Filename: trnd_27.shp
-				Length: 30
-			6:
-				Filename: trnd_26.shp
-				Length: 30
-			7:
-				Filename: trnd_25.shp
-				Length: 30
-			8:
-				Filename: trnd_24.shp
-				Length: 30
-			9:
-				Filename: trnd_23.shp
-				Length: 30
-			10:
-				Filename: trnd_22.shp
-				Length: 30
-			11:
-				Filename: trnd_21.shp
-				Length: 30
-			12:
-				Filename: trnd_20.shp
-				Length: 30
-			13:
-				Filename: trnd_19.shp
-				Length: 30
-			14:
-				Filename: trnd_18.shp
-				Length: 30
-			15:
-				Filename: trnd_17.shp
-				Length: 30
-			16:
-				Filename: trnd_16.shp
-				Length: 30
-			17:
-				Filename: trnd_15.shp
-				Length: 30
-			18:
-				Filename: trnd_14.shp
-				Length: 30
-			19:
-				Filename: trnd_13.shp
-				Length: 30
-			20:
-				Filename: trnd_12.shp
-				Length: 30
-			21:
-				Filename: trnd_11.shp
-				Length: 30
-			22:
-				Filename: trnd_10.shp
-				Length: 30
-			23:
-				Filename: trnd_9.shp
-				Length: 30
-			24:
-				Filename: trnd_8.shp
-				Length: 30
-			25:
-				Filename: trnd_7.shp
-				Length: 30
-			26:
-				Filename: trnd_6.shp
-				Length: 30
-			27:
-				Filename: trnd_5.shp
-				Length: 30
-			28:
-				Filename: trnd_4.shp
-				Length: 30
-			29:
-				Filename: trnd_3.shp
-				Length: 30
-			30:
-				Filename: trnd_2.shp
-				Length: 30
-			31:
-				Filename: trnd_1.shp
-				Length: 30
-		Facings: 32
-		Length: 30
-		Tick: 100
-		Palette: apolcyan
-		IgnoreWorldTint: True
 	icon:
 		Filename: soniicon.shp
 
@@ -474,6 +384,7 @@ ltnk:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	icon:
 		Filename: tickicon.shp
 
@@ -504,6 +415,7 @@ ttnk:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	dig:
 		Filename: dig.png
 		Palette: terrain
@@ -532,8 +444,43 @@ stnk:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	icon:
 		Filename: stnkicon.shp
+
+scorpion:
+	Defaults:
+		Filename: scorpion.shp
+	stand:
+		Start: 160
+		Facings: -8
+		ShadowStart: 688
+	walk:
+		Length: 20
+		Facings: -8
+		ShadowStart: 528
+	shoot:
+		Start: 168
+		Length: 40
+		Facings: -8
+		ShadowStart: 696
+		Tick: 60
+	Inherits: ^VehicleOverlays
+	icon:
+		Filename: scorpioncon.shp
+
+sting-husk:
+	stand:
+		Filename: scdeth1x.png
+		Start: 0
+	decay:
+		Filename: scdeth1x.png
+		Length: *
+		Tick: 60
+	explode:
+		Filename: scdeth2x.png
+		Length: *
+		Tick: 60
 
 mmch:
 	Defaults:
@@ -560,6 +507,7 @@ mmch:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	icon:
 		Filename: mmchicon.shp
 
@@ -600,6 +548,7 @@ jugg:
 		ShadowStart: -1
 		IgnoreWorldTint: True
 		BlendMode: Additive
+		BloomGlow: True
 	icon:
 		Filename: juggicon.shp
 

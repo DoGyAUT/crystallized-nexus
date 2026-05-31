@@ -135,6 +135,8 @@ icbm:
 
 repair:
 	idle:
+	turret: repairtur
+	debris1: repairtur_debris
 
 weed:
 	idle:

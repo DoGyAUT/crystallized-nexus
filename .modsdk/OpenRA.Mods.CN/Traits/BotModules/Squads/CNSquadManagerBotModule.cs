@@ -62,13 +62,37 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 	// YAML Info: Team Template
 	// ---------------------------------------------------------------------------
 
+	public class CNSquadNeedRuleInfo
+	{
+		[Desc("Enemy BotCapabilities that raise the need for the matching squad tag.")]
+		public readonly string[] EnemyCapabilities = [];
+
+		[Desc("Score added for each visible enemy with one of EnemyCapabilities.")]
+		public readonly int VisibleWeight = 10;
+
+		[Desc("Score added for each enemy with one of EnemyCapabilities, ignoring shroud.")]
+		public readonly int GlobalWeight = 0;
+
+		[Desc("Flat score added when any visible enemy with one of EnemyCapabilities exists.")]
+		public readonly int VisibleBonus = 0;
+
+		[Desc("Flat score added when any enemy with one of EnemyCapabilities exists, ignoring shroud.")]
+		public readonly int GlobalBonus = 0;
+	}
+
 	public class CNTeamTemplateInfo
 	{
 		[Desc("Squad behavior type for this team.")]
 		public readonly CNSquadType Role;
 
-		[Desc("Template quality within its role. Role quotas decide which role is needed; quality decides which template within that role wins.")]
-		public readonly int Quality = 50;
+		[Desc("Free-form squad response tags used by the tag/need scoring model.")]
+		public readonly string[] Tags = [];
+
+		[Desc("Optional score adjustment for tagged templates. Use this to prefer a squad over another squad with similar tags.")]
+		public readonly int Bias = 0;
+
+		[Desc("Score penalty per active squad of this exact tagged template. -1 uses the module RepeatPenalty.")]
+		public readonly int RepeatPenalty = -1;
 
 		[Desc("Maximum number of simultaneous active squads of this template.")]
 		public readonly int MaxInstances = 1;
@@ -92,6 +116,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("If true, support squads stay near the base instead of attaching to attack squads.")]
 		public readonly bool StayInBase = false;
 
+		[Desc("Transport/SubterraneanTransport only: after dropping its passengers (engineers) behind enemy " +
+			"lines, the squad orders them to capture the nearest valuable enemy building and immediately " +
+			"sell it for cash + denial. The (empty) carriers then return home.")]
+		public readonly bool CaptureAndSell = false;
+
 		[Desc("When set, limits MaxInstances based on how many of this building type the player owns. " +
 			"Effective MaxInstances = min(MaxInstances, numberOfBuildings * SquadsPerBuilding) when buildingCount > 0, else 0.")]
 		public readonly string ScaleWithBuilding = null;
@@ -99,20 +128,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Number of squad instances each ScaleWithBuilding instance can support. " +
 			"Used only when ScaleWithBuilding is set. Formula: scaledMax = buildingCount * SquadsPerBuilding.")]
 		public readonly int SquadsPerBuilding = 1;
-
-		[Desc("Priority bonus when a visible enemy unit has the given capability tag (respects shroud). " +
-			"Example: Aircraft: 50 adds +50 when a visible enemy has BotCapabilities: Aircraft.")]
-		public readonly Dictionary<string, int> ThreatBonuses = [];
-
-		[Desc("Priority bonus when any enemy unit on the map has the given capability tag (ignores shroud). " +
-			"Use for tags that are never visible, e.g. Cloaked.")]
-		public readonly Dictionary<string, int> ThreatBonusesGlobal = [];
-
-		[Desc("Priority bonus multiplied by the count of visible enemy units with the given capability tag.")]
-		public readonly Dictionary<string, int> ThreatBonusesPerUnit = [];
-
-		[Desc("Priority bonus multiplied by the count of enemy units on the map with the given capability tag (ignores shroud).")]
-		public readonly Dictionary<string, int> ThreatBonusesGlobalPerUnit = [];
 
 		[Desc("Slot definitions keyed by slot name.")]
 		[FieldLoader.LoadUsing(nameof(LoadSlots))]
@@ -152,10 +167,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Delay (ticks) between removing dead units from squad bookkeeping.")]
 		public readonly int CleanupInterval = 10;
 
-		[Desc("Delay (ticks) between enemy threat scans for ThreatBonuses. 0 = disabled.")]
+		[Desc("Delay (ticks) between enemy capability scans for NeedRules. 0 = disabled.")]
 		public readonly int ThreatScanInterval = 150;
 
-		[Desc("If true, ThreatBonuses only consider units belonging to the current nemesis player. " +
+		[Desc("If true, NeedRules only consider units belonging to the current nemesis player. " +
 			"Falls back to all enemies when no nemesis is determined. Recommended for FFA/2v2 games.")]
 		public readonly bool ThreatOnlyFromNemesis = true;
 
@@ -180,11 +195,39 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("How many cells support squads stay behind their attached squad.")]
 		public readonly int SupportFollowRangeCells = 10;
 
-		[Desc("Target role shares for the offensive role-bucket tournament. Protection is excluded and should not be configured here.")]
-		public readonly Dictionary<CNSquadType, int> RoleQuotas = [];
+		[Desc("Base score added to tagged templates by squad role. Used by the simplified tag/need scoring model.")]
+		public readonly Dictionary<CNSquadType, int> RoleWeights = [];
 
-		[Desc("Score penalty per already active squad of the same template.")]
-		public readonly int DiversityPenalty = 8;
+		[Desc("Static score added for each matching squad tag. Useful for always-useful tags such as Frontline or Support.")]
+		public readonly Dictionary<string, int> TagWeights = [];
+
+		[Desc("Dynamic need rules keyed by squad tag. Enemy BotCapabilities raise the need for templates with the same tag.")]
+		[FieldLoader.LoadUsing(nameof(LoadNeedRules))]
+		public readonly Dictionary<string, CNSquadNeedRuleInfo> NeedRules = [];
+
+		[Desc("Optional list of valid squad tags. If set, templates, TagWeights, and NeedRules using unknown tags fail at ruleset load.")]
+		public readonly string[] KnownSquadTags = [];
+
+		[Desc("Base score for templates that use Tags.")]
+		public readonly int TaggedTemplateBaseScore = 50;
+
+		[Desc("Default score penalty per already active squad of the same tagged template.")]
+		public readonly int RepeatPenalty = 8;
+
+		[Desc("Score penalty per already active squad sharing each tag.")]
+		public readonly int TagSaturationPenalty = 4;
+
+		[Desc("Score penalty per already active squad of the same role when picking roles.")]
+		public readonly int RoleSaturationPenalty = 8;
+
+		[Desc("Maximum absolute dynamic score contribution from one NeedRules entry. 0 disables the cap.")]
+		public readonly int MaxNeedScorePerTag = 100;
+
+		[Desc("Randomness exponent for template selection (squad formation and production). " +
+			"Templates are chosen by a weighted lottery where the chance is proportional to " +
+			"max(1, EffectiveScore)^TemplateSelectionSharpness, so every template keeps getting used over time. " +
+			"0 = fully even (need ignored), 1-2 = lightly steered by need, higher approaches strict best-first.")]
+		public readonly int TemplateSelectionSharpness = 2;
 
 		[Desc("Ticks an idle unit may wait before the salvage pass forces it into any matching offensive template.")]
 		public readonly int IdleSalvageTicks = 300;
@@ -194,10 +237,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		[Desc("Cells support garrison squads are allowed to roam from the base center.")]
 		public readonly int BaseGarrisonRadius = 8;
-
-		[Desc("Maximum absolute contribution from per-unit threat bonuses per template. " +
-			"Prevents swarms from locking the bot into a single counter-template. 0 disables the cap.")]
-		public readonly int MaxThreatBonusFromPerUnit = 40;
 
 		[Desc("Enemy target types to never attack.")]
 		public readonly BitSet<TargetableType> IgnoredEnemyTargetTypes;
@@ -279,6 +318,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return teams;
 		}
 
+		static object LoadNeedRules(MiniYaml yaml)
+		{
+			var rules = new Dictionary<string, CNSquadNeedRuleInfo>();
+			var rulesNode = yaml.NodeWithKeyOrDefault("NeedRules");
+			if (rulesNode == null)
+				return rules;
+			foreach (var node in rulesNode.Value.Nodes)
+				rules[node.Key] = FieldLoader.Load<CNSquadNeedRuleInfo>(node.Value);
+			return rules;
+		}
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -293,6 +343,27 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 							$"CNSquadManagerBotModule on {ai.Name}: WaveParticipantRoles must not contain {role} — " +
 							"reactive protection is excluded from coordinated waves by design.");
 			}
+
+			if (KnownSquadTags.Length > 0)
+			{
+				var knownTags = new HashSet<string>(KnownSquadTags, StringComparer.OrdinalIgnoreCase);
+				foreach (var tag in TagWeights.Keys)
+					if (!knownTags.Contains(tag))
+						throw new YamlException($"CNSquadManagerBotModule on {ai.Name}: TagWeights contains unknown squad tag `{tag}`.");
+
+				foreach (var tag in NeedRules.Keys)
+					if (!knownTags.Contains(tag))
+						throw new YamlException($"CNSquadManagerBotModule on {ai.Name}: NeedRules contains unknown squad tag `{tag}`.");
+
+				foreach (var (templateName, template) in Teams)
+					foreach (var tag in template.Tags)
+						if (!knownTags.Contains(tag))
+							throw new YamlException($"CNSquadManagerBotModule on {ai.Name}: template `{templateName}` contains unknown squad tag `{tag}`.");
+			}
+
+			foreach (var (templateName, template) in Teams)
+				if (template.Tags.Length == 0)
+					throw new YamlException($"CNSquadManagerBotModule on {ai.Name}: template `{templateName}` must define at least one squad tag.");
 		}
 
 		public override object Create(ActorInitializer init)
@@ -325,7 +396,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int cleanupTicks;
 		int threatScanTicks;
 
-		// Union of all ThreatBonus/ThreatBonusesGlobal keys — built once at enable.
+		// Tracked enemy capability keys from NeedRules, built once at enable.
 		readonly HashSet<string> allTrackedVisibleTags = [];
 		readonly HashSet<string> allTrackedGlobalTags = [];
 		readonly HashSet<string> allTrackedVisiblePerUnitTags = [];
@@ -408,16 +479,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			baseBuilder = Player.PlayerActor
 				.TraitsImplementing<CNBaseBuilderBotModule>()
 				.FirstOrDefault();
-			foreach (var (_, template) in Info.Teams)
+
+			foreach (var (_, rule) in Info.NeedRules)
 			{
-				foreach (var tag in template.ThreatBonuses.Keys)
-					allTrackedVisibleTags.Add(tag);
-				foreach (var tag in template.ThreatBonusesGlobal.Keys)
-					allTrackedGlobalTags.Add(tag);
-				foreach (var tag in template.ThreatBonusesPerUnit.Keys)
-					allTrackedVisiblePerUnitTags.Add(tag);
-				foreach (var tag in template.ThreatBonusesGlobalPerUnit.Keys)
-					allTrackedGlobalPerUnitTags.Add(tag);
+				foreach (var capability in rule.EnemyCapabilities)
+				{
+					if (rule.VisibleBonus != 0)
+						allTrackedVisibleTags.Add(capability);
+					if (rule.GlobalBonus != 0)
+						allTrackedGlobalTags.Add(capability);
+					if (rule.VisibleWeight != 0)
+						allTrackedVisiblePerUnitTags.Add(capability);
+					if (rule.GlobalWeight != 0)
+						allTrackedGlobalPerUnitTags.Add(capability);
+				}
 			}
 
 			var random = World.LocalRandom;
@@ -444,7 +519,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		void IBotTick.BotTick(IBot bot)
 		{
-			if ((allTrackedVisibleTags.Count > 0 || allTrackedGlobalTags.Count > 0 ||
+			if (Info.ThreatScanInterval > 0 && (allTrackedVisibleTags.Count > 0 || allTrackedGlobalTags.Count > 0 ||
 			 allTrackedVisiblePerUnitTags.Count > 0 || allTrackedGlobalPerUnitTags.Count > 0) && --threatScanTicks <= 0)
 			{
 				threatScanTicks = Info.ThreatScanInterval;
@@ -687,7 +762,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				// Don't build replacements for operational attack squads — a lone unit
 				// crossing the map to join a fight is wasteful and easy to kill.
 				// Home-role squads (defense, protection, air support) still get top-ups.
-				if (squad.IsOperational && !squad.AllowsOperationalReinforcement)
+				// Exception: a transport still loading at base keeps recruiting passengers
+				// until its carriers are full, so transports no longer leave half-empty.
+				if (squad.IsOperational && !squad.AllowsOperationalReinforcement && !AcceptingPassengerTopUp(squad))
 					continue;
 
 				foreach (var assignment in squad.SlotAssignments)
@@ -695,15 +772,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (assignment.SlotInfo.IsPassenger && !SquadHasLiveCarrier(squad))
 						continue;
 
-					var missing = assignment.MissingCount;
+					var missing = assignment.SlotInfo.IsPassenger ? assignment.MissingToRecruit : assignment.MissingCount;
 					if (missing <= 0)
 						continue;
 
-						AddPreferredDemand(
-							demand,
-							assignment.SlotInfo,
-							GetUnitDemandScore(squad.TemplateInfo, assignment.SlotInfo, missing, true),
-					existingByType);
+					AddPreferredDemand(
+						demand,
+						assignment.SlotInfo,
+						GetUnitDemandScore(squad.TemplateInfo, assignment.SlotInfo, missing, true),
+						existingByType);
 				}
 			}
 
@@ -935,14 +1012,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			Dictionary<Actor, CNSquad> claimedOwners,
 			Dictionary<string, List<Actor>> availableByType)
 		{
-			var candidates = OrderedTemplates()
+			var candidates = Info.Teams
 				.Where(kv => kv.Value.Role == role &&
 					TemplateAppliesToFaction(kv.Value) &&
 					CountTemplateSquads(kv.Key) < GetEffectiveMaxInstances(kv.Value))
-				.OrderByDescending(kv => EffectiveScore(kv.Value))
 				.ToList();
 
-			foreach (var (templateName, template) in candidates)
+			foreach (var (templateName, template) in WeightedTemplateOrder(candidates, kv => EffectiveScore(kv.Value)))
 			{
 				var trialClaimed = new HashSet<Actor>(claimedThisPass);
 				var assignments = TryFillSlots(template, availableByType, trialClaimed);
@@ -1001,41 +1077,41 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		CNSquadType? PickNeededRole(HashSet<CNSquadType> exhaustedRoles)
 		{
-			if (Info.RoleQuotas == null || Info.RoleQuotas.Count == 0)
-				return null;
+			return PickBestScoredRole(exhaustedRoles);
+		}
 
+		CNSquadType? PickBestScoredRole(HashSet<CNSquadType> exhaustedRoles)
+		{
 			var activeCounts = new Dictionary<CNSquadType, int>();
-			var activeAttackSquadsTotal = 0;
 			foreach (var squad in Squads)
 			{
 				if (!squad.IsValid || !squad.IsTemplateBacked || !IsAttackRole(squad.Type))
 					continue;
 
 				activeCounts[squad.Type] = activeCounts.GetValueOrDefault(squad.Type) + 1;
-				activeAttackSquadsTotal++;
 			}
 
 			CNSquadType? bestRole = null;
-			var bestDeficit = int.MinValue;
+			var bestScore = int.MinValue;
 
-			foreach (var (role, quota) in Info.RoleQuotas)
+			foreach (var (templateName, template) in Info.Teams)
 			{
-				if (quota <= 0 || exhaustedRoles.Contains(role) || !IsAttackRole(role))
+				if (!IsAttackRole(template.Role) || exhaustedRoles.Contains(template.Role))
+					continue;
+				if (!TemplateAppliesToFaction(template))
+					continue;
+				if (CountTemplateSquads(templateName) >= GetEffectiveMaxInstances(template))
 					continue;
 
-				var currentShare = activeAttackSquadsTotal > 0
-					? activeCounts.GetValueOrDefault(role) * 100 / activeAttackSquadsTotal
-					: 0;
-				var deficit = activeAttackSquadsTotal == 0 ? 1 : quota - currentShare;
-
-				if (deficit <= bestDeficit)
+				var score = EffectiveScore(template) - Info.RoleSaturationPenalty * activeCounts.GetValueOrDefault(template.Role);
+				if (score <= bestScore)
 					continue;
 
-				bestDeficit = deficit;
-				bestRole = role;
+				bestScore = score;
+				bestRole = template.Role;
 			}
 
-			return bestDeficit > 0 ? bestRole : null;
+			return bestScore > 0 ? bestRole : null;
 		}
 
 		static bool IsAttackRole(CNSquadType role) => role != CNSquadType.Protection;
@@ -1089,7 +1165,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				if (!squad.IsValid || squad.TemplateInfo == null)
 					continue;
 
-				if (squad.IsOperational && !squad.AllowsOperationalReinforcement)
+				if (squad.IsOperational && !squad.AllowsOperationalReinforcement && !AcceptingPassengerTopUp(squad))
 					continue;
 
 				prioritizedSquads.Add(squad);
@@ -1101,7 +1177,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			{
 				foreach (var assignment in EnumerateAssignmentsForReinforcement(squad))
 				{
-					var missing = assignment.MissingCount;
+					var missing = assignment.SlotInfo.IsPassenger ? assignment.MissingToRecruit : assignment.MissingCount;
 					if (missing <= 0)
 						continue;
 
@@ -1274,38 +1350,111 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public int GetEffectiveScore(CNTeamTemplateInfo template) => EffectiveScore(template);
 
+		// Returns the given templates in weighted-random order. The chance of a template being
+		// drawn next is proportional to max(1, weight)^TemplateSelectionSharpness, so production
+		// keeps cycling through every template instead of locking onto the single best one.
+		// Sharpness 0 = even spread (need ignored), 1-2 = light bias, higher approaches best-first.
+		// Uses LocalRandom to match the determinism model of the rest of the bot code.
+		public List<T> WeightedTemplateOrder<T>(IReadOnlyList<T> items, Func<T, int> weight)
+		{
+			var result = new List<T>(items.Count);
+			if (items.Count == 0)
+				return result;
+
+			var pool = new List<T>(items);
+			var weights = new List<double>(pool.Count);
+			var k = Math.Max(0, Info.TemplateSelectionSharpness);
+
+			foreach (var item in pool)
+				weights.Add(k == 0 ? 1.0 : Math.Pow(Math.Max(1, weight(item)), k));
+
+			while (pool.Count > 0)
+			{
+				var total = 0.0;
+				foreach (var w in weights)
+					total += w;
+
+				var roll = World.LocalRandom.NextFloat() * total;
+				var idx = pool.Count - 1;
+				for (var i = 0; i < pool.Count; i++)
+				{
+					roll -= weights[i];
+					if (roll <= 0)
+					{
+						idx = i;
+						break;
+					}
+				}
+
+				result.Add(pool[idx]);
+				pool.RemoveAt(idx);
+				weights.RemoveAt(idx);
+			}
+
+			return result;
+		}
+
 		public bool IsUnitAssignedToSquad(Actor actor)
 		{
 			return actor != null && activeUnits.Contains(actor);
 		}
 
-		int EffectiveScore(CNTeamTemplateInfo template)
+		int EffectiveScore(CNTeamTemplateInfo template) => TaggedEffectiveScore(template);
+
+		int TaggedEffectiveScore(CNTeamTemplateInfo template)
 		{
-			var bonus = 0;
+			var score = Info.TaggedTemplateBaseScore + template.Bias;
 
-			foreach (var (tag, value) in template.ThreatBonuses)
-				if (activeVisibleThreatTags.Contains(tag))
-					bonus += value;
-			foreach (var (tag, value) in template.ThreatBonusesGlobal)
-				if (activeGlobalThreatTags.Contains(tag))
-					bonus += value;
+			if (Info.RoleWeights.TryGetValue(template.Role, out var roleWeight))
+				score += roleWeight;
 
-			// Per-unit bonuses are summed separately and clamped so a swarm of one enemy type
-			// can't pin the bot into a single counter-template forever.
-			var perUnitBonus = 0;
-			foreach (var (tag, value) in template.ThreatBonusesPerUnit)
-				if (activeVisibleThreatCounts.TryGetValue(tag, out var vCount))
-					perUnitBonus += value * vCount;
-			foreach (var (tag, value) in template.ThreatBonusesGlobalPerUnit)
-				if (activeGlobalThreatCounts.TryGetValue(tag, out var gCount))
-					perUnitBonus += value * gCount;
+			foreach (var tag in template.Tags)
+				score += GetTagScore(tag) - Info.TagSaturationPenalty * CountTaggedSquads(tag);
 
-			if (Info.MaxThreatBonusFromPerUnit > 0)
-				perUnitBonus = Math.Clamp(perUnitBonus, -Info.MaxThreatBonusFromPerUnit, Info.MaxThreatBonusFromPerUnit);
+			var repeatPenalty = template.RepeatPenalty >= 0 ? template.RepeatPenalty : Info.RepeatPenalty;
+			score -= repeatPenalty * Squads.Count(s => s.IsValid && s.IsTemplateBacked && s.TemplateInfo == template);
 
-			bonus += perUnitBonus;
-			return template.Quality + bonus - Info.DiversityPenalty * Squads.Count(s => s.IsValid && s.IsTemplateBacked && s.TemplateInfo == template);
+			return score;
 		}
+
+		int GetTagScore(string tag)
+		{
+			var score = Info.TagWeights.GetValueOrDefault(tag);
+			if (!Info.NeedRules.TryGetValue(tag, out var rule))
+				return score;
+
+			var visibleCount = 0;
+			var globalCount = 0;
+			var hasVisible = false;
+			var hasGlobal = false;
+
+			foreach (var capability in rule.EnemyCapabilities)
+			{
+				if (activeVisibleThreatCounts.TryGetValue(capability, out var vc))
+					visibleCount += vc;
+				if (activeGlobalThreatCounts.TryGetValue(capability, out var gc))
+					globalCount += gc;
+				hasVisible |= activeVisibleThreatTags.Contains(capability) || vc > 0;
+				hasGlobal |= activeGlobalThreatTags.Contains(capability) || gc > 0;
+			}
+
+			var dynamicScore = visibleCount * rule.VisibleWeight + globalCount * rule.GlobalWeight;
+			if (hasVisible)
+				dynamicScore += rule.VisibleBonus;
+			if (hasGlobal)
+				dynamicScore += rule.GlobalBonus;
+
+			if (Info.MaxNeedScorePerTag > 0)
+				dynamicScore = Math.Clamp(dynamicScore, -Info.MaxNeedScorePerTag, Info.MaxNeedScorePerTag);
+
+			return score + dynamicScore;
+		}
+
+		int CountTaggedSquads(string tag) =>
+			Squads.Count(s =>
+				s.IsValid &&
+				s.IsTemplateBacked &&
+				s.TemplateInfo?.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase) == true);
 
 		static bool HasCapability(Actor actor, string capability)
 		{
@@ -2108,6 +2257,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		static bool IsCarrierSlot(CNSlotInfo slotInfo)
 		{
 			return slotInfo.IsCarrier || slotInfo.IsAircraftCarrier;
+		}
+
+		// A transport still loading at base (AcceptingPassengers) keeps pulling passengers until its
+		// carriers are full, even once operational. Without this, a transport whose carrier slot fills
+		// before enough infantry exists would lock in as "done" and depart half-empty (reinforcement
+		// is otherwise blocked for operational attack squads).
+		static bool AcceptingPassengerTopUp(CNSquad squad)
+		{
+			return squad.AcceptingPassengers
+				&& SquadHasLiveCarrier(squad)
+				&& squad.RecruitedPassengerCount < squad.DesiredPassengerCount;
 		}
 
 		static bool SquadHasLiveCarrier(CNSquad squad)

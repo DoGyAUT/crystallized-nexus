@@ -460,3 +460,10 @@ Orca:
 		Move: orca_m1, orca_m2, orca_m3, orca_m4, orca_m5, orca_m6, orca_m7, orca_m8, orca_m9, orca_m10, orca_m11, orca_m12, orca_m13
 		Action: orca_a1, orca_a2, orca_a3, orca_a4, orca_a5, orca_a6, orca_a7, orca_a8, orca_a9, orca_at1, orca_at2
 		Attack: orca_a1, orca_a2, orca_a3, orca_a4, orca_a5, orca_a6, orca_a7, orca_a8, orca_a9, orca_at1, orca_at2
+
+Sting:
+	Voices:
+		Select: sting_s1, sting_s2, sting_s3, sting_s4, sting_s5, sting_s6, sting_s7, sting_s8, sting_s9, sting_s10, sting_s11, sting_s12, sting_s13, sting_s14, sting_s15, sting_s16, sting_s17
+		Move: sting_m1, sting_m2, sting_m3, sting_m4, sting_m5, sting_m6, sting_m7, sting_m8, sting_m9, sting_m10, sting_m11
+		Action: sting_a1, sting_a2, sting_a3, sting_a4, sting_a5, sting_a6, sting_a7, sting_a8, sting_a9, sting_a10, sting_a11, sting_a12, sting_a13, sting_a14, sting_a15, sting_a16, sting_a17, sting_a18
+		Attack: sting_a1, sting_a2, sting_a3, sting_a4, sting_a5, sting_a6, sting_a7, sting_a8, sting_a9, sting_a10, sting_a11, sting_a12, sting_a13, sting_a14, sting_a15, sting_a16, sting_a17, sting_a18

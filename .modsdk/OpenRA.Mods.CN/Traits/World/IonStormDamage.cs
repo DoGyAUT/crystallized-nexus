@@ -124,11 +124,11 @@ namespace OpenRA.Mods.CN.Traits
 
 		WPos RandomMapPosition()
 		{
-			var cell = new CPos(
-				world.SharedRandom.Next(world.Map.Bounds.Left, world.Map.Bounds.Right),
-				world.SharedRandom.Next(world.Map.Bounds.Top, world.Map.Bounds.Bottom));
-
-			return world.Map.Contains(cell) ? world.Map.CenterOfCell(cell) : WPos.Zero;
+			// Map.Bounds is in projected (u,v) space; on isometric TS maps that is not
+			// the same as CPos. ChooseRandomCell unprojects correctly so strikes cover
+			// the whole map instead of clustering in one corner.
+			var cell = world.Map.ChooseRandomCell(world.SharedRandom);
+			return world.Map.CenterOfCell(cell);
 		}
 	}
 }

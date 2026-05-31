@@ -35,7 +35,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public int AlivePassengerCount => Passengers.Count(a => a != null && !a.IsDead && a.IsInWorld);
 
+		// Passenger recruitment counts boarded units too: a boarded passenger leaves the world
+		// (IsInWorld == false) but is still alive and committed to this squad, so it must count
+		// toward "recruited" or the slot would keep demanding replacements and overfill the carrier.
+		public int RecruitedPassengerCount => Passengers.Count(a => a != null && !a.IsDead);
+
 		public int MissingCount => System.Math.Max(0, SlotInfo.Count - CurrentCount);
+
+		// Missing relative to the recruitment target (boarded-aware). Used while a transport is still
+		// loading so passenger top-up fills to capacity instead of chasing the (dropping) in-world count.
+		public int MissingToRecruit => System.Math.Max(0,
+			SlotInfo.Count - (SlotInfo.IsPassenger ? RecruitedPassengerCount : AliveUnitCount));
 
 		public bool IsFulfilled =>
 			SlotInfo.Optional ||
@@ -110,6 +120,21 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				.Where(a => a != null && !a.IsDead);
 
 		public bool HasCarrier => CarrierUnits.Any();
+
+		/// <summary>
+		/// True while this transport squad is still at base loading and may receive passenger
+		/// top-ups even after becoming operational. Set by the transport idle/load states and
+		/// cleared once the squad departs (attack-move/unload/return/done).
+		/// </summary>
+		public bool AcceptingPassengers { get; set; }
+
+		/// <summary>Total passengers this squad's template wants (sum of IsPassenger slot counts).</summary>
+		public int DesiredPassengerCount =>
+			SlotAssignments.Where(s => s.SlotInfo.IsPassenger).Sum(s => s.SlotInfo.Count);
+
+		/// <summary>Passengers committed to this squad (boarded + still walking), excluding dead.</summary>
+		public int RecruitedPassengerCount =>
+			SlotAssignments.Where(s => s.SlotInfo.IsPassenger).Sum(s => s.RecruitedPassengerCount);
 
 		static IEnumerable<Actor> ExpandPassengerUnit(Actor actor)
 		{

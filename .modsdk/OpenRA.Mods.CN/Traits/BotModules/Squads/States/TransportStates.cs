@@ -9,7 +9,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	sealed class TransportIdleState : CNStateBase, ICNState
 	{
-		public void Activate(CNSquad squad) { }
+		public void Activate(CNSquad squad) { squad.AcceptingPassengers = true; }
 
 		public void Tick(CNSquad squad)
 		{
@@ -59,7 +59,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class AirTransportIdleState : CNStateBase, ICNState
 	{
-		public void Activate(CNSquad squad) { }
+		public void Activate(CNSquad squad) { squad.AcceptingPassengers = true; }
 
 		public void Tick(CNSquad squad)
 		{
@@ -120,6 +120,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Activate(CNSquad squad)
 		{
+			squad.AcceptingPassengers = true;
 			loadStartTick = squad.World.WorldTick;
 			landingCell = null;
 			passengerStagingCells.Clear();
@@ -159,9 +160,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			if (anyCargo && passengers.All(u => !u.IsInWorld))
+			// Depart only when the carrier is full, or every recruited passenger is aboard AND we
+			// recruited the full complement. Under capacity we wait while the squad manager tops up
+			// passengers (squad.AcceptingPassengers); MaxLoadTicks is the fail-safe.
+			var waiting = passengers.Count(u => u.IsInWorld);
+			var carrierFull = cargo == null || !cargo.HasSpace(1);
+			var fullyRecruitedAndAboard =
+				waiting == 0 && squad.RecruitedPassengerCount >= squad.DesiredPassengerCount;
+
+			if (anyCargo && (carrierFull || fullyRecruitedAndAboard))
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new AirTransportAttackMoveState());
+				// With the wave system active, hold loaded and depart together with the next wave;
+				// otherwise make the drop-run immediately (legacy behaviour).
+				squad.FuzzyStateMachine.ChangeState(squad,
+					squad.SquadManager.Info.AttackWaveEnabled
+						? new TransportWaveSyncState()
+						: new AirTransportAttackMoveState());
 				return;
 			}
 
@@ -309,6 +323,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Activate(CNSquad squad)
 		{
+			squad.AcceptingPassengers = true;
 			loadStartTick = squad.World.WorldTick;
 
 			// Stop all carriers and escorts so they stay put while passengers walk to them.
@@ -347,7 +362,29 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			var allLoaded = anyCargo && (passengers.Count == 0 || passengers.All(u => !u.IsInWorld));
+			// Depart only when carriers are actually full (capacity reached), or every recruited
+			// passenger is aboard AND we recruited the full complement. While still under capacity
+			// we wait — the squad manager keeps topping up passengers (squad.AcceptingPassengers),
+			// so transports leave full instead of with whatever boarded first. MaxLoadTicks is the
+			// fail-safe for the case where the economy simply can't produce enough infantry.
+			var waiting = passengers.Count(u => u.IsInWorld);
+			var carriersFull = validCarriers.All(c =>
+			{
+				var cargo = c.TraitOrDefault<Cargo>();
+				return cargo == null || !cargo.HasSpace(1);
+			});
+			var fullyRecruitedAndAboard =
+				waiting == 0 && squad.RecruitedPassengerCount >= squad.DesiredPassengerCount;
+			var allLoaded = anyCargo && (carriersFull || fullyRecruitedAndAboard);
+
+			// Fully loaded with the wave system active: wait and roll out together with the next
+			// attack wave instead of making a lone drop-run. The timeout path below still departs
+			// solo if loading dragged on, so a stalled transport is never stuck.
+			if (allLoaded && squad.SquadManager.Info.AttackWaveEnabled)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportWaveSyncState());
+				return;
+			}
 
 			if (allLoaded || squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
 			{
@@ -372,6 +409,70 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.Bot.QueueOrder(new Order("EnterTransport", idlePassengers[i],
 					Target.FromActor(carrier), false));
 			}
+		}
+
+		public void Deactivate(CNSquad squad) { }
+	}
+
+	// ---------------------------------------------------------------------------
+	// Wave sync: a fully-loaded transport parks at base and waits for the squad
+	// manager to launch the next attack wave, then rolls out together with it and
+	// drops on the wave's target — so the cargo joins the assault instead of making
+	// a lone, easily-picked-off drop-run. Falls back to a solo run after a timeout so
+	// a loaded transport never idles indefinitely (e.g. when waves are infrequent).
+	// ---------------------------------------------------------------------------
+	sealed class TransportWaveSyncState : CNStateBase, ICNState
+	{
+		// Max ticks to wait for a wave before going solo. Most profiles launch waves more
+		// often than this; slow profiles (turtle/tech) may occasionally fall back to a solo run.
+		const int MaxWaveWaitTicks = 1800;
+
+		int waitStartTick;
+
+		public void Activate(CNSquad squad)
+		{
+			squad.AcceptingPassengers = false;
+			waitStartTick = squad.World.WorldTick;
+
+			// Keep carriers parked at base while waiting for the wave.
+			foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld))
+				squad.Bot.QueueOrder(new Order("Stop", carrier, false));
+		}
+
+		public void Tick(CNSquad squad)
+		{
+			if (!squad.IsValid)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+				return;
+			}
+
+			var carriers = squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld).ToList();
+			if (carriers.Count == 0)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
+				return;
+			}
+
+			// Lost the cargo while waiting (passengers killed/unloaded) — nothing to deliver.
+			var anyCargo = carriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false);
+			if (!anyCargo)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
+				return;
+			}
+
+			var waveGo = squad.SquadManager.IsWaveLaunched;
+			var timedOut = squad.World.WorldTick - waitStartTick >= MaxWaveWaitTicks;
+			if (!waveGo && !timedOut)
+				return;
+
+			// Roll out timed with the wave, but pick our own drop target: the wave keeps the enemy's
+			// front busy while the transport slips its cargo into the soft rear (see FindRearDropTarget).
+			if (squad.Type == CNSquadType.AirTransport)
+				squad.FuzzyStateMachine.ChangeState(squad, new AirTransportAttackMoveState());
+			else
+				squad.FuzzyStateMachine.ChangeState(squad, new TransportAttackMoveState());
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -413,6 +514,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Activate(CNSquad squad)
 		{
+			squad.AcceptingPassengers = false;
 			dropCell = null;
 			lastTarget = null;
 			lzIdleStartTick = 0;
@@ -458,7 +560,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					return;
 				}
 
-				var dropTarget = squad.SquadManager.FindClosestEnemyBuilding(carrier);
+				var dropTarget = FindRearDropTarget(squad, carrier);
 				if (dropTarget == null)
 				{
 					squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
@@ -616,6 +718,54 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			return fallbackPos;
 		}
 
+		// A transport's value is hitting the soft rear (economy/production), not the defended front
+		// the wave is busy with. Prefer high-value, non-defense buildings; among equals, prefer the
+		// one deepest in enemy territory (farthest from our base). The drop CELL is then placed on
+		// the far side of that target (see ScoreDropCell), so units land behind the building.
+		static Actor FindRearDropTarget(CNSquad squad, Actor carrier)
+		{
+			var mgr = squad.SquadManager;
+			var ourBasePos = squad.World.Map.CenterOfCell(mgr.GetRandomBaseCenter());
+
+			Actor best = null;
+			var bestScore = int.MinValue;
+			foreach (var building in mgr.GetCachedEnemyBuildings())
+			{
+				if (!mgr.IsLiveEnemyActor(building))
+					continue;
+
+				var caps = building.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+
+				// Never drop onto defenses — that is the front, exactly what we want to bypass.
+				if (caps?.Contains("Defense") ?? false)
+					continue;
+
+				var score = 0;
+				if (caps != null)
+				{
+					if (caps.Contains("Superweapon")) score += 600;
+					if (caps.Contains("Tech")) score += 500;
+					if (caps.Contains("Economy")) score += 450;
+					if (caps.Contains("Production")) score += 350;
+					if (caps.Contains("Power")) score += 200;
+				}
+
+				// Depth tiebreaker: deeper = farther from our base = more "behind the lines".
+				score += (int)((building.CenterPosition - ourBasePos).Length / 1024);
+
+				if (score > bestScore)
+				{
+					bestScore = score;
+					best = building;
+				}
+			}
+
+			// Fallbacks: any undefended building, then the closest building of any kind.
+			return best
+				?? CNSquadHelper.FindUnprotectedTarget(squad)
+				?? mgr.FindClosestEnemyBuilding(carrier);
+		}
+
 		static CPos? FindSaferDropCell(CNSquad squad, Actor carrier, Actor target)
 		{
 			if (target == null)
@@ -732,6 +882,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Activate(CNSquad squad)
 		{
+			squad.AcceptingPassengers = false;
 			dropCell = null;
 			lastTarget = null;
 			lastLeadPos = WPos.Zero;
@@ -1022,10 +1173,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var carriers = squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld).ToList();
 			var anyCargo = carriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false);
 
-			// If no cargo remains, transition to return state.
+			// If no cargo remains, transition out. Capture-and-sell drops hand the just-unloaded
+			// engineers to the capture mission; everyone else returns home.
 			if (!anyCargo)
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
+				squad.FuzzyStateMachine.ChangeState(squad,
+					squad.TemplateInfo?.CaptureAndSell == true
+						? new EngineerCaptureState()
+						: new TransportReturnState());
 				return;
 			}
 
@@ -1163,9 +1318,145 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Deactivate(CNSquad squad) { }
 	}
 
+	// ---------------------------------------------------------------------------
+	// Engineer capture-and-sell: after a CaptureAndSell transport drops its engineer
+	// passengers behind enemy lines, each engineer captures the nearest valuable enemy
+	// building (distance dominates, high value nudges it a few cells "closer") and the
+	// freshly captured building is immediately sold for cash + denial. Empty carriers head
+	// home; the squad dissolves once the engineers are spent (consumed on capture) or on a
+	// timeout. Shared by ground (APC) and subterranean (SAPC) drops.
+	// ---------------------------------------------------------------------------
+	sealed class EngineerCaptureState : CNStateBase, ICNState
+	{
+		const int MaxMissionTicks = 1500;        // ~100 s hard cap
+		const int GraceAfterEngineersTicks = 50; // let the final capture+sell resolve before dissolving
+
+		int startTick;
+		int engineerlessTicks;
+		readonly System.Collections.Generic.HashSet<uint> sellOrdered = [];
+		readonly System.Collections.Generic.List<Actor> captureTargets = [];
+
+		public void Activate(CNSquad squad)
+		{
+			squad.AcceptingPassengers = false;
+			startTick = squad.World.WorldTick;
+			engineerlessTicks = 0;
+		}
+
+		public void Tick(CNSquad squad)
+		{
+			if (!squad.IsValid)
+			{
+				squad.SquadManager.UnregisterSquad(squad);
+				return;
+			}
+
+			// Sell any building an engineer has just captured for us.
+			foreach (var target in captureTargets)
+			{
+				if (target == null || target.IsDead || !target.IsInWorld)
+					continue;
+				if (target.Owner != squad.Bot.Player || sellOrdered.Contains(target.ActorID))
+					continue;
+
+				squad.Bot.QueueOrder(new Order("Sell", target, false));
+				sellOrdered.Add(target.ActorID);
+			}
+
+			// Empty carriers head home; carriers still holding cargo keep unloading.
+			foreach (var carrier in squad.CarrierUnits.Where(c => !c.IsDead && c.IsInWorld))
+			{
+				var cargo = carrier.TraitOrDefault<Cargo>();
+				if (cargo != null && !cargo.IsEmpty())
+				{
+					if (carrier.IsIdle)
+						squad.Bot.QueueOrder(new Order("Unload", carrier, false));
+				}
+				else if (carrier.IsIdle)
+				{
+					squad.Bot.QueueOrder(new Order("Move", carrier,
+						Target.FromCell(squad.World, squad.SquadManager.GetRandomBaseCenter()), false));
+				}
+			}
+
+			// Assign idle engineers to the best nearby capturable enemy building.
+			var engineers = squad.PassengerUnits.Where(e => !e.IsDead && e.IsInWorld).ToList();
+			foreach (var engineer in engineers)
+			{
+				if (!engineer.IsIdle)
+					continue;
+
+				var target = FindCaptureTarget(squad, engineer);
+				if (target == null)
+					continue;
+
+				squad.Bot.QueueOrder(new Order("CaptureActor", engineer, Target.FromActor(target), false));
+				if (!captureTargets.Contains(target))
+					captureTargets.Add(target);
+			}
+
+			// Dissolve once engineers are spent and pending captures have resolved, or on timeout.
+			if (engineers.Count == 0)
+				engineerlessTicks++;
+			else
+				engineerlessTicks = 0;
+
+			if ((engineers.Count == 0 && engineerlessTicks >= GraceAfterEngineersTicks)
+				|| squad.World.WorldTick - startTick >= MaxMissionTicks)
+				squad.SquadManager.UnregisterSquad(squad);
+		}
+
+		public void Deactivate(CNSquad squad) { }
+
+		static Actor FindCaptureTarget(CNSquad squad, Actor engineer)
+		{
+			var engineerCaptureManager = engineer.TraitOrDefault<CaptureManager>();
+			if (engineerCaptureManager == null)
+				return null;
+
+			Actor best = null;
+			var bestScore = int.MaxValue;
+			foreach (var building in squad.SquadManager.GetCachedEnemyBuildings())
+			{
+				if (building.IsDead || !building.IsInWorld)
+					continue;
+
+				var targetCaptureManager = building.TraitOrDefault<CaptureManager>();
+				if (targetCaptureManager == null || !engineerCaptureManager.CanTarget(targetCaptureManager))
+					continue;
+
+				// Distance dominates (in cells); value gives a small "worth a few cells closer" nudge.
+				var distCells = (int)((building.CenterPosition - engineer.CenterPosition).Length / 1024);
+				var score = distCells - CaptureValueBonus(building);
+				if (score < bestScore)
+				{
+					bestScore = score;
+					best = building;
+				}
+			}
+
+			return best;
+		}
+
+		static int CaptureValueBonus(Actor building)
+		{
+			var caps = building.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			if (caps == null)
+				return 0;
+
+			var bonus = 0;
+			if (caps.Contains("Superweapon")) bonus += 6;
+			if (caps.Contains("Tech")) bonus += 5;
+			if (caps.Contains("Economy")) bonus += 5;
+			if (caps.Contains("Production")) bonus += 4;
+			if (caps.Contains("Power")) bonus += 2;
+			return bonus;
+		}
+	}
+
 	sealed class TransportDoneState : CNStateBase, ICNState
 	{
-		public void Activate(CNSquad squad) { }
+		public void Activate(CNSquad squad) { squad.AcceptingPassengers = false; }
 
 		public void Tick(CNSquad squad)
 		{

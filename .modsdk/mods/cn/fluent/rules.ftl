@@ -909,6 +909,13 @@ actor-sgen =
     Able to cloak units once deployed.
        Unarmed
 
+actor-sting =
+    .name = Sting of Nod
+    .description =
+    Epic assault walker armed with a charged tail laser.
+       Strong vs Vehicles and Buildings
+       Weak vs Aircraft
+
 
 ## shared-structures.yaml
 actor-gacnst =

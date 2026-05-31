@@ -405,6 +405,12 @@
 		HotColor: FFF7C8
 		MidColor: FFC845
 		ColdColor: FFFFFF
+	Warhead@3Eff: CreateEffect
+		Explosions: laserexplo_small
+		ExplosionPalette: effect
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: SmallScorch
+		InvalidTargets: Vehicle, Building, Wall
 
 ^DamagingExplosion:
 	Inherits@DefaultWahead: ^SmallExplosionWarhead

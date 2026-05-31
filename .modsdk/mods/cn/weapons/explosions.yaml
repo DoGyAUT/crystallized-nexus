@@ -19,6 +19,34 @@ UnitExplodeSmall:
 HuskExplode:
 	Inherits: UnitExplodeSmall
 
+StingHuskExplode:
+	Inherits@FLASH: ^FlashLargeY
+	Warhead@1Dam: SpreadDamage
+		Spread: 256
+		Damage: 120
+		AffectsParent: false
+		ValidRelationships: Neutral, Enemy
+		ValidTargets: Ground, Trees
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone100Percent
+	Warhead@2Smu: LeaveSmudge
+		SmudgeType: LargeScorch
+		InvalidTargets: Building, Wall
+		AffectsParent: true
+	Warhead@3Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 80
+		Speed: 90, 260
+		UpwardSpeed: 400, 850
+		Gravity: 54
+		Lifetime: 18, 36
+		RestLifetime: 20, 42
+		Length: 104, 220
+		Width: 1, 3
+		Inaccuracy: 64
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
+
 HuskScorch:
 	Warhead@Smu: LeaveSmudge
 		SmudgeType: LargeScorch

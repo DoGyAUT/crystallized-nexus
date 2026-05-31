@@ -39,6 +39,8 @@ GMCV:
 		Voice: Move
 		NoTransformNotification: BuildingCannotPlaceAudio
 		NoTransformTextNotification: notification-cannot-deploy-here
+	RenderVoxels:
+		FullBrightPaletteIndexRanges: 1, 16, 240, 255
 	ActorLostNotification:
 		Notification: CriticalUnitLost
 	SpawnActorOnDeath@HUSK:

@@ -688,7 +688,18 @@ explosion:
 	protexp_small:
 		Filename: protexp3.shp
 		AlphaFade: False	
+		BloomGlow: True
+	laserexplo:
+		Filename: laserexplo.png
+		BlendMode: Additive
+		AlphaFade: False	
+		BloomGlow: True
+	laserexplo_small:
+		Filename: laserexplo_small.png
+		BlendMode: Additive
+		AlphaFade: False	
 		BloomGlow: True	
+		
 
 shockwave_large:
 	idle:

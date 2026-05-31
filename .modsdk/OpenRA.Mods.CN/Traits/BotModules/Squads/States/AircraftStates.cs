@@ -193,12 +193,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (caps == null || squad.TemplateInfo == null)
 				return 0;
 
-			var score = 0;
-			foreach (var (tag, value) in squad.TemplateInfo.ThreatBonuses)
-				if (caps.Contains(tag))
-					score -= value * 20;
+			for (var i = 0; i < squad.TemplateInfo.PriorityTargetCapabilities.Length; i++)
+				if (caps.Contains(squad.TemplateInfo.PriorityTargetCapabilities[i]))
+					return -(squad.TemplateInfo.PriorityTargetCapabilities.Length - i) * 1000;
 
-			return score;
+			return 0;
 		}
 
 		protected static int ScoreAircraftThreatAtTarget(CNSquad squad, Actor aircraft, Actor target)

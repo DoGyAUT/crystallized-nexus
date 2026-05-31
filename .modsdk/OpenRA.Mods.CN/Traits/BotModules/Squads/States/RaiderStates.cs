@@ -71,6 +71,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	{
 		int stuckTicks;
 		const int StuckThreshold = 8;
+		const int KiteThreatRadiusCells = 5;
 		CPos lastPos;
 
 		public void Activate(CNSquad squad)
@@ -101,7 +102,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.SetActorToTarget(nextTarget);
 			}
 
-			if (ShouldFlee(squad))
+			if (ShouldKite(squad) || ShouldFlee(squad))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new RaiderFleeState());
 				return;
@@ -149,6 +150,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			return ShouldFlee(squad, enemies =>
 				!CNAttackOrFleeFuzzy.Raider.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
 		}
+
+		static bool ShouldKite(CNSquad squad)
+		{
+			var center = squad.CenterUnit();
+			if (center == null || !squad.IsTargetValid)
+				return false;
+
+			return FindClosestThreat(squad, center, KiteThreatRadiusCells) != null;
+		}
+
+		internal static Actor FindClosestThreat(CNSquad squad, Actor source, int radiusCells)
+		{
+			return squad.World.FindActorsInCircle(source.CenterPosition, WDist.FromCells(radiusCells))
+				.Where(a =>
+					squad.SquadManager.IsPreferredEnemyUnit(a) &&
+					a.Info.HasTraitInfo<AttackBaseInfo>())
+				.MinByOrDefault(a => (a.CenterPosition - source.CenterPosition).LengthSquared);
+		}
 	}
 
 	/// <summary>
@@ -157,9 +176,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class RaiderFleeState : CNStateBase, ICNState
 	{
 		int fleeStartTick;
-		const int RegroupWaitTicks = 100;
-		const int MinRetreatCells = 5;
-		const int MaxRetreatCells = 12;
+		const int RegroupWaitTicks = 80;
+		const int MinRetreatCells = 6;
+		const int MaxRetreatCells = 14;
+		const int ReengageThreatDistanceCells = 9;
 
 		public void Activate(CNSquad squad)
 		{
@@ -187,10 +207,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (center == null)
 				return;
 
-			var enemy = squad.SquadManager.FindClosestEnemy(center,
-				WDist.FromCells(squad.SquadManager.Info.DangerScanRadius));
+			var enemy = RaiderAttackState.FindClosestThreat(squad, center, squad.SquadManager.Info.DangerScanRadius);
 
-			if (enemy == null || squad.World.WorldTick - fleeStartTick >= RegroupWaitTicks)
+			if (enemy == null ||
+				HasOpenedKiteDistance(center, enemy) ||
+				squad.World.WorldTick - fleeStartTick >= RegroupWaitTicks)
 				squad.FuzzyStateMachine.ChangeState(squad, new RaiderIdleState());
 		}
 
@@ -241,21 +262,40 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			var candidatePos = squad.World.Map.CenterOfCell(candidate);
 			var closestEnemyDistance = int.MaxValue;
+			var closestThreatCell = CPos.Zero;
+			var foundThreat = false;
 
 			foreach (var actor in squad.World.FindActorsInCircle(candidatePos,
 				WDist.FromCells(squad.SquadManager.Info.DangerScanRadius + 4)))
 			{
-				if (!squad.SquadManager.IsPreferredEnemyUnit(actor))
+				if (!squad.SquadManager.IsPreferredEnemyUnit(actor) ||
+					!actor.Info.HasTraitInfo<AttackBaseInfo>())
 					continue;
 
 				var distance = (int)(actor.CenterPosition - candidatePos).LengthSquared;
 				if (distance < closestEnemyDistance)
+				{
 					closestEnemyDistance = distance;
+					closestThreatCell = actor.Location;
+					foundThreat = true;
+				}
 			}
 
 			var score = closestEnemyDistance == int.MaxValue ? 1000000 : closestEnemyDistance;
-			score -= (candidate - baseCell).LengthSquared * 4;
+			if (foundThreat)
+				score += (candidate - closestThreatCell).LengthSquared * 20;
+			if (squad.IsTargetValid)
+				score -= (candidate - squad.TargetActor.Location).LengthSquared * 2;
+			else
+				score -= (candidate - baseCell).LengthSquared * 2;
+
 			return score;
+		}
+
+		static bool HasOpenedKiteDistance(Actor center, Actor enemy)
+		{
+			var minDistance = WDist.FromCells(ReengageThreatDistanceCells).Length;
+			return HorizontalLengthSquared(center.CenterPosition - enemy.CenterPosition) >= (long)minDistance * minDistance;
 		}
 	}
 }

@@ -501,6 +501,42 @@ JUGG.Deployed.Husk:
 		Image: jugg_deployed_husk
 	WithSpriteBody:
 
+STING.Husk:
+	Immobile:
+	HuskFacing:
+	BodyOrientation:
+		QuantizedFacings: 0
+		UseClassicPerspectiveFudge: False
+	RenderSprites:
+		Image: sting-husk
+		Palette: effect
+	WithSpriteBody:
+		Sequence: stand
+	WithIdleAnimation@DECAY:
+		Sequences: decay
+		Interval: 500
+	WithIdleAnimation@EXPLODE:
+		Sequences: explode
+		Interval: 560
+	FireWarheads:
+		Weapons: StingHuskExplode
+		StartCooldown: 560
+		Interval: 9999
+	KillsSelf:
+		Delay: 680
+		RemoveInstead: true
+	Targetable:
+		TargetTypes: Ground
+	Armor:
+		Type: None
+	HitShape:
+	CNHealth:
+		HP: 100
+	HiddenUnderFog:
+		Type: GroundPosition
+	Interactable:
+	ScriptTriggers:
+
 ^InfantryHusk:
 	Interactable:
 	BodyOrientation:
