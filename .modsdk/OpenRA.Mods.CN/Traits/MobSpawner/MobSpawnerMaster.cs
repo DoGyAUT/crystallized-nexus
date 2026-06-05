@@ -108,7 +108,8 @@ namespace OpenRA.Mods.CN.Traits
 		INotifyDamage,
 		INotifyEnteredCargo,
 		INotifyExitedCargo,
-		INotifySelected
+		INotifySelected,
+		INotifyStanceChanged
 	{
 		class MobSpawnerSlaveEntry : BaseSpawnerSlaveEntry
 		{
@@ -832,6 +833,19 @@ namespace OpenRA.Mods.CN.Traits
 				Replenish(self, slaveEntries);
 				SpawnReplenishedSlaves(self);
 				hasSpawnedInitialLoad = true;
+			}
+		}
+
+		public void StanceChanged(Actor self, AutoTarget autoTarget, UnitStance oldStance, UnitStance newStance)
+		{
+			foreach (var se in slaveEntries)
+			{
+				if (!se.IsValid)
+					continue;
+
+				foreach (var at in se.Actor.TraitsImplementing<AutoTarget>())
+					if (at.Info.EnableStances && !at.IsTraitDisabled)
+						at.SetStance(se.Actor, newStance);
 			}
 		}
 	}
