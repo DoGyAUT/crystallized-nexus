@@ -75,3 +75,53 @@ CycleSelectionSubgroupReverse: TAB SHIFT
 	Description: hotkey-description-cycleselectionsubgroupreverse
 	Types: Unit
 	Contexts: player
+
+OrderMove: M
+	Description: hotkey-description-ordermove
+	Types: Unit
+	Contexts: player
+
+OrderAttack: A
+	Description: hotkey-description-orderattack
+	Types: Unit
+	Contexts: player
+
+OrderAttackGround: F
+	Description: hotkey-description-orderattackground
+	Types: Unit
+	Contexts: player
+
+OrderStop: S
+	Description: hotkey-description-orderstop
+	Types: Unit
+	Contexts: player
+
+OrderScatter: Z
+	Description: hotkey-description-orderscatter
+	Types: Unit
+	Contexts: player
+
+OrderStanceAttackAnything: C
+	Description: hotkey-description-orderstanceattackanything
+	Types: Unit
+	Contexts: player
+
+OrderStanceDefend: G
+	Description: hotkey-description-orderstancedefend
+	Types: Unit
+	Contexts: player
+
+OrderStanceReturnFire: H
+	Description: hotkey-description-orderstancereturnfire
+	Types: Unit
+	Contexts: player
+
+OrderStanceHoldFire: J
+	Description: hotkey-description-orderstanceholdfire
+	Types: Unit
+	Contexts: player
+
+OrderDeploy: D
+	Description: hotkey-description-orderdeploy
+	Types: Unit
+	Contexts: player

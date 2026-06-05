@@ -202,6 +202,7 @@ command-icons-gdi:
 		stop: 460, 331, 26, 26
 		stop-disabled: 460, 357, 26, 26
 		stop-active: 460, 383, 26, 26
+		cancel: 460, 383, 26, 26
 		queue-orders: 486, 331, 26, 26
 		queue-orders-disabled: 486, 357, 26, 26
 		queue-orders-hover: 486, 409, 26, 26
@@ -405,6 +406,7 @@ command-icons-nod:
 		stop: 972, 331, 26, 26
 		stop-disabled: 972, 357, 26, 26
 		stop-hover: 972, 409, 26, 26
+		cancel: 972, 409, 26, 26
 		queue-orders: 998, 331, 26, 26
 		queue-orders-disabled: 998, 357, 26, 26
 		queue-orders-hover: 998, 409, 26, 26

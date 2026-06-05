@@ -1,4 +1,49 @@
+^CombatOrderIcons:
+	OrderIcon@Move:
+		Order: Move
+		ChromeCollection: command-icons
+		ChromeImage: force-move
+		PanelPosition: 0, 0
+		TooltipLabel: command-card-move
+		HotkeyName: OrderMove
+	OrderIcon@Attack:
+		Order: Attack
+		ChromeCollection: command-icons
+		ChromeImage: attack-move
+		PanelPosition: 1, 0
+		TooltipLabel: command-card-attack
+		HotkeyName: OrderAttack
+	OrderIcon@AttackGround:
+		Order: AttackGround
+		ChromeCollection: command-icons
+		ChromeImage: force-attack
+		PanelPosition: 2, 0
+		TooltipLabel: command-card-attack-ground
+		HotkeyName: OrderAttackGround
+	OrderIcon@Stop:
+		Order: Stop
+		ChromeCollection: command-icons
+		ChromeImage: stop
+		PanelPosition: 0, 1
+		TooltipLabel: command-card-stop
+		HotkeyName: OrderStop
+	OrderIcon@Scatter:
+		Order: Scatter
+		ChromeCollection: command-icons
+		ChromeImage: scatter
+		PanelPosition: 1, 1
+		TooltipLabel: command-card-scatter
+		HotkeyName: OrderScatter
+	OrderIcon@Cancel:
+		Order: Cancel
+		Panel: cancel
+		ChromeCollection: command-icons
+		ChromeImage: cancel
+		PanelPosition: 4, 2
+		TooltipLabel: command-card-cancel
+
 ^Infantry:
+	Inherits@ORDERICONS: ^CombatOrderIcons
 	HeightAdvantageBonus:
 		BaseHeight: 2
 		RangeBonusPerLevel: 5
@@ -140,6 +185,34 @@
 ^Soldier:
 	Inherits@1: ^Infantry
 	Inherits@2: ^RegularInfantryDeath
+	OrderIcon@StanceAttackAnything:
+		Order: SetStance.AttackAnything
+		ChromeCollection: stance-icons
+		ChromeImage: attack-anything
+		PanelPosition: 0, 2
+		TooltipLabel: command-card-stance-attack-anything
+		HotkeyName: OrderStanceAttackAnything
+	OrderIcon@StanceDefend:
+		Order: SetStance.Defend
+		ChromeCollection: stance-icons
+		ChromeImage: defend
+		PanelPosition: 1, 2
+		TooltipLabel: command-card-stance-defend
+		HotkeyName: OrderStanceDefend
+	OrderIcon@StanceReturnFire:
+		Order: SetStance.ReturnFire
+		ChromeCollection: stance-icons
+		ChromeImage: return-fire
+		PanelPosition: 2, 2
+		TooltipLabel: command-card-stance-return-fire
+		HotkeyName: OrderStanceReturnFire
+	OrderIcon@StanceHoldFire:
+		Order: SetStance.HoldFire
+		ChromeCollection: stance-icons
+		ChromeImage: hold-fire
+		PanelPosition: 3, 2
+		TooltipLabel: command-card-stance-hold-fire
+		HotkeyName: OrderStanceHoldFire
 	RevealsShroud:
 		Range: 4c0
 	MustBeDestroyed:
@@ -163,6 +236,34 @@
 ^Cyborg:
 	Inherits@1: ^Infantry
 	Inherits@2: ^EmpDisable
+	OrderIcon@StanceAttackAnything:
+		Order: SetStance.AttackAnything
+		ChromeCollection: stance-icons
+		ChromeImage: attack-anything
+		PanelPosition: 0, 2
+		TooltipLabel: command-card-stance-attack-anything
+		HotkeyName: OrderStanceAttackAnything
+	OrderIcon@StanceDefend:
+		Order: SetStance.Defend
+		ChromeCollection: stance-icons
+		ChromeImage: defend
+		PanelPosition: 1, 2
+		TooltipLabel: command-card-stance-defend
+		HotkeyName: OrderStanceDefend
+	OrderIcon@StanceReturnFire:
+		Order: SetStance.ReturnFire
+		ChromeCollection: stance-icons
+		ChromeImage: return-fire
+		PanelPosition: 2, 2
+		TooltipLabel: command-card-stance-return-fire
+		HotkeyName: OrderStanceReturnFire
+	OrderIcon@StanceHoldFire:
+		Order: SetStance.HoldFire
+		ChromeCollection: stance-icons
+		ChromeImage: hold-fire
+		PanelPosition: 3, 2
+		TooltipLabel: command-card-stance-hold-fire
+		HotkeyName: OrderStanceHoldFire
 	Inherits@3: ^HealsOnTiberium
 	Inherits@CRUSHABLETYPE: ^CrushableHeavyInfantry
 	Inherits@ARMORTYPE: ^FeatureArmortypeCyborg
@@ -219,6 +320,35 @@
 		Categories: Civilian infantry
 
 ^Vehicle:
+	Inherits@ORDERICONS: ^CombatOrderIcons
+	OrderIcon@StanceAttackAnything:
+		Order: SetStance.AttackAnything
+		ChromeCollection: stance-icons
+		ChromeImage: attack-anything
+		PanelPosition: 0, 2
+		TooltipLabel: command-card-stance-attack-anything
+		HotkeyName: OrderStanceAttackAnything
+	OrderIcon@StanceDefend:
+		Order: SetStance.Defend
+		ChromeCollection: stance-icons
+		ChromeImage: defend
+		PanelPosition: 1, 2
+		TooltipLabel: command-card-stance-defend
+		HotkeyName: OrderStanceDefend
+	OrderIcon@StanceReturnFire:
+		Order: SetStance.ReturnFire
+		ChromeCollection: stance-icons
+		ChromeImage: return-fire
+		PanelPosition: 2, 2
+		TooltipLabel: command-card-stance-return-fire
+		HotkeyName: OrderStanceReturnFire
+	OrderIcon@StanceHoldFire:
+		Order: SetStance.HoldFire
+		ChromeCollection: stance-icons
+		ChromeImage: hold-fire
+		PanelPosition: 3, 2
+		TooltipLabel: command-card-stance-hold-fire
+		HotkeyName: OrderStanceHoldFire
 	HeightAdvantageBonus:
 		BaseHeight: 2
 		RangeBonusPerLevel: 5
@@ -365,6 +495,35 @@
 		Locomotor: tracked
 
 ^Aircraft:
+	Inherits@ORDERICONS: ^CombatOrderIcons
+	OrderIcon@StanceAttackAnything:
+		Order: SetStance.AttackAnything
+		ChromeCollection: stance-icons
+		ChromeImage: attack-anything
+		PanelPosition: 0, 2
+		TooltipLabel: command-card-stance-attack-anything
+		HotkeyName: OrderStanceAttackAnything
+	OrderIcon@StanceDefend:
+		Order: SetStance.Defend
+		ChromeCollection: stance-icons
+		ChromeImage: defend
+		PanelPosition: 1, 2
+		TooltipLabel: command-card-stance-defend
+		HotkeyName: OrderStanceDefend
+	OrderIcon@StanceReturnFire:
+		Order: SetStance.ReturnFire
+		ChromeCollection: stance-icons
+		ChromeImage: return-fire
+		PanelPosition: 2, 2
+		TooltipLabel: command-card-stance-return-fire
+		HotkeyName: OrderStanceReturnFire
+	OrderIcon@StanceHoldFire:
+		Order: SetStance.HoldFire
+		ChromeCollection: stance-icons
+		ChromeImage: hold-fire
+		PanelPosition: 3, 2
+		TooltipLabel: command-card-stance-hold-fire
+		HotkeyName: OrderStanceHoldFire
 	Inherits@2: ^ExistsInWorld
 	Inherits@3: ^Cloakable
 	Inherits@IONSTORM: ^IonStormVulnerable

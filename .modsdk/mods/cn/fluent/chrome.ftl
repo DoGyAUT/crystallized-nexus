@@ -71,5 +71,18 @@ label-mainmenu-prerelease-notification-prompt-text-c = Many features are missing
 label-mainmenu-prerelease-notification-prompt-text-d = optimized, and balance will not be addressed until a future beta.
 button-mainmenu-prerelease-notification-continue = I Understand
 
+## ingame-player.yaml — command card
+command-card-cancel = Cancel
+command-card-move = Move
+command-card-attack = Attack
+command-card-attack-ground = Attack Ground
+command-card-stop = Stop
+command-card-scatter = Scatter
+command-card-stance-attack-anything = Attack Anything
+command-card-stance-defend = Defensive
+command-card-stance-return-fire = Return Fire
+command-card-stance-hold-fire = Hold Fire
+command-card-deploy = Deploy
+
 ## settings-hotkeys.yaml
 hotkey-group-depth-preview-debug = Depth Preview Debug

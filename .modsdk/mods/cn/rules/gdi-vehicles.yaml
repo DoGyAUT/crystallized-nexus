@@ -822,6 +822,13 @@ JUGG:
 	Inherits@SPRITES: ^SpriteActor
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	OrderIcon@Deploy:
+		Order: Deploy
+		ChromeCollection: command-icons
+		ChromeImage: deploy
+		PanelPosition: 2, 1
+		TooltipLabel: command-card-deploy
+		HotkeyName: OrderDeploy
 	AutoCrusher@AUTOCRUSHER:
 		ScanRadius: 2c0
 	Valued:
