@@ -127,7 +127,7 @@ namespace OpenRA.Mods.CN.Traits
 				: Info.IonStormDefault;
 		}
 
-		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
+		void IWorldLoaded.WorldLoaded(World w, Graphics.WorldRenderer wr)
 		{
 			if (!enabled)
 				return;

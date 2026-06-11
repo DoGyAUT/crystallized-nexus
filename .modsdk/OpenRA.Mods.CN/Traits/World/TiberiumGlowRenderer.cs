@@ -328,12 +328,12 @@ namespace OpenRA.Mods.CN.Traits
 			// with the rendered scene; the shader projects px -> cell per pixel and
 			// corrects for terrain height (the lookup is sampled from the height
 			// texture iteratively).
-			vertices[0] = new RenderPostProcessPassTexturedVertex(topLeft.X,     topLeft.Y,     topLeft.X,     topLeft.Y);
-			vertices[1] = new RenderPostProcessPassTexturedVertex(bottomRight.X, topLeft.Y,     bottomRight.X, topLeft.Y);
+			vertices[0] = new RenderPostProcessPassTexturedVertex(topLeft.X, topLeft.Y, topLeft.X, topLeft.Y);
+			vertices[1] = new RenderPostProcessPassTexturedVertex(bottomRight.X, topLeft.Y, bottomRight.X, topLeft.Y);
 			vertices[2] = new RenderPostProcessPassTexturedVertex(bottomRight.X, bottomRight.Y, bottomRight.X, bottomRight.Y);
 			vertices[3] = new RenderPostProcessPassTexturedVertex(bottomRight.X, bottomRight.Y, bottomRight.X, bottomRight.Y);
-			vertices[4] = new RenderPostProcessPassTexturedVertex(topLeft.X,     bottomRight.Y, topLeft.X,     bottomRight.Y);
-			vertices[5] = new RenderPostProcessPassTexturedVertex(topLeft.X,     topLeft.Y,     topLeft.X,     topLeft.Y);
+			vertices[4] = new RenderPostProcessPassTexturedVertex(topLeft.X, bottomRight.Y, topLeft.X, bottomRight.Y);
+			vertices[5] = new RenderPostProcessPassTexturedVertex(topLeft.X, topLeft.Y, topLeft.X, topLeft.Y);
 
 			// Vertical screen px per terrain height level (zoom-dependent).
 			var refp = map.CenterOfCell(new MPos(0, 0).ToCPos(map));

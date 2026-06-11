@@ -13,13 +13,12 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits
 {
 	// ── Per-tree marker ───────────────────────────────────────────────────────
-
 	[Desc("Registers this actor as a forest cover source with ForestCoverSystem.",
 		"Replaces ProximityExternalCondition for forest cover — more efficient for large forests.")]
 	public class ForestCoverSourceInfo : TraitInfo
 	{
 		[Desc("Radius of forest cover granted by this actor.")]
-		public readonly WDist Range = new WDist(1512);
+		public readonly WDist Range = new(1512);
 
 		public override object Create(ActorInitializer init) => new ForestCoverSource(init.Self, this);
 	}
@@ -47,7 +46,6 @@ namespace OpenRA.Mods.CN.Traits
 	}
 
 	// ── World manager ─────────────────────────────────────────────────────────
-
 	[TraitLocation(SystemActors.World)]
 	[Desc("Manages the forest-cover condition using a cell influence map.",
 		"Replaces per-tree ProximityExternalCondition with a single centralized system.",
@@ -102,7 +100,7 @@ namespace OpenRA.Mods.CN.Traits
 			world = self.World;
 		}
 
-		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
+		void IWorldLoaded.WorldLoaded(World w, Graphics.WorldRenderer wr)
 		{
 			// Seed the coverable set once, then maintain it incrementally.
 			foreach (var actor in world.Actors)

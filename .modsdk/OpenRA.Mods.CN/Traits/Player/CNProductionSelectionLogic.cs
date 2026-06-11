@@ -7,7 +7,6 @@
 
 using System;
 using System.Linq;
-using OpenRA.Mods.CN.Widgets;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Widgets;
 using OpenRA.Widgets;
@@ -75,13 +74,13 @@ namespace OpenRA.Mods.CN.Widgets.Logic
 					palette.CurrentQueue = queues[nextIndex];
 				}
 				else
-					palette.CurrentQueue = queues.FirstOrDefault(q => q.BuildableItems().Any()) ?? queues.First();
+					palette.CurrentQueue = queues.FirstOrDefault(q => q.BuildableItems().Any()) ?? queues[0];
 
 				palette.ScrollToTop();
 				palette.PickUpCompletedBuilding();
 			}
 
-			button.IsDisabled = () => !AvailableQueues(button.ProductionGroup).Any();
+			button.IsDisabled = () => AvailableQueues(button.ProductionGroup).Length == 0;
 			button.OnMouseUp = mi => SelectGroup(mi.Modifiers.HasModifier(Modifiers.Shift));
 			button.OnKeyPress = e => SelectGroup(e.Modifiers.HasModifier(Modifiers.Shift));
 			button.OnClick = () => SelectGroup(false);

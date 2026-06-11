@@ -63,6 +63,13 @@ ttnk:
 hmec:
 	idle:
 
+cyclops:
+	idle:
+	turret: cyclopstur
+	barrel: cyclopsbarl
+	debris1: cyclopstur_debris
+	debris2: cyclopsbarl_debris
+
 hvr:
 	idle:
 	turret: hvrtur

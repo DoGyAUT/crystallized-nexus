@@ -37,10 +37,10 @@ namespace OpenRA.Mods.CN.Traits
 		public readonly bool ShowShadow = true;
 
 		[Desc("Maximum upward barrel elevation angle in WAngle units (1024 = 360°). Default ~30°. Set both to 0 to disable elevation.")]
-		public readonly WAngle MaxElevation = new WAngle(85);
+		public readonly WAngle MaxElevation = new(85);
 
 		[Desc("Maximum downward barrel depression angle in WAngle units (negative value). Default ~-15°.")]
-		public readonly WAngle MinElevation = new WAngle(-42);
+		public readonly WAngle MinElevation = new(-42);
 
 		[Desc("Barrel elevation change speed toward target angle, in WAngle units per tick.")]
 		public readonly int ElevationSpeed = 4;
@@ -148,8 +148,8 @@ namespace OpenRA.Mods.CN.Traits
 				cachedTarget = Target.Invalid;
 				targetElevation = 0;
 			}
-			// else: target gone but still in hold window — keep last elevation.
 
+			// else: target gone but still in hold window — keep last elevation.
 			var diff = targetElevation - currentElevation;
 			if (diff == 0)
 				return;
@@ -214,9 +214,8 @@ namespace OpenRA.Mods.CN.Traits
 		WRot BarrelRotation()
 		{
 			var bodyOri = body.QuantizeOrientation(self.Orientation);
-			WRot baseRot;
 			if (dynamics == null)
-				baseRot = Info.LocalOrientation.Rotate(turreted.WorldOrientation);
+				return Info.LocalOrientation.Rotate(turreted.WorldOrientation);
 			else
 			{
 				// Keep the static barrel orientation in the same composed space as the tilted turret,
@@ -225,12 +224,11 @@ namespace OpenRA.Mods.CN.Traits
 				var bodyTilted = new WRot(extra.Roll, extra.Pitch, WAngle.Zero).Rotate(bodyOri);
 				var turretRelYaw = turreted.WorldOrientation.Yaw - bodyOri.Yaw;
 				var tiltedTurret = WRot.FromYaw(turretRelYaw).Rotate(bodyTilted);
-				baseRot = Info.LocalOrientation.Rotate(tiltedTurret);
+				return Info.LocalOrientation.Rotate(tiltedTurret);
 			}
 
 			// Temporarily disable dynamic barrel elevation and render the barrel
 			// in its neutral orientation until the pitch logic is revisited.
-			return baseRot;
 		}
 	}
 }

@@ -20,15 +20,17 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Activities
 {
 	/// <summary>
-	/// Wrapper activity created by <see cref="CNSteeredMobile"/>.
-	///
+	/// <para>Wrapper activity created by <see cref="CNSteeredMobile"/>.</para>
+	/// <para>
 	/// For turns beyond SteeringAngle:
 	///   1. Compute an arc path: ForwardCommitCells straight + SteeringCone curved cells.
 	///   2. Hand the entire arc as one Move so IsTurn fires between consecutive cells.
 	///   3. Queue the original moveInner after the arc completes.
-	///
+	/// </para>
+	/// <para>
 	/// The lambda-based Move constructor lets us return a fresh path copy on re-path
 	/// while EvalPath's TakeWhile(mobile.ToCell) correctly prunes already-visited cells.
+	/// </para>
 	/// </summary>
 	public class CNSteeredMoveActivity : Activity
 	{
@@ -83,7 +85,7 @@ namespace OpenRA.Mods.CN.Activities
 			}
 
 			// Build the arc waypoint list and hand it to a single Move as a custom path.
-			var arcCells = BuildArcPath(map, desiredFacing, rawDelta, absDelta, destCell);
+			var arcCells = BuildArcPath(map, rawDelta, absDelta, destCell);
 			if (arcCells == null || arcCells.Count == 0)
 			{
 				QueueChild(moveInner);
@@ -105,9 +107,9 @@ namespace OpenRA.Mods.CN.Activities
 		/// <summary>
 		/// Builds the arc waypoint list in travel order (immediate next cell first).
 		/// ForwardCommitCells cells go straight, then SteeringCone cells curve toward
-		/// desiredFacing by distributing the total turn evenly across the arc steps.
+		/// the target facing by distributing the total turn evenly across the arc steps.
 		/// </summary>
-		List<CPos> BuildArcPath(Map map, WAngle desiredFacing, int rawDelta, int absDelta, CPos destCell)
+		List<CPos> BuildArcPath(Map map, int rawDelta, int absDelta, CPos destCell)
 		{
 			var cells = new List<CPos>();
 			var current = mobile.ToCell;

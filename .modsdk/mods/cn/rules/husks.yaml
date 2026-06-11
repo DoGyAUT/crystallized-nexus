@@ -91,6 +91,11 @@ APC.Husk:
 	RenderVoxels:
 		Image: apc
 
+CYCLOPS.Husk:
+	Inherits: ^VehicleHusk
+	RenderVoxels:
+		Image: cyclops
+
 HVR.Husk:
 	Inherits: ^VehicleHusk
 	RenderVoxels:

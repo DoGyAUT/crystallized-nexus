@@ -645,8 +645,8 @@ NASTLH:
 		Description: actor-nastlh.description
 	ProvidesPrerequisite@buildingname:
 	Building:
-		Footprint: xxxxx xxxxx
-		Dimensions: 5,2
+		Footprint: xxxx xxxx
+		Dimensions: 4,2
 	CNHealth:
 		HP: 600
 	Armor:

@@ -11,7 +11,6 @@
 
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
@@ -69,9 +68,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class RaiderAttackState : CNStateBase, ICNState
 	{
-		int stuckTicks;
 		const int StuckThreshold = 8;
 		const int KiteThreatRadiusCells = 5;
+		int stuckTicks;
 		CPos lastPos;
 
 		public void Activate(CNSquad squad)
@@ -175,11 +174,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class RaiderFleeState : CNStateBase, ICNState
 	{
-		int fleeStartTick;
 		const int RegroupWaitTicks = 80;
 		const int MinRetreatCells = 6;
 		const int MaxRetreatCells = 14;
 		const int ReengageThreatDistanceCells = 9;
+		int fleeStartTick;
 
 		public void Activate(CNSquad squad)
 		{

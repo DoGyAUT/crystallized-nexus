@@ -179,8 +179,8 @@ namespace OpenRA.Mods.CN.Traits
 
 			var random = self.World.SharedRandom;
 			profile = info.Profiles.Length == 0 ? CNAircraftCrashProfile.Glide : info.Profiles.Random(random);
-			forwardSpeed = OpenRA.Mods.Common.Util.RandomInRange(random, info.ForwardSpeed);
-			fallVelocity = OpenRA.Mods.Common.Util.RandomDistance(random, info.InitialFallVelocity);
+			forwardSpeed = Util.RandomInRange(random, info.ForwardSpeed);
+			fallVelocity = Util.RandomDistance(random, info.InitialFallVelocity);
 			spinDirection = random.Next(2) == 0 ? -1 : 1;
 
 			switch (profile)
@@ -189,16 +189,16 @@ namespace OpenRA.Mods.CN.Traits
 					turnRate = RandomNonZero(random, info.CurveTurnRate, 3);
 					break;
 				case CNAircraftCrashProfile.Spiral:
-					spin = Math.Max(1, OpenRA.Mods.Common.Util.RandomInRange(random, info.SpiralInitialSpin)) * spinDirection;
+					spin = Math.Max(1, Util.RandomInRange(random, info.SpiralInitialSpin)) * spinDirection;
 					break;
 				case CNAircraftCrashProfile.Tumble:
 					turnRate = RandomNonZero(random, info.TumbleYawRate, 4);
-					pitchRate = Math.Max(1, OpenRA.Mods.Common.Util.RandomInRange(random, info.TumblePitchRate)) * spinDirection;
+					pitchRate = Math.Max(1, Util.RandomInRange(random, info.TumblePitchRate)) * spinDirection;
 					rollRate = RandomNonZero(random, info.TumbleRollRate, 8);
 					break;
 				default:
-					turnRate = OpenRA.Mods.Common.Util.RandomInRange(random, info.GlideTurnRate);
-					pitchRate = Math.Max(0, OpenRA.Mods.Common.Util.RandomInRange(random, info.GlidePitchRate));
+					turnRate = Util.RandomInRange(random, info.GlideTurnRate);
+					pitchRate = Math.Max(0, Util.RandomInRange(random, info.GlidePitchRate));
 					break;
 			}
 		}
@@ -230,7 +230,7 @@ namespace OpenRA.Mods.CN.Traits
 			{
 				case CNAircraftCrashProfile.Curve:
 					aircraft.Facing = new WAngle(aircraft.Facing.Angle + turnRate);
-					aircraft.Roll = OpenRA.Mods.Common.Util.TickFacing(
+					aircraft.Roll = Util.TickFacing(
 						aircraft.Roll,
 						new WAngle(-turnRate * info.CurveRollMultiplier),
 						new WAngle(Math.Max(1, info.CurveRollSpeed)));
@@ -307,7 +307,7 @@ namespace OpenRA.Mods.CN.Traits
 
 		static int RandomNonZero(MersenneTwister random, ImmutableArray<int> range, int fallback)
 		{
-			var value = OpenRA.Mods.Common.Util.RandomInRange(random, range);
+			var value = Util.RandomInRange(random, range);
 			if (value != 0)
 				return value;
 

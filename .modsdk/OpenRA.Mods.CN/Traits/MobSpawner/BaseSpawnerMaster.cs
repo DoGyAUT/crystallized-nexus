@@ -80,7 +80,7 @@ namespace OpenRA.Mods.CN.Traits
 
 		// Set to true in the constructor (before Created runs) to suppress the initial Replenish
 		// call — used when adopting existing slaves from a transferred master.
-		protected bool SkipInitialSpawn = false;
+		protected bool skipInitialSpawn = false;
 
 		int exitRoundRobin = -1;
 
@@ -110,7 +110,7 @@ namespace OpenRA.Mods.CN.Traits
 			exits = self.Info.TraitInfos<ExitInfo>().ToArray();
 			rallyPoint = self.TraitOrDefault<RallyPoint>();
 
-			if (!SkipInitialSpawn)
+			if (!skipInitialSpawn)
 			{
 				var burst = Info.InitialActorCount == -1 ? Info.Actors.Length : Info.InitialActorCount;
 				if (!IsTraitDisabled)

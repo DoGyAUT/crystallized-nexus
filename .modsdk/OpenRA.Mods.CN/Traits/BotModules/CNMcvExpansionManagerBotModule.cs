@@ -904,7 +904,7 @@ namespace OpenRA.Mods.Common.Traits
 			var mcvNum = AIUtils.CountActorByCommonName(mcvs);
 			var conyardNum = AIUtils.CountActorByCommonName(constructionYards);
 
-			var profileKey = profileModule != null ? profileModule.ActiveProfile.ToString() : null;
+			var profileKey = profileModule?.ActiveProfile.ToString();
 			var additionalCYCount = profileKey != null
 				&& Info.AdditionalConstructionYardCounts != null
 				&& Info.AdditionalConstructionYardCounts.TryGetValue(profileKey, out var profileAdditional)

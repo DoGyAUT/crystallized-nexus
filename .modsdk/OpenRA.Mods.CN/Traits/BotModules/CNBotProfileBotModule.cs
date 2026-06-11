@@ -341,7 +341,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var rushThreshold = Info.AdaptiveRushUnitThreshold
 				+ (ActiveTechStage == TechStage.Early ? Info.RushUnitThresholdEarlyOffset : 0)
-				+ (ActiveTechStage == TechStage.Late  ? Info.RushUnitThresholdLateOffset  : 0);
+				+ (ActiveTechStage == TechStage.Late ? Info.RushUnitThresholdLateOffset : 0);
 
 			var needsExpansion = world.WorldTick > Info.AdaptiveExpansionGraceTicks
 				&& cash < Info.AdaptiveExpansionIncomeThreshold
@@ -574,12 +574,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		static string ProfileConditionName(BotProfile profile) => profile switch
 		{
-			BotProfile.Rush        => "cn-profile-rush",
-			BotProfile.Turtle      => "cn-profile-turtle",
-			BotProfile.Tech        => "cn-profile-tech",
-			BotProfile.Expansion   => "cn-profile-expansion",
+			BotProfile.Rush => "cn-profile-rush",
+			BotProfile.Turtle => "cn-profile-turtle",
+			BotProfile.Tech => "cn-profile-tech",
+			BotProfile.Expansion => "cn-profile-expansion",
 			BotProfile.Steamroller => "cn-profile-steamroller",
-			_                      => "cn-profile-expansion"
+			_ => "cn-profile-expansion"
 		};
 
 		BotProfile ResolveInitialProfile()

@@ -1,7 +1,12 @@
 Player:
 	PowerDownBotModule:
 		RequiresCondition: enable-test-ai || enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
-		PowerDownTypes: garadr, naradr, gavulc, garock, gacsam, gactwr, naobel, nalasr, nasam, nagat
+		PowerDownTypes: garadr, gaplug, gafire, gamg, gacan, gasam, gagat, gasen, gamortar, naradr, nastlh, napyra, natmpl, namisl, napost, naobel, nalasr, nasam, nagat, naflamer, napuls
+
+	CNTacticalMapBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		TopologyLocomotors: tracked
+		ChokepointSealMaxWidth: 15
 
 	CNBaseBuilderBotModule@cn:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
@@ -62,6 +67,7 @@ Player:
 		WallTypes: gawall, nawall
 		GateTypes: gagate_a, gagate_b, nagate_a, nagate_b
 		ProtectedByWalls: gaarmory, gatech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls
+		EnableChokepointSealing: true
 		BasePerimeterWallMinimumStructures: 8
 		BasePerimeterWallPadding: 4
 		BasePerimeterMaxGateCount: 2

@@ -136,7 +136,7 @@ namespace OpenRA.Mods.CN.Traits
 			foreach (var group in Info.Groups.Values)
 			{
 				var units = group.ActorTypes.Count == 0
-					? (IEnumerable<Actor>)playerDeployables
+					? playerDeployables
 					: playerDeployables.Where(a => group.ActorTypes.Contains(a.Info.Name));
 
 				foreach (var unit in units)

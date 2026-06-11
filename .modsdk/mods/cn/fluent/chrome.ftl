@@ -63,6 +63,10 @@ button-production-types-infantry-tooltip = Infantry
 button-production-types-vehicle-tooltip = Vehicles
 button-production-types-aircraft-tooltip = Aircraft
 
+## lobby-players.yaml
+label-lobby-players-handicap = Difficulty
+dropdownbutton-lobby-players-handicap-tooltip = Difficulty adjusts the combat effectiveness of the player's forces
+
 ## mainmenu-prerelease-notification.yaml
 label-mainmenu-prerelease-notification-prompt-title = Tiberian Sun developer preview
 label-mainmenu-prerelease-notification-prompt-text-a = This pre-alpha build of OpenRA's Tiberian Sun mod is made available

@@ -12,7 +12,6 @@
 using OpenRA.Activities;
 using OpenRA.Mods.CN.Activities;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.Movement
 {

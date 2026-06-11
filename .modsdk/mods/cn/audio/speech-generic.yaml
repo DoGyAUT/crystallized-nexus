@@ -1,6 +1,9 @@
 Speech:
 	Prefixes:
 		gdi: g_
+		gdf: g_
+		steel: g_
+		zocom: g_
 		nod: n_
 	Notifications:
 		AirUnitLost: 00-i074

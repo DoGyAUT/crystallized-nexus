@@ -20,16 +20,72 @@ MechRailgun:
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
 
+CyclopsLauncher:
+	Inherits: ^RailgunCannon
+	Inherits@DefaultWahead: ^PlasmaWarhead
+	ReloadDelay: 80
+	Burst: 3
+	BurstDelays: 10
+	Range: 7c768
+	Report: railshot01.aud, railshot02.aud, railshot03.aud, railshot04.aud, railshot05.aud
+	Projectile: Bullet
+		Speed: 512
+		Inaccuracy: 2c0
+		Image: railgun_nano
+		Palette: apolcyan
+		ContrailLength: 0
+	Warhead@1Dam: SpreadDamage
+		Damage: 60
+	Warhead@2Eff: CreateEffect
+		Explosions: apexplosion01
+		ExplosionPalette: effect
+		ImpactSounds: Tank_hit_HE_v1.ogg, Tank_hit_HE_v2.ogg, Tank_hit_HE_v3.ogg
+		ValidTargets: Ground, Air, DeadInfantry
+		InvalidTargets: Vehicle, Cyborg
+	Warhead@3EffWater: CreateEffect
+		Explosions: small_watersplash
+		ExplosionPalette: player
+		ImpactSounds: ssplash3.aud
+		ValidTargets: Water
+		InvalidTargets: Vehicle
+	Warhead@4Smu: LeaveSmudge
+		SmudgeType: MediumCrater
+		InvalidTargets: Vehicle, Building, Wall
+	Warhead@5Eff: CreateEffect
+		Explosions: pboom1, pboom2, pboom3
+		ExplosionPalette: effect
+		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
+		ValidTargets: Vehicle, Cyborg
+		InvalidTargets: Infantry, Building
+	Warhead@5Eff: CreateEffect
+		Explosions: plasmaexpl1
+		ExplosionPalette: effect
+		ValidTargets: Vehicle, Cyborg, Building, Infantry
+	Warhead@6Sparks: SparkBurst
+		ValidTargets: Vehicle, Cyborg, Air, Building
+		Count: 14
+		Speed: 45, 140
+		UpwardSpeed: 240, 560
+		Gravity: 46
+		Lifetime: 10, 22
+		RestLifetime: 12, 26
+		Length: 68, 136
+		Width: 1, 2
+		Inaccuracy: 40
+		HotColor: FFF7C8
+		MidColor: FFC845
+		ColdColor: FFFFFF
+
 SonicZap:
 	ReloadDelay: 180
-	Range: 5c0
+	Range: 7c0
 	Report: sonic4.aud
 	ValidTargets: Ground, Trees
 	Projectile: AreaBeam
 		Speed: 0c128
 		Duration: 50
 		DamageInterval: 5
-		Width: 512
+		Width: 768
 		Shape: Flat
 		ZOffset: 2047
 		MinDistance: 5c0
@@ -39,8 +95,8 @@ SonicZap:
 		Color: 50F5FF45
 		BeamEdgeSoftness: 0.22
 		BeamBloomIntensity: 3.0
-		Distortion: 0.7
-		DistortionWidth: 0c640
+		Distortion: 1.7
+		DistortionWidth: 1c0
 		DistortionWaveScale: 8
 		DistortionWaveSpeed: 0.035
 		DistortionEdgeSoftness: 0.65
@@ -65,7 +121,7 @@ SonicZap:
 			Superheavy: 30
 			Shield: 400
 			Stability: 500
-		DamageTypes: SmallExplosionDeath, TriggerProne, Prone100Percent
+		DamageTypes: SmallExplosionDeath, TriggerProne, Prone100Percent, PierceArmor, BypassArmorLight
 	Warhead@2Dam: SpreadDamage
 		Range: 0, 32
 		Falloff: 50, 50

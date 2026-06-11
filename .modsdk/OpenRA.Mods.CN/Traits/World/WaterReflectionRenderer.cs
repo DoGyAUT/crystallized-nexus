@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using OpenRA.Graphics;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits
@@ -118,7 +117,8 @@ namespace OpenRA.Mods.CN.Traits
 			shader = renderer.CreateShader(bindings);
 
 			var map = self.World.Map;
-			var paletteRanges = map.Tileset.ToUpperInvariant() == "SNOW"
+			var paletteRanges = map.Tileset.Equals("SNOW",
+System.StringComparison.InvariantCultureIgnoreCase)
 				? info.SnowWaterPaletteIndexRanges
 				: info.TemperateWaterPaletteIndexRanges;
 			mask = new WaterSurfaceMask(map, paletteRanges, info.WaterPaletteMaskedTemplates);

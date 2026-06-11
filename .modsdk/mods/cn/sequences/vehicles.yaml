@@ -66,6 +66,20 @@ nharv:
 	icon:
 		Filename: npharvicon.shp
 
+cyclops:
+	Inherits: ^VehicleOverlays
+	muzzle:
+		Filename: tankmuzzle_small.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 3
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+		BloomGlow: True
+	icon:
+		Filename: cyclopsicon.shp
+
 hvr:
 	Inherits: ^VehicleOverlays
 	muzzle:
@@ -497,6 +511,35 @@ mmch:
 		Offset: 0, 0, 12
 	turret:
 		Start: 176
+		Facings: -32
+		Offset: 0, 0, 12
+	muzzle:
+		Filename: tankmuzzle_medium.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 5
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+		BloomGlow: True
+	icon:
+		Filename: mmchicon.shp
+
+mmch2:
+	Defaults:
+		Filename: mmch2.shp
+	Inherits: ^VehicleOverlays
+	stand:
+		Facings: -8
+		Stride: 23
+		Offset: 0, 0, 12
+	walk:
+		Length: 23
+		Facings: -8
+		Tick: 90
+		Offset: 0, 0, 12
+	turret:
+		Start: 184
 		Facings: -32
 		Offset: 0, 0, 12
 	muzzle:

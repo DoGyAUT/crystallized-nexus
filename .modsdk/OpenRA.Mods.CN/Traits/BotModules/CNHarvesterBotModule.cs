@@ -519,10 +519,7 @@ namespace OpenRA.Mods.Common.Traits
 			var minCellCost = harv.Mobile.Locomotor.Info.TerrainSpeeds.Values.Min(ti => ti.Cost);
 			var cellCostMultiplier = Info.HarvesterEnemyAvoidanceCostMultipler;
 
-			static int2 CellToBin(CPos cell, int radius)
-			{
-				return new int2(cell.X / radius, cell.Y / radius);
-			}
+			static int2 CellToBin(CPos cell, int radius) => new(cell.X / radius, cell.Y / radius);
 
 			static int CalculateAvoidanceCostForBin(World world, int2 bin, int radius, Actor actor, int minCellCost, int multiplier)
 			{
@@ -661,10 +658,11 @@ namespace OpenRA.Mods.Common.Traits
 				var bestDock = best.TraitsImplementing<IDockHost>()
 					.FirstOrDefault(host => dockClientManager != null && dockClientManager.CanDockAt(best, host, false, true));
 
-				if (bestDock != null && (bestBusy > 0 || bestDock.ReservationCount > 0 || harvesterRefineryAssignment.Values.Count(r => r == best) > 0))
+				if (bestDock != null &&
+					(bestBusy > 0 || bestDock.ReservationCount > 0 || harvesterRefineryAssignment.Values.Any(r => r == best)) &&
+					bestFreeDistance <= bestDistance + Info.FreeRefineryDistanceSlack)
 				{
-					if (bestFreeDistance <= bestDistance + Info.FreeRefineryDistanceSlack)
-						return bestFree;
+					return bestFree;
 				}
 			}
 

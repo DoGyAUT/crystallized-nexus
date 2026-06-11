@@ -9,11 +9,7 @@
  */
 #endregion
 
-using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Mods.Common.Activities;
-using OpenRA.Mods.Common.Traits;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -25,14 +21,12 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class CNHarvester : Harvester, IResolveOrder
 	{
-		readonly Actor self;
 		readonly ResourceClaimLayer claimLayer;
 		readonly Mobile mobile;
 
 		public CNHarvester(Actor self, HarvesterInfo info)
 			: base(self, info)
 		{
-			this.self = self;
 			claimLayer = self.World.WorldActor.Trait<ResourceClaimLayer>();
 			mobile = self.TraitOrDefault<Mobile>();
 		}

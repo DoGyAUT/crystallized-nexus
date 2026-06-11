@@ -20,7 +20,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// ---------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------
-
 	static class SubterraneanHelpers
 	{
 		static readonly BitSet<TargetableType> UndergroundTypes = new("Underground");
@@ -106,7 +105,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				var normalized = dir * 1024 / dir.Length;
 				var offset = new WVec(normalized.X, normalized.Y, 0) * WDist.FromCells(4).Length / 1024;
-				targetPos = targetPos + offset;
+				targetPos += offset;
 			}
 
 			return squad.World.Map.CellContaining(targetPos);
@@ -310,10 +309,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubAssaultReburrowState : CNStateBase, ICNState
 	{
+		const int MaxRetreatTicks = 900;
 		bool retreatIssued;
 		CPos retreatCell;
 		int retreatStartTick;
-		const int MaxRetreatTicks = 900;
 
 		public void Activate(CNSquad squad)
 		{
@@ -364,7 +363,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubTransportIdleState : CNStateBase, ICNState
 	{
-		public void Activate(CNSquad squad) { }
+		public void Activate(CNSquad squad) { squad.AcceptingPassengers = true; }
 
 		public void Tick(CNSquad squad)
 		{
@@ -396,7 +395,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		int loadStartTick;
 
-		public void Activate(CNSquad squad) { loadStartTick = squad.World.WorldTick; }
+		public void Activate(CNSquad squad)
+		{
+			squad.AcceptingPassengers = true;
+			loadStartTick = squad.World.WorldTick;
+		}
 
 		public void Tick(CNSquad squad)
 		{
@@ -416,16 +419,32 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (passengers.Count == 0 && !anyCargo)
 			{
-				// No passengers assigned and nothing aboard — skip to approach.
+				// No passengers assigned and nothing aboard — stay at base and keep requesting top-ups.
+				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportIdleState());
+				return;
+			}
+
+			var waiting = passengers.Count(u => u.IsInWorld);
+			var carriersFull = carriers.All(c =>
+			{
+				var cargo = c.TraitOrDefault<Cargo>();
+				return cargo == null || !cargo.HasSpace(1);
+			});
+			var fullyRecruitedAndAboard =
+				waiting == 0 && squad.RecruitedPassengerCount >= squad.DesiredPassengerCount;
+			var allLoaded = anyCargo && (carriersFull || fullyRecruitedAndAboard);
+
+			if (allLoaded)
+			{
 				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportBurrowState());
 				return;
 			}
 
-			var allLoaded = anyCargo && (passengers.Count == 0 || passengers.All(p => !p.IsInWorld));
-
-			if (allLoaded || squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
+			if (squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportBurrowState());
+				// Timeout may send partial cargo, but never an empty SAPC.
+				squad.FuzzyStateMachine.ChangeState(squad,
+					anyCargo ? new SubTransportBurrowState() : new SubTransportIdleState());
 				return;
 			}
 
@@ -453,12 +472,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubTransportBurrowState : CNStateBase, ICNState
 	{
+		const int MaxBurrowTicks = 900;
 		bool moveIssued;
 		int burrowStartTick;
-		const int MaxBurrowTicks = 900;
 
 		public void Activate(CNSquad squad)
 		{
+			squad.AcceptingPassengers = false;
 			moveIssued = false;
 			burrowStartTick = squad.World.WorldTick;
 		}
@@ -656,7 +676,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					squad.Bot.QueueOrder(new Order("Attack", escort, Target.FromActor(escortTarget), false));
 			}
 
-			squad.FuzzyStateMachine.ChangeState(squad, new SubTransportReturnState());
+			squad.FuzzyStateMachine.ChangeState(squad, new TransportDropAssaultState());
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -667,10 +687,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubTransportReturnState : CNStateBase, ICNState
 	{
+		const int MaxReturnTicks = 1200;
 		bool returnIssued;
 		CPos returnCell;
 		int returnStartTick;
-		const int MaxReturnTicks = 1200;
 
 		public void Activate(CNSquad squad)
 		{

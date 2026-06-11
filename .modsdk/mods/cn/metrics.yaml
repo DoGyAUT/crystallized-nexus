@@ -1,3 +1,8 @@
 # General dumping-ground for UI element sizes, etc.
 Metrics:
 	TextfieldColorHighlight: 1a1a1a
+	FactionSuffix-gdi: gdi
+	FactionSuffix-gdf: gdi
+	FactionSuffix-steel: gdi
+	FactionSuffix-zocom: gdi
+	FactionSuffix-nod: nod

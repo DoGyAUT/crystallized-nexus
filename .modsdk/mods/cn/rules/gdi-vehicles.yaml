@@ -218,6 +218,103 @@ APC:
 	BotCapabilities:
 		Capabilities: Vehicle, Transporter
 
+CYCLOPS:
+	Inherits@VOXELS: ^VoxelVehicle
+	Inherits@VOXELDYNAMICS: ^VoxelDynamicsHover
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	Valued:
+		Cost: 900
+	Tooltip:
+		Name: actor-cyclops.name
+	Voiced:
+		VoiceSet: Slingshot
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 80
+		Prerequisites: ~gaweap, gaarmory, ~techlevel.medium, ~tech.zocom
+		Description: actor-cyclops.description
+	Mobile:
+		Speed: 99
+		Locomotor: hover
+		TerrainOrientationAdjustmentMargin: -1
+		TurnsWhileMoving: true
+		TurnSpeed: 24
+	Selectable:
+		Bounds: 1206, 1448, 0, -603
+	CNHealth:
+		HP: 150
+	Armor:
+		Type: Light
+	SecondaryHealth@ARMOR:
+		MaxHP: 300
+		InitialHP: -1
+		ArmorType: Medium
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor, BypassArmorLight
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
+	RevealsShroud:
+		RequiresCondition: !inside-tunnel
+		Range: 7c0
+		MaxHeightDelta: 3
+	Turreted:
+		TurnSpeed: 15
+		Offset: -40,0,0
+	AttackTurreted:
+		Voice: Attack
+		PauseOnCondition: empdisable
+	CNWithVoxelTurret:
+	CNWithVoxelBarrel:
+	Armament:
+		Weapon: CyclopsLauncher
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		Recoil: 256
+		RecoilRecovery: 32
+		LocalOffset: 1100,0,740
+	WithMuzzleOverlay:
+	VoxelShadowSmoothing:
+		Range: 1c512
+		GroundHeightSmoothingTicks: 3
+		OrientationSmoothingTicks: 5
+		UseTerrainOrientation: false
+	Hovers:
+		RequiresCondition: !empdisable && !repair-docked
+		BobDistance: -64
+		InitialHeight: 384
+	GrantConditionOnClientDock@REPAIR:
+		Condition: repair-docked
+		DockHostNames: gadept
+	LeavesTrails:
+		RequiresCondition: !inside-tunnel
+		Image: wake
+		Palette: effect
+		TerrainTypes: Water
+		TrailWhileStationary: True
+		StationaryInterval: 18
+		MovingInterval: 6
+	WithMuzzleOverlay:
+	WithWaterReflection:
+	-DamagedByTerrain@VEINS:
+	-LeavesTrails@VEINS:
+	SpawnActorOnDeath@HUSK:
+		Actor: CYCLOPS.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+	BotCapabilities:
+		Capabilities: Vehicle, Hover, AntiArmor
+
 HVR:
 	Inherits@VOXELS: ^VoxelVehicle
 	Inherits@VOXELDYNAMICS: ^VoxelDynamicsHover
@@ -234,7 +331,7 @@ HVR:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 80
-		Prerequisites: ~gaweap, garadr, ~techlevel.medium
+		Prerequisites: ~gaweap, garadr, ~techlevel.medium, ~tech.zocom
 		Description: actor-hvr.description
 	Mobile:
 		Speed: 99
@@ -325,7 +422,7 @@ SMECH:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 20
-		Prerequisites: ~gaweap, ~techlevel.low
+		Prerequisites: ~gaweap, ~techlevel.low, ~tech.steel
 		Description: actor-smech.description
 	Voiced:
 		VoiceSet: Wolverine
@@ -400,7 +497,7 @@ GTMTNK:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
-		Prerequisites: ~gaweap, ~techlevel.low
+		Prerequisites: ~gaweap, ~techlevel.low, ~tech.gdf
 		Description: actor-gtmtnk.description
 	Mobile:
 		TurnSpeed: 10
@@ -456,18 +553,6 @@ GTMTNK:
 		InternalOwner: Neutral
 	BotCapabilities:
 		Capabilities: Vehicle, AntiArmor
-#	WithIdleOverlay@HEADLIGHT_L:
-#		RequiresCondition: ionstorm
-#		Image: veh_conelight_w
-#		Sequence: cone
-#		Palette: effect
-#		Offset: 800, 180, 400
-#	WithIdleOverlay@HEADLIGHT_R:
-#		RequiresCondition: ionstorm
-#		Image: veh_conelight_w
-#		Sequence: cone
-#		Palette: effect
-#		Offset: 800, -180, 400
 
 MMCH:
 	Inherits: ^Tank
@@ -484,7 +569,7 @@ MMCH:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
-		Prerequisites: ~gaweap, gaarmory, ~techlevel.medium
+		Prerequisites: ~gaweap, ~techlevel.medium, ~tech.steel
 		Description: actor-mmch.description
 	Mobile:
 		Locomotor: walker
@@ -542,8 +627,7 @@ MMCH:
 		RecoilRecovery: 32
 		LocalOffset: 1188,458,1485
 	DetectCloaked:
-		Range: 1c768
-		RequiresCondition: rank-elite
+		Range: 6c768
 	RenderDetectionCircle:
 	WithMuzzleOverlay:
 	Selectable:
@@ -574,7 +658,7 @@ MMCH:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
-		Prerequisites: ~gaweap, gaarmory, ~techlevel.medium
+		Prerequisites: ~gaweap, gaarmory, ~techlevel.medium, ~tech.gdf
 		Description: actor-4tnk-description
 	Mobile:
 		Locomotor: heavytracked
@@ -671,7 +755,7 @@ HMEC:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 140
-		Prerequisites: ~gaweap, gatech, ~techlevel.veryhigh
+		Prerequisites: ~gaweap, gatech, ~techlevel.veryhigh, ~tech.steel
 		Description: actor-hmec.description
 	Mobile:
 		Locomotor: heavywalker
@@ -732,7 +816,8 @@ HMEC:
 	CNWithVoxelWalkerBody:
 		TickRate: 2
 	Selectable:
-		Bounds: 1206, 2413, 0, -482
+		Bounds: 1448, 2896, 0, -603
+		DecorationBounds: 1448, 2896, 0, -603
 	Carryable:
 		LocalOffset: 0,0,509
 	ActorLostNotification:
@@ -760,7 +845,7 @@ SONIC:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 120
-		Prerequisites: ~gaweap, gatech, ~techlevel.high
+		Prerequisites: ~gaweap, gatech, ~techlevel.high, ~tech.zocom
 		Description: actor-sonic.description
 	Targetable:
 		TargetTypes: Ground, Vehicle, Disruptor
@@ -772,7 +857,7 @@ SONIC:
 	Armor:
 		Type: Medium
 	SecondaryHealth@ARMOR:
-		MaxHP: 400
+		MaxHP: 500
 		InitialHP: -1
 		ArmorType: Heavy
 		RegenerateRate: 0
@@ -793,15 +878,15 @@ SONIC:
 		MaxHeightDelta: 3
 	Armament:
 		Weapon: SonicZap
-		LocalOffset: 50,0,1100
+		LocalOffset: 63,0,1375
 	AttackTurreted:
 		Voice: Attack
 		PauseOnCondition: empdisable
 		OpportunityFire: False
 	Turreted:
 		TurnSpeed: 20
-		Offset: -380,0,0
-	WithVoxelTurret:
+		Offset: -475,0,0
+	CNWithVoxelTurret:
 	FireWarheadsOnDeath:
 		RequiresCondition: !rank-elite
 	FireWarheadsOnDeath@ELITE:
@@ -839,7 +924,7 @@ JUGG:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 100
-		Prerequisites: ~gaweap, garadr, ~techlevel.high
+		Prerequisites: ~gaweap, garadr, ~techlevel.high, ~tech.steel
 		Description: actor-jugg.description
 	CNHealth:
 		HP: 200

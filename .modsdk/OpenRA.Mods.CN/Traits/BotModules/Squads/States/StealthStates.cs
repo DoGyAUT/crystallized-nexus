@@ -11,15 +11,14 @@
 
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	sealed class StealthIdleState : CNStateBase, ICNState
 	{
-		int rethinkTicks;
 		const int RethinkInterval = 3;
+		int rethinkTicks;
 
 		public void Activate(CNSquad squad) { rethinkTicks = 0; }
 
@@ -57,9 +56,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class StealthApproachState : CNStateBase, ICNState
 	{
+		const int MaxStuckTicks = 120;
 		int lastActivityTick;
 		CPos lastCenterPos;
-		const int MaxStuckTicks = 120;
 
 		public void Activate(CNSquad squad)
 		{
@@ -78,12 +77,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			var anyRevealed = squad.OrderableUnits.Any(u =>
-			{
-				return u.TraitsImplementing<Cloak>().Any(c => !c.IsTraitDisabled && !c.Cloaked);
-			});
-
-			if (anyRevealed || ShouldFlee(squad))
+			// Stealth units uncloak to fire (UncloakOn: Attack), so being "revealed" is the normal
+			// state mid-attack — not a reason to bail. Previously any uncloaked unit triggered a
+			// flee, so the squad retreated right after its first shot and never committed to a kill.
+			// Fleeing is now driven purely by the threat/health assessment, so the squad presses the
+			// attack and only pulls back when it is actually being beaten.
+			if (ShouldFlee(squad))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new StealthFleeState());
 				return;
@@ -113,18 +112,21 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		protected override bool ShouldFlee(CNSquad squad)
 		{
+			// Default (not Raider) profile: stealth tanks are hard-hitting ambushers that should
+			// trade with an even or weaker enemy and only flee when injured/outgunned. The Raider
+			// profile fled even at full health against a healthy enemy, which made them too timid.
 			return ShouldFlee(squad, enemies =>
-				!CNAttackOrFleeFuzzy.Raider.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
+				!CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
 		}
 	}
 
 	sealed class StealthFleeState : CNStateBase, ICNState
 	{
-		int fleeStartTick;
 		const int RecloakWaitTicks = 150;
 		const int MinRetreatCells = 6;
 		const int MaxRetreatCells = 14;
 		const int ReengageThreatDistanceCells = 10;
+		int fleeStartTick;
 
 		public void Activate(CNSquad squad)
 		{
@@ -154,7 +156,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var allCloaked = squad.OrderableUnits.All(IsCloakedOrUncloakable);
 
 			if (enemy == null ||
-				allCloaked && HasOpenedKiteDistance(center, enemy) ||
+				(allCloaked && HasOpenedKiteDistance(center, enemy)) ||
 				squad.World.WorldTick - fleeStartTick >= RecloakWaitTicks)
 				squad.FuzzyStateMachine.ChangeState(squad, new StealthIdleState());
 		}

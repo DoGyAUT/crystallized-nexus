@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Terrain;
-using OpenRA.Primitives;
 
 namespace OpenRA.Mods.CN.Traits
 {
@@ -45,7 +44,7 @@ namespace OpenRA.Mods.CN.Traits
 
 			Enabled = true;
 			waterIndices = BuildIndexMask(paletteIndexRanges);
-			templateIds = new HashSet<int>(maskedTemplates);
+			templateIds = [.. maskedTemplates];
 			tileCache = new DefaultTileCache(terrainInfo);
 
 			var cells = ImmutableArray.CreateBuilder<CPos>();

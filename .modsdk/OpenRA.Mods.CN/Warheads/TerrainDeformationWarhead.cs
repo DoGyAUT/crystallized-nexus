@@ -12,7 +12,6 @@ using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.MapGenerator;
 using OpenRA.Mods.Common.Warheads;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Warheads
@@ -180,7 +179,7 @@ namespace OpenRA.Mods.CN.Warheads
 				ApplyHeightChangesAndTerrainLat(world, firedBy, heightChanges);
 		}
 
-		void ApplyHeightChanges(World world, Dictionary<CPos, byte> heightChanges)
+		static void ApplyHeightChanges(World world, Dictionary<CPos, byte> heightChanges)
 		{
 			foreach (var (cell, height) in heightChanges)
 				world.Map.Height[cell] = height;
@@ -394,7 +393,7 @@ namespace OpenRA.Mods.CN.Warheads
 			}
 		}
 
-		string GetTerrainLatGroup(
+		static string GetTerrainLatGroup(
 			Map map,
 			CPos cell,
 			Dictionary<ushort, string> terrainLatGroups)
@@ -402,7 +401,7 @@ namespace OpenRA.Mods.CN.Warheads
 			return terrainLatGroups.TryGetValue(map.Tiles[cell].Type, out var group) ? group : null;
 		}
 
-		int CalculateTerrainLatMask(
+		static int CalculateTerrainLatMask(
 			Map map,
 			CPos cell,
 			string group,
@@ -421,7 +420,7 @@ namespace OpenRA.Mods.CN.Warheads
 			return mask;
 		}
 
-		bool IsSameTerrainLatGroup(
+		static bool IsSameTerrainLatGroup(
 			Map map,
 			CPos cell,
 			string group,
@@ -433,7 +432,7 @@ namespace OpenRA.Mods.CN.Warheads
 			return GetTerrainLatGroup(map, cell, terrainLatGroups) == group;
 		}
 
-		bool IsValidTemplate(Map map, ushort template)
+		static bool IsValidTemplate(Map map, ushort template)
 		{
 			return map.Rules.TerrainInfo.TryGetTerrainInfo(new TerrainTile(template, 0), out _);
 		}

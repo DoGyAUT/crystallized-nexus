@@ -23,7 +23,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 	// ---------------------------------------------------------------------------
 	// YAML Info: Slot
 	// ---------------------------------------------------------------------------
-
 	public class CNSlotInfo
 	{
 		[FieldLoader.Require]
@@ -61,7 +60,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 	// ---------------------------------------------------------------------------
 	// YAML Info: Team Template
 	// ---------------------------------------------------------------------------
-
 	public class CNSquadNeedRuleInfo
 	{
 		[Desc("Enemy BotCapabilities that raise the need for the matching squad tag.")]
@@ -148,7 +146,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 	// ---------------------------------------------------------------------------
 	// YAML Info: Module
 	// ---------------------------------------------------------------------------
-
 	[Desc("CN custom squad manager. Manages template-based squads with slot-filling logic.")]
 	public class CNSquadManagerBotModuleInfo : ConditionalTraitInfo
 	{
@@ -375,10 +372,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 	// ---------------------------------------------------------------------------
 	// Runtime module
 	// ---------------------------------------------------------------------------
-
 	public class CNSquadManagerBotModule : ConditionalTrait<CNSquadManagerBotModuleInfo>,
 		IBotTick, IBotRespondToAttack, INotifyActorDisposing
 	{
+		const int MaxTrackedAttackers = 4;
+		const int MaxRespondToAttackCooldown = 30;
+
 		public readonly World World;
 		public readonly Player Player;
 		public new readonly CNSquadManagerBotModuleInfo Info;
@@ -391,7 +390,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// Ticking counters
 		int assignRolesTicks;
 		int attackForceTicks;
-		int rushTicks;
 		int minAttackForceDelayTicks;
 		int cleanupTicks;
 		int threatScanTicks;
@@ -420,8 +418,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		IReadOnlyList<Actor> cachedEnemyBuildings = [];
 		int cachedEnemyBuildingsTick = -1;
 
-		const int MaxTrackedAttackers = 4;
-		const int MaxRespondToAttackCooldown = 30;
 		// Reactive defense — tracks multiple simultaneous attackers
 		readonly List<Actor> recentAttackers = [];
 		int respondToAttackCooldown;
@@ -498,12 +494,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			var random = World.LocalRandom;
 			assignRolesTicks = random.Next(0, Info.AssignRolesInterval);
 			attackForceTicks = random.Next(0, Info.AttackForceInterval);
-			rushTicks = random.Next(Info.RushInterval / 2, Info.RushInterval);
 			minAttackForceDelayTicks = random.Next(0, Info.MinimumAttackForceDelay + 1);
 			cleanupTicks = random.Next(0, CleanupInterval);
 
 			// Wave system init
-			waveEligibleRoleSet = new HashSet<CNSquadType>(Info.WaveParticipantRoles ?? []);
+			waveEligibleRoleSet = [.. Info.WaveParticipantRoles ?? []];
 			waveEligibleRoleSet.Remove(CNSquadType.Protection);
 
 			var staggerWindow = Math.Max(1, Info.AttackWaveInterval / 4);
@@ -553,7 +548,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			if (Info.AttackWaveEnabled)
-				TickWaveSystem(bot);
+				TickWaveSystem();
 
 			if (--assignRolesTicks <= 0)
 			{
@@ -749,7 +744,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// ---------------------------------------------------------------------------
 		// Demand / reinforcement
 		// ---------------------------------------------------------------------------
-
 		public Dictionary<string, int> GetCurrentDemand(Dictionary<string, int> existingByType = null)
 		{
 			var demand = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -933,7 +927,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// ---------------------------------------------------------------------------
 		// Template slot-filling
 		// ---------------------------------------------------------------------------
-
 		void TryFillTemplates(IBot bot)
 		{
 			var idleUnits = BuildIdleUnitSet();
@@ -1241,8 +1234,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					continue;
 				}
 
-				foreach (var actor in assignment.Units)
-					assignment.Passengers.Add(actor);
+				assignment.Passengers.AddRange(assignment.Units);
 				assignment.Units.Clear();
 				assignments.Add(assignment);
 			}
@@ -1260,8 +1252,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (slotInfo.Factions.Length > 0 && !slotInfo.Factions.Contains(Player.Faction.InternalName))
 				return assignment;
 
-			foreach (var actor in TakeAvailableUnits(slotInfo, availableByType, alreadyClaimed, slotInfo.Count, localClaimed))
-				assignment.Units.Add(actor);
+			assignment.Units.AddRange(TakeAvailableUnits(slotInfo, availableByType, alreadyClaimed, slotInfo.Count, localClaimed));
 
 			return assignment;
 		}
@@ -1300,7 +1291,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return taken;
 		}
 
-		Dictionary<string, List<Actor>> BuildAvailableUnitsByType(IEnumerable<Actor> units, HashSet<Actor> alreadyClaimed)
+		static Dictionary<string, List<Actor>> BuildAvailableUnitsByType(IEnumerable<Actor> units, HashSet<Actor> alreadyClaimed)
 		{
 			var dict = new Dictionary<string, List<Actor>>(StringComparer.OrdinalIgnoreCase);
 			foreach (var unit in units)
@@ -1456,11 +1447,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				s.IsTemplateBacked &&
 				s.TemplateInfo?.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase) == true);
 
-		static bool HasCapability(Actor actor, string capability)
-		{
-			return actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains(capability) ?? false;
-		}
-
 		void UpdateThreatTags()
 		{
 			scratchVisibleThreatTags.Clear();
@@ -1492,6 +1478,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 						if (allTrackedVisiblePerUnitTags.Contains(cap))
 							scratchVisibleThreatCounts[cap] = (scratchVisibleThreatCounts.TryGetValue(cap, out var vc) ? vc : 0) + 1;
 					}
+
 					if (allTrackedGlobalTags.Contains(cap))
 						scratchGlobalThreatTags.Add(cap);
 					if (allTrackedGlobalPerUnitTags.Contains(cap))
@@ -1567,7 +1554,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 		}
 
-		void PurgeDeadUnits(CNSquad squad)
+		static void PurgeDeadUnits(CNSquad squad)
 		{
 			squad.Units.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
 			foreach (var assignment in squad.SlotAssignments)
@@ -1649,8 +1636,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// ---------------------------------------------------------------------------
 		// Wave system
 		// ---------------------------------------------------------------------------
-
-		void TickWaveSystem(IBot bot)
+		void TickWaveSystem()
 		{
 			// Growth: ramp up the minimum-ready threshold over time, capped.
 			if (Info.AttackWaveSizeGrowthInterval > 0)
@@ -1673,7 +1659,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return;
 			}
 
-			EvaluateWaveTrigger(bot);
+			EvaluateWaveTrigger();
 			waveCooldownTicks = Math.Max(1, GetScaledAttackWaveInterval());
 		}
 
@@ -1684,7 +1670,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (milli <= 0 || Info.EconomyOverflowWaveIntervalCutPct <= 0)
 				return baseInterval;
 
-			var cut = (baseInterval * Info.EconomyOverflowWaveIntervalCutPct * milli) / (100 * 1000);
+			var cut = baseInterval * Info.EconomyOverflowWaveIntervalCutPct * milli / (100 * 1000);
 			return Math.Max(1, baseInterval - cut);
 		}
 
@@ -1695,7 +1681,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (milli <= 0 || Info.EconomyOverflowWaveMinReadyCutPct <= 0)
 				return threshold;
 
-			var cut = (threshold * Info.EconomyOverflowWaveMinReadyCutPct * milli) / (100 * 1000);
+			var cut = threshold * Info.EconomyOverflowWaveMinReadyCutPct * milli / (100 * 1000);
 			return Math.Max(1, threshold - cut);
 		}
 
@@ -1708,7 +1694,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return Info.EconomyOverflowFuzzyAttackBoost * (milli / 1000.0);
 		}
 
-		void EvaluateWaveTrigger(IBot bot)
+		void EvaluateWaveTrigger()
 		{
 			var ready = new List<CNSquad>();
 			foreach (var squad in Squads)

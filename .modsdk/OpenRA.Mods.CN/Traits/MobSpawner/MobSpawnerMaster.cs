@@ -9,7 +9,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
@@ -39,7 +38,8 @@ namespace OpenRA.Mods.CN.Traits
 	// ISingleInstanceInit enables the parameter-free init.GetOrDefault<T>() overload.
 	public class MobSpawnerAdoptionInit : ValueActorInit<Actor[]>, ISuppressInitExport, ISingleInstanceInit
 	{
-		public MobSpawnerAdoptionInit(Actor[] value) : base(value) { }
+		public MobSpawnerAdoptionInit(Actor[] value)
+			: base(value) { }
 	}
 
 	[Desc("Manages a group of slave actors that form a mob. The master acts as a virtual nexus.")]
@@ -135,7 +135,7 @@ namespace OpenRA.Mods.CN.Traits
 		int pendingRedirectDamage = 0;
 
 		// Non-null when this master was created to replace a dead master (TransferMasterOnKill).
-		// Set in the constructor so SkipInitialSpawn is true before Created() runs.
+		// Set in the constructor so skipInitialSpawn is true before Created() runs.
 		readonly Actor[] slavesToAdopt;
 
 		IPositionable position;
@@ -151,7 +151,7 @@ namespace OpenRA.Mods.CN.Traits
 			if (adoptionInit != null)
 			{
 				slavesToAdopt = adoptionInit.Value;
-				SkipInitialSpawn = true;
+				skipInitialSpawn = true;
 			}
 		}
 
@@ -581,7 +581,7 @@ namespace OpenRA.Mods.CN.Traits
 				};
 
 				// CreateActor synchronously triggers Created() → AdoptExistingSlaves() → LinkMaster().
-				// SkipInitialSpawn=true prevents Replenish from spawning new slaves.
+				// skipInitialSpawn=true prevents Replenish from spawning new slaves.
 				w.CreateActor(masterType, td);
 			});
 		}
@@ -776,7 +776,7 @@ namespace OpenRA.Mods.CN.Traits
 				GatherStraySlaves(self);
 		}
 
-		CPos GetSlaveMoveLocation(Actor self, in Target target)
+		static CPos GetSlaveMoveLocation(Actor self, in Target target)
 		{
 			var mobile = self.TraitOrDefault<Mobile>();
 			if (mobile != null)

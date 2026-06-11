@@ -48,10 +48,29 @@ faction-random =
 
 faction-gdi =
     .name = GDI
-    .description = Global Defense Initiative
-     The GDI is an international military branch of the United Nations tasked
-     with keeping world peace. Commanding the combined forces of the world's
-     most powerful nations, it possesses an unmatched arsenal of high-tech weaponry.
+
+faction-gdf =
+    .name = GDF
+    .description = Global Defense Force
+     The Global Defense Force is the primary combined-arms combat division of GDI,
+     fielding advanced weaponry and frontline military technology.
+
+faction-steel =
+    .name = Steel Talons
+    .description = GDI Steel Talons
+     An elite mechanized GDI subfaction specialising in heavy walker
+     and armoured vehicle combat.
+
+faction-zocom =
+    .name = ZOCOM
+    .description = Zone Operations Command
+     Operates in high-Tiberium environments using Zone Troopers
+     and advanced sonic weaponry.
+
+faction-randomgdi =
+    .name = Any GDI
+    .description = Random GDI Subfaction
+     A random GDI subfaction is chosen when the game starts.
 
 faction-nod =
     .name = Nod
@@ -561,6 +580,14 @@ actor-hvr =
     long-range missiles.
        Strong vs Vehicles and Aircraft
        Weak vs Infantry
+
+actor-cyclops =
+    .name = Cyclops
+    .description =
+    Hovering burst-fire plasma launcher.
+    Exclusive to ZOCOM.
+       Strong vs Vehicles and Infantry
+       Weak vs Aircraft
 
 actor-smech =
     .name = Wolverine

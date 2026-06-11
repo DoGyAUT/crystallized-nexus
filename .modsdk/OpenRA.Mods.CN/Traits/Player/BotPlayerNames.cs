@@ -122,7 +122,7 @@ namespace OpenRA.Mods.CN.Traits
 
 		static int PositiveModulo(int value, int divisor)
 		{
-			return ((value % divisor) + divisor) % divisor;
+			return (value % divisor + divisor) % divisor;
 		}
 
 		static int StableHash(int seed, string faction, string botType)

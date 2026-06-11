@@ -223,7 +223,7 @@ namespace OpenRA.Mods.Common.Traits
 				l.MovementCostForCell(cell) != PathGraph.MovementCostForUnreachableCell);
 		}
 
-		List<CPos> GetRefineryDockCells(ActorInfo actorInfo, CPos refineryLoc, CVec dimensions)
+		static List<CPos> GetRefineryDockCells(ActorInfo actorInfo, CPos refineryLoc, CVec dimensions)
 		{
 			var result = new List<CPos>();
 			var dockInfo = actorInfo.TraitInfoOrDefault<DockHostInfo>();
@@ -280,56 +280,76 @@ namespace OpenRA.Mods.Common.Traits
 			return passableDockCells * 2 >= dockCells.Count && goodApproachCells >= 2;
 		}
 
-		Actor GetPathingHarvester()
+		int ScoreRefineryTopologyFit(CPos refineryLoc, List<CPos> dockCells, IReadOnlyList<CPos> sampledResourceCells)
 		{
-			return world.ActorsHavingTrait<Harvester>()
-				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld && a.TraitOrDefault<Mobile>() != null)
+			if (sampledResourceCells == null || sampledResourceCells.Count == 0 || !world.Map.Contains(refineryLoc))
+				return 0;
+
+			var resourceHeight = sampledResourceCells
+				.Where(world.Map.Contains)
+				.GroupBy(c => world.Map.Height[c])
+				.OrderByDescending(g => g.Count())
+				.Select(g => g.Key)
 				.FirstOrDefault();
-		}
 
-		int? FindShortestHarvesterPathLength(Actor harvester, IReadOnlyList<CPos> dockCells, IReadOnlyList<CPos> sampledResourceCells)
-		{
-			if (harvester == null || dockCells == null || sampledResourceCells == null || sampledResourceCells.Count == 0)
-				return null;
+			var usableDocks = dockCells
+				.Where(c => world.Map.Contains(c) && IsPassableForHarvesters(c))
+				.ToList();
+			if (usableDocks.Count == 0)
+				usableDocks.Add(refineryLoc);
 
-			var mobile = harvester.TraitOrDefault<Mobile>();
-			if (mobile == null)
-				return null;
+			var bestDockHeightDelta = usableDocks.Min(d => Math.Abs(world.Map.Height[d] - resourceHeight));
+			var score = bestDockHeightDelta * bestDockHeightDelta * 350;
 
-			int? best = null;
-			foreach (var dock in dockCells)
+			foreach (var sample in sampledResourceCells.Take(4))
 			{
-				if (!IsPassableForHarvesters(dock))
+				if (!world.Map.Contains(sample))
 					continue;
 
-				var path = mobile.PathFinder.FindPathToTargetCells(harvester, dock, sampledResourceCells, BlockedByActor.None, laneBias: false);
-				if (path == null || path == PathFinder.NoPath || path.Count == 0)
-					continue;
+				var bestContinuity = int.MaxValue;
+				foreach (var dock in usableDocks)
+					bestContinuity = Math.Min(bestContinuity, ScoreDirectDockApproach(dock, sample));
 
-				if (best == null || path.Count < best.Value)
-					best = path.Count;
+				if (bestContinuity != int.MaxValue)
+					score += bestContinuity;
 			}
 
-			return best;
+			return score;
 		}
 
-
-
-		bool HasAcceptableHarvesterPathQuality(CPos refineryLoc, IReadOnlyList<CPos> sampledResourceCells, int? harvesterPathLength)
+		int ScoreDirectDockApproach(CPos dock, CPos resource)
 		{
-			if (harvesterPathLength == null || sampledResourceCells == null || sampledResourceCells.Count == 0)
-				return true;
+			var score = 0;
+			var current = dock;
+			var currentHeight = world.Map.Height[current];
 
-			var directDistance = sampledResourceCells.Min(sample => (refineryLoc - sample).Length);
+			for (var i = 0; i < 6 && current != resource; i++)
+			{
+				var delta = resource - current;
+				var step = Math.Abs(delta.X) >= Math.Abs(delta.Y)
+					? new CVec(Math.Sign(delta.X), 0)
+					: new CVec(0, Math.Sign(delta.Y));
 
-			// Ratio-based cap: allow at most ~33% detour plus a small constant.
-			// The old flat +6 was too lenient for mid-range fields — a 10-cell field allowed
-			// a 16-cell path (60% detour), which is enough for a harvester to prefer another field.
-			var maxReasonablePath = Math.Max(6, directDistance + Math.Max(3, directDistance / 3));
-			return harvesterPathLength.Value <= maxReasonablePath;
+				if (step == CVec.Zero)
+					break;
+
+				var next = current + step;
+				if (!world.Map.Contains(next) || !IsPassableForHarvesters(next))
+					return score + 300;
+
+				var nextHeight = world.Map.Height[next];
+				var heightDelta = Math.Abs(nextHeight - currentHeight);
+				if (heightDelta > 0)
+					score += heightDelta * heightDelta * 90;
+
+				current = next;
+				currentHeight = nextHeight;
+			}
+
+			return score;
 		}
 
-		CPos[] GetFieldSampleCells(IEnumerable<CPos> nearbyResources, CPos resourceLoc, int maxSamples = 6)
+		static CPos[] GetFieldSampleCells(IEnumerable<CPos> nearbyResources, CPos resourceLoc, int maxSamples = 6)
 		{
 			var fieldCells = nearbyResources
 				.OrderBy(c => (c - resourceLoc).LengthSquared)
@@ -372,7 +392,10 @@ namespace OpenRA.Mods.Common.Traits
 				.ToArray();
 		}
 
-		IEnumerable<CPos> GetRefineryCandidateCellsForField(CPos baseLoc, ActorInfo actorInfo, BuildingInfo bi, IReadOnlyList<CPos> fieldCells)
+		IEnumerable<CPos> GetRefineryCandidateCellsForField(
+			ActorInfo actorInfo,
+			BuildingInfo bi,
+			IReadOnlyList<CPos> fieldCells)
 		{
 			if (fieldCells == null || fieldCells.Count == 0)
 				yield break;
@@ -436,7 +459,14 @@ namespace OpenRA.Mods.Common.Traits
 			while (any);
 		}
 
-		int ScoreRefineryCandidate(ActorInfo actorInfo, CPos baseLoc, CPos resourceLoc, CPos refineryLoc, List<CPos> existingRefineries, IReadOnlyList<CPos> sampledResourceCells, int? harvesterPathLength)
+		int ScoreRefineryCandidate(
+			ActorInfo actorInfo,
+			CPos baseLoc,
+			CPos resourceLoc,
+			CPos refineryLoc,
+			List<CPos> existingRefineries,
+			IReadOnlyList<CPos> sampledResourceCells,
+			int? harvesterPathLength)
 		{
 			var score = 0;
 			var dockCells = GetRefineryDockCells(actorInfo, refineryLoc, actorInfo.TraitInfoOrDefault<BuildingInfo>()?.Dimensions ?? CVec.Zero);
@@ -459,6 +489,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else
 				score += (refineryLoc - resourceLoc).LengthSquared * 10;
+
+			score += ScoreRefineryTopologyFit(refineryLoc, dockCells, sampledResourceCells);
 
 			// Secondary: prefer placements that don't drift too far from the local base anchor.
 			score += (refineryLoc - baseLoc).LengthSquared * 2;
@@ -785,7 +817,7 @@ namespace OpenRA.Mods.Common.Traits
 			var effectiveMaxRadius = baseBuilder.GetEffectiveMaxBaseRadius(playerBuildings.Length);
 
 			var resourceSearchRadius = Math.Max(effectiveMaxRadius, baseBuilder.Info.SellRefineryNoResourceDistance * 2);
-			IEnumerable<CPos> nearbyResources = world.Map
+			var nearbyResources = world.Map
 				.FindTilesInAnnulus(baseCenter, baseBuilder.Info.MinBaseRadius, resourceSearchRadius)
 				.Where(c => baseBuilder.ResourceMapModule != null
 					? baseBuilder.ResourceMapModule.Info.ValuableResourceTypes.Contains(resourceLayer.GetResource(c).Type)
@@ -924,10 +956,11 @@ namespace OpenRA.Mods.Common.Traits
 				baseBuilder.RefineryExpansionBlocked = false;
 			}
 
-			// Build walls around protected structures, and optionally around the core base for defensive profiles.
-			if (baseBuilder.Info.ProtectedByWalls.Count > 0 || baseBuilder.ShouldBuildBasePerimeterWalls())
+			// Build walls around protected structures, around the core base for defensive profiles, or across chokepoints.
+			if (baseBuilder.Info.ProtectedByWalls.Count > 0 || baseBuilder.ShouldBuildBasePerimeterWalls() || baseBuilder.ShouldSealChokepoints())
 			{
-				if (baseBuilder.ShouldBuildBasePerimeterWalls() && CountExistingAndQueuedGates() < baseBuilder.Info.BasePerimeterMaxGateCount)
+				if ((baseBuilder.ShouldBuildBasePerimeterWalls() || baseBuilder.ShouldSealChokepoints())
+					&& CountExistingAndQueuedGates() < baseBuilder.Info.BasePerimeterMaxGateCount)
 				{
 					foreach (var gate in buildableThings
 						.Where(a => baseBuilder.Info.GateTypes.Contains(a.Name))
@@ -1072,8 +1105,8 @@ namespace OpenRA.Mods.Common.Traits
 			// to its desired base fraction instead of accepting the first random match.
 			ActorInfo bestFractionActor = null;
 			string bestFractionName = null;
-			int bestFractionValue = 0;
-			int bestFractionCount = 0;
+			var bestFractionValue = 0;
+			var bestFractionCount = 0;
 			var bestFractionDeficit = int.MinValue;
 			var baseBuildingCount = Math.Max(1, playerBuildings.Length);
 			var buildableByName = buildableThings.ToDictionary(b => b.Name);
@@ -1125,6 +1158,7 @@ namespace OpenRA.Mods.Common.Traits
 								tagCnt * 100 >= tagLimit * playerBuildings.Length)
 							{ hitLimit = true; break; }
 						}
+
 						if (hitLimit) continue;
 					}
 					else
@@ -1340,6 +1374,13 @@ namespace OpenRA.Mods.Common.Traits
 				.Where(a => a.Info.Name == actorType)
 				.Select(a => a.Location)
 				.ToList();
+			var refineryBuildingInfosForSpacing = type == BuildingType.Refinery
+				? playerBuildings
+					.Where(a => baseBuilder.Info.RefineryTypes.Contains(a.Info.Name))
+					.Select(a => (Actor: a, BI: a.Info.TraitInfoOrDefault<BuildingInfo>()))
+					.Where(t => t.BI != null)
+					.ToList()
+				: null;
 
 			// Precompute once here so RespectsGeneralBuildingSpacing never calls TraitInfoOrDefault
 			// inside its O(N_buildings) loop — that lookup was the main cost in FindPos.
@@ -1352,12 +1393,32 @@ namespace OpenRA.Mods.Common.Traits
 
 			bool RespectsGeneralBuildingSpacing(CPos cell, BuildingInfo candidateBuildingInfo)
 			{
+				if (type == BuildingType.Refinery)
+				{
+					if (minSpacing > 0 && refineryBuildingInfosForSpacing != null && refineryBuildingInfosForSpacing.Count > 0)
+					{
+						var refineryRight = cell.X + candidateBuildingInfo.Dimensions.X;
+						var refineryBottom = cell.Y + candidateBuildingInfo.Dimensions.Y;
+						foreach (var (existing, existingBi) in refineryBuildingInfosForSpacing)
+						{
+							var existingRight = existing.Location.X + existingBi.Dimensions.X;
+							var existingBottom = existing.Location.Y + existingBi.Dimensions.Y;
+							var gapX = Math.Max(0, Math.Max(existing.Location.X - refineryRight, cell.X - existingRight));
+							var gapY = Math.Max(0, Math.Max(existing.Location.Y - refineryBottom, cell.Y - existingBottom));
+							if (Math.Max(gapX, gapY) < minSpacing)
+								return false;
+						}
+					}
+
+					return true;
+				}
+
 				var minSpacingSq = minSpacing * minSpacing;
 				if (minSpacing > 0 && sameTypeBuildingsForSpacing.Count > 0
 					&& sameTypeBuildingsForSpacing.Any(loc => (cell - loc).LengthSquared < minSpacingSq))
 					return false;
 
-				if (globalBuildingInfos == null || type == BuildingType.Refinery)
+				if (globalBuildingInfos == null)
 					return true;
 
 				var globalSpacing = baseBuilder.Info.GlobalMinSpacing;
@@ -1442,10 +1503,11 @@ namespace OpenRA.Mods.Common.Traits
 
 				foreach (var cell in world.Map.FindTilesInAnnulus(origin, baseBuilder.Info.MinBaseRadius, maxRange)
 					.Where(IsValuableResourceCell)
-					.Where(c => baseBuilder.HarvesterLocomotorsList.Length == 0 || CountPassableOrthogonalNeighbors(c) >= 2)
-					.Where(c => baseBuilder.PathFinder == null || baseBuilder.HarvesterLocomotorsList.Length == 0 ||
-						baseBuilder.HarvesterLocomotorsList.All(l =>
-							baseBuilder.PathFinder.PathMightExistForLocomotorBlockedByImmovable(l, origin, c)))
+					.Where(c =>
+						(baseBuilder.HarvesterLocomotorsList.Length == 0 || CountPassableOrthogonalNeighbors(c) >= 2) &&
+						(baseBuilder.PathFinder == null || baseBuilder.HarvesterLocomotorsList.Length == 0 ||
+							baseBuilder.HarvesterLocomotorsList.All(l =>
+								baseBuilder.PathFinder.PathMightExistForLocomotorBlockedByImmovable(l, origin, c))))
 					.OrderBy(c => (c - origin).LengthSquared))
 					return cell;
 
@@ -2091,7 +2153,7 @@ namespace OpenRA.Mods.Common.Traits
 
 							var sampledResourceCells = GetFieldSampleCells(nearbyResources, r);
 							var refineryCandidateLimit = layout == BaseBuildingLayout.BaseGrid ? 24 : 12;
-							var candidateCells = GetRefineryCandidateCellsForField(resourceBaseCenter, actorInfo, bi, sampledResourceCells)
+							var candidateCells = GetRefineryCandidateCellsForField(actorInfo, bi, sampledResourceCells)
 								.Take(refineryCandidateLimit)
 								.ToArray();
 
@@ -2213,7 +2275,7 @@ namespace OpenRA.Mods.Common.Traits
 						{
 							var sampledRelaxed = GetFieldSampleCells(nearbyResources, r);
 							var relaxedCandidateLimit = layout == BaseBuildingLayout.BaseGrid ? 12 : 6;
-							var candidatesRelaxed = GetRefineryCandidateCellsForField(resourceBaseCenter, actorInfo, bi, sampledRelaxed)
+							var candidatesRelaxed = GetRefineryCandidateCellsForField(actorInfo, bi, sampledRelaxed)
 								.Take(relaxedCandidateLimit)
 								.ToArray();
 
@@ -2382,6 +2444,22 @@ namespace OpenRA.Mods.Common.Traits
 				.Any(a => !a.IsDead && a.Info.HasTraitInfo<BuildingInfo>());
 		}
 
+		bool HasBlockingBuildingForChokepointSeal(CPos cell)
+		{
+			return world.ActorMap.GetActorsAt(cell)
+				.Any(a => !a.IsDead && a.Info.HasTraitInfo<BuildingInfo>()
+					&& (a.Owner != player
+						|| (!baseBuilder.Info.WallTypes.Contains(a.Info.Name)
+							&& !baseBuilder.Info.GateTypes.Contains(a.Info.Name))));
+		}
+
+		bool HasBlockingGateFootprintForChokepointSeal(CPos cell)
+		{
+			return world.ActorMap.GetActorsAt(cell)
+				.Any(a => !a.IsDead && a.Info.HasTraitInfo<BuildingInfo>()
+					&& (a.Owner != player || !baseBuilder.Info.GateTypes.Contains(a.Info.Name)));
+		}
+
 		bool TryGetCorePerimeter(out CPos baseCenter, out int minX, out int maxX, out int minY, out int maxY)
 		{
 			var conyard = baseBuilder.ConstructionYardBuildings.Actors
@@ -2450,7 +2528,7 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		IEnumerable<CPos> PerimeterCells(int minX, int maxX, int minY, int maxY)
+		static IEnumerable<CPos> PerimeterCells(int minX, int maxX, int minY, int maxY)
 		{
 			for (var x = minX; x <= maxX; x++)
 			{
@@ -2497,9 +2575,151 @@ namespace OpenRA.Mods.Common.Traits
 			return targets;
 		}
 
+		// The center run of a corridor reserved for the gate (sized to the orientation-matched gate type). Null if none fits.
+		List<CPos> ChokepointGateFootprint(CNSealableCorridor corridor)
+		{
+			foreach (var gateName in baseBuilder.Info.GateTypes)
+			{
+				var gateInfo = world.Map.Rules.Actors[gateName];
+				var gbi = gateInfo.TraitInfoOrDefault<BuildingInfo>();
+				if (gbi == null)
+					continue;
+
+				var horizontal = gbi.Dimensions.X > gbi.Dimensions.Y;
+				if (horizontal != corridor.WallRunsHorizontal)
+					continue;
+
+				var span = corridor.WallRunsHorizontal ? gbi.Dimensions.X : gbi.Dimensions.Y;
+				if (corridor.Cells.Length < span)
+					return null;
+
+				var axis = corridor.WallRunsHorizontal ? new CVec(1, 0) : new CVec(0, 1);
+				var start = corridor.Center - axis * (span / 2);
+				var foot = new List<CPos>(span);
+				for (var i = 0; i < span; i++)
+					foot.Add(start + axis * i);
+
+				return foot.All(corridor.Cells.Contains) ? foot : null;
+			}
+
+			return null;
+		}
+
+		bool ChokepointCorridorIsWorthSealing(CNSealableCorridor corridor, ActorInfo wallActorInfo, BuildingInfo wallBuildingInfo)
+		{
+			var gateFootprint = ChokepointGateFootprint(corridor);
+			if (gateFootprint == null)
+				return false;
+
+			var resourceAvoidanceRadius = Math.Max(2, baseBuilder.Info.BasePerimeterResourceAvoidanceRadius);
+			if (corridor.Cells.Any(c => HasNearbyValuableResource(c, resourceAvoidanceRadius)))
+				return false;
+
+			if (gateFootprint.Any(HasBlockingGateFootprintForChokepointSeal))
+				return false;
+
+			var wallCells = corridor.Cells.Where(c => !gateFootprint.Contains(c)).ToArray();
+			if (wallCells.Length == 0)
+				return false;
+
+			foreach (var cell in wallCells)
+			{
+				if (!world.Map.Contains(cell) || HasBlockingBuildingForChokepointSeal(cell))
+					return false;
+
+				// Existing own seal pieces are fine; they let the bot finish a partially built line.
+				if (HasOwnActorAt(cell, baseBuilder.Info.WallTypes) || HasOwnActorAt(cell, baseBuilder.Info.GateTypes))
+					continue;
+
+				if (!world.CanPlaceBuilding(cell, wallActorInfo, wallBuildingInfo, null))
+					return false;
+			}
+
+			return true;
+		}
+
+		// Lay a wall line across a narrow map chokepoint, reserving the center run for a gate.
+		(CPos? Location, CPos? BaseCenter, int Variant) ChooseChokepointWallLocation(ActorInfo actorInfo)
+		{
+			if (!baseBuilder.ShouldSealChokepoints() || baseBuilder.TacticalMapModule == null)
+				return (null, null, 0);
+
+			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
+			if (bi == null)
+				return (null, null, 0);
+
+			var baseCenter = baseBuilder.GetRandomBaseCenter();
+			foreach (var corridor in baseBuilder.TacticalMapModule.GetSealableCorridors(baseCenter))
+			{
+				var gateFootprint = ChokepointGateFootprint(corridor);
+				if (gateFootprint == null || !ChokepointCorridorIsWorthSealing(corridor, actorInfo, bi))
+					continue;
+
+				foreach (var cell in corridor.Cells
+					.Where(c => !gateFootprint.Contains(c)
+						&& world.Map.Contains(c)
+						&& !HasOwnActorAt(c, baseBuilder.Info.WallTypes) && !HasOwnActorAt(c, baseBuilder.Info.GateTypes)
+						&& !HasAnyBuildingAt(c)
+						&& world.CanPlaceBuilding(c, actorInfo, bi, null)
+						&& bi.IsCloseEnoughToBase(world, player, actorInfo, c))
+					.OrderBy(c => (c - corridor.Center).LengthSquared))
+					return (cell, baseCenter, 0);
+			}
+
+			return (null, null, 0);
+		}
+
+		// Place a single gate at the center of a sealed chokepoint, matching the wall line's orientation.
+		(CPos? Location, CPos? BaseCenter, int Variant) ChooseChokepointGateLocation(ActorInfo actorInfo)
+		{
+			if (!baseBuilder.ShouldSealChokepoints() || baseBuilder.TacticalMapModule == null)
+				return (null, null, 0);
+
+			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
+			if (bi == null)
+				return (null, null, 0);
+
+			var wallActorInfo = world.Map.Rules.Actors[baseBuilder.Info.WallTypes.First()];
+			var wallBuildingInfo = wallActorInfo.TraitInfoOrDefault<BuildingInfo>();
+			if (wallBuildingInfo == null)
+				return (null, null, 0);
+
+			var horizontal = bi.Dimensions.X > bi.Dimensions.Y;
+			var baseCenter = baseBuilder.GetRandomBaseCenter();
+			foreach (var corridor in baseBuilder.TacticalMapModule.GetSealableCorridors(baseCenter))
+			{
+				// The gate orientation (3x1 vs 1x3) must match the wall line direction.
+				if (corridor.WallRunsHorizontal != horizontal)
+					continue;
+
+				var footprint = ChokepointGateFootprint(corridor);
+				if (footprint == null)
+					continue;
+
+				if (!ChokepointCorridorIsWorthSealing(corridor, wallActorInfo, wallBuildingInfo))
+					continue;
+
+				var topLeft = footprint[0];
+				if (footprint.Any(c => HasAnyBuildingAt(c)))
+					continue;
+
+				if (!world.CanPlaceBuilding(topLeft, actorInfo, bi, null)
+					|| !bi.IsCloseEnoughToBase(world, player, actorInfo, topLeft))
+					continue;
+
+				return (topLeft, baseCenter, 0);
+			}
+
+			return (null, null, 0);
+		}
+
 		// Find a free adjacent cell around a ProtectedByWalls building, then fall back to a core perimeter.
 		(CPos? Location, CPos? BaseCenter, int Variant) ChooseWallLocation(ActorInfo actorInfo)
 		{
+			var (chokeLoc, chokeBase, chokeVar) = ChooseChokepointWallLocation(actorInfo);
+			if (chokeLoc != null)
+				return (chokeLoc, chokeBase, chokeVar);
+
 			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
 
 			if (bi != null && baseBuilder.Info.ProtectedByWalls.Count > 0)
@@ -2574,12 +2794,13 @@ namespace OpenRA.Mods.Common.Traits
 
 				var resourceAvoidanceRadius = Math.Max(0, baseBuilder.Info.BasePerimeterResourceAvoidanceRadius);
 				foreach (var cell in PerimeterCells(minX, maxX, minY, maxY)
-					.Where(c => world.Map.Contains(c))
-					.Where(c => !existingWalls.Contains(c))
-					.Where(c => !HasNearbyValuableResource(c, resourceAvoidanceRadius))
-					.Where(c => !HasAnyBuildingAt(c))
-					.Where(c => world.CanPlaceBuilding(c, actorInfo, bi, null))
-					.Where(c => bi.IsCloseEnoughToBase(world, player, actorInfo, c))
+					.Where(c =>
+						world.Map.Contains(c) &&
+						!existingWalls.Contains(c) &&
+						!HasNearbyValuableResource(c, resourceAvoidanceRadius) &&
+						!HasAnyBuildingAt(c) &&
+						world.CanPlaceBuilding(c, actorInfo, bi, null) &&
+						bi.IsCloseEnoughToBase(world, player, actorInfo, c))
 					.OrderBy(WallScore))
 					return (cell, baseCenter, 0);
 			}
@@ -2589,6 +2810,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		(CPos? Location, CPos? BaseCenter, int Variant) ChooseGateLocation(ActorInfo actorInfo)
 		{
+			var (chokeLoc, chokeBase, chokeVar) = ChooseChokepointGateLocation(actorInfo);
+			if (chokeLoc != null)
+				return (chokeLoc, chokeBase, chokeVar);
+
 			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
 			if (bi == null || !baseBuilder.ShouldBuildBasePerimeterWalls())
 				return (null, null, 0);

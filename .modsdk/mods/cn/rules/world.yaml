@@ -257,19 +257,41 @@
 		UseExtendedIndex: true
 		ShroudPalette: shroud
 		FogPalette: shroud
-	Faction@Random:
-		Name: faction-random.name
-		InternalName: Random
-		RandomFactionMembers: gdi, nod
-		Description: faction-random.description
 	Faction@gdi:
 		Name: faction-gdi.name
 		InternalName: gdi
-		Description: faction-gdi.description
+		Side: GDI
+		Selectable: False
+	Faction@gdf:
+		Name: faction-gdf.name
+		InternalName: gdf
+		Side: GDI
+		Description: faction-gdf.description
+	Faction@steel:
+		Name: faction-steel.name
+		InternalName: steel
+		Side: GDI
+		Description: faction-steel.description
+	Faction@zocom:
+		Name: faction-zocom.name
+		InternalName: zocom
+		Side: GDI
+		Description: faction-zocom.description
 	Faction@nod:
 		Name: faction-nod.name
 		InternalName: nod
+		Side: Nod
 		Description: faction-nod.description
+	Faction@Random:
+		Name: faction-random.name
+		InternalName: Random
+		RandomFactionMembers: RandomGDI, nod
+		Description: faction-random.description
+	Faction@RandomGDI:
+		Name: faction-randomgdi.name
+		InternalName: RandomGDI
+		RandomFactionMembers: gdf, steel, zocom
+		Description: faction-randomgdi.description
 	TerrainGeometryOverlay:
 	DebugVisualizations:
 	CliffBackImpassabilityLayer:
@@ -317,6 +339,7 @@ World:
 	DebugVisualizationCommands:
 	PathFinderOverlay:
 	HierarchicalPathFinderOverlay:
+	CNTacticalMapOverlay:
 	ActorMapOverlay:
 	PlayerCommands:
 	HelpCommand:
@@ -487,6 +510,93 @@ World:
 		Factions: nod
 		BaseActor: nmcv
 		SupportActors: nasol,nasol,e3,e3,nacad,bggy,bike,ltnk
+		InnerSupportRadius: 3
+		OuterSupportRadius: 5
+	StartingUnits@MCV.gdf:
+		Class: none
+		ClassName: options-starting-units.mcv-only
+		Factions: gdf
+		BaseActor: gmcv
+	StartingUnits@light.gdf:
+		Class: light
+		ClassName: options-starting-units.light
+		Factions: gdf
+		BaseActor: gmcv
+		SupportActors: gasol,gasol,gasol,smech
+		InnerSupportRadius: 3
+		OuterSupportRadius: 5
+	StartingUnits@med.gdf:
+		Class: medium
+		ClassName: options-starting-units.medium
+		Factions: gdf
+		BaseActor: gmcv
+		SupportActors: gasol,gasol,e2,e2,jumpjet,smech
+		InnerSupportRadius: 3
+		OuterSupportRadius: 5
+	StartingUnits@heavy.gdf:
+		Class: heavy
+		ClassName: options-starting-units.heavy
+		Factions: gdf
+		BaseActor: gmcv
+		SupportActors: gasol,gasol,e2,e2,jumpjet,smech,smech,gtmtnk
+		InnerSupportRadius: 3
+		OuterSupportRadius: 5
+	StartingUnits@MCV.steel:
+		Class: none
+		ClassName: options-starting-units.mcv-only
+		Factions: steel
+		BaseActor: gmcv
+	StartingUnits@light.steel:
+		Class: light
+		ClassName: options-starting-units.light
+		Factions: steel
+		BaseActor: gmcv
+		SupportActors: gasol,gasol,gasol,smech
+		InnerSupportRadius: 3
+		OuterSupportRadius: 5
+	StartingUnits@med.steel:
+		Class: medium
+		ClassName: options-starting-units.medium
+		Factions: steel
+		BaseActor: gmcv
+		SupportActors: gasol,gasol,e2,e2,jumpjet,smech
+		InnerSupportRadius: 3
+		OuterSupportRadius: 5
+	StartingUnits@heavy.steel:
+		Class: heavy
+		ClassName: options-starting-units.heavy
+		Factions: steel
+		BaseActor: gmcv
+		SupportActors: gasol,gasol,e2,e2,jumpjet,smech,smech,gtmtnk
+		InnerSupportRadius: 3
+		OuterSupportRadius: 5
+	StartingUnits@MCV.zocom:
+		Class: none
+		ClassName: options-starting-units.mcv-only
+		Factions: zocom
+		BaseActor: gmcv
+	StartingUnits@light.zocom:
+		Class: light
+		ClassName: options-starting-units.light
+		Factions: zocom
+		BaseActor: gmcv
+		SupportActors: gasol,gasol,gasol,smech
+		InnerSupportRadius: 3
+		OuterSupportRadius: 5
+	StartingUnits@med.zocom:
+		Class: medium
+		ClassName: options-starting-units.medium
+		Factions: zocom
+		BaseActor: gmcv
+		SupportActors: gasol,gasol,e2,e2,jumpjet,smech
+		InnerSupportRadius: 3
+		OuterSupportRadius: 5
+	StartingUnits@heavy.zocom:
+		Class: heavy
+		ClassName: options-starting-units.heavy
+		Factions: zocom
+		BaseActor: gmcv
+		SupportActors: gasol,gasol,e2,e2,jumpjet,smech,smech,gtmtnk
 		InnerSupportRadius: 3
 		OuterSupportRadius: 5
 	MapStartingLocations:

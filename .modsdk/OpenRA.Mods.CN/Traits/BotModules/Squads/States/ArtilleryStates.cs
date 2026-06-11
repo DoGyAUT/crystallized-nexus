@@ -152,8 +152,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class ArtilleryBombardState : CNStateBase, ICNState
 	{
-		int staleTicks;
 		const int MaxStaleTicks = 5;
+		int staleTicks;
 
 		public void Activate(CNSquad squad) { staleTicks = 0; }
 

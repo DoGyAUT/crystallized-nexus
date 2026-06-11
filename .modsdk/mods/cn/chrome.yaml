@@ -473,8 +473,12 @@ flags:
 	Inherits: ^Glyphs
 	Regions:
 		gdi: 226, 209, 30, 15
+		gdf: 226, 209, 30, 15
+		steel: 226, 209, 30, 15
+		zocom: 226, 209, 30, 15
 		nod: 226, 225, 30, 15
 		Random: 226, 241, 30, 15
+		RandomGDI: 226, 241, 30, 15
 		spectator: 226, 241, 30, 15
 
 lobby-bits:

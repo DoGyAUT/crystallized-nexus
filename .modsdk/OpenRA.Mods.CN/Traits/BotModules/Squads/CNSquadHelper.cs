@@ -9,9 +9,7 @@
  */
 #endregion
 
-using System;
 using System.Linq;
-using OpenRA.Mods.CN.Traits;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -131,8 +129,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var nonDefense = squad.World.ActorsHavingTrait<Building>()
 				.Where(a => squad.SquadManager.IsLiveEnemyActor(a) &&
-				            !(a.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains("Defense") ?? false) &&
-				            CanSquadEngage(squad, a))
+							!(a.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains("Defense") ?? false) &&
+							CanSquadEngage(squad, a))
 				.MinByOrDefault(a => (a.CenterPosition - center.CenterPosition).LengthSquared);
 
 			return nonDefense ?? FindClosestEnemyBuilding(squad);
@@ -201,7 +199,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		/// Find the best attack target for a squad:
 		/// 1. PriorityTargetCapabilities from template (if any)
 		/// 2. Closest visible enemy unit
-		/// 3. Closest enemy building (no shroud check)
+		/// 3. Closest enemy building (no shroud check).
 		/// </summary>
 		public static Actor FindTarget(CNSquad squad)
 		{

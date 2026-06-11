@@ -147,6 +147,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum number of wall cells that should exist on the perimeter before replacing them with gates.")]
 		public readonly int BasePerimeterGateWallThreshold = 10;
 
+		[Desc("Plug narrow map chokepoints (from CNTacticalMapBotModule) with a wall line and a single gate. Opt-in.")]
+		public readonly bool EnableChokepointSealing = false;
+
+		[Desc("Bot profiles that seal chokepoints when EnableChokepointSealing is set. Empty = all profiles.")]
+		public readonly FrozenSet<string> ChokepointSealProfiles = FrozenSet<string>.Empty;
+
 		[Desc("Locomotor names used by harvesters. When set, refinery placement filters out resource cells " +
 			"with no passable path, preventing refineries next to cliffs.")]
 		public readonly FrozenSet<string> HarvesterLocomotors = FrozenSet<string>.Empty;
@@ -327,6 +333,21 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How strongly remembered danger hotspots influence defense placement.")]
 		public readonly int DefensePlacementDangerWeight = 100;
 
+		[Desc("How strongly proactive map-topology chokepoints (bridges, ramps, passages from CNTacticalMapBotModule)",
+			"influence defense placement. Kept below DefensePlacementDangerWeight so real attacks still dominate.")]
+		public readonly int TopologyHotspotWeight = 60;
+
+		[Desc("Extra weight added to a candidate that sits on a high-ground cliff edge overlooking a reachable approach",
+			"(height advantage + natural wall). Scaled by the number of height levels above the flat baseline.")]
+		public readonly int HighGroundEdgeWeight = 90;
+
+		[Desc("Penalty applied to a defense candidate whose direction from the defense center matches no access corridor",
+			"(e.g. facing a map edge / cliff / water with no enemy approach). 0 disables the sealed-flank penalty.")]
+		public readonly int SealedFlankPenaltyWeight = 80;
+
+		[Desc("Bonus for defense candidates placed on the base side of a sealable chokepoint wall/gate line.")]
+		public readonly int ChokepointDefenseAnchorWeight = 160;
+
 		[Desc("How strongly the nearest known enemy base/building influences defense placement when no stronger danger hotspot exists.")]
 		public readonly int DefensePlacementEnemyDirectionWeight = 70;
 
@@ -335,6 +356,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("How strongly tech-building placement prefers cells close to the chosen base/production core.")]
 		public readonly int TechPlacementCoreBiasWeight = 2;
+
 
 		[Desc("Try to build another production building if there is too much cash.")]
 		public readonly int NewProductionCashThreshold = 5000;
@@ -461,7 +483,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Do not sell a building for refinery recovery unless this much cash is still missing after accounting for current reserves.")]
 		public readonly int BankruptcyRecoveryMinimumShortfall = 100;
 
-		[Desc("Hard cash ceiling: bankruptcy recovery (tiers 1-3) never fires while the bot has more than this in cash+resources, even when other conditions match. Prevents premature selling during transient cash dips.")]
+		[Desc("Hard cash ceiling: bankruptcy recovery (tiers 1-3) never fires while the bot has more",
+			"than this in cash+resources, even when other conditions match. Prevents premature selling during transient cash dips.")]
 		public readonly int BankruptcyRecoveryMaxCash = 500;
 
 		[Desc("Harvester actor types. Used by bankruptcy recovery to detect missing harvesters and queue replacements.")]
@@ -473,7 +496,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Factory actor types that can produce an MCV. Used by bankruptcy recovery and terminal-state detection.")]
 		public readonly FrozenSet<string> McvFactoryTypes = FrozenSet<string>.Empty;
 
-		[Desc("If true, a bot with no path to economic recovery sells all remaining buildings and AttackMoves every unit toward the nearest enemy structure (terminal kamikaze).")]
+		[Desc("If true, a bot with no path to economic recovery sells all remaining buildings",
+			"and AttackMoves every unit toward the nearest enemy structure (terminal kamikaze).")]
 		public readonly bool BankruptcyKamikazeEnabled = true;
 
 		[Desc("Cash threshold below which terminal kamikaze may fire (avoids triggering while the bot still has buying power).")]
@@ -545,11 +569,11 @@ namespace OpenRA.Mods.Common.Traits
 		public Dictionary<string, int> BuildingsBeingProduced = [];
 		public IBotBaseExpansion[] BaseExpansionModules;
 		public CNResourceMapBotModule ResourceMapModule;
+		public CNTacticalMapBotModule TacticalMapModule;
 
 		readonly World world;
 		readonly Player player;
 		PowerManager playerPower;
-		PlayerResources playerResources;
 		IResourceLayer resourceLayer;
 		IBotPositionsUpdated[] positionsUpdatedModules;
 		CPos initialBaseCenter;
@@ -566,6 +590,13 @@ namespace OpenRA.Mods.Common.Traits
 		public bool RefineryExpansionBlocked { get; set; }
 		readonly Dictionary<CPos, DefenseDangerHotspot> defenseDangerMemory = [];
 		readonly Dictionary<string, DefenseRole> defenseThreatRoleCache = [];
+
+		// Per-defense-center cache for the topology terrain terms (recomputed only when the center moves).
+		CPos cachedFlankCenter = new(int.MinValue, int.MinValue);
+		List<CVec> cachedAccessBearings = [];
+		readonly Dictionary<CPos, CNHighGroundEdge> cachedHighGround = [];
+		List<CPos> cachedChokepointDefenseAnchors = [];
+
 
 		public readonly struct DefensePlacementThreat
 		{
@@ -594,23 +625,21 @@ namespace OpenRA.Mods.Common.Traits
 		BotProfile ActiveProfile => profileModule?.ActiveProfile ?? BotProfile.Adaptive;
 		TechStage ActiveTechStage => profileModule?.ActiveTechStage ?? TechStage.Early;
 
-		public PlayerResources PlayerResources => playerResources;
+		public PlayerResources PlayerResources { get; private set; }
 
 		// --- Economy overflow signal state ---
 		readonly Queue<(int Cash, int Earned, int Tick)> economySamples = new();
 		int economyOverflowTick;
-		int cachedEconomyOverflowMilli;
-		int cachedIncomeRate;
 
 		// Generic "economy overflow" factor (0..1000, milli units) sampled from cash + earned-income trend.
 		// Handicap-agnostic so it rewards both handicap bonuses and resource-rich maps.
-		public int EconomyOverflowMilli => cachedEconomyOverflowMilli;
-		public float EconomyOverflow => cachedEconomyOverflowMilli / 1000f;
+		public int EconomyOverflowMilli { get; private set; }
+		public float EconomyOverflow => EconomyOverflowMilli / 1000f;
 
 		// Credits-per-tick rate (latest Earned minus oldest sample / dt). Stays positive for a few
 		// hundred ticks after the last harvester dump; bankruptcy recovery uses this to wait through
 		// transient cash dips instead of selling buildings unnecessarily.
-		public int IncomeRate => cachedIncomeRate;
+		public int IncomeRate { get; private set; }
 
 		IReadOnlyList<Actor> cachedPlayerBuildings = [];
 		int cachedPlayerBuildingsTick = -1;
@@ -659,7 +688,7 @@ namespace OpenRA.Mods.Common.Traits
 				return Info.BuildingFractions;
 
 			var merged = Info.BuildingFractions != null
-				? new System.Collections.Generic.Dictionary<string, int>(Info.BuildingFractions)
+				? new Dictionary<string, int>(Info.BuildingFractions)
 				: [];
 
 			if (stageOverride != null)
@@ -677,7 +706,7 @@ namespace OpenRA.Mods.Common.Traits
 				return Info.DefenseRoleLimits;
 
 			var merged = Info.DefenseRoleLimits != null
-				? new System.Collections.Generic.Dictionary<string, int>(Info.DefenseRoleLimits)
+				? new Dictionary<string, int>(Info.DefenseRoleLimits)
 				: [];
 
 			ApplyProfileDefenseBudget(merged);
@@ -685,7 +714,7 @@ namespace OpenRA.Mods.Common.Traits
 			return merged.ToFrozenDictionary();
 		}
 
-		void ApplyProfileBuildingBudget(System.Collections.Generic.Dictionary<string, int> values)
+		void ApplyProfileBuildingBudget(Dictionary<string, int> values)
 		{
 			if (profileModule == null)
 				return;
@@ -709,7 +738,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		void ApplyProfileDefenseBudget(System.Collections.Generic.Dictionary<string, int> values)
+		void ApplyProfileDefenseBudget(Dictionary<string, int> values)
 		{
 			if (profileModule == null)
 				return;
@@ -768,6 +797,22 @@ namespace OpenRA.Mods.Common.Traits
 				: ActiveProfile;
 
 			return Info.BasePerimeterWallProfiles.Contains(profile.ToString());
+		}
+
+		public bool ShouldSealChokepoints()
+		{
+			if (!Info.EnableChokepointSealing || TacticalMapModule == null
+				|| Info.WallTypes.Count == 0)
+				return false;
+
+			if (Info.ChokepointSealProfiles.Count == 0)
+				return true;
+
+			var profile = ActiveProfile == BotProfile.Adaptive && profileModule != null
+				? profileModule.ActiveProfile
+				: ActiveProfile;
+
+			return Info.ChokepointSealProfiles.Contains(profile.ToString());
 		}
 
 		int GetBudgetWeightedValue(FrozenDictionary<string, int> budgetValues, int fallback)
@@ -877,7 +922,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			playerPower = self.Owner.PlayerActor.TraitOrDefault<PowerManager>();
-			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
+			PlayerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
 			resourceLayer = self.World.WorldActor.TraitOrDefault<IResourceLayer>();
 			PathFinder = self.World.WorldActor.TraitOrDefault<IPathFinder>();
 			positionsUpdatedModules = self.Owner.PlayerActor.TraitsImplementing<IBotPositionsUpdated>().ToArray();
@@ -891,10 +936,10 @@ namespace OpenRA.Mods.Common.Traits
 			var i = 0;
 
 			foreach (var building in Info.BuildingQueues)
-				builders[i++] = new CNBaseBuilderQueueManager(this, building, player, playerPower, playerResources, resourceLayer);
+				builders[i++] = new CNBaseBuilderQueueManager(this, building, player, playerPower, PlayerResources, resourceLayer);
 
 			foreach (var defense in Info.DefenseQueues)
-				builders[i++] = new CNBaseBuilderQueueManager(this, defense, player, playerPower, playerResources, resourceLayer);
+				builders[i++] = new CNBaseBuilderQueueManager(this, defense, player, playerPower, PlayerResources, resourceLayer);
 		}
 
 		protected override void TraitEnabled(Actor self)
@@ -926,6 +971,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				ResourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
+				TacticalMapModule = bot.Player.PlayerActor.TraitsImplementing<CNTacticalMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				firstTick = false;
 			}
 
@@ -1029,7 +1075,7 @@ namespace OpenRA.Mods.Common.Traits
 					}
 
 					// Refresh "BuildingsBeingProduced" only when AI can produce
-					if (playerResources.GetCashAndResources() >= Info.ProductionMinCashRequirement)
+					if (PlayerResources.GetCashAndResources() >= Info.ProductionMinCashRequirement)
 					{
 						foreach (var queue in queues)
 						{
@@ -1184,26 +1230,43 @@ namespace OpenRA.Mods.Common.Traits
 
 		public CPos? GetBestDefenseHotspot(CPos reference, DefenseRole role = DefenseRole.Default)
 		{
-			if (!Info.EnableDefenseDangerMemory || defenseDangerMemory.Count == 0)
-				return null;
-
-			var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
 			CPos? bestHotspot = null;
-			var bestScore = int.MinValue;
 
-			foreach (var kv in defenseDangerMemory)
+			if (Info.EnableDefenseDangerMemory && defenseDangerMemory.Count > 0)
 			{
-				var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
-				if (weight < minimumWeight)
-					continue;
+				var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
+				var bestScore = int.MinValue;
 
-				// Prefer serious repeated attacks, but keep nearby pressure responsive.
-				var score = weight - (kv.Key - reference).LengthSquared / 8;
-				if (score <= bestScore)
-					continue;
+				foreach (var kv in defenseDangerMemory)
+				{
+					var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
+					if (weight < minimumWeight)
+						continue;
 
-				bestScore = score;
-				bestHotspot = kv.Key;
+					// Prefer serious repeated attacks, but keep nearby pressure responsive.
+					var score = weight - (kv.Key - reference).LengthSquared / 8;
+					if (score <= bestScore)
+						continue;
+
+					bestScore = score;
+					bestHotspot = kv.Key;
+				}
+			}
+
+			// Early game: no attack recorded yet -> aim the first defenses at the nearest map chokepoint.
+			if (bestHotspot == null && TacticalMapModule != null && Info.TopologyHotspotWeight > 0)
+			{
+				var topology = TacticalMapModule.GetTopologyHotspots(reference);
+				var bestScore = long.MinValue;
+				foreach (var threat in topology)
+				{
+					var score = (long)threat.Weight - (threat.Location - reference).LengthSquared / 8;
+					if (score <= bestScore)
+						continue;
+
+					bestScore = score;
+					bestHotspot = threat.Location;
+				}
 			}
 
 			return bestHotspot;
@@ -1220,21 +1283,37 @@ namespace OpenRA.Mods.Common.Traits
 
 		public DefensePlacementThreat[] GetDefensePlacementThreats(CPos reference, DefenseRole role = DefenseRole.Default)
 		{
-			if (!Info.EnableDefenseDangerMemory || defenseDangerMemory.Count == 0 || Info.DefensePlacementDangerWeight <= 0)
-				return [];
-
-			var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
 			var maxHotspots = Math.Max(1, Info.DefensePlacementMaxHotspots);
-			var candidates = new List<(CPos Location, int Weight, int Score)>(Math.Min(defenseDangerMemory.Count, maxHotspots));
+			var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
+			var candidates = new List<(CPos Location, int Weight, long Score)>();
 
-			foreach (var kv in defenseDangerMemory)
+			// Reactive: remembered attack hotspots (dominant signal).
+			if (Info.EnableDefenseDangerMemory && Info.DefensePlacementDangerWeight > 0)
 			{
-				var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
-				if (weight < minimumWeight)
-					continue;
+				foreach (var kv in defenseDangerMemory)
+				{
+					var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
+					if (weight < minimumWeight)
+						continue;
 
-				var score = weight - (kv.Key - reference).LengthSquared / 8;
-				candidates.Add((kv.Key, weight, score));
+					var finalWeight = weight * Info.DefensePlacementDangerWeight / 100;
+					var score = (long)finalWeight - (kv.Key - reference).LengthSquared / 8;
+					candidates.Add((kv.Key, finalWeight, score));
+				}
+			}
+
+			// Proactive: static map topology (bridges, cliff ramps, narrow passages) from the cartographer.
+			if (TacticalMapModule != null && Info.TopologyHotspotWeight > 0)
+			{
+				foreach (var threat in TacticalMapModule.GetTopologyHotspots(reference))
+				{
+					var finalWeight = threat.Weight * Info.TopologyHotspotWeight / 100;
+					if (finalWeight <= 0)
+						continue;
+
+					var score = (long)finalWeight - (threat.Location - reference).LengthSquared / 8;
+					candidates.Add((threat.Location, finalWeight, score));
+				}
 			}
 
 			if (candidates.Count == 0)
@@ -1243,7 +1322,7 @@ namespace OpenRA.Mods.Common.Traits
 			return candidates
 				.OrderByDescending(c => c.Score)
 				.Take(maxHotspots)
-				.Select(c => new DefensePlacementThreat(c.Location, c.Weight * Info.DefensePlacementDangerWeight / 100))
+				.Select(c => new DefensePlacementThreat(c.Location, c.Weight))
 				.ToArray();
 		}
 
@@ -1269,24 +1348,119 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var score = ScoreCellToward(cell, defenseCenter, enemyTarget, Info.DefensePlacementEnemyDirectionWeight);
 
-			if (dangerHotspots == null || dangerHotspots.Length == 0)
-				return score;
-
-			foreach (var threat in dangerHotspots)
+			if (dangerHotspots != null)
 			{
-				if (threat.Weight <= 0)
-					continue;
+				foreach (var threat in dangerHotspots)
+				{
+					if (threat.Weight <= 0)
+						continue;
 
-				score += ScoreCellToward(cell, defenseCenter, threat.Location, threat.Weight);
+					score += ScoreCellToward(cell, defenseCenter, threat.Location, threat.Weight);
 
-				var distanceSq = (cell - threat.Location).LengthSquared;
-				var radius = Math.Max(1, Info.MaximumDefenseRadius + 4);
-				var radiusSq = radius * radius;
-				if (distanceSq < radiusSq)
-					score += (long)threat.Weight * (radiusSq - distanceSq) / radiusSq;
+					var distanceSq = (cell - threat.Location).LengthSquared;
+					var radius = Math.Max(1, Info.MaximumDefenseRadius + 4);
+					var radiusSq = radius * radius;
+					if (distanceSq < radiusSq)
+						score += (long)threat.Weight * (radiusSq - distanceSq) / radiusSq;
+				}
 			}
 
+			score += ScoreTopologyTerrain(cell, defenseCenter);
 			return score;
+		}
+
+		void EnsureFlankCache(CPos defenseCenter)
+		{
+			if (cachedFlankCenter == defenseCenter)
+				return;
+
+			cachedFlankCenter = defenseCenter;
+			cachedAccessBearings = TacticalMapModule.GetAccessBearings(defenseCenter).ToList();
+			cachedHighGround.Clear();
+			foreach (var edge in TacticalMapModule.GetHighGroundEdges(defenseCenter))
+				if (HighGroundEdgeFacesAccess(edge, defenseCenter))
+					cachedHighGround[edge.Cell] = edge;
+
+			cachedChokepointDefenseAnchors = TacticalMapModule.GetChokepointDefenseAnchors(defenseCenter).ToList();
+		}
+
+		// High-ground (height advantage / natural wall) bonus and sealed-flank (no enemy access) penalty.
+		long ScoreTopologyTerrain(CPos cell, CPos defenseCenter)
+		{
+			if (TacticalMapModule == null)
+				return 0;
+
+			EnsureFlankCache(defenseCenter);
+			long adjust = 0;
+
+			// Reward cells on a high-ground cliff edge overlooking a reachable approach.
+			if (Info.HighGroundEdgeWeight > 0 && cachedHighGround.TryGetValue(cell, out var edge))
+				adjust += (long)Info.HighGroundEdgeWeight * (1 + edge.HeightLevels);
+
+			if (Info.ChokepointDefenseAnchorWeight > 0 && cachedChokepointDefenseAnchors.Count > 0)
+			{
+				var bestAnchorSq = cachedChokepointDefenseAnchors.Min(a => (cell - a).LengthSquared);
+				const int AnchorRadius = 4;
+				const int AnchorRadiusSq = AnchorRadius * AnchorRadius;
+				if (bestAnchorSq < AnchorRadiusSq)
+					adjust += (long)Info.ChokepointDefenseAnchorWeight * (AnchorRadiusSq - bestAnchorSq) / AnchorRadiusSq;
+			}
+
+			// Penalize cells facing a sealed flank (no access corridor: map edge / cliff / water).
+			if (Info.SealedFlankPenaltyWeight > 0 && cachedAccessBearings.Count > 0)
+			{
+				var v = cell - defenseCenter;
+				if (v.LengthSquared >= 9)
+				{
+					var aligned = false;
+					foreach (var b in cachedAccessBearings)
+					{
+						var dot = (long)v.X * b.X + (long)v.Y * b.Y;
+						if (dot <= 0)
+							continue;
+
+						// Within ~45 degrees of this corridor bearing counts as "facing an access".
+						var cross = (long)v.X * b.Y - (long)v.Y * b.X;
+						if (cross * cross <= dot * dot)
+						{
+							aligned = true;
+							break;
+						}
+					}
+
+					if (!aligned)
+						adjust -= Info.SealedFlankPenaltyWeight;
+				}
+			}
+
+			return adjust;
+		}
+
+		bool HighGroundEdgeFacesAccess(CNHighGroundEdge edge, CPos defenseCenter)
+		{
+			if (cachedAccessBearings.Count == 0)
+				return false;
+
+			return VectorFacesAccess(edge.Cell - defenseCenter) && VectorFacesAccess(edge.Outward);
+		}
+
+		bool VectorFacesAccess(CVec v)
+		{
+			if (v.LengthSquared == 0)
+				return true;
+
+			foreach (var b in cachedAccessBearings)
+			{
+				var dot = (long)v.X * b.X + (long)v.Y * b.Y;
+				if (dot <= 0)
+					continue;
+
+				var cross = (long)v.X * b.Y - (long)v.Y * b.X;
+				if (cross * cross <= dot * dot)
+					return true;
+			}
+
+			return false;
 		}
 
 		public long ScoreTechPlacementSafety(CPos cell, CPos coreCenter, DefensePlacementThreat[] dangerHotspots)
@@ -1302,6 +1476,17 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (threat.Weight <= 0)
 					continue;
+
+				var toThreat = threat.Location - coreCenter;
+				var toCell = cell - coreCenter;
+				var threatLenSq = Math.Max(1, toThreat.LengthSquared);
+				var approachDot = (long)toCell.X * toThreat.X + (long)toCell.Y * toThreat.Y;
+				if (approachDot > 0)
+				{
+					// Tech buildings are high-value targets: penalize the whole approach side,
+					// not only cells that are very close to the exact chokepoint/hotspot.
+					score += approachDot * threat.Weight * Info.TechPlacementDangerAvoidanceWeight / (25 * threatLenSq);
+				}
 
 				var distanceSq = (cell - threat.Location).LengthSquared;
 				if (distanceSq >= radiusSq)
@@ -1496,10 +1681,10 @@ namespace OpenRA.Mods.Common.Traits
 				target += constructionYards - 1;
 
 			if (RequestedRefineries.Count > 0)
-				target += 1;
+				target++;
 
-			if (Info.EconomyOverflowRefineryBonus > 0 && cachedEconomyOverflowMilli > 0)
-				target += (Info.EconomyOverflowRefineryBonus * cachedEconomyOverflowMilli) / 1000;
+			if (Info.EconomyOverflowRefineryBonus > 0 && EconomyOverflowMilli > 0)
+				target += Info.EconomyOverflowRefineryBonus * EconomyOverflowMilli / 1000;
 
 			var supportedCapacity = GetSupportedRefineryCapacity();
 			target = Math.Min(target, supportedCapacity);
@@ -1509,11 +1694,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		void UpdateEconomyOverflow()
 		{
-			if (playerResources == null)
+			if (PlayerResources == null)
 				return;
 
-			var cash = playerResources.GetCashAndResources();
-			var earned = playerResources.Earned;
+			var cash = PlayerResources.GetCashAndResources();
+			var earned = PlayerResources.Earned;
 			var tick = world.WorldTick;
 
 			economySamples.Enqueue((cash, earned, tick));
@@ -1524,40 +1709,40 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (economySamples.Count < 2)
 			{
-				cachedEconomyOverflowMilli = 0;
+				EconomyOverflowMilli = 0;
 				return;
 			}
 
 			long cashSum = 0;
-			foreach (var s in economySamples)
-				cashSum += s.Cash;
+			foreach (var (sampleCash, _, _) in economySamples)
+				cashSum += sampleCash;
 			var avgCash = (int)(cashSum / economySamples.Count);
 
-			var oldest = economySamples.Peek();
-			var dt = Math.Max(1, tick - oldest.Tick);
-			var incomeRate = (earned - oldest.Earned) / dt;
-			cachedIncomeRate = incomeRate;
+			var (_, oldestEarned, oldestTick) = economySamples.Peek();
+			var dt = Math.Max(1, tick - oldestTick);
+			var incomeRate = (earned - oldestEarned) / dt;
+			IncomeRate = incomeRate;
 
 			var cashFloor = Info.EconomyOverflowCashFloor;
 			var cashCeil = Math.Max(cashFloor + 1, Info.EconomyOverflowCashCeiling);
-			var cashScoreMilli = Math.Clamp(((long)(avgCash - cashFloor) * 1000) / (cashCeil - cashFloor), 0L, 1000L);
+			var cashScoreMilli = Math.Clamp((long)(avgCash - cashFloor) * 1000 / (cashCeil - cashFloor), 0L, 1000L);
 
 			var incomeFloor = Info.EconomyOverflowIncomeFloor;
 			var incomeCeil = Math.Max(incomeFloor + 1, Info.EconomyOverflowIncomeCeiling);
-			var incomeScoreMilli = Math.Clamp(((long)(incomeRate - incomeFloor) * 1000) / (incomeCeil - incomeFloor), 0L, 1000L);
+			var incomeScoreMilli = Math.Clamp((long)(incomeRate - incomeFloor) * 1000 / (incomeCeil - incomeFloor), 0L, 1000L);
 
 			var weightSum = Math.Max(1, Info.EconomyOverflowCashWeight + Info.EconomyOverflowIncomeWeight);
 			var blended = (cashScoreMilli * Info.EconomyOverflowCashWeight + incomeScoreMilli * Info.EconomyOverflowIncomeWeight) / weightSum;
 
-			cachedEconomyOverflowMilli = (int)Math.Clamp(blended, 0L, 1000L);
+			EconomyOverflowMilli = (int)Math.Clamp(blended, 0L, 1000L);
 		}
 
 		public int GetScaledBuildingLimit(int baseLimit)
 		{
-			if (baseLimit <= 0 || cachedEconomyOverflowMilli <= 0 || Info.EconomyOverflowBuildingLimitBonusPct <= 0)
+			if (baseLimit <= 0 || EconomyOverflowMilli <= 0 || Info.EconomyOverflowBuildingLimitBonusPct <= 0)
 				return baseLimit;
 
-			var bonus = (baseLimit * Info.EconomyOverflowBuildingLimitBonusPct * cachedEconomyOverflowMilli) / (100 * 1000);
+			var bonus = baseLimit * Info.EconomyOverflowBuildingLimitBonusPct * EconomyOverflowMilli / (100 * 1000);
 			return baseLimit + bonus;
 		}
 
@@ -1568,7 +1753,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool HasEconomicFloatFor(int threshold)
 		{
-			var cash = playerResources.GetCashAndResources();
+			var cash = PlayerResources.GetCashAndResources();
 			if (cash < threshold)
 				return false;
 
@@ -1587,8 +1772,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool HasStoragePressure()
 		{
-			return playerResources.ResourceCapacity > 0 &&
-				playerResources.Resources * 100 >= playerResources.ResourceCapacity * 70;
+			return PlayerResources.ResourceCapacity > 0 &&
+				PlayerResources.Resources * 100 >= PlayerResources.ResourceCapacity * 70;
 		}
 
 		public int CountPendingRefineriesForIndice(CNResourceIndice indice)
@@ -1719,9 +1904,9 @@ namespace OpenRA.Mods.Common.Traits
 		public int GetExpansionCashThrottle()
 		{
 			if (!HasEconomicFloat())
-				return playerResources.GetCashAndResources() / Math.Max(Info.PerExpansionTolerateOnCash, 1);
+				return PlayerResources.GetCashAndResources() / Math.Max(Info.PerExpansionTolerateOnCash, 1);
 
-			return Math.Max(0, playerResources.GetCashAndResources() / Math.Max(Info.PerExpansionTolerateOnCash * 2, 1));
+			return Math.Max(0, PlayerResources.GetCashAndResources() / Math.Max(Info.PerExpansionTolerateOnCash * 2, 1));
 		}
 
 		public int CountNearbyValuableResources(CPos center, int radius)
@@ -1877,8 +2062,8 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						// Prefer selling the inactive one; skip the pair if both are active.
 						var sellTarget = !IsRefineryActive(refineries[i]) ? refineries[i]
-						               : !IsRefineryActive(refineries[j]) ? refineries[j]
-						               : null;
+									   : !IsRefineryActive(refineries[j]) ? refineries[j]
+									   : null;
 
 						if (sellTarget != null)
 						{
@@ -1920,7 +2105,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool HasQueuedOrProducingRefinery(ILookup<string, ProductionQueue> queuesByCategory)
 			=> HasQueuedOrProducingActor(Info.RefineryTypes, queuesByCategory);
 
-		int GetCheapestBuildableActorCost(IReadOnlyCollection<string> types, ILookup<string, ProductionQueue> queuesByCategory)
+		static int GetCheapestBuildableActorCost(IReadOnlyCollection<string> types, ILookup<string, ProductionQueue> queuesByCategory)
 		{
 			if (types == null || types.Count == 0)
 				return -1;
@@ -1973,10 +2158,9 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				// Never sell the last conyard: without it we cannot recover.
-				if (Info.ConstructionYardTypes.Contains(building.Info.Name))
+				if (Info.ConstructionYardTypes.Contains(building.Info.Name) && conyardCount <= 1)
 				{
-					if (conyardCount <= 1)
-						continue;
+					continue;
 				}
 
 				// Keep at least one production building and enough power to actually place the refinery afterwards.
@@ -2061,7 +2245,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (refineryCost <= 0)
 				return false;
 
-			var cash = playerResources.GetCashAndResources();
+			var cash = PlayerResources.GetCashAndResources();
 			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
 				return false;
 
@@ -2072,7 +2256,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Active income → wait for cash to accumulate instead of preemptively selling.
 			// The sampling window (~300 ticks) keeps this positive for a while after the last
 			// harvester dump, which naturally debounces brief refinery losses.
-			if (cachedIncomeRate > 0)
+			if (IncomeRate > 0)
 				return false;
 
 			var sellCandidate = ChooseEmergencySellCandidate();
@@ -2103,7 +2287,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (harvesterCost <= 0)
 				return false;
 
-			var cash = playerResources.GetCashAndResources();
+			var cash = PlayerResources.GetCashAndResources();
 			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
 				return false;
 
@@ -2112,7 +2296,7 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			// Active income → another harvester is probably still dumping. Wait it out.
-			if (cachedIncomeRate > 0)
+			if (IncomeRate > 0)
 				return false;
 
 			var sellCandidate = ChooseEmergencySellCandidate();
@@ -2140,7 +2324,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (mcvCost <= 0)
 				return false;
 
-			var cash = playerResources.GetCashAndResources();
+			var cash = PlayerResources.GetCashAndResources();
 			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
 				return false;
 
@@ -2150,7 +2334,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Active income → economy is still alive (e.g. lost conyard mid-game while a refinery
 			// still works). Wait for the next dump before tearing down buildings.
-			if (cachedIncomeRate > 0)
+			if (IncomeRate > 0)
 				return false;
 
 			var sellCandidate = ChooseEmergencySellCandidate();
@@ -2167,7 +2351,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.BankruptcyKamikazeEnabled || terminalRecoveryTriggered)
 				return;
 
-			var cash = playerResources.GetCashAndResources();
+			var cash = PlayerResources.GetCashAndResources();
 			if (cash > Info.BankruptcyKamikazeMaxCash)
 				return;
 
@@ -2199,13 +2383,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (anyOwnUnit != null)
 				target = FindClosestEnemyBuilding(anyOwnUnit);
 
-			if (target == null)
-			{
-				target = world.Actors.FirstOrDefault(a =>
+			target ??= world.Actors.FirstOrDefault(a =>
 					!a.IsDead && a.IsInWorld &&
 					a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy &&
 					a.Info.HasTraitInfo<BuildingInfo>());
-			}
 
 			if (target != null)
 			{

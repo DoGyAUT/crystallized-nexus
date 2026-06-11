@@ -11,7 +11,6 @@ using System.Linq;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Traits.Render;
-using OpenRA.Support;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits

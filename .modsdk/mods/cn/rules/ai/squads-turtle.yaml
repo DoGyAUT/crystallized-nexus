@@ -152,11 +152,11 @@ Player:
 				PriorityTargetCapabilities: Harvester, Economy, Power
 				Slots:
 					1:
-						Count: 2
+						Count: 1
 						AllowedTypes: apc
 						IsCarrier: True
 					2:
-						Count: 10
+						Count: 5
 						AllowedTypes: gasol, e2
 						IsPassenger: True
 			GDI_Archon_Attack:
@@ -226,6 +226,18 @@ Player:
 					1:
 						Count: 3
 						AllowedTypes: jugg
+			GDI_Cyclops_Breaker:
+				Role: Assault
+				Tags: AntiArmor, Siege, Frontline, Vehicle
+				MaxInstances: 3
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Defense, Vehicle, Production, Economy
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: cyclops
 			GDI_Sonic_Breaker:
 				Role: Assault
 				Tags: AntiArmor, Siege, Frontline, Vehicle
@@ -269,6 +281,18 @@ Player:
 					1:
 						Count: 2
 						AllowedTypes: orca_b
+			GDI_Hornet_Strike:
+				Role: AircraftRaider
+				Tags: AntiArmor, Harass, Aircraft
+				MaxInstances: 3
+				ScaleWithBuilding: gahpad
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Vehicle, Defense, Tech, Superweapon
+				Slots:
+					1:
+						Count: 2
+						AllowedTypes: hornet
 			GDI_Orca_Raid:
 				Role: AircraftRaider
 				Tags: Harass, Siege, Aircraft

@@ -42,7 +42,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			=> (long)v.X * v.X + (long)v.Y * v.Y;
 
 		// --- Movement helpers (delegate to CNSquadHelper) ---
-
 		protected static void GoToRandomOwnBuilding(CNSquad squad)
 			=> CNSquadHelper.GoToRandomOwnBuilding(squad);
 
@@ -115,14 +114,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		}
 
 		// --- Flee decision ---
-
 		protected virtual bool ShouldFlee(CNSquad squad)
 		{
 			return ShouldFlee(squad, enemies =>
 				!CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
 		}
 
-		protected bool ShouldFlee(CNSquad squad, Func<IReadOnlyCollection<Actor>, bool> flee)
+		protected static bool ShouldFlee(CNSquad squad, Func<IReadOnlyCollection<Actor>, bool> flee)
 		{
 			if (!squad.IsValid)
 				return false;
@@ -148,7 +146,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		}
 
 		// --- Enemy finding (delegate to CNSquadHelper) ---
-
 		protected static Actor FindClosestEnemyUnit(CNSquad squad)
 			=> CNSquadHelper.FindClosestEnemyUnit(squad);
 
@@ -159,7 +156,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			=> CNSquadHelper.FindPriorityTarget(squad, priorityTypes, sourceUnit);
 
 		// --- Ammo helpers (for air squads) ---
-
 		protected static bool IsRearming(Actor a)
 		{
 			return !a.IsIdle &&

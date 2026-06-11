@@ -10,7 +10,6 @@
 #endregion
 
 using System.Linq;
-using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
@@ -22,7 +21,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// chase, never breaks formation, and never wanders to a random building
 	// every tick (anti-jitter). On wave launch it transitions to MoveToRally.
 	// ---------------------------------------------------------------------------
-
 	sealed class CNWaveHoldState : CNStateBase, ICNState
 	{
 		CPos holdCell;
@@ -78,12 +76,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var baseCell = mgr.GetRandomBaseCenter();
 
 			// Stable per-squad scatter so squads of the same template don't pile up.
-			var seed = (squad.TemplateName ?? "") .GetHashCode() ^ squad.CreatedTick;
+			var seed = (squad.TemplateName ?? "").GetHashCode() ^ squad.CreatedTick;
 			var scatter = mgr.Info.WaveHoldScatterCells;
 			if (scatter > 0)
 			{
-				var dx = ((seed & 0xFFFF) % (scatter * 2 + 1)) - scatter;
-				var dy = (((seed >> 16) & 0xFFFF) % (scatter * 2 + 1)) - scatter;
+				var dx = (seed & 0xFFFF) % (scatter * 2 + 1) - scatter;
+				var dy = ((seed >> 16) & 0xFFFF) % (scatter * 2 + 1) - scatter;
 				var scattered = new CPos(baseCell.X + dx, baseCell.Y + dy);
 				if (squad.World.Map.Contains(scattered))
 					baseCell = scattered;
@@ -153,18 +151,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// enemy base. On arrival (or timeout), it hands off to the role's regular
 	// idle state which then engages normally.
 	// ---------------------------------------------------------------------------
-
 	sealed class CNWaveMoveToRallyState : CNStateBase, ICNState
 	{
+		const int MaxNoProgressTicks = 225;
+		const int MinProgressDistance = 512;
 		readonly CPos rallyCell;
 		Actor waveTarget;
 		WPos rallyPos;
 		int startTick;
 		int lastProgressTick;
 		long lastDistanceSq;
-
-		const int MaxNoProgressTicks = 225;
-		const int MinProgressDistance = 512;
 
 		public CNWaveMoveToRallyState(CPos rallyCell, Actor waveTarget)
 		{
@@ -217,8 +213,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var enoughArrived = liveUnits.Count > 0 && arrived >= System.Math.Max(1, liveUnits.Count * 2 / 3);
 
 			var currentDistanceSq = (squad.CenterPosition() - rallyPos).LengthSquared;
-			var progressThresholdSq = (long)MinProgressDistance * MinProgressDistance;
-			if (currentDistanceSq + progressThresholdSq < lastDistanceSq)
+			const long ProgressThresholdSq = (long)MinProgressDistance * MinProgressDistance;
+			if (currentDistanceSq + ProgressThresholdSq < lastDistanceSq)
 			{
 				lastDistanceSq = currentDistanceSq;
 				lastProgressTick = squad.World.WorldTick;

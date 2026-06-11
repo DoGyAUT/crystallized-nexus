@@ -13,7 +13,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
@@ -21,7 +20,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// ---------------------------------------------------------------------------
 	// Base class: leader election, flee, shared target finding
 	// ---------------------------------------------------------------------------
-
 	abstract class CNGroundStateBase : CNStateBase
 	{
 		Actor leader;
@@ -80,7 +78,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		/// Finds the best attack target:
 		/// 1. PriorityTargetCapabilities from template (if configured)
 		/// 2. Closest visible enemy unit
-		/// 3. Closest enemy building (no shroud check)
+		/// 3. Closest enemy building (no shroud check).
 		/// </summary>
 		protected static Actor FindTarget(CNSquad squad)
 			=> CNSquadHelper.FindTarget(squad);
@@ -90,8 +88,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			return squad.World
 				.FindActorsInCircle(center, WDist.FromCells(radiusCells))
 				.Where(a => squad.SquadManager.IsLiveEnemyActor(a) &&
-				            a.Info.HasTraitInfo<BuildingInfo>() &&
-				            !a.Info.HasTraitInfo<LineBuildInfo>())
+							a.Info.HasTraitInfo<BuildingInfo>() &&
+							!a.Info.HasTraitInfo<LineBuildInfo>())
 				.MinByOrDefault(a => (a.CenterPosition - center).LengthSquared);
 		}
 
@@ -162,7 +160,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// No CanAttack check here — flee decisions happen in AttackMoveState where
 	// the squad is close to actual enemies, not evaluated against a distant base.
 	// ---------------------------------------------------------------------------
-
 	sealed class CNGroundIdleState : CNGroundStateBase, ICNState
 	{
 		// Units this close to ANY own building are considered "at base" and won't be
@@ -191,7 +188,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					// rather than issuing a move-to-random-building on every update cycle.
 					var buildings = squad.SquadManager.GetCachedOwnBuildings();
 					var homeRadiusSq = (long)WDist.FromCells(HomeRadiusCells).Length *
-					                   WDist.FromCells(HomeRadiusCells).Length;
+									   WDist.FromCells(HomeRadiusCells).Length;
 					var allHome = squad.Units
 						.Where(u => !u.IsDead && u.IsInWorld)
 						.All(u => buildings.Any(b =>
@@ -227,13 +224,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// Vanilla port — stuck detection uses WorldTick, timeout raised to 200
 	// (vanilla uses 63 which would always trigger at our 75-tick update interval).
 	// ---------------------------------------------------------------------------
-
 	sealed class CNGroundAttackMoveState : CNGroundStateBase, ICNState
 	{
+		const int StuckTimeoutTicks = 200;
 		int lastUpdatedTick;
 		CPos? lastLeaderLocation;
 		Actor lastTarget;
-		const int StuckTimeoutTicks = 200;
 
 		public void Activate(CNSquad squad)
 		{
@@ -342,13 +338,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// When target dies: scan locally first, then fall back to FindClosestEnemyBuilding.
 	// This prevents chasing stray units across the map ("camping" bug).
 	// ---------------------------------------------------------------------------
-
 	sealed class CNGroundAttackState : CNGroundStateBase, ICNState
 	{
+		const int StuckTimeoutTicks = 200;
 		int lastUpdatedTick;
 		CPos? lastLeaderLocation;
 		Actor lastTarget;
-		const int StuckTimeoutTicks = 200;
 
 		public void Activate(CNSquad squad)
 		{
@@ -444,7 +439,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// ---------------------------------------------------------------------------
 	// Flee: return to base, dissolve squad
 	// ---------------------------------------------------------------------------
-
 	sealed class CNGroundFleeState : CNGroundStateBase, ICNState
 	{
 		public void Activate(CNSquad squad) { }
@@ -468,7 +462,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// Protection states (vanilla port)
 	// Reactive defense squads: attack, flee when target lost, dissolve.
 	// ---------------------------------------------------------------------------
-
 	sealed class ProtectionIdleState : CNGroundStateBase, ICNState
 	{
 		public void Activate(CNSquad squad) { }
@@ -478,8 +471,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class ProtectionAttackState : CNGroundStateBase, ICNState
 	{
-		int backoff = BackoffTicks;
 		const int BackoffTicks = 4;
+		int backoff = BackoffTicks;
 
 		public void Activate(CNSquad squad) { }
 
@@ -546,12 +539,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class ProtectionFleeState : CNGroundStateBase, ICNState
 	{
-		int waitTicks;
-		WPos returnPos;
-
 		// 15 update-cycles × 75 game ticks = ~37 seconds — enough for units to walk home.
 		const int MaxWaitTicks = 15;
 		const int ArrivalRadiusCells = 6;
+		int waitTicks;
+		WPos returnPos;
 
 		public void Activate(CNSquad squad)
 		{

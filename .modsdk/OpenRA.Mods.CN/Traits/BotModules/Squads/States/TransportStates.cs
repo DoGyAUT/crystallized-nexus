@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
@@ -14,7 +13,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Tick(CNSquad squad)
 		{
 			// Sanity check: verify squad and all carriers are valid
-			if (!squad.IsValid || !CNStateBase.ValidateCarriers(squad))
+			if (!squad.IsValid || !ValidateCarriers(squad))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
 				return;
@@ -64,7 +63,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Tick(CNSquad squad)
 		{
 			// Sanity check: verify squad and all carriers are valid
-			if (!squad.IsValid || !CNStateBase.ValidateCarriers(squad))
+			if (!squad.IsValid || !ValidateCarriers(squad))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportDoneState());
 				return;
@@ -247,7 +246,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				if (!passengerStagingCells.TryGetValue(passenger.ActorID, out var staging) ||
 					!CanPassengerEnter(passenger, staging))
 				{
-					if (!TryFindPassengerStagingCell(squad, passenger, landing, out staging))
+					if (!TryFindPassengerStagingCell(passenger, landing, out staging))
 						continue;
 
 					passengerStagingCells[passenger.ActorID] = staging;
@@ -260,7 +259,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 		}
 
-		static bool TryFindPassengerStagingCell(CNSquad squad, Actor passenger, CPos landing, out CPos staging)
+		static bool TryFindPassengerStagingCell(Actor passenger, CPos landing, out CPos staging)
 		{
 			staging = landing;
 			for (var radius = PassengerStagingMinCells; radius <= PassengerStagingMaxCells; radius++)
@@ -294,30 +293,93 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class TransportLoadState : CNStateBase, ICNState
 	{
+		// Abort threshold: if passengers haven't loaded within this time, transition to safe state.
+		// 1500 ticks ≈ ~100 seconds at 15 ticks/sec.
+		const int MaxLoadTicks = 1500;
 		int loadStartTick;
 
-		// Abort threshold: if passengers haven't loaded within this time, transition to safe state.
-		// 750 ticks ≈ ~50 seconds at 15 ticks/sec.
-		const int MaxLoadTicks = 750;
+		// Stable passenger → carrier assignment. Keeping it stable (instead of re-deriving a
+		// round-robin from the shrinking idle list every tick) is what prevents trickle-in
+		// passengers from all being re-routed to the same — possibly already full — carrier,
+		// which left the other carriers half-empty when more than one transport was present.
+		readonly Dictionary<uint, uint> passengerToCarrier = [];
 
-		static void IssueLoadOrders(CNSquad squad)
+		// Recompute assignments capacity-aware: each passenger goes to the carrier with the most
+		// free space, and assignments to a full/dead carrier are dropped so the passenger is
+		// re-routed to one that still has room. Passenger weight is treated as 1 (all transport
+		// passengers are infantry, MaxWeight == seat count), which matches the CN templates.
+		void AssignPassengersToCarriers(CNSquad squad)
 		{
-			var carrierList = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
-			if (carrierList.Count == 0)
+			var carriers = squad.CarrierUnits.Where(c => !c.IsDead && c.IsInWorld).ToList();
+			if (carriers.Count == 0)
 				return;
 
-			var passengerList = squad.PassengerUnits
-				.Where(u => !u.IsDead && u.IsInWorld)
-				.ToList();
+			var cargoByCarrier = carriers.ToDictionary(c => c.ActorID, c => c.TraitOrDefault<Cargo>());
+			var passengers = squad.PassengerUnits.Where(u => !u.IsDead && u.IsInWorld).ToList();
+			var livePassengers = passengers.Select(p => p.ActorID).ToHashSet();
 
-			// Round-robin: distribute passengers evenly across all carriers so each
-			// APC gets roughly the same number of boarders instead of all piling into
-			// the nearest one and leaving the others empty.
-			for (var i = 0; i < passengerList.Count; i++)
+			// Drop stale assignments: passenger gone/boarded, carrier gone, or carrier now full.
+			foreach (var id in passengerToCarrier.Keys.ToList())
 			{
-				var carrier = carrierList[i % carrierList.Count];
-				squad.Bot.QueueOrder(new Order("EnterTransport", passengerList[i],
-					Target.FromActor(carrier), false));
+				var carrierId = passengerToCarrier[id];
+				var carrierGone = !cargoByCarrier.TryGetValue(carrierId, out var cargo) || cargo == null;
+				if (!livePassengers.Contains(id) || carrierGone || !cargo.HasSpace(1))
+					passengerToCarrier.Remove(id);
+			}
+
+			// Pending seats already claimed by still-walking (in-world, unboarded) passengers.
+			var pending = carriers.ToDictionary(c => c.ActorID, _ => 0);
+			foreach (var carrierId in passengerToCarrier.Values)
+				if (pending.ContainsKey(carrierId))
+					pending[carrierId]++;
+
+			int Free(uint carrierId)
+			{
+				var cargo = cargoByCarrier[carrierId];
+				return cargo == null ? 0 : cargo.Info.MaxWeight - cargo.PassengerCount - pending[carrierId];
+			}
+
+			foreach (var passenger in passengers)
+			{
+				if (passengerToCarrier.ContainsKey(passenger.ActorID))
+					continue;
+
+				uint best = 0;
+				var bestFree = 0;
+				foreach (var carrier in carriers)
+				{
+					var free = Free(carrier.ActorID);
+					if (free > bestFree)
+					{
+						bestFree = free;
+						best = carrier.ActorID;
+					}
+				}
+
+				if (bestFree <= 0)
+					continue; // no carrier has room right now — retry next tick
+
+				passengerToCarrier[passenger.ActorID] = best;
+				pending[best]++;
+			}
+		}
+
+		void IssueBoardingOrders(CNSquad squad, bool idleOnly)
+		{
+			var carrierById = squad.CarrierUnits
+				.Where(c => !c.IsDead && c.IsInWorld)
+				.ToDictionary(c => c.ActorID);
+
+			foreach (var passenger in squad.PassengerUnits.Where(u => !u.IsDead && u.IsInWorld))
+			{
+				if (idleOnly && !passenger.IsIdle)
+					continue;
+
+				if (!passengerToCarrier.TryGetValue(passenger.ActorID, out var carrierId) ||
+					!carrierById.TryGetValue(carrierId, out var carrier))
+					continue;
+
+				squad.Bot.QueueOrder(new Order("EnterTransport", passenger, Target.FromActor(carrier), false));
 			}
 		}
 
@@ -325,6 +387,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			squad.AcceptingPassengers = true;
 			loadStartTick = squad.World.WorldTick;
+			passengerToCarrier.Clear();
 
 			// Stop all carriers and escorts so they stay put while passengers walk to them.
 			foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
@@ -333,7 +396,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.Bot.QueueOrder(new Order("Stop", escort, false));
 
 			// Issue boarding orders immediately (don't wait up to 75 ticks for first Tick).
-			IssueLoadOrders(squad);
+			AssignPassengersToCarriers(squad);
+			IssueBoardingOrders(squad, idleOnly: false);
 		}
 
 		public void Tick(CNSquad squad)
@@ -386,11 +450,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			if (allLoaded || squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
+			if (allLoaded)
 			{
-				// Abort logic: if timeout reached but loading failed, transition to a safe state.
-				// For air transports, go to attack move; for ground, also proceed to attack move
-				// since carriers may have partial cargo or the squad needs to continue its mission.
 				if (squad.Type == CNSquadType.AirTransport)
 					squad.FuzzyStateMachine.ChangeState(squad, new AirTransportAttackMoveState());
 				else
@@ -399,16 +460,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			// Re-issue only to idle passengers (those still walking are fine — don't
-			// interrupt them with a new order that would restart the boarding walk).
-			var carrierList = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
-			var idlePassengers = passengers.Where(u => u.IsInWorld && u.IsIdle).ToList();
-			for (var i = 0; i < idlePassengers.Count; i++)
+			if (squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
 			{
-				var carrier = carrierList[i % carrierList.Count];
-				squad.Bot.QueueOrder(new Order("EnterTransport", idlePassengers[i],
-					Target.FromActor(carrier), false));
+				// Timeout may send partial cargo, but never an empty transport.
+				squad.FuzzyStateMachine.ChangeState(squad,
+					anyCargo ? new TransportAttackMoveState() : new TransportIdleState());
+				return;
 			}
+
+			// Re-assign capacity-aware (re-routing passengers off full/dead carriers) and re-issue
+			// only to idle passengers — those still walking keep their order so we don't restart
+			// their boarding walk.
+			AssignPassengersToCarriers(squad);
+			IssueBoardingOrders(squad, idleOnly: true);
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -480,9 +544,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class TransportAttackMoveState : CNStateBase, ICNState
 	{
-		CPos? dropCell;
-		Actor lastTarget;
-
 		const int DropSearchMinCells = 4;
 		const int DropSearchMaxCells = 10;
 		const int DropArriveRangeCells = 3;
@@ -494,6 +555,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		// Threat relaxation: when already at/near the LZ, reduce threat score so a nearly-finished
 		// transport doesn't get stuck in "hesitation" where a tiny threat prevents unload.
 		const int LzThreatRelaxFactor = 2; // divide threat by this factor near LZ
+		CPos? dropCell;
+		Actor lastTarget;
 
 		int lzIdleStartTick;
 
@@ -751,7 +814,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				}
 
 				// Depth tiebreaker: deeper = farther from our base = more "behind the lines".
-				score += (int)((building.CenterPosition - ourBasePos).Length / 1024);
+				score += (building.CenterPosition - ourBasePos).Length / 1024;
 
 				if (score > bestScore)
 				{
@@ -863,7 +926,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		const int DropSearchMaxCells = 13;
 		const int DropArriveRangeCells = 3;
 		const int ThreatScanCells = 7;
-		const int MaxAcceptableDropScore = 1600;
 
 		// Loiter fail-safe: if the lead carrier hasn't made horizontal progress for
 		// this many ticks while still carrying cargo, it is hovering over/near the
@@ -871,14 +933,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		const int MaxLoiterTicks = 60;
 		const int MinProgressDistance = 512; // sub-cell; movement below this counts as "not moving"
 
+		// Threat relaxation: when already at/near the LZ, reduce threat score so a nearly-finished
+		// transport doesn't get stuck in "hesitation" where a tiny threat prevents unload.
+		const int LzThreatRelaxFactor = 2; // divide threat by this factor near LZ
+
 		CPos? dropCell;
 		Actor lastTarget;
 		WPos lastLeadPos;
 		int loiterTicks;
-
-		// Threat relaxation: when already at/near the LZ, reduce threat score so a nearly-finished
-		// transport doesn't get stuck in "hesitation" where a tiny threat prevents unload.
-		const int LzThreatRelaxFactor = 2; // divide threat by this factor near LZ
 
 		public void Activate(CNSquad squad)
 		{
@@ -950,7 +1012,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				if (HorizontalLengthSquared(carrier.CenterPosition - targetPos) <= unloadRangeSq)
 				{
-					squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
+					squad.FuzzyStateMachine.ChangeState(squad, new AirTransportUnloadState(dropCell.Value));
 					return;
 				}
 			}
@@ -967,7 +1029,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				loiterTicks = 0;
 			else if (++loiterTicks >= MaxLoiterTicks)
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
+				squad.FuzzyStateMachine.ChangeState(squad, new AirTransportUnloadState(dropCell.Value));
 				return;
 			}
 
@@ -1148,6 +1210,91 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 	}
 
+	// ---------------------------------------------------------------------------
+	// Air-transport unload: an airborne carrier hovering at cruise altitude over the LZ
+	// reports IsIdle == false (it is running FlyIdle), so the idle-gated Unload order of the
+	// ground TransportUnloadState never fired and the transport sat fully loaded at the LZ
+	// forever. Here we explicitly Land at the drop cell first; a landed aircraft becomes idle
+	// and CanUnload, so the Unload order goes through and the cargo is actually dropped.
+	// ---------------------------------------------------------------------------
+	sealed class AirTransportUnloadState : CNStateBase, ICNState
+	{
+		// Timeout: 600 ticks ≈ ~40 seconds at 15 ticks/sec — force-drop and bail if stuck.
+		const int MaxUnloadWaitTicks = 600;
+
+		readonly CPos dropCell;
+		int unloadStartTick;
+
+		public AirTransportUnloadState(CPos dropCell) { this.dropCell = dropCell; }
+
+		public void Activate(CNSquad squad)
+		{
+			unloadStartTick = squad.World.WorldTick;
+
+			// Land on the (landable) drop cell. Once down, the carrier is idle and can unload.
+			foreach (var carrier in squad.CarrierUnits.Where(c => !c.IsDead && c.IsInWorld))
+				squad.Bot.QueueOrder(new Order("Land", carrier, Target.FromCell(squad.World, dropCell), false));
+		}
+
+		public void Tick(CNSquad squad)
+		{
+			if (!squad.IsValid)
+				return;
+
+			var carriers = squad.CarrierUnits.Where(c => !c.IsDead && c.IsInWorld).ToList();
+			var anyCargo = carriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false);
+
+			// Cargo dropped: capture-and-sell drops hand the engineers to the capture mission.
+			// Regular drops commit the unloaded passengers to the raid instead of releasing them
+			// into the normal idle/flee pool.
+			if (!anyCargo)
+			{
+				squad.FuzzyStateMachine.ChangeState(squad,
+					squad.TemplateInfo?.CaptureAndSell == true
+						? new EngineerCaptureState()
+						: new TransportDropAssaultState());
+				return;
+			}
+
+			// Fail-safe: force the drop and hand over to the raid state if we have been stuck too long.
+			if (squad.World.WorldTick - unloadStartTick >= MaxUnloadWaitTicks)
+			{
+				foreach (var carrier in carriers.Where(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false))
+					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
+
+				squad.FuzzyStateMachine.ChangeState(squad,
+					squad.TemplateInfo?.CaptureAndSell == true
+						? new EngineerCaptureState()
+						: new TransportDropAssaultState());
+				return;
+			}
+
+			foreach (var carrier in carriers)
+			{
+				if (carrier.TraitOrDefault<Cargo>()?.IsEmpty() != false || !carrier.IsIdle)
+					continue;
+
+				// Idle + airborne: the Land hasn't landed it yet (or it took off again) — re-issue Land.
+				// Idle + landed: unload now (the engine lands-in-place, drops, then takes off).
+				var aircraft = carrier.TraitOrDefault<Aircraft>();
+				if (aircraft != null && !aircraft.AtLandAltitude)
+					squad.Bot.QueueOrder(new Order("Land", carrier, Target.FromCell(squad.World, dropCell), false));
+				else
+					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
+			}
+
+			// Escorts attack the nearest enemy while passengers unload.
+			var escortEnemy = FindClosestEnemyUnit(squad);
+			if (escortEnemy != null)
+			{
+				foreach (var escort in squad.EscortUnits.Where(e => !e.IsDead && e.IsInWorld && e.IsIdle))
+					squad.Bot.QueueOrder(new Order("Attack", escort, Target.FromActor(escortEnemy), false));
+			}
+		}
+
+		public void Deactivate(CNSquad squad) { }
+	}
+
 	sealed class TransportUnloadState : CNStateBase, ICNState
 	{
 		// Timeout: 600 ticks ≈ ~40 seconds at 15 ticks/sec — abort if stuck.
@@ -1174,13 +1321,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var anyCargo = carriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false);
 
 			// If no cargo remains, transition out. Capture-and-sell drops hand the just-unloaded
-			// engineers to the capture mission; everyone else returns home.
+			// engineers to the capture mission; regular drops keep the passengers attacking.
 			if (!anyCargo)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad,
 					squad.TemplateInfo?.CaptureAndSell == true
 						? new EngineerCaptureState()
-						: new TransportReturnState());
+						: new TransportDropAssaultState());
 				return;
 			}
 
@@ -1194,13 +1341,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			// Timeout: if the transport has been at the LZ for too long with passengers still aboard,
-			// force unload on all carriers and transition to return state to prevent permanent idle.
+			// force unload on all carriers and hand control to the drop mission.
 			if (squad.World.WorldTick - unloadStartTick >= MaxUnloadWaitTicks)
 			{
 				foreach (var carrier in carriers.Where(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false))
 					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
 
-				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
+				squad.FuzzyStateMachine.ChangeState(squad,
+					squad.TemplateInfo?.CaptureAndSell == true
+						? new EngineerCaptureState()
+						: new TransportDropAssaultState());
 				return;
 			}
 
@@ -1223,16 +1373,245 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Deactivate(CNSquad squad) { }
 	}
 
+	// ---------------------------------------------------------------------------
+	// Drop assault: regular APC/SAPC/Orca transport passengers commit to the raid
+	// after unloading. They deliberately skip the normal ground flee state so the
+	// drop does not immediately run home after the carriers leave.
+	// ---------------------------------------------------------------------------
+	sealed class TransportDropAssaultState : CNStateBase, ICNState
+	{
+		const int MaxMissionTicks = 1500; // ~100 seconds at 15 ticks/sec
+		const int CarrierReturnReissueTicks = 150;
+		const int PassengerOrderReissueTicks = 75;
+		const int CarrierHomeRangeCells = 10;
+
+		int startTick;
+		int lastCarrierReturnTick;
+		int lastPassengerOrderTick;
+		CPos returnCell;
+		readonly HashSet<uint> adoptedPassengers = [];
+
+		public void Activate(CNSquad squad)
+		{
+			squad.AcceptingPassengers = false;
+			startTick = squad.World.WorldTick;
+			lastCarrierReturnTick = squad.World.WorldTick - CarrierReturnReissueTicks;
+			lastPassengerOrderTick = squad.World.WorldTick - PassengerOrderReissueTicks;
+			returnCell = squad.SquadManager.GetRandomBaseCenter();
+			adoptedPassengers.Clear();
+
+			AdoptPassengers(squad);
+			IssueCarrierReturn(squad, force: true);
+		}
+
+		public void Tick(CNSquad squad)
+		{
+			AdoptPassengers(squad);
+
+			var carriers = squad.CarrierUnits.Where(c => !c.IsDead && c.IsInWorld).ToList();
+			var passengers = squad.PassengerUnits.Where(p => !p.IsDead && p.IsInWorld).ToList();
+			var anyCargo = carriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false);
+
+			if (anyCargo)
+				IssueRemainingUnload(squad, carriers);
+
+			IssueCarrierReturn(squad, force: false);
+
+			if (passengers.Count == 0 && !anyCargo)
+			{
+				if (carriers.Count == 0 || CarriersHome(squad, carriers))
+					squad.SquadManager.UnregisterSquad(squad);
+
+				return;
+			}
+
+			if (passengers.Count > 0)
+				OrderPassengers(squad, passengers);
+
+			if (squad.World.WorldTick - startTick >= MaxMissionTicks)
+				squad.SquadManager.UnregisterSquad(squad);
+		}
+
+		public void Deactivate(CNSquad squad) { }
+
+		void AdoptPassengers(CNSquad squad)
+		{
+			foreach (var passenger in squad.PassengerUnits.Where(p => !p.IsDead && p.IsInWorld))
+			{
+				if (!adoptedPassengers.Add(passenger.ActorID))
+					continue;
+
+				squad.Units.Add(passenger);
+			}
+		}
+
+		void IssueCarrierReturn(CNSquad squad, bool force)
+		{
+			if (!force && squad.World.WorldTick - lastCarrierReturnTick < CarrierReturnReissueTicks)
+				return;
+
+			lastCarrierReturnTick = squad.World.WorldTick;
+			var target = Target.FromCell(squad.World, returnCell);
+
+			foreach (var carrier in squad.CarrierUnits.Where(c => !c.IsDead && c.IsInWorld))
+			{
+				var cargo = carrier.TraitOrDefault<Cargo>();
+				if (cargo != null && !cargo.IsEmpty())
+					continue;
+
+				squad.Bot.QueueOrder(new Order("Move", carrier, target, false));
+			}
+
+			foreach (var escort in squad.EscortUnits.Where(e => !e.IsDead && e.IsInWorld))
+				squad.Bot.QueueOrder(new Order("Move", escort, target, false));
+		}
+
+		static void IssueRemainingUnload(CNSquad squad, IEnumerable<Actor> carriers)
+		{
+			foreach (var carrier in carriers)
+			{
+				var cargo = carrier.TraitOrDefault<Cargo>();
+				if (cargo == null || cargo.IsEmpty() || !carrier.IsIdle)
+					continue;
+
+				var aircraft = carrier.TraitOrDefault<Aircraft>();
+				if (aircraft != null && !aircraft.AtLandAltitude)
+					squad.Bot.QueueOrder(new Order("Land", carrier, Target.FromCell(squad.World, carrier.Location), false));
+				else
+					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
+			}
+		}
+
+		void OrderPassengers(CNSquad squad, List<Actor> passengers)
+		{
+			if (squad.World.WorldTick - lastPassengerOrderTick < PassengerOrderReissueTicks)
+				return;
+
+			var target = FindPassengerTarget(squad, passengers);
+			if (target == null)
+				return;
+
+			lastPassengerOrderTick = squad.World.WorldTick;
+			squad.SetActorToTarget(target);
+			foreach (var passenger in passengers)
+			{
+				if (BusyAttack(passenger) && !passenger.IsIdle)
+					continue;
+
+				squad.Bot.QueueOrder(new Order("AttackMove", passenger, Target.FromActor(target), false));
+			}
+		}
+
+		static Actor FindPassengerTarget(CNSquad squad, List<Actor> passengers)
+		{
+			var center = AveragePosition(passengers);
+			Actor best = null;
+			var bestScore = long.MaxValue;
+
+			foreach (var candidate in squad.World.FindActorsInCircle(center,
+				WDist.FromCells(squad.SquadManager.Info.AttackScanRadius)))
+				ConsiderCandidate(squad, passengers, candidate, center, ref best, ref bestScore);
+
+			foreach (var candidate in squad.SquadManager.GetCachedEnemyBuildings())
+				ConsiderCandidate(squad, passengers, candidate, center, ref best, ref bestScore);
+
+			if (best == null)
+			{
+				foreach (var passenger in passengers)
+				{
+					best = squad.SquadManager.FindClosestEnemy(passenger,
+						WDist.FromCells(squad.SquadManager.Info.AttackScanRadius * 2),
+						a => CanAttackTarget(passenger, a));
+					if (best != null)
+						break;
+				}
+			}
+
+			return best;
+		}
+
+		static void ConsiderCandidate(
+			CNSquad squad,
+			List<Actor> passengers,
+			Actor candidate,
+			WPos center,
+			ref Actor best,
+			ref long bestScore)
+		{
+			if (candidate == null || candidate.IsDead || !candidate.IsInWorld)
+				return;
+
+			if (!squad.SquadManager.IsLiveEnemyActor(candidate) || candidate.Info.HasTraitInfo<LineBuildInfo>())
+				return;
+
+			if (!candidate.Info.HasTraitInfo<BuildingInfo>() && !candidate.CanBeViewedByPlayer(squad.Bot.Player))
+				return;
+
+			if (!passengers.Any(p => CanAttackTarget(p, candidate)))
+				return;
+
+			var score = (candidate.CenterPosition - center).LengthSquared - TargetValueBonus(candidate);
+			if (score >= bestScore)
+				return;
+
+			bestScore = score;
+			best = candidate;
+		}
+
+		static long TargetValueBonus(Actor candidate)
+		{
+			var caps = candidate.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			if (caps == null)
+				return 0;
+
+			var bonusCells = 0;
+			if (caps.Contains("Superweapon")) bonusCells += 10;
+			if (caps.Contains("Tech")) bonusCells += 8;
+			if (caps.Contains("Production")) bonusCells += 7;
+			if (caps.Contains("Economy")) bonusCells += 6;
+			if (caps.Contains("Power")) bonusCells += 3;
+			if (caps.Contains("Defense")) bonusCells -= 4;
+
+			var sign = bonusCells < 0 ? -1 : 1;
+			var bonus = WDist.FromCells(Math.Abs(bonusCells)).Length;
+			return sign * (long)bonus * bonus;
+		}
+
+		static WPos AveragePosition(List<Actor> actors)
+		{
+			long x = 0;
+			long y = 0;
+			long z = 0;
+
+			foreach (var actor in actors)
+			{
+				x += actor.CenterPosition.X;
+				y += actor.CenterPosition.Y;
+				z += actor.CenterPosition.Z;
+			}
+
+			return new WPos((int)(x / actors.Count), (int)(y / actors.Count), (int)(z / actors.Count));
+		}
+
+		bool CarriersHome(CNSquad squad, List<Actor> carriers)
+		{
+			var returnPos = squad.World.Map.CenterOfCell(returnCell);
+			var homeRange = WDist.FromCells(CarrierHomeRangeCells);
+			var homeRangeSq = (long)homeRange.Length * homeRange.Length;
+
+			return carriers.All(c => HorizontalLengthSquared(c.CenterPosition - returnPos) <= homeRangeSq);
+		}
+	}
+
 	sealed class TransportReturnState : CNStateBase, ICNState
 	{
+		// Cleanup timeout: if carriers are stuck in a return loop but cannot reach base
+		// (e.g., pathfinding blocked) for more than this many ticks, force release units.
+		const int MaxReturnWaitTicks = 1200; // ~80 seconds at 15 ticks/sec
 		bool returnIssued;
 		int unloadAttemptTicks;
 		int returnStartTick;
 		CPos returnCell;
-
-		// Cleanup timeout: if carriers are stuck in a return loop but cannot reach base
-		// (e.g., pathfinding blocked) for more than this many ticks, force release units.
-		const int MaxReturnWaitTicks = 1200; // ~80 seconds at 15 ticks/sec
 
 		public void Activate(CNSquad squad)
 		{
@@ -1333,8 +1712,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		int startTick;
 		int engineerlessTicks;
-		readonly System.Collections.Generic.HashSet<uint> sellOrdered = [];
-		readonly System.Collections.Generic.List<Actor> captureTargets = [];
+		readonly HashSet<uint> sellOrdered = [];
+		readonly List<Actor> captureTargets = [];
 
 		public void Activate(CNSquad squad)
 		{
@@ -1426,7 +1805,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					continue;
 
 				// Distance dominates (in cells); value gives a small "worth a few cells closer" nudge.
-				var distCells = (int)((building.CenterPosition - engineer.CenterPosition).Length / 1024);
+				var distCells = (building.CenterPosition - engineer.CenterPosition).Length / 1024;
 				var score = distCells - CaptureValueBonus(building);
 				if (score < bestScore)
 				{

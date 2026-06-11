@@ -101,7 +101,7 @@ namespace OpenRA.Mods.CN.Traits
 
 		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
 		{
-			string condition = Weather switch
+			var condition = Weather switch
 			{
 				WeatherKind.Rain => info.RainCondition,
 				WeatherKind.Snow => info.SnowCondition,

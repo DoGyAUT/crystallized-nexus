@@ -321,7 +321,7 @@ namespace OpenRA.Mods.CN.Traits
 			int committedCost)
 		{
 			ActorInfo best = null;
-			float bestScore = float.MinValue;
+			var bestScore = float.MinValue;
 
 			foreach (var (typeName, missingCount) in demand)
 			{
@@ -405,7 +405,7 @@ namespace OpenRA.Mods.CN.Traits
 
 			var totalOwned = Info.FallbackUnitsToBuild.Keys.Sum(t => existingByType.GetValueOrDefault(t));
 			ActorInfo best = null;
-			float bestError = float.MaxValue;
+			var bestError = float.MaxValue;
 
 			foreach (var unit in buildable)
 			{
@@ -711,7 +711,7 @@ namespace OpenRA.Mods.CN.Traits
 			return null;
 		}
 
-		IEnumerable<CNSlotAssignment> OrderedAssignments(IEnumerable<CNSlotAssignment> assignments)
+		static IEnumerable<CNSlotAssignment> OrderedAssignments(IEnumerable<CNSlotAssignment> assignments)
 		{
 			foreach (var assignment in assignments)
 				if (assignment.SlotInfo.IsCarrier || assignment.SlotInfo.IsAircraftCarrier)
@@ -726,7 +726,7 @@ namespace OpenRA.Mods.CN.Traits
 					yield return assignment;
 		}
 
-		IEnumerable<CNSlotInfo> OrderedSlots(IEnumerable<CNSlotInfo> slots)
+		static IEnumerable<CNSlotInfo> OrderedSlots(IEnumerable<CNSlotInfo> slots)
 		{
 			foreach (var slot in slots)
 				if (slot.IsCarrier || slot.IsAircraftCarrier)
@@ -778,7 +778,7 @@ namespace OpenRA.Mods.CN.Traits
 			if (milli <= 0 || Info.EconomyOverflowReserveCutPct <= 0)
 				return raw;
 
-			var cut = (raw * Info.EconomyOverflowReserveCutPct * milli) / (100 * 1000);
+			var cut = raw * Info.EconomyOverflowReserveCutPct * milli / (100 * 1000);
 			return Math.Max(0, raw - cut);
 		}
 
@@ -884,7 +884,7 @@ namespace OpenRA.Mods.CN.Traits
 				string.Equals(s.TemplateName, templateName, StringComparison.OrdinalIgnoreCase));
 		}
 
-		bool QueueSpecific(IBot bot, ProductionQueue queue, string typeName)
+		static bool QueueSpecific(IBot bot, ProductionQueue queue, string typeName)
 		{
 			if (!queue.BuildableItems().Any(a => a.Name == typeName))
 				return false;

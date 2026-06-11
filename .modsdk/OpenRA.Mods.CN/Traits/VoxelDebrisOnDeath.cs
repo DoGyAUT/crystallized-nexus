@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using OpenRA.GameRules;
-using OpenRA.Graphics;
 using OpenRA.Mods.CN.Effects;
 using OpenRA.Mods.Cnc.Traits.Render;
 using OpenRA.Mods.Common.Traits;

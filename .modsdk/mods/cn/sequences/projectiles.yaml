@@ -80,6 +80,26 @@ dualproton:
 		IgnoreWorldTint: True
 		BloomGlow: True
 
+railgun_nano:
+	idle:
+		Filename: railgun_nano.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+		IgnoreWorldTint: True
+		BloomGlow: True
+
+railgun_tiny:
+	idle:
+		Filename: railgun_tiny.shp
+		Length: 1
+		Facings: 32
+		ZOffset: 1023
+		Offset: 0, 0, 4
+		IgnoreWorldTint: True
+		BloomGlow: True
+
 railgun_small:
 	idle:
 		Filename: railgun_small.shp

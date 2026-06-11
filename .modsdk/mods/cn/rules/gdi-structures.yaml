@@ -76,8 +76,17 @@ GACNST:
 	Power:
 		Amount: 0
 	ProvidesPrerequisite@gdi:
-		Factions: gdi
+		Factions: gdi, gdf, steel, zocom
 		Prerequisite: structures.gdi
+	ProvidesPrerequisite@gdf:
+		Factions: gdf
+		Prerequisite: tech.gdf
+	ProvidesPrerequisite@steel:
+		Factions: steel
+		Prerequisite: tech.steel
+	ProvidesPrerequisite@zocom:
+		Factions: zocom
+		Prerequisite: tech.zocom
 	IsometricSelectable:
 		Height: 36
 	BotCapabilities:

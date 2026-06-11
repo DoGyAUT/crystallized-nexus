@@ -224,14 +224,14 @@ namespace OpenRA.Mods.CN.Traits
 				"afternoon" => 15,
 				"dusk" => 18,
 				"night" => 0,
-				_ => ((info.StartHour % 24) + 24) % 24
+				_ => (info.StartHour % 24 + 24) % 24
 			};
 		}
 
 		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
 		{
 			world = w;
-			phaseTicks = (int)((startHour / 24f) * ticksPerDay) % ticksPerDay;
+			phaseTicks = (int)(startHour / 24f * ticksPerDay) % ticksPerDay;
 			Recompute();
 		}
 

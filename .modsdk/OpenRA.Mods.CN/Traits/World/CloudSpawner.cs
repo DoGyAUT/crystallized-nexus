@@ -91,7 +91,7 @@ namespace OpenRA.Mods.CN.Traits
 			}
 		}
 
-		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
+		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
 		{
 			if (info.ShouldPrespawn)
 				PreSpawnClouds(w);

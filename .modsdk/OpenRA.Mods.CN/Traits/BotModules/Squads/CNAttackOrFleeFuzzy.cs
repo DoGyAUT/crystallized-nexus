@@ -103,6 +103,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// --- Raider rules: flee unless clearly winning ---
 		static readonly string[] RaiderRulesNormalOwnHealth =
 		[
+
 			// Only attack if clearly stronger
 			"if ((OwnHealth is Normal) " +
 			"and ((EnemyHealth is NearDead) or (EnemyHealth is Injured)) " +
@@ -211,7 +212,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			// Clamp the boost so the Flee term stays reachable (Flee plateau starts near 35).
 			var boost = Math.Clamp(attackThresholdBoost, 0.0, 10.0);
-			return !double.IsNaN(attackChance) && attackChance < (30.0 + boost);
+			return !double.IsNaN(attackChance) && attackChance < 30.0 + boost;
 		}
 
 		static float NormalizedHealth(IEnumerable<Actor> actors, int normalize)

@@ -8,7 +8,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
-using OpenRA.Mods.Common.Terrain;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits

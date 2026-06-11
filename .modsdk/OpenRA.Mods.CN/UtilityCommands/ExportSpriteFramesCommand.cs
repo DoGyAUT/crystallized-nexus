@@ -28,10 +28,9 @@ namespace OpenRA.Mods.CN.UtilityCommands
 			var outPrefix = args[2];
 
 			ISpriteFrame[] frames;
-			TypeDictionary metadata;
 
 			using (var stream = File.OpenRead(spriteFile))
-				frames = FrameLoader.GetFrames(stream, utility.ModData.SpriteLoaders, Path.GetFileName(spriteFile), out metadata);
+				frames = FrameLoader.GetFrames(stream, utility.ModData.SpriteLoaders, Path.GetFileName(spriteFile), out var metadata);
 
 			if (frames == null || frames.Length == 0)
 				throw new InvalidDataException($"{spriteFile} could not be parsed as a sprite file.");

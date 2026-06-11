@@ -210,7 +210,7 @@ GASNIPER:
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 60
-		Prerequisites: ~gapile, garadr, ~techlevel.medium
+		Prerequisites: ~gapile, garadr, ~techlevel.medium, ~tech.gdf
 		Description: actor-gasniper.description
 	Valued:
 		Cost: 500
@@ -277,7 +277,7 @@ JUMPJET:
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 70
-		Prerequisites: ~gapile, garadr, ~techlevel.medium
+		Prerequisites: ~gapile, garadr, ~techlevel.medium, ~tech.zocom
 		Description: actor-jumpjet.description
 	Voiced:
 		VoiceSet: JumpJet

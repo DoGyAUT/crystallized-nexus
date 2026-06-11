@@ -8,7 +8,6 @@
 
 using System;
 using OpenRA.Graphics;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits
@@ -56,8 +55,8 @@ namespace OpenRA.Mods.CN.Traits
 		readonly IShader shader;
 		readonly RenderPostProcessPassTexturedShaderBindings bindings;
 
-		IVertexBuffer<RenderPostProcessPassTexturedVertex> buffer;
-		RenderPostProcessPassTexturedVertex[] vertices = new RenderPostProcessPassTexturedVertex[6];
+		readonly IVertexBuffer<RenderPostProcessPassTexturedVertex> buffer;
+		readonly RenderPostProcessPassTexturedVertex[] vertices = new RenderPostProcessPassTexturedVertex[6];
 		int ticks;
 		float intensity;
 		WeatherController weatherController;
@@ -98,12 +97,12 @@ namespace OpenRA.Mods.CN.Traits
 			var topLeft = wr.Viewport.TopLeft;
 			var bottomRight = wr.Viewport.BottomRight;
 
-			vertices[0] = new RenderPostProcessPassTexturedVertex(topLeft.X,     topLeft.Y,     0, 0);
-			vertices[1] = new RenderPostProcessPassTexturedVertex(bottomRight.X, topLeft.Y,     1, 0);
+			vertices[0] = new RenderPostProcessPassTexturedVertex(topLeft.X, topLeft.Y, 0, 0);
+			vertices[1] = new RenderPostProcessPassTexturedVertex(bottomRight.X, topLeft.Y, 1, 0);
 			vertices[2] = new RenderPostProcessPassTexturedVertex(bottomRight.X, bottomRight.Y, 1, 1);
 			vertices[3] = new RenderPostProcessPassTexturedVertex(bottomRight.X, bottomRight.Y, 1, 1);
-			vertices[4] = new RenderPostProcessPassTexturedVertex(topLeft.X,     bottomRight.Y, 0, 1);
-			vertices[5] = new RenderPostProcessPassTexturedVertex(topLeft.X,     topLeft.Y,     0, 0);
+			vertices[4] = new RenderPostProcessPassTexturedVertex(topLeft.X, bottomRight.Y, 0, 1);
+			vertices[5] = new RenderPostProcessPassTexturedVertex(topLeft.X, topLeft.Y, 0, 0);
 
 			var scroll = wr.Viewport.TopLeft;
 			var size = renderer.WorldFrameBufferSize;

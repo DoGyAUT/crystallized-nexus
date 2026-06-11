@@ -20,7 +20,6 @@ namespace OpenRA.Mods.CN.Effects
 {
 	sealed class Cloud : IEffect, ISpatiallyPartitionable
 	{
-		readonly World world;
 		readonly Animation animation;
 		readonly string palette;
 		readonly WPos edge;
@@ -32,7 +31,6 @@ namespace OpenRA.Mods.CN.Effects
 
 		public Cloud(World world, Animation animation, WPos position, WPos edge, int facing, CloudSpawnerInfo info)
 		{
-			this.world = world;
 			this.animation = animation;
 			this.position = position;
 			this.edge = edge;

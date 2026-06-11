@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly List<Actor> idleBaseUnits = [];
 		int repairScanTicks;
-		World world;
+		readonly World world;
 		CNSquadManagerBotModule squadManager;
 
 		public CNRepairManagerBotModule(Actor self, CNRepairManagerBotModuleInfo info)

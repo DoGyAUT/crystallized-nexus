@@ -99,6 +99,10 @@
 		ContinuousTurnRoll: true
 		RecoilPitch: 15
 		RecoilRoll: 15
+		HoverWobblePitch: 6
+		HoverWobbleRoll: 8
+		HoverWobbleOffset: 0c32
+		HoverWobbleSpeed: 3
 		PitchOffset: -5
 		InvertPitch: true
 

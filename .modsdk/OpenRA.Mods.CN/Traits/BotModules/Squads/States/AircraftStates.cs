@@ -9,11 +9,8 @@
  */
 #endregion
 
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
@@ -163,7 +160,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					continue;
 
 				var score = ScoreAircraftTarget(squad, leadAircraft, actor);
-				if (priority > bestPriority || priority == bestPriority && score >= bestScore)
+				if (priority > bestPriority || (priority == bestPriority && score >= bestScore))
 					continue;
 
 				bestPriority = priority;
@@ -669,8 +666,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class AircraftReturnState : AircraftStateBase, ICNState
 	{
-		readonly ICNState nextState;
-		int waitTicks;
 		const int MaxReturnWaitTicks = 300;
 
 		// Re-issue the return/rearm orders periodically rather than every tick.
@@ -678,6 +673,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		// interrupt the resupply cycle so AllAircraftReady never became true
 		// until the timeout.
 		const int ReissueInterval = 25;
+		readonly ICNState nextState;
+		int waitTicks;
 
 		public AircraftReturnState(ICNState nextState)
 		{

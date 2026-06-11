@@ -11,7 +11,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Mods.CN.Traits;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Support;
 using OpenRA.Traits;
@@ -84,7 +83,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public CNSquad AttachedTo;            // ArtilleryAssault/Support: squad to follow
 		public string[] PreferredTargetCapabilities; // BotCapabilities tags to prioritize as targets (Raider, Stealth, SubAssault, ...)
 
-		// --- Mob-Awareness ---
 		/// <summary>True if any unit in this squad is a MobSpawnerMaster.</summary>
 		public bool HasMobs => Units.Any(a => a != null && !a.IsDead && a.IsInWorld && a.Info.HasTraitInfo<MobSpawnerMasterInfo>());
 
@@ -282,7 +280,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			var center = CenterPosition();
 			Actor nearest = null;
-			long nearestDistance = long.MaxValue;
+			var nearestDistance = long.MaxValue;
 
 			foreach (var actor in Units)
 			{

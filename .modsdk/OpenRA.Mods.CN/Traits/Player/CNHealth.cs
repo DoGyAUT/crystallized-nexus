@@ -19,7 +19,8 @@ namespace OpenRA.Mods.CN.Traits
 	/// </summary>
 	public class CNHealthInit : ValueActorInit<int>, ISingleInstanceInit
 	{
-		public CNHealthInit(int value) : base(value) { }
+		public CNHealthInit(int value)
+			: base(value) { }
 	}
 
 	public class CNHealthInfo : TraitInfo, IHealthInfo, IRulesetLoaded, IEditorActorOptions
@@ -176,7 +177,6 @@ namespace OpenRA.Mods.CN.Traits
 				return;
 
 			var oldState = DamageState;
-			var notificationDamage = damage;
 
 			// Apply damage modifiers
 			if (!ignoreModifiers && damage.Value > 0)
@@ -199,7 +199,7 @@ namespace OpenRA.Mods.CN.Traits
 				damage = new Damage((int)appliedDamage, damage.DamageTypes);
 			}
 
-			notificationDamage = damage;
+			var notificationDamage = damage;
 
 			// Route through SecondaryHealth layers for real hits only.
 			// ignoreModifiers calls are internal bookkeeping and bypass layers.

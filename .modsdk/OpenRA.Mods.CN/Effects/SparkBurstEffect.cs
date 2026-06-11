@@ -83,8 +83,8 @@ namespace OpenRA.Mods.CN.Effects
 				if (info.Inaccuracy.Length > 0)
 					start += WVec.FromPDF(world.LocalRandom, 2) * info.Inaccuracy.Length / 1024;
 
-				var horizontalSpeed = OpenRA.Mods.Common.Util.RandomDistance(world.LocalRandom, info.Speed).Length;
-				var verticalSpeed = OpenRA.Mods.Common.Util.RandomDistance(world.LocalRandom, info.UpwardSpeed).Length;
+				var horizontalSpeed = Common.Util.RandomDistance(world.LocalRandom, info.Speed).Length;
+				var verticalSpeed = Common.Util.RandomDistance(world.LocalRandom, info.UpwardSpeed).Length;
 				var velocity = new WVec(0, -horizontalSpeed, verticalSpeed).Rotate(WRot.FromFacing(world.LocalRandom.Next(256)));
 
 				sparks[i] = new Spark
@@ -92,10 +92,10 @@ namespace OpenRA.Mods.CN.Effects
 					Pos = start,
 					PreviousPos = start,
 					Velocity = velocity,
-					Lifetime = OpenRA.Mods.Common.Util.RandomInRange(world.LocalRandom, info.Lifetime),
-					RestLifetime = OpenRA.Mods.Common.Util.RandomInRange(world.LocalRandom, info.RestLifetime),
-					Length = OpenRA.Mods.Common.Util.RandomInRange(world.LocalRandom, info.Length),
-					Width = OpenRA.Mods.Common.Util.RandomInRange(world.LocalRandom, info.Width)
+					Lifetime = Common.Util.RandomInRange(world.LocalRandom, info.Lifetime),
+					RestLifetime = Common.Util.RandomInRange(world.LocalRandom, info.RestLifetime),
+					Length = Common.Util.RandomInRange(world.LocalRandom, info.Length),
+					Width = Common.Util.RandomInRange(world.LocalRandom, info.Width)
 				};
 			}
 		}
