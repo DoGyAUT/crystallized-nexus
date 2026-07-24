@@ -450,14 +450,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (!h.Actor.IsIdle && h.StationaryTicks >= StuckHarvesterThreshold)
 			{
 				isStuck = true;
-				foreach (var refinery in refineries.Actors)
+
+				// A full harvester sitting near a refinery is usually just queueing for its turn to dock -
+				// don't flag that as stuck. An empty harvester has no legitimate reason to sit still there
+				// for this long (it should be docking-and-leaving or already searching for resources), so
+				// it stays flagged even near a refinery. This is what actually deadlocks a busy dock: an
+				// empty harvester wedged in the approach blocks everyone still queueing to deliver.
+				if (!h.Harvester.IsEmpty)
 				{
-					if (refinery.IsDead || !refinery.IsInWorld)
-						continue;
-					if ((h.Actor.Location - refinery.Location).LengthSquared <= StuckNearRefineryRadius * StuckNearRefineryRadius)
+					foreach (var refinery in refineries.Actors)
 					{
-						isStuck = false;
-						break;
+						if (refinery.IsDead || !refinery.IsInWorld)
+							continue;
+						if ((h.Actor.Location - refinery.Location).LengthSquared <= StuckNearRefineryRadius * StuckNearRefineryRadius)
+						{
+							isStuck = false;
+							break;
+						}
 					}
 				}
 			}
