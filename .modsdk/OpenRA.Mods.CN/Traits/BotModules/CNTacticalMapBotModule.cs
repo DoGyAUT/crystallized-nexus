@@ -109,12 +109,29 @@ namespace OpenRA.Mods.Common.Traits
 			"cheaper; this is queried very often by the base builder so it is throttled rather than computed per query.")]
 		public readonly int UsefulRefreshInterval = 125;
 
-		[Desc("How many chokepoints to evaluate per tick when refreshing the 'useful' set. The flood per chokepoint is",
-			"spread over several ticks to avoid a periodic frame spike. Lower = smoother but slower to update.")]
+		[Desc("How many chokepoints to evaluate per tick when refreshing the 'useful' set or sealable corridors. The",
+			"flood per chokepoint is expensive, so this is spread over several ticks. Lower = smoother but slower to",
+			"update.")]
 		public readonly int UsefulChunkSize = 3;
+
+		[Desc("How many candidate cells to evaluate per tick when refreshing high-ground edges. A single cell check",
+			"is cheap (a couple of height/passability lookups), so this can be much larger than UsefulChunkSize",
+			"without a per-tick cost - keeps a full-radius scan from taking hundreds of ticks to complete.")]
+		public readonly int HighGroundChunkSize = 80;
 
 		[Desc("Optional long fallback recompute interval in ticks. 0 disables it (rely on bridge-change detection).")]
 		public readonly int RecomputeInterval = 0;
+
+		[Desc("Skip a base-relative refresh cycle (high-ground/useful-chokepoints/sealable-corridors) if the base",
+			"reference has moved less than this many cells since the last completed scan - the base-building",
+			"centroid drifts a little with every building added or lost, but a real relocation (new main base,",
+			"lost conyard) moves it much further than that.")]
+		public readonly int BaseMoveThreshold = 8;
+
+		[Desc("Same idea as BaseMoveThreshold, but for the enemy building count: skip the refresh cycle unless it",
+			"has changed by more than this many buildings since the last completed scan. During active combat the",
+			"count churns constantly from individual losses/builds that don't meaningfully change reachability.")]
+		public readonly int EnemyBuildingCountTolerance = 2;
 
 		[Desc("Radius (cells) around the base reference scanned for high-ground cliff edges.")]
 		public readonly int HighGroundScanRadius = 18;
@@ -146,6 +163,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Fallback minimum number of passable cells beyond a chokepoint before treating it as a real access.",
 			"Used only when no enemy buildings exist; otherwise the far side must contain an enemy building.")]
 		public readonly int MinimumChokepointBeyondCells = 96;
+
+		[Desc("Hard cap on cells visited by the per-chokepoint 'leads somewhere' flood-fill, regardless of whether",
+			"enemy buildings exist. Without this, a chokepoint whose reachable region contains no enemy building",
+			"floods the ENTIRE region before giving up - unbounded on an open map. Treated as 'not confirmed' if hit.")]
+		public readonly int FloodFillCellCap = 1500;
 
 		public override object Create(ActorInitializer init) { return new CNTacticalMapBotModule(init.Self, this); }
 	}
@@ -179,8 +201,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		// High-ground edges and sealable corridors are base-relative; computed on the sim thread (throttled / spread)
 		// and read as snapshots by the base builder, so the per-query path never pays the cost.
+		// Refreshed INCREMENTALLY (a few cells per tick) to avoid a periodic burst - see TickHighGroundRefresh.
 		readonly List<CNHighGroundEdge> highGroundEdges = [];
+		readonly List<CNHighGroundEdge> highGroundBuilding = [];
+		readonly List<CPos> highGroundSource = [];
+		int highGroundCursor = -1;
 		int highGroundRefreshTick;
+		CPos highGroundBaseRef;
+		int highGroundBaseHeight;
+		CPos? highGroundLastBaseRef;
 
 		// Sealable corridors are refreshed INCREMENTALLY (a few chokepoints per tick) to avoid a periodic burst.
 		readonly List<CNSealableCorridor> sealableCorridors = [];
@@ -191,6 +220,8 @@ namespace OpenRA.Mods.Common.Traits
 		CPos corridorBaseRef;
 		HashSet<CPos> corridorEnemy;
 		HashSet<CPos> corridorSeen;
+		CPos? corridorLastBaseRef;
+		int corridorLastEnemyCount = -1;
 
 		// "Useful" chokepoints (reachable from own base, leading somewhere). The per-chokepoint flood is expensive, so
 		// it is computed INCREMENTALLY on the sim thread (a few per tick) into usefulBuilding, then swapped into
@@ -202,6 +233,8 @@ namespace OpenRA.Mods.Common.Traits
 		uint usefulDomain;
 		CPos usefulReference;
 		HashSet<CPos> usefulEnemyBuildings;
+		CPos? usefulLastBaseRef;
+		int usefulLastEnemyCount = -1;
 
 		// Terrain passability cached once per rebuild (avoids repeated Locomotor.MovementCostForCell in scans/floods).
 		CellLayer<bool> passability;
@@ -326,16 +359,31 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ResetPerBaseCaches()
 		{
-			highGroundRefreshTick = 0;
+			// This state is per-bot (unlike the shared topology graph), so with several CN bots in one game
+			// their refresh cycles would otherwise all start at tick 0 and stay locked in step forever at the
+			// same interval - bursting together instead of spreading out. A one-time random phase offset per
+			// cycle (kept apart from the other two as well) avoids that without needing any coordination.
+			var interval = Math.Max(1, Info.UsefulRefreshInterval);
+
+			highGroundEdges.Clear();
+			highGroundBuilding.Clear();
+			highGroundSource.Clear();
+			highGroundCursor = -1;
+			highGroundRefreshTick = world.WorldTick + world.LocalRandom.Next(interval);
+			highGroundLastBaseRef = null;
 			usefulChokepoints.Clear();
 			usefulBuilding.Clear();
 			usefulCursor = -1;
-			usefulNextRefreshTick = 0;
+			usefulNextRefreshTick = world.WorldTick + world.LocalRandom.Next(interval);
+			usefulLastBaseRef = null;
+			usefulLastEnemyCount = -1;
 			sealableCorridors.Clear();
 			corridorBuilding.Clear();
 			corridorSource.Clear();
 			corridorCursor = -1;
-			corridorNextRefreshTick = 0;
+			corridorLastBaseRef = null;
+			corridorLastEnemyCount = -1;
+			corridorNextRefreshTick = world.WorldTick + world.LocalRandom.Next(interval);
 		}
 
 		// Adopt a shared topology built by another bot: reference the heavy data, copy the small lists.
@@ -874,6 +922,20 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 				}
 
+				var enemyCount = world.Actors.Count(a => !a.IsDead && a.IsInWorld
+					&& a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy
+					&& a.Info.HasTraitInfo<BuildingInfo>());
+
+				// Skip if neither our base nor the enemy building count changed since the last completed scan -
+				// a cheap enough pre-check that it's worth doing before the full enemy-position set below.
+				if (!BaseMoved(reference.Value, usefulLastBaseRef) && !EnemyBuildingCountChanged(enemyCount, usefulLastEnemyCount))
+				{
+					usefulNextRefreshTick = world.WorldTick + Math.Max(1, Info.UsefulRefreshInterval);
+					return;
+				}
+
+				usefulLastBaseRef = reference.Value;
+				usefulLastEnemyCount = enemyCount;
 				usefulReference = reference.Value;
 				usefulDomain = DomainOf(usefulReference);
 				usefulEnemyBuildings = world.Actors
@@ -950,14 +1012,21 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var farCount = 0;
+			var cellCap = Math.Max(beyondLimit, Info.FloodFillCellCap);
 			while (queue.Count > 0)
 			{
 				var cell = queue.Dequeue();
 				if (hasEnemyBuildings && enemyBuildings.Contains(cell))
 					return true;
 
-				if (!hasEnemyBuildings && ++farCount >= beyondLimit)
+				farCount++;
+				if (!hasEnemyBuildings && farCount >= beyondLimit)
 					return true;
+
+				// Hard safety cap: with enemy buildings present, there is otherwise no bound - a chokepoint whose
+				// reachable region doesn't happen to contain one would flood the entire region before giving up.
+				if (farCount >= cellCap)
+					return false;
 
 				foreach (var dir in CVec.Directions)
 				{
@@ -1039,34 +1108,84 @@ namespace OpenRA.Mods.Common.Traits
 			return n == 0 ? null : new CPos((int)(sumX / n), (int)(sumY / n));
 		}
 
+		// True if the base centroid has drifted far enough from the last completed scan to be a genuine
+		// relocation (new main base, lost conyard) rather than the normal jitter from adding/losing a building.
+		bool BaseMoved(CPos current, CPos? last)
+		{
+			if (last == null)
+				return true;
+
+			var threshold = Math.Max(0, Info.BaseMoveThreshold);
+			return (current - last.Value).LengthSquared > threshold * threshold;
+		}
+
+		// Same idea as BaseMoved: ignore the normal churn of individual buildings gained/lost during combat,
+		// only treat it as a real change once it drifts far enough to plausibly affect reachability.
+		bool EnemyBuildingCountChanged(int current, int last)
+		{
+			if (last < 0)
+				return true;
+
+			return Math.Abs(current - last) > Math.Max(0, Info.EnemyBuildingCountTolerance);
+		}
+
 		/// <summary>
 		/// Passable cliff-edge cells within range of the reference that overlook reachable lower ground.
 		/// Turrets here gain the HeightAdvantageBonus and use the cliff as a natural wall.
 		/// </summary>
 		public IReadOnlyList<CNHighGroundEdge> GetHighGroundEdges(CPos reference) => highGroundEdges;
 
-		// Throttled refresh on the sim thread (single cheap scan), so the base builder only reads the snapshot.
+		// Incremental refresh on the sim thread: scan a few candidate cells per tick instead of the whole
+		// circle (~1000 cells at the default radius) in one go. With one CNTacticalMapBotModule per bot and
+		// no sharing of this base-relative state (unlike the topology graph, which is shared per locomotor),
+		// an unchunked scan could land on the same tick for several bots at once in a multi-bot game.
 		void TickHighGroundRefresh()
 		{
-			if (world.WorldTick < highGroundRefreshTick)
-				return;
-
-			highGroundRefreshTick = world.WorldTick + Math.Max(1, Info.UsefulRefreshInterval);
-			highGroundEdges.Clear();
-
-			var reference = GetOwnBaseReference();
-			if (reference == null || locomotor == null)
-				return;
-
-			var baseRef = reference.Value;
-			var baseHeight = world.Map.Height[baseRef];
-			if (baseHeight <= Info.HighGroundBaseHeight)
-				return; // base is not elevated; no height advantage to exploit.
-
-			var radius = Math.Max(1, Info.HighGroundScanRadius);
-			foreach (var cell in world.Map.FindTilesInCircle(baseRef, radius))
+			if (highGroundCursor < 0)
 			{
-				if (world.Map.Height[cell] != baseHeight || !IsPassable(cell))
+				if (world.WorldTick < highGroundRefreshTick)
+					return;
+
+				var reference = GetOwnBaseReference();
+				if (reference == null || locomotor == null)
+				{
+					highGroundRefreshTick = world.WorldTick + Math.Max(1, Info.UsefulRefreshInterval);
+					highGroundEdges.Clear();
+					return;
+				}
+
+				// Base hasn't meaningfully moved since the last completed scan - the result would be identical,
+				// so skip re-scanning and just check back next interval.
+				if (!BaseMoved(reference.Value, highGroundLastBaseRef))
+				{
+					highGroundRefreshTick = world.WorldTick + Math.Max(1, Info.UsefulRefreshInterval);
+					return;
+				}
+
+				highGroundBaseRef = reference.Value;
+				highGroundLastBaseRef = reference.Value;
+				highGroundBaseHeight = world.Map.Height[highGroundBaseRef];
+				highGroundBuilding.Clear();
+				highGroundSource.Clear();
+
+				if (highGroundBaseHeight <= Info.HighGroundBaseHeight)
+				{
+					// Base is not elevated; no height advantage to exploit. Nothing to scan this cycle.
+					highGroundEdges.Clear();
+					highGroundRefreshTick = world.WorldTick + Math.Max(1, Info.UsefulRefreshInterval);
+					return;
+				}
+
+				var radius = Math.Max(1, Info.HighGroundScanRadius);
+				highGroundSource.AddRange(world.Map.FindTilesInCircle(highGroundBaseRef, radius));
+				highGroundCursor = 0;
+			}
+
+			var end = Math.Min(highGroundSource.Count, highGroundCursor + Math.Max(1, Info.HighGroundChunkSize));
+			for (; highGroundCursor < end; highGroundCursor++)
+			{
+				var cell = highGroundSource[highGroundCursor];
+				if (world.Map.Height[cell] != highGroundBaseHeight || !IsPassable(cell))
 					continue;
 
 				// An edge cell borders a strictly lower, enemy-reachable cell: it overlooks the approach.
@@ -1078,7 +1197,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (!world.Map.Contains(lower))
 						continue;
 
-					if (world.Map.Height[lower] < baseHeight && IsPassable(lower))
+					if (world.Map.Height[lower] < highGroundBaseHeight && IsPassable(lower))
 					{
 						outward = d;
 						isEdge = true;
@@ -1087,8 +1206,16 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				if (isEdge)
-					highGroundEdges.Add(new CNHighGroundEdge(cell, outward,
-						Math.Clamp(baseHeight - Info.HighGroundBaseHeight, 0, 4)));
+					highGroundBuilding.Add(new CNHighGroundEdge(cell, outward,
+						Math.Clamp(highGroundBaseHeight - Info.HighGroundBaseHeight, 0, 4)));
+			}
+
+			if (highGroundCursor >= highGroundSource.Count)
+			{
+				highGroundEdges.Clear();
+				highGroundEdges.AddRange(highGroundBuilding);
+				highGroundCursor = -1;
+				highGroundRefreshTick = world.WorldTick + Math.Max(1, Info.UsefulRefreshInterval);
 			}
 		}
 
@@ -1116,6 +1243,18 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 				}
 
+				var enemyCount = world.Actors.Count(a => !a.IsDead && a.IsInWorld
+					&& a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy
+					&& a.Info.HasTraitInfo<BuildingInfo>());
+
+				if (!BaseMoved(reference.Value, corridorLastBaseRef) && !EnemyBuildingCountChanged(enemyCount, corridorLastEnemyCount))
+				{
+					corridorNextRefreshTick = world.WorldTick + Math.Max(1, Info.UsefulRefreshInterval);
+					return;
+				}
+
+				corridorLastBaseRef = reference.Value;
+				corridorLastEnemyCount = enemyCount;
 				corridorBaseRef = reference.Value;
 				corridorEnemy = EnemyBuildingCells();
 				corridorSeen = [];
