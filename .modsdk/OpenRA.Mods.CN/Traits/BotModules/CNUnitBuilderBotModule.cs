@@ -219,7 +219,7 @@ namespace OpenRA.Mods.CN.Traits
 			var request = externalBuildRequests.FirstOrDefault();
 			if (request != null)
 			{
-				BuildSpecific(bot, request, queuesByCategory);
+				BuildSpecific(bot, request, queuesByCategory, existingByType);
 				externalBuildRequests.Remove(request);
 				return;
 			}
@@ -553,7 +553,7 @@ namespace OpenRA.Mods.CN.Traits
 					q.BuildableItems().Any(a => a.Name == typeName)));
 		}
 
-		void BuildSpecific(IBot bot, string typeName, ILookup<string, ProductionQueue> queuesByCategory)
+		void BuildSpecific(IBot bot, string typeName, ILookup<string, ProductionQueue> queuesByCategory, Dictionary<string, int> existingByType)
 		{
 			var actorInfo = world.Map.Rules.Actors.GetValueOrDefault(typeName);
 			if (actorInfo == null)
@@ -566,7 +566,6 @@ namespace OpenRA.Mods.CN.Traits
 			if (!HasAdequateAirRearmBuildings(actorInfo, null))
 				return;
 
-			var existingByType = BuildExistingCounts(queuesByCategory);
 			if (ReachedUnitCap(typeName, existingByType))
 				return;
 
