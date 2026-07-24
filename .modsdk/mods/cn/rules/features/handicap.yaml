@@ -1,23 +1,23 @@
 ^PlayerHandicaps:
-	HandicapFirepowerMultiplier:
+	CNHandicapFirepowerMultiplier:
 		Modifiers:
 			Easy: 100
 			Normal: 100
 			Hard: 100
 			Brutal: 100
-	HandicapDamageMultiplier:
+	CNHandicapDamageMultiplier:
 		Modifiers:
 			Easy: 100
 			Normal: 100
 			Hard: 100
 			Brutal: 100
-	HandicapProductionTimeMultiplier:
+	CNHandicapProductionTimeMultiplier:
 		Modifiers:
 			Easy: 100
 			Normal: 100
-			Hard: 100
-			Brutal: 75
-	HandicapIncomeMultiplier:
+			Hard: 75
+			Brutal: 50
+	CNHandicapIncomeMultiplier:
 		Modifiers:
 			Easy: 75
 			Normal: 100

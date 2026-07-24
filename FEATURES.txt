@@ -138,6 +138,15 @@ UNIT MECHANICS
   CNHarvester
     Custom harvester logic with dedicated resource assignment and routing.
 
+  CNHandicapFirepowerMultiplier / CNHandicapDamageMultiplier /
+  CNHandicapProductionTimeMultiplier / CNHandicapIncomeMultiplier
+    Per-actor handicap traits keyed by named difficulty tier (Easy/Normal/
+    Hard/Brutal) rather than the vanilla continuous 0-95% Handicap formula.
+    Each reads a Modifiers dict from ^PlayerHandicaps (handicap.yaml) and
+    looks up the owner's tier via CNHandicapTiers.Name(Owner.Handicap).
+    Requires the paired engine patch (see ENGINE PATCHES: Named Handicap
+    Tiers) so the lobby assigns a tier index instead of a percentage.
+
 
 UI & PLAYER
 -----------
@@ -214,5 +223,11 @@ ENGINE PATCHES  (CN fork — not in mainline OpenRA)
     Road split logic (SplitRoadRun): roads end cleanly before ramps with
     3-wide end-cap tiles instead of painting over slope tiles.
     Ramp guard (tileType > 0 check) prevents roads from overwriting ramps.
+
+  Named Handicap Tiers  [LobbyUtils.cs]
+    Lobby's generic 0-95% handicap slider is replaced with Easy/Normal/Hard/
+    Brutal for the cn mod only (gated on Game.ModData.Manifest.Id == "cn";
+    other internal mods keep the vanilla % slider). Session.Client.Handicap
+    holds a small tier index (0=Normal,1=Easy,2=Hard,3=Brutal), not a percent.
 
 ================================================================================
