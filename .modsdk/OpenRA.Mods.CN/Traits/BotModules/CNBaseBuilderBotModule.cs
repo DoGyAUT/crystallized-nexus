@@ -621,6 +621,7 @@ namespace OpenRA.Mods.Common.Traits
 		int nextDefenseCenterUpdateTick;
 		bool firstTick = true;
 		CNBotProfileBotModule profileModule;
+		CombatAnalysisBotModule combatAnalysis;
 
 		BotProfile ActiveProfile => profileModule?.ActiveProfile ?? BotProfile.Adaptive;
 		TechStage ActiveTechStage => profileModule?.ActiveTechStage ?? TechStage.Early;
@@ -684,7 +685,9 @@ namespace OpenRA.Mods.Common.Traits
 				_ => null
 			};
 
-			if ((stageOverride == null || stageOverride.Count == 0) && profileModule == null)
+			var underThreat = combatAnalysis != null && !combatAnalysis.IsTraitDisabled && combatAnalysis.HasActiveThreat();
+
+			if ((stageOverride == null || stageOverride.Count == 0) && profileModule == null && !underThreat)
 				return Info.BuildingFractions;
 
 			var merged = Info.BuildingFractions != null
@@ -697,7 +700,48 @@ namespace OpenRA.Mods.Common.Traits
 
 			ApplyProfileBuildingBudget(merged);
 
+			if (underThreat)
+				ApplyPanicProductionBoost(merged);
+
 			return merged.ToFrozenDictionary();
+		}
+
+		// Under active attack, a base with no Infantry (or, against an armor-heavy attack, no Vehicle)
+		// production building can't respond at all - CNUnitBuilderBotModule's panic unit-spam has nothing
+		// to build from. Force whichever is missing to the front of the queue until it exists; the normal
+		// deficit-based selection in CNBaseBuilderQueueManager takes back over once count > 0.
+		void ApplyPanicProductionBoost(Dictionary<string, int> fractions)
+		{
+			const int PanicFraction = 1000;
+
+			var wantVehicle = combatAnalysis.GetHighestThreatRole() == DefenseRole.ArmorDefense;
+			var hasInfantryProduction = false;
+			var hasVehicleProduction = false;
+
+			foreach (var building in GetCachedPlayerBuildings())
+			{
+				var produces = world.Map.Rules.Actors[building.Info.Name].TraitInfos<ProductionInfo>();
+				if (produces.Any(p => p.Produces.Contains("Infantry")))
+					hasInfantryProduction = true;
+				if (produces.Any(p => p.Produces.Contains("Vehicle")))
+					hasVehicleProduction = true;
+			}
+
+			if (hasInfantryProduction && (hasVehicleProduction || !wantVehicle))
+				return;
+
+			foreach (var name in fractions.Keys.ToArray())
+			{
+				var actorInfo = world.Map.Rules.Actors.GetValueOrDefault(name);
+				var produces = actorInfo?.TraitInfos<ProductionInfo>();
+				if (produces == null)
+					continue;
+
+				if (!hasInfantryProduction && produces.Any(p => p.Produces.Contains("Infantry")))
+					fractions[name] = PanicFraction;
+				else if (wantVehicle && !hasVehicleProduction && produces.Any(p => p.Produces.Contains("Vehicle")))
+					fractions[name] = PanicFraction;
+			}
 		}
 
 		public FrozenDictionary<string, int> GetActiveDefenseRoleLimits()
@@ -972,6 +1016,7 @@ namespace OpenRA.Mods.Common.Traits
 				ResourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				TacticalMapModule = bot.Player.PlayerActor.TraitsImplementing<CNTacticalMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
+				combatAnalysis = bot.Player.PlayerActor.TraitsImplementing<CombatAnalysisBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				firstTick = false;
 			}
 

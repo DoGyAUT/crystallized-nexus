@@ -125,6 +125,7 @@ namespace OpenRA.Mods.CN.Traits
 		CNSquadManagerBotModule squadManager;
 		CNBotProfileBotModule profileModule;
 		CNBaseBuilderBotModule baseBuilder;
+		CombatAnalysisBotModule combatAnalysis;
 		PlayerResources playerResources;
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
@@ -160,6 +161,10 @@ namespace OpenRA.Mods.CN.Traits
 			if (baseBuilder == null || !baseBuilder.IsTraitEnabled())
 				baseBuilder = player.PlayerActor.TraitsImplementing<CNBaseBuilderBotModule>()
 					.FirstOrDefault(t => t.IsTraitEnabled());
+
+			if (combatAnalysis == null || !combatAnalysis.IsTraitEnabled())
+				combatAnalysis = player.PlayerActor.TraitsImplementing<CombatAnalysisBotModule>()
+					.FirstOrDefault(t => t.IsTraitEnabled());
 		}
 
 		void IBotNotifyIdleBaseUnits.UpdatedIdleBaseUnits(List<Actor> idleUnits)
@@ -190,6 +195,15 @@ namespace OpenRA.Mods.CN.Traits
 
 			var queuesByCategory = AIUtils.FindQueuesByCategory(player);
 			var existingByType = BuildExistingCounts(queuesByCategory);
+
+			// Under active attack: spam the cheapest armed unit from whichever queue counters the
+			// dominant threat, instead of following normal squad demand. Takes priority every tick
+			// while the threat persists (CombatAnalysisBotModule.HasActiveThreat decays back to false
+			// on its own once the attack stops, so this naturally hands back control afterwards).
+			if (combatAnalysis != null && !combatAnalysis.IsTraitDisabled && combatAnalysis.HasActiveThreat()
+				&& playerResources.GetCashAndResources() >= GetActiveProductionMinCashRequirement()
+				&& BuildPanicUnit(bot, queuesByCategory))
+				return;
 
 			var request = externalBuildRequests.FirstOrDefault();
 			if (request != null)
@@ -356,6 +370,39 @@ namespace OpenRA.Mods.CN.Traits
 			}
 
 			return best;
+		}
+
+		// Cheapest currently-buildable armed unit from whichever queue category counters the dominant
+		// threat (Vehicle for an armor-heavy attack, Infantry otherwise), ignoring normal squad demand.
+		bool BuildPanicUnit(IBot bot, ILookup<string, ProductionQueue> queuesByCategory)
+		{
+			var preferredCategory = combatAnalysis.GetHighestThreatRole() == DefenseRole.ArmorDefense
+				? "Vehicle"
+				: "Infantry";
+
+			var categories = Info.UnitQueues.OrderByDescending(c => c == preferredCategory);
+
+			foreach (var category in categories)
+			{
+				var queues = GetAvailableQueues(queuesByCategory, category);
+				if (queues.Count == 0)
+					continue;
+
+				var unit = queues
+					.SelectMany(q => q.BuildableItems())
+					.Where(a => a.HasTraitInfo<AttackBaseInfo>())
+					.OrderBy(a => a.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? int.MaxValue)
+					.FirstOrDefault();
+
+				if (unit == null)
+					continue;
+
+				var queue = queues.First(q => q.BuildableItems().Any(a => a.Name == unit.Name));
+				if (QueueSpecific(bot, queue, unit.Name))
+					return true;
+			}
+
+			return false;
 		}
 
 		void BuildFallback(
