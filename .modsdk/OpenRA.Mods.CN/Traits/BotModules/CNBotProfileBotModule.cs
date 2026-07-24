@@ -7,7 +7,9 @@
 
 using System;
 using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.CN.Traits;
 using OpenRA.Mods.CN.Traits.BotModules.Squads;
 using OpenRA.Traits;
 
@@ -151,6 +153,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Default target world tick for entering Late tech stage.")]
 		public readonly int DefaultLateTechTick = 12000;
 
+		[Desc("Percentage multiplier applied to the profile's TechBudget per named handicap tier",
+			"(Easy/Normal/Hard/Brutal, see CNHandicapTiers). 100 = no change. Missing tiers or an",
+			"empty dict leave TechBudget unscaled - this only affects difficulty, not bot profile.")]
+		public readonly Dictionary<string, int> TechBudgetDifficultyScale = new();
+
+		[Desc("Percentage multiplier applied to MidTechTicks/LateTechTicks per named handicap tier.",
+			"Lower than 100 makes that difficulty reach tech stages sooner; 100 = no change.")]
+		public readonly Dictionary<string, int> TechTickDifficultyScale = new();
+
 		[Desc("Rush profile budget shares: expansion, tech, defense, production.")]
 		public readonly int RushExpansionBudget = 12;
 		public readonly int RushTechBudget = 8;
@@ -268,8 +279,8 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var buildings = baseBuilder.GetCachedPlayerBuildings();
-			var midTick = GetProfileTick(Info.MidTechTicks, Info.DefaultMidTechTick);
-			var lateTick = GetProfileTick(Info.LateTechTicks, Info.DefaultLateTechTick);
+			var midTick = ScaleByDifficulty(GetProfileTick(Info.MidTechTicks, Info.DefaultMidTechTick), Info.TechTickDifficultyScale);
+			var lateTick = ScaleByDifficulty(GetProfileTick(Info.LateTechTicks, Info.DefaultLateTechTick), Info.TechTickDifficultyScale);
 
 			if (Info.LateTechTypes.Count > 0 && buildings.Any(a => Info.LateTechTypes.Contains(a.Info.Name)))
 				ActiveTechStage = TechStage.Late;
@@ -504,10 +515,18 @@ namespace OpenRA.Mods.Common.Traits
 				profile,
 				techStage,
 				budget.Expansion,
-				budget.Tech,
+				ScaleByDifficulty(budget.Tech, Info.TechBudgetDifficultyScale),
 				budget.Defense,
 				budget.Production,
 				GetProfileValue(Info.HarvesterTargetPercents, profile, DefaultHarvesterTargetPercent(profile)));
+		}
+
+		int ScaleByDifficulty(int value, Dictionary<string, int> scales)
+		{
+			if (scales == null || scales.Count == 0)
+				return value;
+
+			return scales.TryGetValue(CNHandicapTiers.Name(player.Handicap), out var percent) ? value * percent / 100 : value;
 		}
 
 		CNBotProfileBudget GetProfileBudget(BotProfile profile)

@@ -39,6 +39,16 @@ Player:
 		RequiresCondition: enable-cn-ai
 		Profile: Adaptive
 		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
+		TechBudgetDifficultyScale:
+			Easy: 70
+			Normal: 100
+			Hard: 130
+			Brutal: 160
+		TechTickDifficultyScale:
+			Easy: 140
+			Normal: 100
+			Hard: 75
+			Brutal: 55
 		AdaptiveExpansionIncomeThreshold: 250
 		AdaptiveTurtleDangerThreshold: 420
 		AdaptiveRushUnitThreshold: 14
@@ -50,19 +60,69 @@ Player:
 		RequiresCondition: enable-cn-rush
 		Profile: Rush
 		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
+		TechBudgetDifficultyScale:
+			Easy: 70
+			Normal: 100
+			Hard: 130
+			Brutal: 160
+		TechTickDifficultyScale:
+			Easy: 140
+			Normal: 100
+			Hard: 75
+			Brutal: 55
 	CNBotProfileBotModule@turtle:
 		RequiresCondition: enable-cn-turtle
 		Profile: Turtle
 		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
+		TechBudgetDifficultyScale:
+			Easy: 70
+			Normal: 100
+			Hard: 130
+			Brutal: 160
+		TechTickDifficultyScale:
+			Easy: 140
+			Normal: 100
+			Hard: 75
+			Brutal: 55
 	CNBotProfileBotModule@tech:
 		RequiresCondition: enable-cn-tech
 		Profile: Tech
 		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
+		TechBudgetDifficultyScale:
+			Easy: 70
+			Normal: 100
+			Hard: 130
+			Brutal: 160
+		TechTickDifficultyScale:
+			Easy: 140
+			Normal: 100
+			Hard: 75
+			Brutal: 55
 	CNBotProfileBotModule@expansion:
 		RequiresCondition: enable-cn-expansion
 		Profile: Expansion
 		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
+		TechBudgetDifficultyScale:
+			Easy: 70
+			Normal: 100
+			Hard: 130
+			Brutal: 160
+		TechTickDifficultyScale:
+			Easy: 140
+			Normal: 100
+			Hard: 75
+			Brutal: 55
 	CNBotProfileBotModule@steamroller:
 		RequiresCondition: enable-cn-steamroller
 		Profile: Steamroller
 		LateTechTypes: gatech, gaplug, natmpl, namisl, napyra
+		TechBudgetDifficultyScale:
+			Easy: 70
+			Normal: 100
+			Hard: 130
+			Brutal: 160
+		TechTickDifficultyScale:
+			Easy: 140
+			Normal: 100
+			Hard: 75
+			Brutal: 55
