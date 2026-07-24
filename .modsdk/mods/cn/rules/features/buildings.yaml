@@ -5,6 +5,7 @@
 	Inherits@IONSTORM: ^IonStormVulnerable
 	Inherits@selection: ^SelectableBuilding
 	Inherits@handicaps: ^PlayerHandicaps
+	Inherits@combatsignal: ^CombatSignal
 	Huntable:
 	Targetable:
 		TargetTypes: Ground, Building, C4

@@ -1,0 +1,20 @@
+^CombatSignal:
+	CNCombatSignalReporter:
+
+^BaseWorld:
+	CNDynamicMusicController:
+		# Empty until the composer delivers real stems. With no Side present in PeaceStems,
+		# the controller stays inert and the normal MusicPlaylist jukebox keeps playing.
+		# Populate per side once stems are ready, e.g.:
+		# PeaceStems:
+		# 	GDI: cd_gditheme_peace.ogg
+		# 	Nod: cd_nodtheme_peace.ogg
+		# TensionStems:
+		# 	GDI: cd_gditheme_tension.ogg
+		# 	Nod: cd_nodtheme_tension.ogg
+		# CombatStems:
+		# 	GDI: cd_gditheme_combat.ogg
+		# 	Nod: cd_nodtheme_combat.ogg
+		# BigBattleStems:
+		# 	GDI: cd_gditheme_bigbattle.ogg
+		# 	Nod: cd_nodtheme_bigbattle.ogg

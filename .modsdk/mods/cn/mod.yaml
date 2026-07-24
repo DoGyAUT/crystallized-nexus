@@ -103,6 +103,7 @@ Rules:
 	cn|rules/features/crushabletypes.yaml
 	cn|rules/features/deathtypes.yaml
 	cn|rules/features/decorations.yaml
+	cn|rules/features/dynamicmusic.yaml
 	cn|rules/features/experience.yaml
 	cn|rules/features/handicap.yaml
 	cn|rules/features/locomotors.yaml
