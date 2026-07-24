@@ -101,11 +101,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			Actor bestTarget = null;
 			var bestScore = int.MaxValue;
 
-			foreach (var actor in squad.World.Actors)
+			// Cached per-tick (buildings + mobile/aircraft units) so several squads searching in the same
+			// tick share one filtered enemy list instead of each re-scanning World.Actors independently.
+			var candidates = squad.SquadManager.GetCachedEnemyBuildings().Concat(squad.SquadManager.GetCachedEnemyUnits());
+			foreach (var actor in candidates)
 			{
-				if (!squad.SquadManager.IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(squad.Bot.Player))
-					continue;
-
 				if (!leadAircraft.Info.HasTraitInfo<AttackBaseInfo>() || !CanAttackTarget(leadAircraft, actor))
 					continue;
 
@@ -135,11 +135,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (preferredCaps == null || preferredCaps.Length == 0)
 				return FindAircraftTarget(squad);
 
-			foreach (var actor in squad.World.Actors)
+			var candidates = squad.SquadManager.GetCachedEnemyBuildings().Concat(squad.SquadManager.GetCachedEnemyUnits());
+			foreach (var actor in candidates)
 			{
-				if (!squad.SquadManager.IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(squad.Bot.Player))
-					continue;
-
 				if (!CanAttackTarget(leadAircraft, actor))
 					continue;
 

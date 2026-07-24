@@ -102,10 +102,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			Actor bestTarget = null;
 			var bestScore = int.MaxValue;
 
-			void CheckCandidate(Actor actor)
+			// Both caches are shared per-tick across all squads searching (see GetCachedEnemyUnits).
+			// GetCachedEnemyUnits already filters by IsLiveEnemyActor + visibility; GetCachedEnemyBuildings
+			// only filters IsLiveEnemyActor, so the buildings loop still checks visibility itself.
+			foreach (var actor in squad.SquadManager.GetCachedEnemyUnits())
 			{
-				if (!squad.SquadManager.IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(squad.Bot.Player))
-					return;
 				var score = ScoreRushTarget(leader, actor);
 				if (score < bestScore)
 				{
@@ -114,10 +115,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				}
 			}
 
-			foreach (var actor in squad.World.ActorsHavingTrait<Mobile>())
-				CheckCandidate(actor);
-			foreach (var actor in squad.World.ActorsHavingTrait<Aircraft>())
-				CheckCandidate(actor);
 			foreach (var actor in squad.SquadManager.GetCachedEnemyBuildings())
 			{
 				if (!actor.CanBeViewedByPlayer(squad.Bot.Player))

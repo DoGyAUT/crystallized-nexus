@@ -417,6 +417,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int cachedOwnBuildingsTick = -1;
 		IReadOnlyList<Actor> cachedEnemyBuildings = [];
 		int cachedEnemyBuildingsTick = -1;
+		IReadOnlyList<Actor> cachedEnemyUnits = [];
+		int cachedEnemyUnitsTick = -1;
 
 		// Reactive defense — tracks multiple simultaneous attackers
 		readonly List<Actor> recentAttackers = [];
@@ -2163,6 +2165,29 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				.ToList();
 			cachedEnemyBuildingsTick = World.WorldTick;
 			return cachedEnemyBuildings;
+		}
+
+		// Enemy mobile units and aircraft, filtered to what a squad's target search would consider (live enemy,
+		// visible to this bot). Squad target-finding used to scan World.Actors/ActorsHavingTrait directly per
+		// call; with several squads searching in the same tick (more likely with more bots/squads active at
+		// once), each repeated that scan independently. This is cached per-tick the same way
+		// GetCachedEnemyBuildings already is, so repeated searches within a tick share one filtered list.
+		public IReadOnlyList<Actor> GetCachedEnemyUnits()
+		{
+			if (World.WorldTick == cachedEnemyUnitsTick)
+				return cachedEnemyUnits;
+
+			var units = new List<Actor>();
+			foreach (var actor in World.ActorsHavingTrait<Mobile>())
+				if (IsLiveEnemyActor(actor) && actor.CanBeViewedByPlayer(Player))
+					units.Add(actor);
+			foreach (var actor in World.ActorsHavingTrait<Aircraft>())
+				if (IsLiveEnemyActor(actor) && actor.CanBeViewedByPlayer(Player))
+					units.Add(actor);
+
+			cachedEnemyUnits = units;
+			cachedEnemyUnitsTick = World.WorldTick;
+			return cachedEnemyUnits;
 		}
 
 		public CPos GetRandomBaseCenter()
