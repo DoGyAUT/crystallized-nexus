@@ -59,6 +59,11 @@ namespace OpenRA.Mods.CN.Traits
 		[Desc("Minimum credits before the bot queues any new non-emergency unit production.")]
 		public readonly int ProductionMinCashRequirement = 500;
 
+		[Desc("Panic-mode unit spam (see BotTick) only fires while the bot has no squads yet, or has fewer than",
+			"this many owned armed units in total - i.e. a genuine 'nothing to defend with' emergency (an early",
+			"rush, or having just been wiped out), not a general production boost whenever merely under attack.")]
+		public readonly int PanicMaxCombatUnits = 3;
+
 		[Desc("Credits to keep in reserve before queueing regular unit production.")]
 		public readonly int DesiredCashReserve = 1200;
 
@@ -196,12 +201,18 @@ namespace OpenRA.Mods.CN.Traits
 			var queuesByCategory = AIUtils.FindQueuesByCategory(player);
 			var existingByType = BuildExistingCounts(queuesByCategory);
 
-			// Under active attack: spam the cheapest armed unit from whichever queue counters the
-			// dominant threat, instead of following normal squad demand. Takes priority every tick
-			// while the threat persists (CombatAnalysisBotModule.HasActiveThreat decays back to false
-			// on its own once the attack stops, so this naturally hands back control afterwards).
+			// Under active attack with essentially nothing to defend with (no squads yet, or very few units
+			// owned in total - an early rush, or having just been wiped out): spam the cheapest armed unit
+			// from whichever queue counters the dominant threat, instead of following normal squad demand.
+			// Deliberately NOT a general production boost whenever merely under attack - a bot with a real
+			// army already has squads/defense to respond with, and shouldn't keep piling on extra units on
+			// top of those. Takes priority every tick while both conditions hold (CombatAnalysisBotModule.
+			// HasActiveThreat decays back to false on its own, and normal production naturally regrows the
+			// unit count, so this hands back control on its own once either condition clears).
 			if (combatAnalysis != null && !combatAnalysis.IsTraitDisabled && combatAnalysis.HasActiveThreat()
+				&& HasNoRealDefenseForce()
 				&& playerResources.GetCashAndResources() >= GetActiveProductionMinCashRequirement()
+				&& (Info.IdleBaseUnitsMaximum <= 0 || idleUnitCount < Info.IdleBaseUnitsMaximum)
 				&& BuildPanicUnit(bot, queuesByCategory))
 				return;
 
@@ -372,17 +383,34 @@ namespace OpenRA.Mods.CN.Traits
 			return best;
 		}
 
+		// True if the bot has essentially nothing to defend itself with: no squads formed yet, or very few
+		// owned armed units in total. Gates panic-mode unit spam so it only fires for a genuine emergency
+		// (early rush, or having just been wiped out) rather than piling extra units on top of a real army
+		// that already has squads/defense to respond with.
+		bool HasNoRealDefenseForce()
+		{
+			if (squadManager == null || squadManager.IsTraitDisabled || squadManager.Squads.Count == 0)
+				return true;
+
+			var combatUnitCount = world.ActorsHavingTrait<Mobile>()
+				.Count(a => a.Owner == player && !a.IsDead && a.IsInWorld && a.Info.HasTraitInfo<AttackBaseInfo>());
+
+			return combatUnitCount < Math.Max(0, Info.PanicMaxCombatUnits);
+		}
+
 		// Cheapest currently-buildable armed unit from whichever queue category counters the dominant
 		// threat (Vehicle for an armor-heavy attack, Infantry otherwise), ignoring normal squad demand.
+		// Deliberately restricted to ground categories only - falling through to Info.UnitQueues' full
+		// list (which also includes Plane/Ship/Aircraft) would panic-build aircraft whenever the ground
+		// queues were merely busy/full, which is never what an emergency ground defender should be.
 		bool BuildPanicUnit(IBot bot, ILookup<string, ProductionQueue> queuesByCategory)
 		{
 			var preferredCategory = combatAnalysis.GetHighestThreatRole() == DefenseRole.ArmorDefense
 				? "Vehicle"
 				: "Infantry";
+			var fallbackCategory = preferredCategory == "Vehicle" ? "Infantry" : "Vehicle";
 
-			var categories = Info.UnitQueues.OrderByDescending(c => c == preferredCategory);
-
-			foreach (var category in categories)
+			foreach (var category in new[] { preferredCategory, fallbackCategory })
 			{
 				var queues = GetAvailableQueues(queuesByCategory, category);
 				if (queues.Count == 0)
