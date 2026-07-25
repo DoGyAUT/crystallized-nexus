@@ -142,7 +142,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			target ??= CNSquadHelper.FindUnprotectedTarget(squad);
 
 			if (target == null)
+			{
+				// No target this pass — reposition to a forward chokepoint instead of sitting
+				// still (burrowed, units here are already unseen), so the squad is closer to
+				// enemy territory when a target does appear on a later scan.
+				var chokepoint = FindAmbushChokepoint(squad, center);
+				if (chokepoint.HasValue)
+					squad.Bot.QueueOrder(new Order("Move", null, Target.FromCell(squad.World, chokepoint.Value), false,
+						groupedActors: squad.OrderableUnits.ToArray()));
+
 				return;
+			}
 
 			squad.SetActorToTarget(target);
 			squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultApproachState());
@@ -157,21 +167,26 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubAssaultApproachState : CNStateBase, ICNState
 	{
-		// Give up and retreat if still burrowing after this many ticks
+		// Give up and retreat once no progress has been made for this many ticks
 		const int MaxApproachTicks = 500;
+
+		// Movement below this (sub-cell) threshold doesn't count as progress.
+		const int MinProgressDistance = 128;
 
 		// Surface when within this distance of the deep insertion point
 		static readonly WDist ArrivalRadius = WDist.FromCells(2);
 
 		bool orderIssued;
 		CPos destinationCell;
-		int approachStartTick;
+		int lastProgressTick;
+		WPos lastCenterPos;
 
 		public void Activate(CNSquad squad)
 		{
 			orderIssued = false;
 			destinationCell = CPos.Zero;
-			approachStartTick = squad.World.WorldTick;
+			lastProgressTick = squad.World.WorldTick;
+			lastCenterPos = squad.CenterUnit()?.CenterPosition ?? WPos.Zero;
 		}
 
 		public void Tick(CNSquad squad)
@@ -202,9 +217,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				orderIssued = true;
 			}
 
-			if (squad.World.WorldTick - approachStartTick > MaxApproachTicks)
+			// Stuck detection: only give up once genuinely stalled, not just slow on a big map.
+			var moved = (center.CenterPosition - lastCenterPos).LengthSquared >
+				MinProgressDistance * MinProgressDistance;
+			if (moved)
 			{
-				// Can't reach insertion point in time — retreat
+				lastCenterPos = center.CenterPosition;
+				lastProgressTick = squad.World.WorldTick;
+			}
+
+			if (squad.World.WorldTick - lastProgressTick > MaxApproachTicks)
+			{
+				// Can't reach insertion point — stalled — retreat
 				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultReburrowState());
 				return;
 			}
@@ -386,19 +410,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubTransportLoadState : CNStateBase, ICNState
 	{
-		// Abort if loading hasn't completed within this many game ticks
-		// (~50 s at 15 ticks/s), matching the ground TransportLoadState budget.
-		// The previous 10-update-cycle cap was far too short for SAPC passengers
-		// to walk in and board, bouncing the squad back to idle so it never
-		// deployed.
+		// Abort if no new passenger has boarded within this many game ticks (~50 s at 15 ticks/s),
+		// matching the ground TransportLoadState budget. The previous 10-update-cycle cap was far
+		// too short for SAPC passengers to walk in and board, bouncing the squad back to idle so
+		// it never deployed.
 		const int MaxLoadTicks = 750;
 
-		int loadStartTick;
+		int lastProgressTick;
+		int lastBoardedCount;
 
 		public void Activate(CNSquad squad)
 		{
 			squad.AcceptingPassengers = true;
-			loadStartTick = squad.World.WorldTick;
+			lastProgressTick = squad.World.WorldTick;
+			lastBoardedCount = 0;
 		}
 
 		public void Tick(CNSquad squad)
@@ -424,6 +449,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			// Track boarding progress: a slow-but-steady trickle of new production shouldn't be
+			// treated the same as a genuinely stalled load. MaxLoadTicks only fires once no new
+			// passenger has boarded for that whole duration, not from a fixed load-start clock.
+			var boardedCount = carriers.Sum(c => c.TraitOrDefault<Cargo>()?.PassengerCount ?? 0);
+			if (boardedCount > lastBoardedCount)
+			{
+				lastBoardedCount = boardedCount;
+				lastProgressTick = squad.World.WorldTick;
+			}
+
 			var waiting = passengers.Count(u => u.IsInWorld);
 			var carriersFull = carriers.All(c =>
 			{
@@ -440,7 +475,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			if (squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
+			if (squad.World.WorldTick - lastProgressTick >= MaxLoadTicks)
 			{
 				// Timeout may send partial cargo, but never an empty SAPC.
 				squad.FuzzyStateMachine.ChangeState(squad,
@@ -473,14 +508,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class SubTransportBurrowState : CNStateBase, ICNState
 	{
 		const int MaxBurrowTicks = 900;
+
+		// Movement below this (sub-cell) threshold doesn't count as progress.
+		const int MinProgressDistance = 128;
+
 		bool moveIssued;
-		int burrowStartTick;
+		int lastProgressTick;
+		WPos lastCarrierPos;
 
 		public void Activate(CNSquad squad)
 		{
 			squad.AcceptingPassengers = false;
 			moveIssued = false;
-			burrowStartTick = squad.World.WorldTick;
+			lastProgressTick = squad.World.WorldTick;
+			lastCarrierPos = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead)?.CenterPosition ?? WPos.Zero;
 		}
 
 		public void Tick(CNSquad squad)
@@ -488,7 +529,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			if (squad.World.WorldTick - burrowStartTick > MaxBurrowTicks)
+			// Stuck detection: only give up once genuinely stalled, not just slow on a big map.
+			var leadCarrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead);
+			if (leadCarrier != null)
+			{
+				var moved = (leadCarrier.CenterPosition - lastCarrierPos).LengthSquared >
+					MinProgressDistance * MinProgressDistance;
+				if (moved)
+				{
+					lastCarrierPos = leadCarrier.CenterPosition;
+					lastProgressTick = squad.World.WorldTick;
+				}
+			}
+
+			if (squad.World.WorldTick - lastProgressTick > MaxBurrowTicks)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportReturnState());
 				return;
