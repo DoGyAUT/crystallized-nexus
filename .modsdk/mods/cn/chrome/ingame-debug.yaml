@@ -73,14 +73,14 @@ Container@DEBUG_PANEL:
 			Width: 140
 			Height: 30
 			Font: Bold
-			Text: button-debug-panel-give-exploration
+			Text: button-debug-panel-clear-shroud
 		Button@RESET_EXPLORATION:
 			X: 271
 			Y: 200
 			Width: 140
 			Height: 30
 			Font: Bold
-			Text: button-debug-panel-reset-exploration
+			Text: button-debug-panel-reset-shroud
 		Label@VISUALIZATIONS_TITLE:
 			Y: 245
 			Font: Bold

@@ -1,6 +1,6 @@
 Metadata:
 	Title: mod-title
-	Version: cn-20260507a
+	Version: cn-20260725b
 	Website: https://www.openra.net
 	WebIcon32: https://www.openra.net/images/icons/ts_32x32.png
 	WindowTitle: mod-windowtitle
@@ -248,6 +248,7 @@ ChromeLayout:
 FluentMessages:
 	common|fluent/common.ftl
 	common|fluent/chrome.ftl
+	common|fluent/ingame-debug.ftl
 	common|fluent/hotkeys.ftl
 	common|fluent/rules.ftl
 	cn|fluent/ts.ftl
