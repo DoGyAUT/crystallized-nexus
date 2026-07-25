@@ -3,10 +3,10 @@
 		Type: ts
 		Name: map-generator-ts
 		Tilesets: TEMPERATE, SNOW, DESERT
-		Settings:
+		Options:
 			MultiChoiceOption@hidden_defaults:
 				Choice@hidden_defaults:
-					Settings:
+					Parameters:
 						Rotations: 1
 						Mirror: None
 						TerrainFeatureSize: 20480
@@ -141,7 +141,7 @@
 			MultiChoiceOption@hidden_tileset_overrides:
 				Choice@temperat:
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						ForestFloorTile: 626
 						OtherGround:
 							535: 150
@@ -282,7 +282,7 @@
 								xxxx: 654
 				Choice@desert:
 					Tileset: DESERT
-					Settings:
+					Parameters:
 						ForestFloorTile: 626
 						OtherGround:
 							535: 150
@@ -423,7 +423,7 @@
 								xxxx: 654
 				Choice@snow:
 					Tileset: SNOW
-					Settings:
+					Parameters:
 						ForestFloorTile: 150
 						IceFieldBrushes: IceFields
 						OtherGround:
@@ -594,21 +594,21 @@
 				Default: Plots
 				Choice@Lakes:
 					Label: label-ts-map-generator-choice-terrain-type-lakes
-					Settings:
+					Parameters:
 				Choice@Puddles:
 					Label: label-ts-map-generator-choice-terrain-type-puddles
-					Settings:
+					Parameters:
 						Water: 100
 				Choice@Gardens:
 					Label: label-ts-map-generator-choice-terrain-type-gardens
-					Settings:
+					Parameters:
 						Water: 50
 						Forests: 300
 						ForestCutout: 3
 						EnforceSymmetry: 2
 				Choice@Plots:
 					Label: label-ts-map-generator-choice-terrain-type-plots
-					Settings:
+					Parameters:
 						TerrainFeatureSize: 10240
 						ForestFeatureSize: 10240
 						ResourceFeatureSize: 10240
@@ -623,27 +623,27 @@
 						CivilianBuildings: 100
 				Choice@Plains:
 					Label: label-ts-map-generator-choice-terrain-type-plains
-					Settings:
+					Parameters:
 						Water: 0
 						Mountains: 100
 						CivilianBuildings: 100
 				Choice@Parks:
 					Label: label-ts-map-generator-choice-terrain-type-parks
-					Settings:
+					Parameters:
 						Water: 0
 						Forests: 100
 						Mountains: 100
 						CivilianBuildings: 100
 				Choice@Woodlands:
 					Label: label-ts-map-generator-choice-terrain-type-woodlands
-					Settings:
+					Parameters:
 						Water: 0
 						Forests: 400
 						ForestCutout: 3
 						EnforceSymmetry: 2
 				Choice@Overgrown:
 					Label: label-ts-map-generator-choice-terrain-type-overgrown
-					Settings:
+					Parameters:
 						Water: 0
 						Forests: 500
 						EnforceSymmetry: 2
@@ -651,7 +651,7 @@
 						Roughness: 250
 				Choice@Rocky:
 					Label: label-ts-map-generator-choice-terrain-type-rocky
-					Settings:
+					Parameters:
 						Water: 0
 						Forests: 300
 						ForestCutout: 3
@@ -660,13 +660,13 @@
 						Roughness: 250
 				Choice@Mountains:
 					Label: label-ts-map-generator-choice-terrain-type-mountains
-					Settings:
+					Parameters:
 						Water: 0
 						Mountains: 900
 						Roughness: 600
 				Choice@MountainLakes:
 					Label: label-ts-map-generator-choice-terrain-type-mountain-lakes
-					Settings:
+					Parameters:
 						Water: 200
 						Mountains: 900
 						Roughness: 850
@@ -676,22 +676,22 @@
 				Default: Default
 				Choice@Default:
 					Label: label-ts-map-generator-choice-forest-density-default
-					Settings:
+					Parameters:
 				Choice@Low:
 					Label: label-ts-map-generator-choice-forest-density-low
-					Settings:
+					Parameters:
 						Forests: 100
 				Choice@Medium:
 					Label: label-ts-map-generator-choice-forest-density-medium
-					Settings:
+					Parameters:
 						Forests: 200
 				Choice@High:
 					Label: label-ts-map-generator-choice-forest-density-high
-					Settings:
+					Parameters:
 						Forests: 300
 				Choice@VeryHigh:
 					Label: label-ts-map-generator-choice-forest-density-very-high
-					Settings:
+					Parameters:
 						Forests: 400
 			MultiChoiceOption@RoughGroundPatches:
 				Label: label-ts-map-generator-option-rough-ground-patches
@@ -699,18 +699,18 @@
 				Default: Default
 				Choice@Default:
 					Label: label-ts-map-generator-choice-rough-ground-patches-default
-					Settings:
+					Parameters:
 				Choice@None:
 					Label: label-ts-map-generator-choice-rough-ground-patches-none
-					Settings:
+					Parameters:
 						RoughGroundPatches: 0
 				Choice@Low:
 					Label: label-ts-map-generator-choice-rough-ground-patches-low
-					Settings:
+					Parameters:
 						RoughGroundPatches: 50
 				Choice@High:
 					Label: label-ts-map-generator-choice-rough-ground-patches-high
-					Settings:
+					Parameters:
 						RoughGroundPatches: 180
 			MultiChoiceOption@IceFields:
 				Label: label-ts-map-generator-option-ice-fields
@@ -718,19 +718,19 @@
 				Default: None
 				Choice@None:
 					Label: label-ts-map-generator-choice-ice-fields-none
-					Settings:
+					Parameters:
 						IceFields: 0
 				Choice@Low:
 					Label: label-ts-map-generator-choice-ice-fields-low
-					Settings:
+					Parameters:
 						IceFields: 80
 				Choice@Medium:
 					Label: label-ts-map-generator-choice-ice-fields-medium
-					Settings:
+					Parameters:
 						IceFields: 160
 				Choice@High:
 					Label: label-ts-map-generator-choice-ice-fields-high
-					Settings:
+					Parameters:
 						IceFields: 280
 			MultiChoiceOption@Rocks:
 				Label: label-ts-map-generator-option-rocks
@@ -738,20 +738,20 @@
 				Default: Default
 				Choice@Default:
 					Label: label-ts-map-generator-choice-rocks-default
-					Settings:
+					Parameters:
 				Choice@None:
 					Label: label-ts-map-generator-choice-rocks-none
-					Settings:
+					Parameters:
 						DecorativeRocks: 0
 						StrategicRocks: 0
 				Choice@Low:
 					Label: label-ts-map-generator-choice-rocks-low
-					Settings:
+					Parameters:
 						DecorativeRocks: 2
 						StrategicRocks: 1
 				Choice@High:
 					Label: label-ts-map-generator-choice-rocks-high
-					Settings:
+					Parameters:
 						DecorativeRocks: 8
 						StrategicRocks: 6
 			MultiChoiceOption@Roads:
@@ -760,23 +760,23 @@
 				Priority: 2
 				Choice@None:
 					Label: label-ts-map-generator-choice-roads-none
-					Settings:
+					Parameters:
 						Roads: False
 				Choice@Low:
 					Label: label-ts-map-generator-choice-roads-low
-					Settings:
+					Parameters:
 						Roads: True
 						RoadSpacing: 32
 						RoadShrink: 8
 				Choice@Medium:
 					Label: label-ts-map-generator-choice-roads-medium
-					Settings:
+					Parameters:
 						Roads: True
 						RoadSpacing: 24
 						RoadShrink: 6
 				Choice@High:
 					Label: label-ts-map-generator-choice-roads-high
-					Settings:
+					Parameters:
 						Roads: True
 						RoadSpacing: 16
 						RoadShrink: 4
@@ -792,76 +792,76 @@
 				Priority: 1
 				Choice@None:
 					Label: label-ts-map-generator-choice-mirror-none
-					Settings:
+					Parameters:
 						Mirror: None
 				Choice@LeftMatchesRight:
 					Label: label-ts-map-generator-choice-symmetry-mirror-horizontal
 					Players: 2, 4, 6, 8, 10, 12, 14, 16
-					Settings:
+					Parameters:
 						Mirror: LeftMatchesRight
 				Choice@TopLeftMatchesBottomRight:
 					Label: label-ts-map-generator-choice-symmetry-mirror-diagonal-tl
 					Players: 2, 4, 6, 8, 10, 12, 14, 16
-					Settings:
+					Parameters:
 						Mirror: TopLeftMatchesBottomRight
 				Choice@TopMatchesBottom:
 					Label: label-ts-map-generator-choice-symmetry-mirror-vertical
 					Players: 2, 4, 6, 8, 10, 12, 14, 16
-					Settings:
+					Parameters:
 						Mirror: TopMatchesBottom
 				Choice@TopRightMatchesBottomLeft:
 					Label: label-ts-map-generator-choice-symmetry-mirror-diagonal-tr
 					Players: 2, 4, 6, 8, 10, 12, 14, 16
-					Settings:
+					Parameters:
 						Mirror: TopRightMatchesBottomLeft
 				Choice@2Rotations:
 					Label: label-ts-map-generator-choice-symmetry-mirror-2-rotations
 					Players: 2, 4, 6, 8, 10, 12, 14, 16
-					Settings:
+					Parameters:
 						Rotations: 2
 				Choice@3Rotations:
 					Label: label-ts-map-generator-choice-symmetry-mirror-3-rotations
 					Players: 3, 6, 9, 12, 15
-					Settings:
+					Parameters:
 						Rotations: 3
 				Choice@4Rotations:
 					Label: label-ts-map-generator-choice-symmetry-mirror-4-rotations
 					Players: 4, 8, 12, 16
-					Settings:
+					Parameters:
 						Rotations: 4
 				Choice@5Rotations:
 					Label: label-ts-map-generator-choice-symmetry-mirror-5-rotations
 					Players: 5, 10, 15
-					Settings:
+					Parameters:
 						Rotations: 5
 				Choice@6Rotations:
 					Label: label-ts-map-generator-choice-symmetry-mirror-6-rotations
 					Players: 6, 12
-					Settings:
+					Parameters:
 						Rotations: 6
 				Choice@7Rotations:
 					Label: label-ts-map-generator-choice-symmetry-mirror-7-rotations
 					Players: 7, 14
-					Settings:
+					Parameters:
 						Rotations: 7
 				Choice@8Rotations:
 					Label: label-ts-map-generator-choice-symmetry-mirror-8-rotations
 					Players: 8, 16
-					Settings:
+					Parameters:
 						Rotations: 8
 			MultiChoiceOption@TibValue:
 				Label: label-ts-map-generator-option-tib-value
 				Default: Mixed
 				Choice@Green:
 					Label: label-ts-map-generator-choice-tib-value-green
-					Settings:
+					Parameters:
 						ResourceSpawnWeights:
 							tibtre01: 4
 							tibtre02: 4
 							tibtre03: 4
 				Choice@Mixed:
 					Label: label-ts-map-generator-choice-tib-value-mixed
-					Settings:
+					Parameters:
 						ResourceSpawnWeights:
 							tibtre01: 8
 							tibtre02: 8
@@ -871,7 +871,7 @@
 							bigred: 1
 				Choice@Blue:
 					Label: label-ts-map-generator-choice-tib-value-blue
-					Settings:
+					Parameters:
 						ResourceSpawnWeights:
 							tibtre01: 3
 							tibtre02: 3
@@ -880,7 +880,7 @@
 							bigblue3: 5
 				Choice@Red:
 					Label: label-ts-map-generator-choice-tib-value-red
-					Settings:
+					Parameters:
 						ResourceSpawnWeights:
 							tibtre01: 2
 							tibtre02: 2
@@ -893,7 +893,7 @@
 				Default: Medium
 				Choice@None:
 					Label: label-ts-map-generator-choice-tib-amount-none
-					Settings:
+					Parameters:
 						SpawnResourceSpawns: 0
 						ResourcesPerPlayer: 0
 						ResourceSpawnWeights:
@@ -901,28 +901,28 @@
 						MaximumResourceSpawnsPerExpansion: 1
 				Choice@Low:
 					Label: label-ts-map-generator-choice-tib-amount-low
-					Settings:
+					Parameters:
 						SpawnResourceSpawns: 2
 						ResourcesPerPlayer: 40000
 						MaximumExpansionResourceSpawns: 3
 						MaximumResourceSpawnsPerExpansion: 1
 				Choice@Medium:
 					Label: label-ts-map-generator-choice-tib-amount-medium
-					Settings:
+					Parameters:
 						SpawnResourceSpawns: 3
 						ResourcesPerPlayer: 75000
 						MaximumExpansionResourceSpawns: 5
 						MaximumResourceSpawnsPerExpansion: 2
 				Choice@High:
 					Label: label-ts-map-generator-choice-tib-amount-high
-					Settings:
+					Parameters:
 						SpawnResourceSpawns: 4
 						ResourcesPerPlayer: 150000
 						MaximumExpansionResourceSpawns: 8
 						MaximumResourceSpawnsPerExpansion: 3
 				Choice@Full:
 					Label: label-ts-map-generator-choice-tib-amount-full
-					Settings:
+					Parameters:
 						SpawnResourceSpawns: 0
 						ResourcesPerPlayer: 1000000000
 						ResourceSpawnWeights:
@@ -933,13 +933,13 @@
 				Default: None
 				Choice@None:
 					Label: label-ts-map-generator-choice-buildings-none
-					Settings:
+					Parameters:
 						MinimumBuildings: 0
 						MaximumBuildings: 0
 						BuildingWeights:
 				Choice@TechLow:
 					Label: label-ts-map-generator-choice-buildings-tech-low
-					Settings:
+					Parameters:
 						MinimumBuildings: 1
 						MaximumBuildings: 1
 						MaximumBuildingsTotal: 4
@@ -949,7 +949,7 @@
 							caaray: 1
 				Choice@TechMedium:
 					Label: label-ts-map-generator-choice-buildings-tech-medium
-					Settings:
+					Parameters:
 						MinimumBuildings: 1
 						MaximumBuildings: 2
 						MaximumBuildingsTotal: 6
@@ -959,7 +959,7 @@
 							caaray: 1
 				Choice@TechHigh:
 					Label: label-ts-map-generator-choice-buildings-tech-high
-					Settings:
+					Parameters:
 						MinimumBuildings: 2
 						MaximumBuildings: 3
 						MaximumBuildingsTotal: 8
@@ -972,22 +972,22 @@
 				Default: None
 				Choice@None:
 					Label: label-ts-map-generator-choice-veinholes-none
-					Settings:
+					Parameters:
 						MinimumVeinholes: 0
 						MaximumVeinholes: 0
 				Choice@Low:
 					Label: label-ts-map-generator-choice-veinholes-low
-					Settings:
+					Parameters:
 						MinimumVeinholes: 1
 						MaximumVeinholes: 1
 				Choice@Medium:
 					Label: label-ts-map-generator-choice-veinholes-medium
-					Settings:
+					Parameters:
 						MinimumVeinholes: 1
 						MaximumVeinholes: 2
 				Choice@High:
 					Label: label-ts-map-generator-choice-veinholes-high
-					Settings:
+					Parameters:
 						MinimumVeinholes: 3
 						MaximumVeinholes: 4
 			MultiChoiceOption@Density:
@@ -996,37 +996,37 @@
 				Priority: 1
 				Choice@Players:
 					Label: label-ts-map-generator-choice-density-players
-					Settings:
+					Parameters:
 						AreaEntityBonus: 0
 						PlayerCountEntityBonus: 1000000
 				Choice@AreaAndPlayers:
 					Label: label-ts-map-generator-choice-density-area-and-players
-					Settings:
+					Parameters:
 						AreaEntityBonus: 200
 						PlayerCountEntityBonus: 500000
 				Choice@AreaVeryLow:
 					Label: label-ts-map-generator-choice-density-area-very-low
-					Settings:
+					Parameters:
 						AreaEntityBonus: 100
 						PlayerCountEntityBonus: 0
 				Choice@AreaLow:
 					Label: label-ts-map-generator-choice-density-area-low
-					Settings:
+					Parameters:
 						AreaEntityBonus: 200
 						PlayerCountEntityBonus: 0
 				Choice@AreaMedium:
 					Label: label-ts-map-generator-choice-density-area-medium
-					Settings:
+					Parameters:
 						AreaEntityBonus: 400
 						PlayerCountEntityBonus: 0
 				Choice@AreaHigh:
 					Label: label-ts-map-generator-choice-density-area-high
-					Settings:
+					Parameters:
 						AreaEntityBonus: 600
 						PlayerCountEntityBonus: 0
 				Choice@AreaVeryHigh:
 					Label: label-ts-map-generator-choice-density-area-very-high
-					Settings:
+					Parameters:
 						AreaEntityBonus: 800
 						PlayerCountEntityBonus: 0
 			MultiChoiceOption@CivilianDensity:
@@ -1035,30 +1035,30 @@
 				Priority: 3
 				Choice@Default:
 					Label: label-ts-map-generator-choice-civilian-density-default
-					Settings:
+					Parameters:
 				Choice@None:
 					Label: label-ts-map-generator-choice-civilian-density-none
-					Settings:
+					Parameters:
 						CivilianBuildings: 0
 				Choice@Low:
 					Label: label-ts-map-generator-choice-civilian-density-low
-					Settings:
+					Parameters:
 						CivilianBuildings: 75
 				Choice@Medium:
 					Label: label-ts-map-generator-choice-civilian-density-medium
-					Settings:
+					Parameters:
 						CivilianBuildings: 125
 				Choice@High:
 					Label: label-ts-map-generator-choice-civilian-density-high
-					Settings:
+					Parameters:
 						CivilianBuildings: 250
 				Choice@VeryHigh:
 					Label: label-ts-map-generator-choice-civilian-density-very-high
-					Settings:
+					Parameters:
 						CivilianBuildings: 500
 				Choice@Max:
 					Label: label-ts-map-generator-choice-civilian-density-max
-					Settings:
+					Parameters:
 						CivilianBuildings: 1000
 			MultiChoiceOption@Coastlines:
 				Label: label-ts-map-generator-option-coastlines
@@ -1066,46 +1066,46 @@
 				Priority: 3
 				Choice@Beaches:
 					Label: label-ts-map-generator-choice-coastlines-beaches
-					Settings:
+					Parameters:
 						WaterCliffs: False
 				Choice@SunkenBeaches:
 					Label: label-ts-map-generator-choice-coastlines-sunken-beaches
-					Settings:
+					Parameters:
 						WaterCliffs: True
 						WaterRoughness: 0
 				Choice@TemperateCliffs:
 					Label: label-ts-map-generator-choice-coastlines-cliffs
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						WaterCliffs: True
 						WaterRoughness: 1000
 				Choice@DesertCliffs:
 					Label: label-ts-map-generator-choice-coastlines-cliffs
 					Tileset: DESERT
-					Settings:
+					Parameters:
 						WaterCliffs: True
 						WaterRoughness: 1000
 				Choice@SnowCliffs:
 					Label: label-ts-map-generator-choice-coastlines-cliffs
 					Tileset: SNOW
-					Settings:
+					Parameters:
 						WaterCliffs: True
 						WaterRoughness: 1000
 						UseIceLatTiler: True
 				Choice@TemperateMixed:
 					Label: label-ts-map-generator-choice-coastlines-mixed
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						WaterCliffs: True
 				Choice@DesertMixed:
 					Label: label-ts-map-generator-choice-coastlines-mixed
 					Tileset: DESERT
-					Settings:
+					Parameters:
 						WaterCliffs: True
 				Choice@SnowMixed:
 					Label: label-ts-map-generator-choice-coastlines-mixed
 					Tileset: SNOW
-					Settings:
+					Parameters:
 						WaterCliffs: True
 						BeachSegmentTypes: IceShore
 						UseIceLatTiler: True
@@ -1119,91 +1119,91 @@
 		Type: clear
 		Name: map-generator-clear
 		Tilesets: TEMPERATE, SNOW, DESERT
-		Settings:
+		Options:
 			MultiChoiceOption@Tile:
 				Label: label-clear-map-generator-option-tile
 				Choice@Clear:
 					Label: label-clear-map-generator-choice-tile-clear
-					Settings:
+					Parameters:
 						Tile: 0
 				Choice@Snow:
 					Label: label-clear-map-generator-choice-tile-snow
-					Settings:
+					Parameters:
 						Tile: 4
 				Choice@Blank:
 					Label: label-clear-map-generator-choice-tile-blank
-					Settings:
+					Parameters:
 						Tile: 12
 				Choice@Rough:
 					Label: label-clear-map-generator-choice-tile-rough
-					Settings:
+					Parameters:
 						Tile: 150
 				Choice@Water:
 					Label: label-clear-map-generator-choice-tile-water
-					Settings:
+					Parameters:
 						Tile: 341
 				Choice@Ground01:
 					Label: label-clear-map-generator-choice-tile-ground01
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						Tile: 447
 				Choice@Sand:
 					Label: label-clear-map-generator-choice-tile-sand
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						Tile: 535
 				Choice@DesertSand:
 					Label: label-clear-map-generator-choice-tile-sand
 					Tileset: DESERT
-					Settings:
+					Parameters:
 						Tile: 535
 				Choice@Green:
 					Label: label-clear-map-generator-choice-tile-green
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						Tile: 626
 				Choice@DesertGreen:
 					Label: label-clear-map-generator-choice-tile-green
 					Tileset: DESERT
-					Settings:
+					Parameters:
 						Tile: 626
 				Choice@TemperatePavement:
 					Label: label-clear-map-generator-choice-tile-pavement
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						Tile: 671
 				Choice@DesertPavement:
 					Label: label-clear-map-generator-choice-tile-pavement
 					Tileset: DESERT
-					Settings:
+					Parameters:
 						Tile: 671
 				Choice@Crystal:
 					Label: label-clear-map-generator-choice-tile-crystal
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						Tile: 960
 				Choice@Swamp:
 					Label: label-clear-map-generator-choice-tile-swamp
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						Tile: 977
 				Choice@Rock:
 					Label: label-clear-map-generator-choice-tile-rock
 					Tileset: SNOW
-					Settings:
+					Parameters:
 						Tile: 989
 				Choice@BlueMold:
 					Label: label-clear-map-generator-choice-tile-bluemold
 					Tileset: TEMPERATE
-					Settings:
+					Parameters:
 						Tile: 1002
 				Choice@Grey:
 					Label: label-clear-map-generator-choice-tile-grey
 					Tileset: SNOW
-					Settings:
+					Parameters:
 						Tile: 1006
 				Choice@SnowPavement:
 					Label: label-clear-map-generator-choice-tile-pavement
 					Tileset: SNOW
-					Settings:
+					Parameters:
 						Tile: 1031
