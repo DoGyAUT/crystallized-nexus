@@ -113,14 +113,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		const int PassengerStagingMinCells = 2;
 		const int PassengerStagingMaxCells = 4;
 
-		int loadStartTick;
+		int lastProgressTick;
+		int lastBoardedCount;
 		CPos? landingCell;
 		readonly Dictionary<uint, CPos> passengerStagingCells = [];
 
 		public void Activate(CNSquad squad)
 		{
 			squad.AcceptingPassengers = true;
-			loadStartTick = squad.World.WorldTick;
+			lastProgressTick = squad.World.WorldTick;
+			lastBoardedCount = 0;
 			landingCell = null;
 			passengerStagingCells.Clear();
 
@@ -159,6 +161,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			// Track boarding progress: a slow-but-steady trickle of new production shouldn't be
+			// treated the same as a genuinely stalled load. MaxLoadTicks only fires once no new
+			// passenger has boarded for that whole duration, not from a fixed load-start clock.
+			var boardedCount = cargo?.PassengerCount ?? 0;
+			if (boardedCount > lastBoardedCount)
+			{
+				lastBoardedCount = boardedCount;
+				lastProgressTick = squad.World.WorldTick;
+			}
+
 			// Depart only when the carrier is full, or every recruited passenger is aboard AND we
 			// recruited the full complement. Under capacity we wait while the squad manager tops up
 			// passengers (squad.AcceptingPassengers); MaxLoadTicks is the fail-safe.
@@ -178,7 +190,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			if (squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
+			if (squad.World.WorldTick - lastProgressTick >= MaxLoadTicks)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad,
 					anyCargo ? new AirTransportAttackMoveState() : new TransportDoneState());
@@ -293,10 +305,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class TransportLoadState : CNStateBase, ICNState
 	{
-		// Abort threshold: if passengers haven't loaded within this time, transition to safe state.
-		// 1500 ticks ≈ ~100 seconds at 15 ticks/sec.
+		// Abort threshold: if no new passenger has boarded within this time, transition to safe
+		// state. 1500 ticks ≈ ~100 seconds at 15 ticks/sec.
 		const int MaxLoadTicks = 1500;
-		int loadStartTick;
+		int lastProgressTick;
+		int lastBoardedCount;
 
 		// Stable passenger → carrier assignment. Keeping it stable (instead of re-deriving a
 		// round-robin from the shrinking idle list every tick) is what prevents trickle-in
@@ -386,7 +399,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Activate(CNSquad squad)
 		{
 			squad.AcceptingPassengers = true;
-			loadStartTick = squad.World.WorldTick;
+			lastProgressTick = squad.World.WorldTick;
+			lastBoardedCount = 0;
 			passengerToCarrier.Clear();
 
 			// Stop all carriers and escorts so they stay put while passengers walk to them.
@@ -426,6 +440,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			// Track boarding progress across all carriers: a slow-but-steady trickle of new
+			// production shouldn't be treated the same as a genuinely stalled load. MaxLoadTicks
+			// only fires once no new passenger has boarded for that whole duration, not from a
+			// fixed load-start clock.
+			var boardedCount = validCarriers.Sum(c => c.TraitOrDefault<Cargo>()?.PassengerCount ?? 0);
+			if (boardedCount > lastBoardedCount)
+			{
+				lastBoardedCount = boardedCount;
+				lastProgressTick = squad.World.WorldTick;
+			}
+
 			// Depart only when carriers are actually full (capacity reached), or every recruited
 			// passenger is aboard AND we recruited the full complement. While still under capacity
 			// we wait — the squad manager keeps topping up passengers (squad.AcceptingPassengers),
@@ -460,7 +485,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			if (squad.World.WorldTick - loadStartTick >= MaxLoadTicks)
+			if (squad.World.WorldTick - lastProgressTick >= MaxLoadTicks)
 			{
 				// Timeout may send partial cargo, but never an empty transport.
 				squad.FuzzyStateMachine.ChangeState(squad,
