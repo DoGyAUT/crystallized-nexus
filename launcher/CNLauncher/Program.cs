@@ -160,14 +160,16 @@ static class Program
 		request.Headers.Accept.Clear();
 		request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
 
-		using var response = await http.SendAsync(request);
+		using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 		response.EnsureSuccessStatusCode();
+		var totalBytes = response.Content.Headers.ContentLength;
 
 		if (OperatingSystem.IsWindows())
 		{
 			var zipPath = Path.Combine(Path.GetTempPath(), $"cn-launcher-{Guid.NewGuid():N}.zip");
 			await using (var fileStream = File.Create(zipPath))
-				await response.Content.CopyToAsync(fileStream);
+			await using (var responseStream = await response.Content.ReadAsStreamAsync())
+				await CopyWithProgressAsync(responseStream, fileStream, totalBytes);
 
 			Console.WriteLine("Extracting...");
 			try
@@ -188,12 +190,47 @@ static class Program
 			// just write it out and mark it executable.
 			Directory.CreateDirectory(GameDir);
 			await using (var fileStream = File.Create(GameExe))
-				await response.Content.CopyToAsync(fileStream);
+			await using (var responseStream = await response.Content.ReadAsStreamAsync())
+				await CopyWithProgressAsync(responseStream, fileStream, totalBytes);
 
 			File.SetUnixFileMode(GameExe,
 				UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
 				UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
 				UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+		}
+	}
+
+	static async Task CopyWithProgressAsync(Stream source, Stream destination, long? totalBytes)
+	{
+		var buffer = new byte[81920];
+		long bytesRead = 0;
+		int read;
+		while ((read = await source.ReadAsync(buffer)) > 0)
+		{
+			await destination.WriteAsync(buffer.AsMemory(0, read));
+			bytesRead += read;
+			ReportProgress(bytesRead, totalBytes);
+		}
+
+		Console.WriteLine();
+	}
+
+	static void ReportProgress(long bytesRead, long? totalBytes)
+	{
+		const int BarWidth = 30;
+		var mb = bytesRead / 1024.0 / 1024.0;
+
+		if (totalBytes is > 0)
+		{
+			var fraction = Math.Clamp((double)bytesRead / totalBytes.Value, 0, 1);
+			var filled = (int)(fraction * BarWidth);
+			var bar = new string('#', filled) + new string('-', BarWidth - filled);
+			var totalMb = totalBytes.Value / 1024.0 / 1024.0;
+			Console.Write($"\r[{bar}] {fraction * 100,5:0.0}%  {mb,7:0.0} / {totalMb:0.0} MB");
+		}
+		else
+		{
+			Console.Write($"\rDownloaded {mb,7:0.0} MB");
 		}
 	}
 
