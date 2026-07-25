@@ -172,44 +172,195 @@ UI & PLAYER
     Custom named bot personalities.
 
 
+AUDIO
+-----
+  CNDynamicMusicController
+    Layered adaptive soundtrack: Peace / Tension / Combat / BigBattle stems,
+    crossfaded live based on combat state. Faction-Side-keyed stem sets,
+    RenderPlayer-aware so observers/spectators hear the right side's music.
+    Tension scored via a decaying weighted scan (FindActorsInCircle) rather
+    than polling every actor; per-tick volume lerp exempted from the normal
+    volume-slider sweep (Game.Sound.ExemptFromVolumeSlider).
+
+  CNCombatSignalReporter
+    Feeds attack/damage events into CNDynamicMusicController. Per-actor
+    cooldowns (RecordInterval) and configurable AttackWeight /
+    DamageWeightPerPoint so the tension score reacts to real engagements
+    without being spammed by every single hit.
+
+
 AI — BOT MODULES
 ----------------
-  CNBaseBuilderBotModule
-    Base construction with layout strategies (Random / Grid / Clustered /
-    Compact), configurable building fractions, delays, limits, wall placement.
+  Strategy & Profiles
+  ~~~~~~~~~~~~~~~~~~~
+    CNBotProfileBotModule
+      BotProfile enum (Rush / Turtle / Tech / Expansion / Steamroller /
+      Adaptive) driving per-profile budgets and tech-stage gating
+      (UpdateTechStage). Emergency Turtle bypass kicks in under genuine
+      active threat regardless of the assigned profile. TechBudgetDifficultyScale
+      / TechTickDifficultyScale scale tech-pacing by named handicap tier
+      (Easy/Normal/Hard/Brutal), not just the raw stat multipliers from the
+      CNHandicap* traits — so difficulty affects how fast a bot climbs the
+      tech tree, not only how hard its units hit.
 
-  CNBaseBuilderQueueManager
-    Build queue decision logic: power priority, refineries, naval production,
-    silos, defense structures.
+    BotCapabilities
+      Capability-tag system (Tech, Defense, Economy, Production, Power,
+      Superweapon, Vehicle, Transporter, AntiAir, ...) declared per actor.
+      Used pervasively across the AI: defense-role classification, squad
+      priority-target matching, MCV expansion scoring, wave drop targeting.
 
-  CNUnitBuilderBotModule
-    Unit build decisions and army composition.
+  Base & Economy
+  ~~~~~~~~~~~~~~
+    CNBaseBuilderBotModule
+      Base construction with layout strategies (Random / Grid / Clustered /
+      Compact / Coverage / BaseGrid), configurable building fractions,
+      delays, and per-DefenseRole limits scaled to base size (replaces hard
+      defense caps). Wall/gate placement covers both a base perimeter and
+      chokepoint sealing (via CNTacticalMapBotModule's sealable corridors).
+      Defense placement is fed by tactical-map hotspots and threat-scored
+      (ScoreDefensePlacement / ScoreTechPlacementSafety), picking reactively
+      by CombatAnalysisBotModule's live threat role or falling back to a
+      planned per-role deficit.
 
-  CNHarvesterBotModule
-    Harvester management and resource field assignment.
+    CNBaseBuilderQueueManager
+      The per-tick build-queue decision engine backing CNBaseBuilderBotModule:
+      power priority, refinery placement (pre-flight reachable-field +
+      cluster-saturation checks so a doomed refinery never jams the queue),
+      naval production gating, silo pressure, wall/gate/chokepoint search,
+      building-fraction deficit scoring, DefenseRole-aware reactive/planned
+      defense selection.
 
-  CNRepairManagerBotModule
-    Automated repair of damaged units and structures.
+    CNUnitBuilderBotModule
+      Unit production and army composition. Panic-mode: when a bot has no
+      real defense force and is under active threat, bootstraps missing
+      cheap production buildings and spams cheap infantry/vehicle defenders
+      — scoped tightly to genuine emergencies (HasNoRealDefenseForce) so it
+      never becomes a general production boost for a bot that already has
+      an army.
 
-  CNMcvExpansionManagerBotModule
-    MCV deployment and expansion decisions.
+    CNHarvesterBotModule
+      Harvester resource-field assignment/routing, with stuck-detection
+      near refineries so a harvester with a full load doesn't permanently
+      jam waiting for the dock while empty harvesters queue up behind it.
 
-  CNResourceMapBotModule
-    Resource map analysis to guide harvester and base placement.
+    CNResourceMapBotModule
+      Divides the map into a grid of indices tracking resource density,
+      own refinery/harvester counts, and nearby enemy/friendly presence per
+      cell. Feeds MCV expansion scoring and harvester safety checks —
+      GetNearbyIndicesThreat aggregates the 3x3 neighborhood around an
+      index, bounded per-axis so edge-of-map indices don't wrap into the
+      wrong row.
 
-  CombatAnalysisBotModule
-    Real-time combat situation analysis.
+    CNMcvExpansionManagerBotModule
+      MCV deploy/expansion decisions in two modes: CheckResource (economy
+      expansion, weighted toward rich-but-not-flooded resource fields) and
+      CheckBase (forward outposts, with a frontline-corridor bonus toward
+      the enemy). Routes MCVs around known enemy bases with a pathfinder
+      cost penalty, and locks a freshly deployed conyard's expansion goal
+      for a minimum hold time so it isn't immediately re-evaluated for a move.
 
-  BotCapabilities
-    Bot capability profile (declares what a bot personality can do).
+    CNRepairManagerBotModule
+      Sends damaged idle base units to repair — barracks-based infantry
+      repair, RepairableNear vehicles, and mobile repair units (moves the
+      damaged unit within the repairer's own auto-target range).
 
-  DeployBotModule
-    Deploy behavior for deployable units (e.g. artillery).
+    CNBridgeRepairBotModule
+      Assigns engineers/repair units to damaged bridge huts and requests
+      replacement repairers via IBotRequestUnitProduction when none are
+      available.
 
-  CNSquadManagerBotModule
-    Full squad manager with dedicated state machines per squad type:
-      Ground / Artillery / Raider / Stealth / Subterranean /
-      Aircraft / Transport / Defense / Support
+  Combat Intelligence
+  ~~~~~~~~~~~~~~~~~~~
+    CombatAnalysisBotModule
+      Weighted, decaying per-DefenseRole (InfantryDefense / ArmorDefense /
+      AADefense / ArtilleryDefense / Special) threat tracker fed by
+      incoming attacks. HasActiveThreat() / GetHighestThreatRole() drive
+      both reactive base defense (CNBaseBuilderBotModule) and unit-builder
+      panic checks. Also tracks a "nemesis" — the most persistent attacker —
+      for allied-attack response.
+
+    CNTacticalMapBotModule
+      Cartographs the map once at game start (and on bridge changes):
+      chokepoints (bridges, cliff ramps, narrow land passages) via the
+      hierarchical pathfinder's abstract-graph cut-edges/articulation
+      points, plus high-ground cliff edges overlooking the bot's own base.
+      Feeds CNBaseBuilderBotModule's defense placement and chokepoint wall
+      sealing, and (squad states) Raider/Stealth/Subterranean idle-state
+      ambush repositioning. Incremental, chunked per-tick scans so multiple
+      bots don't spike on the same tick. `cntopo` debug overlay.
+
+  Squads
+  ~~~~~~
+    CNSquadManagerBotModule
+      Template-based squad manager with slot-filling (carrier / passenger /
+      escort roles), a weighted tag/need scoring model (TagWeights +
+      NeedRules react to live enemy BotCapabilities) for template selection
+      so production keeps cycling through every template instead of
+      locking onto one "best" build, and a coordinated attack-wave system
+      (squads hold near base until enough are ready, then march together to
+      a staging rally point; EconomyOverflow shortens the wave interval and
+      lowers the ready threshold when the bot has cash surplus). Nemesis-
+      aware allied-attack response. Dedicated state machines per squad type:
+
+        Ground (Idle/AttackMove/Attack/Flee)
+          Composition-aware target scoring (SquadEngageFraction — prefers
+          targets more of the squad can actually hit) and kill-securing on
+          critically damaged enemies in easy reach before moving on.
+
+        Artillery (Idle/HangBack/Bombard/Flee)
+          Hangs back behind an attached assault squad; hang-back position
+          is terrain-validated and prefers local high ground instead of a
+          blind vector offset. Never dissolves on retreat — reforms and
+          returns to idle.
+
+        Raider / Stealth (Idle/Attack(or Approach)/Flee)
+          Fuzzy attack-or-flee thresholds per profile. Repositions to a
+          tactical-map chokepoint when no target is found instead of
+          sitting still. Shared, optimized retreat-cell search (one threat
+          scan for the whole candidate ring, not one per cell).
+
+        Subterranean Assault / Transport (SUBTANK / SAPC)
+          Deep-insertion burrow targeting at the value-weighted centroid of
+          non-defense enemy buildings (surfaces in the economic core, not
+          the defended perimeter). SAPC ambush-drops behind enemy lines.
+          Travel timeouts use stuck-detection (reset on real positional
+          progress) instead of a flat clock, so a squad crossing a large
+          map isn't aborted for being slow rather than stuck.
+
+        Aircraft (Attack/Raider/Return)
+          Threat-scanned approach routing through gaps in AA coverage;
+          composition-aware target scoring, same as Ground.
+
+        Transport / AirTransport
+          Capacity-aware multi-carrier passenger loading (stable, capacity-
+          aware assignment map so trickle-in passengers don't all pile onto
+          one carrier). Load timeout tracks actual boarding progress
+          (Cargo.PassengerCount) and only aborts once boarding has
+          genuinely stalled, not just because it's slow. Drops target the
+          soft rear behind the wave's front rather than the defended edge.
+
+        Support
+          Follows an attached squad, heals/repairs (lowest-HP-then-cost
+          priority); falls back to base-garrison duty when no squad to
+          attach to.
+
+        Protection
+          Reactive squads that track and respond to multiple simultaneous
+          attackers.
+
+        Wave hold/rally
+          Shared by every wave-eligible role. Going non-operational en
+          route routes back through the squad's own role state machine
+          (not a hardcoded ground flee) so Artillery/Subterranean squads
+          persist and reform as designed instead of being force-dissolved.
+
+    DeployBotModule
+      Unified deploy/undeploy logic for all deployable unit types via
+      configurable groups: Artillery (deploy in range, undeploy if the
+      enemy closes past a safe range), Stats (deploy for a stat buff when
+      idle with an enemy nearby), Support (deploy near enough allies,
+      undeploy when alone or threatened), Ability (one-shot timed deploy
+      for an ability duration).
 
 
 ENGINE PATCHES  (CN fork — not in mainline OpenRA)
