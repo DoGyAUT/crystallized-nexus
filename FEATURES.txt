@@ -8,6 +8,8 @@ RENDERING & VOXELS
   VoxelDynamics
     Spring-based physics tilts: impact tilt, acceleration tilt, firing recoil,
     roll on turns. All CN voxel units have real-time pitch/roll animation.
+    Toggleable via the Graphics settings "Voxel Dynamics" checkbox (see
+    ENGINE PATCHES: Custom Graphics Settings Toggles).
 
   CNWithVoxelBody / Turret / Barrel / WalkerBody / UnloadBody
     Drop-in replacements for all voxel render traits, integrating VoxelDynamics.
@@ -23,6 +25,36 @@ RENDERING & VOXELS
 
   PeriodicSpriteEffect
     Periodic sprite effects (e.g. idle animations).
+
+  AtmosphericGradingRenderer
+    Full-screen post-process color grading, selectable Off / Cinematic /
+    Tox Haze (Graphics settings "Atmosphere" dropdown). Cinematic applies a
+    contrast/saturation/vignette/tint/grain/haze grade; Tox Haze is a
+    separate preset grade. Backed by Graphics.PostProcessGrading
+    (GradingMode enum) — see ENGINE PATCHES: Custom Graphics Settings Toggles.
+
+  BloomGlowEffect
+    Sole writer of WorldTintState's bloom state: additive halo on
+    full-bright palette-index ranges, gated by a world trait condition.
+    Toggleable via the Graphics settings "Bloom Glow" checkbox.
+
+  Water Effects  (WaterSurfaceMask / WaterOverlayRenderer /
+                  WaterReflectionRenderer / WaterSparkleRenderer /
+                  WithWaterReflection)
+    WaterSurfaceMask is a shared palette-index-based water detection layer
+    used by the other three world-level post-process passes: a
+    weather-reactive color overlay, a lightweight screenspace reflection,
+    and dissolving sparkles on lit water. WithWaterReflection clones an
+    individual actor's renderable as a reflection when it's above water.
+    All gated together by the Graphics settings "Water Effects" checkbox.
+
+  TiberiumGlowRenderer
+    Full-screen screenspace glow / fog / particles over Tiberium fields
+    (green/blue/red resource groups plus the organic vein effect),
+    gated by a resource-layer coverage texture. Toggleable via the
+    Graphics settings "Tiberium Effects" checkbox. Distinct from
+    ResourceAnimationOverlay (see TERRAIN & MAP), which is the per-tile
+    sparkle/poison animation, not the fullscreen glow pass.
 
   VoxelShadowSmoothing
     Smooths the ground height/orientation used by projected voxel shadows
@@ -52,6 +84,14 @@ WEATHER & ATMOSPHERE
 
   CloudSpawner / Cloud
     Cloud shadows & godray sprites, pre-spawned across the map.
+
+  CloudShadowRenderer / WorldCloudShadow
+    Procedural cloud shadow post-process pass over the terrain
+    (CloudShadowRenderer), plus a drifting cloud shadow folded into the
+    combined world-tint shader (WorldCloudShadow). Toggleable via the
+    Graphics settings "Cloud Shadows" checkbox (see ENGINE PATCHES: Custom
+    Graphics Settings Toggles). Distinct from CloudSpawner/Cloud above,
+    which are the actual sprite-based cloud/godray actors.
 
 
 TERRAIN & MAP
@@ -389,6 +429,16 @@ ENGINE PATCHES  (CN fork — not in mainline OpenRA)
     Brutal for the cn mod only (gated on Game.ModData.Manifest.Id == "cn";
     other internal mods keep the vanilla % slider). Session.Client.Handicap
     holds a small tier index (0=Normal,1=Easy,2=Hard,3=Brutal), not a percent.
+
+  Custom Graphics Settings Toggles  [Settings.cs]
+    Seven fields added to GraphicSettings, none present in vanilla OpenRA:
+    WaterEffects, PostProcessGrading (GradingMode: Off/Cinematic/ToxHaze),
+    TiberiumEffects, CloudShadows, BloomGlowEffects, VoxelDynamics,
+    ScreenShake. Exposed as the checkbox grid + Atmosphere dropdown in the
+    Graphics settings screen. ScreenShake is the only one gating a vanilla
+    trait (ScreenShaker.cs checks Game.Settings.Graphics.ScreenShake before
+    applying scroll offset); the rest gate CN-only world traits — see
+    RENDERING & VOXELS and WEATHER & ATMOSPHERE for what each one drives.
 
   Voxel Shadow Ground-Orientation Hook  [RenderVoxels.cs, ModelRenderable.cs]
     IRenderVoxelShadowModifier gained ShadowGroundOrientation alongside the
