@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>CNLauncher</AssemblyName>
     <RootNamespace>CNLauncher</RootNamespace>
+    <ApplicationIcon>logo.ico</ApplicationIcon>
 
     <!-- Published as a single self-contained file so testers don't need the .NET runtime installed. -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
