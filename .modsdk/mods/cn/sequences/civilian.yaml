@@ -481,6 +481,11 @@ caarmr:
 		Filename: ctarmr.shp
 		Start: 2
 		ShadowStart: 5
+	dead:
+		Filename: ctarmr.shp
+		Start: 2
+		ShadowStart: 5
+		Tick: 400
 	idle-flag:
 		Filename: ctarmr_a.shp
 		Length: *
@@ -510,6 +515,11 @@ caaray:
 		Filename: ctaray.shp
 		Start: 2
 		ShadowStart: 5
+	dead:
+		Filename: ctaray.shp
+		Start: 2
+		ShadowStart: 5
+		Tick: 400
 	idle-satellite:
 		Filename: ctaray_a.shp
 		Length: 16
@@ -564,6 +574,11 @@ cahosp:
 		Filename: cthosp.shp
 		Start: 2
 		ShadowStart: 5
+	dead:
+		Filename: cthosp.shp
+		Start: 2
+		ShadowStart: 5
+		Tick: 400
 	idle-light:
 		Filename: cthosp_a.shp
 		Offset: 15, -36, 50
