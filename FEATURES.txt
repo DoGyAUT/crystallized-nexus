@@ -58,10 +58,12 @@ RENDERING & VOXELS
 
   VoxelShadowSmoothing
     Smooths the ground height/orientation used by projected voxel shadows
-    for hovering/flying units (forward-sampled, like Aircraft's own
-    TerrainAltitudeSmoothing). UseTerrainOrientation: false converges the
-    shadow to flat instead of tracking discrete ramp orientation. Requires
-    the paired engine patch (see ENGINE PATCHES: Voxel Shadow
+    for hovering/flying units, reusing the same forward/behind sampling
+    pattern as Aircraft.TerrainAltitudeSmoothing (see ENGINE PATCHES:
+    Aircraft Terrain Altitude Smoothing) — falls back to it as the default
+    Range for aircraft. UseTerrainOrientation: false converges the shadow
+    to flat instead of tracking discrete ramp orientation. Requires the
+    paired engine patch (see ENGINE PATCHES: Voxel Shadow
     Ground-Orientation Hook) — without it, ShadowGroundOrientation is
     computed but never consumed by the renderer.
 
@@ -409,6 +411,17 @@ ENGINE PATCHES  (CN fork — not in mainline OpenRA)
     Directional movement costs + smooth slopeSpeedFactor lerp per actor.
     EffectiveSlopeHeightDelta with ramp lookahead. GetSlopeSpeedFactor exposed
     from Locomotor; smoothed in Mobile.UpdateMovement() at 0.2 rate per tick.
+
+  Aircraft Terrain Altitude Smoothing  [Aircraft.cs, Fly.cs]
+    Aircraft.TerrainAltitudeSmoothing (WDist, opt-in per actor) does not
+    exist in vanilla OpenRA. When set, Fly.FlyTick samples terrain height
+    at 9 points spread along the aircraft's current movement direction
+    (forward and behind, within the smoothing range) and averages them for
+    the desired altitude, instead of snapping straight to the terrain
+    height under the aircraft's exact current position. Smooths altitude
+    changes over ramps/hills into a gradual glide. VoxelShadowSmoothing's
+    own forward-sampling (see RENDERING & VOXELS) reuses this exact
+    pattern for shadow ground height.
 
   OpenGL Depth / Alpha Fix  [OpenGL.cs, Sdl2GraphicsContext.cs]
     glBlendFuncSeparate (GL_ZERO, GL_ONE for alpha channel) +
