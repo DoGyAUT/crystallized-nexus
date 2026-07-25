@@ -122,6 +122,10 @@ GAMEPLAY MECHANICS
   HeightAdvantageBonus
     High ground advantage: weapon range and sight range scale with terrain height
     (IRangeModifier + IRevealsShroudModifier). BaseHeight 2 matches RMG maps.
+    CNTacticalMapBotModule's high-ground cliff-edge detection
+    (HighGroundBaseHeight, see AI — BOT MODULES) is deliberately kept in
+    sync with BaseHeight so the AI places defense turrets where they
+    actually gain this bonus.
 
   Slope Speed System  [engine patch]
     Units slow down going uphill and speed up going downhill. Configurable per
