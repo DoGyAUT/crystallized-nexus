@@ -48,7 +48,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				squad.SetActorToTarget(target);
 				squad.FuzzyStateMachine.ChangeState(squad, new StealthApproachState());
+				return;
 			}
+
+			// No target this pass — reposition to a forward chokepoint instead of sitting
+			// still, so cloaked units are more likely to catch enemy traffic on a later scan.
+			var chokepoint = FindAmbushChokepoint(squad, center);
+			if (chokepoint.HasValue)
+				squad.Bot.QueueOrder(new Order("Move", null, Target.FromCell(squad.World, chokepoint.Value), false,
+					groupedActors: squad.OrderableUnits.ToArray()));
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -132,7 +140,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			fleeStartTick = squad.World.WorldTick;
 
-			var retreatCell = FindRetreatCell(squad);
+			var retreatCell = FindRetreatCell(squad, MinRetreatCells, MaxRetreatCells);
 			if (retreatCell.HasValue)
 			{
 				var target = Target.FromCell(squad.World, retreatCell.Value);
@@ -162,81 +170,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		public void Deactivate(CNSquad squad) { }
-
-		static CPos? FindRetreatCell(CNSquad squad)
-		{
-			var leader = squad.CenterUnit();
-			if (leader == null)
-				return null;
-
-			var mobile = leader.TraitOrDefault<Mobile>();
-			if (mobile == null)
-				return null;
-
-			var map = squad.World.Map;
-			var origin = leader.Location;
-			var baseCell = squad.SquadManager.GetRandomBaseCenter();
-			CPos? bestCell = null;
-			var bestScore = int.MinValue;
-
-			for (var dy = -MaxRetreatCells; dy <= MaxRetreatCells; dy++)
-			{
-				for (var dx = -MaxRetreatCells; dx <= MaxRetreatCells; dx++)
-				{
-					var distanceSquared = dx * dx + dy * dy;
-					if (distanceSquared < MinRetreatCells * MinRetreatCells ||
-						distanceSquared > MaxRetreatCells * MaxRetreatCells)
-						continue;
-
-					var candidate = origin + new CVec(dx, dy);
-					if (!map.Contains(candidate) || !mobile.CanEnterCell(candidate))
-						continue;
-
-					var score = ScoreRetreatCell(squad, candidate, baseCell);
-					if (score <= bestScore)
-						continue;
-
-					bestScore = score;
-					bestCell = candidate;
-				}
-			}
-
-			return bestCell;
-		}
-
-		static int ScoreRetreatCell(CNSquad squad, CPos candidate, CPos baseCell)
-		{
-			var candidatePos = squad.World.Map.CenterOfCell(candidate);
-			var closestEnemyDistance = int.MaxValue;
-			var closestThreatCell = CPos.Zero;
-			var foundThreat = false;
-
-			foreach (var actor in squad.World.FindActorsInCircle(candidatePos,
-				WDist.FromCells(squad.SquadManager.Info.DangerScanRadius + 4)))
-			{
-				if (!squad.SquadManager.IsPreferredEnemyUnit(actor) ||
-					!actor.Info.HasTraitInfo<AttackBaseInfo>())
-					continue;
-
-				var distance = (int)(actor.CenterPosition - candidatePos).LengthSquared;
-				if (distance < closestEnemyDistance)
-				{
-					closestEnemyDistance = distance;
-					closestThreatCell = actor.Location;
-					foundThreat = true;
-				}
-			}
-
-			var score = closestEnemyDistance == int.MaxValue ? 1000000 : closestEnemyDistance;
-			if (foundThreat)
-				score += (candidate - closestThreatCell).LengthSquared * 20;
-			if (squad.IsTargetValid)
-				score -= (candidate - squad.TargetActor.Location).LengthSquared * 2;
-			else
-				score -= (candidate - baseCell).LengthSquared * 2;
-
-			return score;
-		}
 
 		static bool IsCloakedOrUncloakable(Actor actor)
 		{

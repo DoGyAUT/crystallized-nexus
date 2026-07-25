@@ -102,6 +102,36 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return false;
 		}
 
+		/// <summary>
+		/// Fraction (0..1) of the squad's orderable units that have a weapon valid against the
+		/// given target's enabled target types. Used to bias target selection toward what the
+		/// squad's actual composition is equipped to fight — e.g. a squad that is mostly
+		/// anti-armor shouldn't keep picking infantry it can barely scratch when armor is nearby.
+		/// </summary>
+		public static double SquadEngageFraction(CNSquad squad, Actor target)
+		{
+			if (target == null || target.IsDead || !target.IsInWorld)
+				return 0;
+
+			var targetTypes = target.GetEnabledTargetTypes();
+			if (targetTypes.IsEmpty)
+				return 0;
+
+			var total = 0;
+			var canHit = 0;
+			foreach (var unit in squad.OrderableUnits)
+			{
+				if (unit == null || unit.IsDead || !unit.IsInWorld)
+					continue;
+
+				total++;
+				if (UnitHasWeaponFor(unit, targetTypes))
+					canHit++;
+			}
+
+			return total == 0 ? 0 : (double)canHit / total;
+		}
+
 		/// <summary>Closest enemy unit visible to the player and engageable by the squad (wide scan).</summary>
 		public static Actor FindClosestEnemyUnit(CNSquad squad)
 		{

@@ -11,6 +11,7 @@
 
 using System;
 using System.Linq;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
@@ -52,6 +53,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class ArtilleryHangBackState : CNStateBase, ICNState
 	{
+		const int HangBackSearchRadius = 4;
+
 		CPos? lastHangBackCell;
 
 		public void Activate(CNSquad squad) { lastHangBackCell = null; }
@@ -121,7 +124,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				hangBackPos = attachedLeader.CenterPosition;
 			}
 
-			var hangBackCell = squad.World.Map.CellContaining(hangBackPos);
+			var anchorCell = squad.World.Map.CellContaining(hangBackPos);
+			var hangBackCell = FindHangBackCell(squad, anchorCell);
 			if (hangBackCell == lastHangBackCell)
 				return;
 
@@ -129,6 +133,43 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			foreach (var unit in squad.OrderableUnits)
 				squad.Bot.QueueOrder(new Order("AttackMove", unit,
 					Target.FromCell(squad.World, hangBackCell), false));
+		}
+
+		// Refines the raw vector-offset anchor: must be enterable terrain, and among enterable
+		// candidates nearby, prefers higher ground (better sightline/range) while staying close
+		// to the intended hang-back position. Falls back to the anchor itself if nothing better
+		// is enterable (e.g. locomotor unavailable, or the anchor is already the best option).
+		static CPos FindHangBackCell(CNSquad squad, CPos anchor)
+		{
+			var map = squad.World.Map;
+			if (!map.Contains(anchor))
+				return anchor;
+
+			var mobile = squad.OrderableUnits.FirstOrDefault(u => !u.IsDead && u.IsInWorld)?.TraitOrDefault<Mobile>();
+			if (mobile == null)
+				return anchor;
+
+			CPos? best = null;
+			var bestScore = int.MinValue;
+
+			for (var dy = -HangBackSearchRadius; dy <= HangBackSearchRadius; dy++)
+			{
+				for (var dx = -HangBackSearchRadius; dx <= HangBackSearchRadius; dx++)
+				{
+					var cell = anchor + new CVec(dx, dy);
+					if (!map.Contains(cell) || !mobile.CanEnterCell(cell))
+						continue;
+
+					var score = map.Height[cell] * 40 - (dx * dx + dy * dy);
+					if (score <= bestScore)
+						continue;
+
+					bestScore = score;
+					best = cell;
+				}
+			}
+
+			return best ?? anchor;
 		}
 
 		static Actor FindCoordinatedTarget(CNSquad squad)
@@ -191,6 +232,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			staleTicks = 0;
+
+			// Kill-securing: finish off a critically damaged enemy in easy reach before
+			// continuing to bombard the main target — a near-dead unit contributes nothing
+			// further, so the free kill denies the enemy that unit's cost.
+			var bombardCenter = squad.CenterUnit();
+			if (bombardCenter != null)
+			{
+				var killSecureTarget = FindKillSecureTarget(squad, bombardCenter.CenterPosition);
+				if (killSecureTarget != null && killSecureTarget != squad.TargetActor)
+					squad.SetActorToTarget(killSecureTarget);
+			}
 
 			// Issue attack orders only to units not already attacking
 			foreach (var unit in squad.OrderableUnits)

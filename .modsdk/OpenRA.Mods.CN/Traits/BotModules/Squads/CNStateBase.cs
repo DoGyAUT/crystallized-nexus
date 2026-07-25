@@ -113,6 +113,151 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				.MinByOrDefault(a => (a.CenterPosition - center).LengthSquared);
 		}
 
+		protected const int KillSecureRadiusCells = 6;
+
+		/// <summary>
+		/// Nearest critically-damaged enemy the squad can engage within a short radius. A near-dead
+		/// unit contributes nothing further to the fight it's already losing, so finishing it off
+		/// before continuing the main push denies the enemy a free reprieve and secures the kill.
+		/// </summary>
+		protected static Actor FindKillSecureTarget(CNSquad squad, WPos center)
+		{
+			return squad.World.FindActorsInCircle(center, WDist.FromCells(KillSecureRadiusCells))
+				.Where(a => squad.SquadManager.IsPreferredEnemyUnit(a) &&
+					a.Info.HasTraitInfo<AttackBaseInfo>() &&
+					(a.TraitOrDefault<IHealth>()?.DamageState ?? DamageState.Undamaged) >= DamageState.Critical &&
+					CNSquadHelper.CanSquadEngage(squad, a))
+				.MinByOrDefault(a => (a.CenterPosition - center).LengthSquared);
+		}
+
+		/// <summary>
+		/// Nearest "useful" chokepoint (bridge/ramp/passage the bot's own topology scan considers
+		/// reachable and non-dead-end) that the squad isn't already sitting on. Raid-style squads
+		/// (Raider, Stealth) that found no target this pass reposition here instead of sitting still,
+		/// increasing the chance of catching enemy traffic on a later scan. Returns null if the
+		/// tactical map module isn't attached or has no useful chokepoints for this base.
+		/// </summary>
+		protected static CPos? FindAmbushChokepoint(CNSquad squad, Actor center)
+		{
+			if (center == null)
+				return null;
+
+			var tacticalMap = squad.SquadManager.GetTacticalMap();
+			if (tacticalMap == null)
+				return null;
+
+			var chokepoints = tacticalMap.GetUsefulChokepointsForOwnBase();
+			if (chokepoints.Count == 0)
+				return null;
+
+			CPos? best = null;
+			var bestDistSq = long.MaxValue;
+			foreach (var chokepoint in chokepoints)
+			{
+				var distSq = (chokepoint.Cell - center.Location).LengthSquared;
+				if (distSq <= 16 || distSq >= bestDistSq)
+					continue;
+
+				bestDistSq = distSq;
+				best = chokepoint.Cell;
+			}
+
+			return best;
+		}
+
+		// --- Retreat cell search (shared by Raider/Stealth flee states) ---
+
+		/// <summary>
+		/// Finds the best cell in a ring around the squad leader to retreat to: far from threats,
+		/// close to the target/base. Scans a ring between minRetreatCells and maxRetreatCells.
+		/// </summary>
+		protected static CPos? FindRetreatCell(CNSquad squad, int minRetreatCells, int maxRetreatCells)
+		{
+			var leader = squad.CenterUnit();
+			if (leader == null)
+				return null;
+
+			var mobile = leader.TraitOrDefault<Mobile>();
+			if (mobile == null)
+				return null;
+
+			var map = squad.World.Map;
+			var origin = leader.Location;
+			var baseCell = squad.SquadManager.GetRandomBaseCenter();
+			var dangerRadiusCells = Math.Max(0, squad.SquadManager.Info.DangerScanRadius) + 4;
+
+			// One scan covering every candidate's detection radius, instead of a separate
+			// FindActorsInCircle call per candidate cell (up to ~800+ candidates in the ring).
+			var scanRadius = WDist.FromCells(maxRetreatCells + dangerRadiusCells);
+			var threats = squad.World.FindActorsInCircle(leader.CenterPosition, scanRadius)
+				.Where(a => squad.SquadManager.IsPreferredEnemyUnit(a) && a.Info.HasTraitInfo<AttackBaseInfo>())
+				.Select(a => (Pos: a.CenterPosition, Cell: a.Location))
+				.ToList();
+
+			var perCandidateRangeSq = (long)WDist.FromCells(dangerRadiusCells).Length * WDist.FromCells(dangerRadiusCells).Length;
+
+			CPos? bestCell = null;
+			var bestScore = int.MinValue;
+
+			for (var dy = -maxRetreatCells; dy <= maxRetreatCells; dy++)
+			{
+				for (var dx = -maxRetreatCells; dx <= maxRetreatCells; dx++)
+				{
+					var distanceSquared = dx * dx + dy * dy;
+					if (distanceSquared < minRetreatCells * minRetreatCells ||
+						distanceSquared > maxRetreatCells * maxRetreatCells)
+						continue;
+
+					var candidate = origin + new CVec(dx, dy);
+					if (!map.Contains(candidate) || !mobile.CanEnterCell(candidate))
+						continue;
+
+					var score = ScoreRetreatCell(squad, candidate, baseCell, threats, perCandidateRangeSq);
+					if (score <= bestScore)
+						continue;
+
+					bestScore = score;
+					bestCell = candidate;
+				}
+			}
+
+			return bestCell;
+		}
+
+		static int ScoreRetreatCell(
+			CNSquad squad, CPos candidate, CPos baseCell,
+			List<(WPos Pos, CPos Cell)> threats, long perCandidateRangeSq)
+		{
+			var candidatePos = squad.World.Map.CenterOfCell(candidate);
+			var closestEnemyDistance = int.MaxValue;
+			var closestThreatCell = CPos.Zero;
+			var foundThreat = false;
+
+			foreach (var (pos, cell) in threats)
+			{
+				var distance = (pos - candidatePos).LengthSquared;
+				if (distance > perCandidateRangeSq)
+					continue;
+
+				if (distance < closestEnemyDistance)
+				{
+					closestEnemyDistance = (int)distance;
+					closestThreatCell = cell;
+					foundThreat = true;
+				}
+			}
+
+			var score = closestEnemyDistance == int.MaxValue ? 1000000 : closestEnemyDistance;
+			if (foundThreat)
+				score += (candidate - closestThreatCell).LengthSquared * 20;
+			if (squad.IsTargetValid)
+				score -= (candidate - squad.TargetActor.Location).LengthSquared * 2;
+			else
+				score -= (candidate - baseCell).LengthSquared * 2;
+
+			return score;
+		}
+
 		// --- Flee decision ---
 		protected virtual bool ShouldFlee(CNSquad squad)
 		{

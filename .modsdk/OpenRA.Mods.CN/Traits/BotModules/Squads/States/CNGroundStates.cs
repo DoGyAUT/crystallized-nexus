@@ -107,7 +107,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// only filters IsLiveEnemyActor, so the buildings loop still checks visibility itself.
 			foreach (var actor in squad.SquadManager.GetCachedEnemyUnits())
 			{
-				var score = ScoreRushTarget(leader, actor);
+				var score = ScoreRushTarget(squad, leader, actor);
 				if (score < bestScore)
 				{
 					bestScore = score;
@@ -119,7 +119,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				if (!actor.CanBeViewedByPlayer(squad.Bot.Player))
 					continue;
-				var score = ScoreRushTarget(leader, actor);
+				var score = ScoreRushTarget(squad, leader, actor);
 				if (score < bestScore)
 				{
 					bestScore = score;
@@ -130,7 +130,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			return bestTarget ?? defaultTarget;
 		}
 
-		static int ScoreRushTarget(Actor leader, Actor target)
+		static int ScoreRushTarget(CNSquad squad, Actor leader, Actor target)
 		{
 			if (leader == null || target == null || leader.IsDead || target.IsDead || !leader.IsInWorld || !target.IsInWorld)
 				return int.MaxValue;
@@ -147,6 +147,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				target.Info.Name.Contains("proc", StringComparison.OrdinalIgnoreCase) ||
 				target.Info.Name.Contains("ref", StringComparison.OrdinalIgnoreCase))
 				score -= 220;
+
+			// Prefer targets the squad's actual composition can hit well, so a squad heavy on
+			// anti-armor doesn't keep picking infantry it can barely scratch when armor is nearby.
+			score -= (int)(CNSquadHelper.SquadEngageFraction(squad, target) * 150);
 
 			return score;
 		}
@@ -393,13 +397,25 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			var nearbyBuilding = FindNearbyEnemyBuilding(squad, leader.CenterPosition,
-				squad.SquadManager.Info.AttackScanRadius * 2);
-			if (nearbyBuilding != null && nearbyBuilding != squad.TargetActor)
+			// Kill-securing takes priority over re-targeting a nearby building this tick — a
+			// near-dead enemy in easy reach is finished off before the squad moves on.
+			var killSecureTarget = FindKillSecureTarget(squad, leader.CenterPosition);
+			if (killSecureTarget != null && killSecureTarget != squad.TargetActor)
 			{
-				squad.SetActorToTarget(nearbyBuilding);
-				lastTarget = nearbyBuilding;
+				squad.SetActorToTarget(killSecureTarget);
+				lastTarget = killSecureTarget;
 				lastUpdatedTick = squad.World.WorldTick;
+			}
+			else
+			{
+				var nearbyBuilding = FindNearbyEnemyBuilding(squad, leader.CenterPosition,
+					squad.SquadManager.Info.AttackScanRadius * 2);
+				if (nearbyBuilding != null && nearbyBuilding != squad.TargetActor)
+				{
+					squad.SetActorToTarget(nearbyBuilding);
+					lastTarget = nearbyBuilding;
+					lastUpdatedTick = squad.World.WorldTick;
+				}
 			}
 
 			// Stuck detection

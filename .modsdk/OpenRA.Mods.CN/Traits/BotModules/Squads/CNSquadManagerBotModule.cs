@@ -427,6 +427,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// Nemesis system
 		CombatAnalysisBotModule combatAnalysis;
 		CNBaseBuilderBotModule baseBuilder;
+		CNTacticalMapBotModule tacticalMap;
 		CPos initialBaseCenter;
 
 		// Wave manager state
@@ -476,6 +477,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				.FirstOrDefault();
 			baseBuilder = Player.PlayerActor
 				.TraitsImplementing<CNBaseBuilderBotModule>()
+				.FirstOrDefault();
+			tacticalMap = Player.PlayerActor
+				.TraitsImplementing<CNTacticalMapBotModule>()
 				.FirstOrDefault();
 
 			foreach (var (_, rule) in Info.NeedRules)
@@ -599,6 +603,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public bool IsNemesis(Player player) =>
 			combatAnalysis?.GetNemesis() == player && player != null;
+
+		public CNTacticalMapBotModule GetTacticalMap() => tacticalMap;
 
 		static bool IsValidAttackResponseTarget(Actor attacker)
 		{

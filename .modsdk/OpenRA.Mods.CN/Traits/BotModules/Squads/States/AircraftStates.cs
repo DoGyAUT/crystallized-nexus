@@ -179,6 +179,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			score += ScoreTemplateTargetPreference(squad, target);
 			score += ScoreAircraftThreatAtTarget(squad, aircraft, target);
+
+			// Prefer targets the squad's actual composition can hit well (e.g. a mixed squad with
+			// only some anti-air-capable units shouldn't keep picking a target only half the squad
+			// can actually engage).
+			score -= (int)(CNSquadHelper.SquadEngageFraction(squad, target) * 150);
+
 			return score;
 		}
 
