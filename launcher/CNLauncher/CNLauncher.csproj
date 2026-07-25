@@ -7,14 +7,18 @@
     <Nullable>enable</Nullable>
     <AssemblyName>CNLauncher</AssemblyName>
     <RootNamespace>CNLauncher</RootNamespace>
-    <ApplicationIcon>logo.ico</ApplicationIcon>
 
-    <!-- Published as a single self-contained file so testers don't need the .NET runtime installed. -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Published as a single self-contained file so testers don't need the .NET runtime installed.
+         Build with -r win-x64 or -r linux-x64 to select the target platform. -->
+    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+    <ApplicationIcon>logo.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

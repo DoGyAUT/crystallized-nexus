@@ -9,16 +9,30 @@ static class Program
 {
 	const string RepoOwner = "DoGyAUT";
 	const string RepoName = "crystallized-nexus";
-	const string GameExeName = "CrystallizedNexus.exe";
+
+	// Windows ships a "winportable" zip (flat folder, CrystallizedNexus.exe at the root).
+	// Linux ships a single self-mounting AppImage - no extraction, just chmod +x and run.
+	// The AppImage's AppRun script execs "usr/bin/openra-cn" internally, so that's the
+	// process name to watch for, not the AppImage filename itself.
+	const string WindowsGameExeName = "CrystallizedNexus.exe";
+	const string LinuxGameFileName = "CrystallizedNexus.AppImage";
+	const string LinuxGameProcessName = "openra-cn";
 
 	static readonly string LauncherDir = AppContext.BaseDirectory;
 	static readonly string GameDir = Path.Combine(LauncherDir, "game");
 	static readonly string VersionFile = Path.Combine(LauncherDir, "version.txt");
-	static readonly string GameExe = Path.Combine(GameDir, GameExeName);
+	static readonly string GameExe = Path.Combine(GameDir, OperatingSystem.IsWindows() ? WindowsGameExeName : LinuxGameFileName);
 
 	static async Task<int> Main(string[] args)
 	{
 		Console.WriteLine("Crystallized Nexus test launcher");
+
+		if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+		{
+			Console.WriteLine("Unsupported platform (only Windows and Linux builds are published).");
+			Pause();
+			return 1;
+		}
 
 		using var http = new HttpClient();
 		http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("CNLauncher", "1.0"));
@@ -81,8 +95,9 @@ static class Program
 
 	static bool WaitForGameToClose()
 	{
-		bool IsRunning() => Process.GetProcessesByName("OpenRA").Length > 0
-			|| Process.GetProcessesByName("CrystallizedNexus").Length > 0;
+		bool IsRunning() => OperatingSystem.IsWindows()
+			? Process.GetProcessesByName("OpenRA").Length > 0 || Process.GetProcessesByName("CrystallizedNexus").Length > 0
+			: Process.GetProcessesByName(LinuxGameProcessName).Length > 0;
 
 		while (IsRunning())
 		{
@@ -116,15 +131,25 @@ static class Program
 		return new Release(tagName, assets);
 	}
 
-	static async Task DownloadAndInstall(HttpClient http, Release release)
+	static ReleaseAsset PickAsset(Release release)
 	{
 		// The packaging workflow attaches Windows (x86 + x64), Linux and macOS assets to the
-		// same release - pick the Windows x64 "winportable" zip (flat folder, no installer).
-		var asset = release.Assets.FirstOrDefault(a =>
-				a.Name.Contains("winportable", StringComparison.OrdinalIgnoreCase) &&
-				a.Name.Contains("x64", StringComparison.OrdinalIgnoreCase))
-			?? throw new InvalidOperationException($"Release {release.TagName} has no Windows x64 winportable asset.");
+		// same release.
+		if (OperatingSystem.IsWindows())
+		{
+			return release.Assets.FirstOrDefault(a =>
+					a.Name.Contains("winportable", StringComparison.OrdinalIgnoreCase) &&
+					a.Name.Contains("x64", StringComparison.OrdinalIgnoreCase))
+				?? throw new InvalidOperationException($"Release {release.TagName} has no Windows x64 winportable asset.");
+		}
 
+		return release.Assets.FirstOrDefault(a => a.Name.EndsWith(".AppImage", StringComparison.OrdinalIgnoreCase))
+			?? throw new InvalidOperationException($"Release {release.TagName} has no Linux AppImage asset.");
+	}
+
+	static async Task DownloadAndInstall(HttpClient http, Release release)
+	{
+		var asset = PickAsset(release);
 		Console.WriteLine($"Downloading {asset.Name}...");
 
 		// Private-repo release assets must be fetched via the API asset endpoint with an
@@ -138,21 +163,37 @@ static class Program
 		using var response = await http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 
-		var zipPath = Path.Combine(Path.GetTempPath(), $"cn-launcher-{Guid.NewGuid():N}.zip");
-		await using (var fileStream = File.Create(zipPath))
-			await response.Content.CopyToAsync(fileStream);
-
-		Console.WriteLine("Extracting...");
-		try
+		if (OperatingSystem.IsWindows())
 		{
-			if (Directory.Exists(GameDir))
-				Directory.Delete(GameDir, recursive: true);
+			var zipPath = Path.Combine(Path.GetTempPath(), $"cn-launcher-{Guid.NewGuid():N}.zip");
+			await using (var fileStream = File.Create(zipPath))
+				await response.Content.CopyToAsync(fileStream);
 
-			ZipFile.ExtractToDirectory(zipPath, GameDir);
+			Console.WriteLine("Extracting...");
+			try
+			{
+				if (Directory.Exists(GameDir))
+					Directory.Delete(GameDir, recursive: true);
+
+				ZipFile.ExtractToDirectory(zipPath, GameDir);
+			}
+			finally
+			{
+				File.Delete(zipPath);
+			}
 		}
-		finally
+		else
 		{
-			File.Delete(zipPath);
+			// The AppImage is a single self-mounting executable - no extraction needed,
+			// just write it out and mark it executable.
+			Directory.CreateDirectory(GameDir);
+			await using (var fileStream = File.Create(GameExe))
+				await response.Content.CopyToAsync(fileStream);
+
+			File.SetUnixFileMode(GameExe,
+				UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+				UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+				UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
 		}
 	}
 
@@ -165,8 +206,8 @@ static class Program
 			return 1;
 		}
 
-		// The packaged winportable launcher exe already has the mod/engine/search-path
-		// arguments baked in - no extra arguments needed here.
+		// The packaged launcher (Windows exe / Linux AppRun) already has the mod/engine/
+		// search-path arguments baked in - no extra arguments needed here.
 		var psi = new ProcessStartInfo(GameExe)
 		{
 			WorkingDirectory = GameDir,
