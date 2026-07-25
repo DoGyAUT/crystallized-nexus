@@ -214,8 +214,17 @@ UI & PLAYER
   PlayerDefeatedAnnouncer
     Announces when a player is defeated.
 
+  Defeated Player Strikethrough
+    Player-list name gets a strikethrough once WinState == Lost
+    (GameInfoStatsLogic sets LabelWidget.IsStrikethroughVisible). Requires
+    the paired engine patch (see ENGINE PATCHES: Label Strikethrough) —
+    the Strikethrough rendering support doesn't exist in vanilla LabelWidget.
+
   BotPlayerNames
-    Custom named bot personalities.
+    Deterministic, faction-specific display names for bots (stable per
+    lobby seed, with optional bot-type labels). Requires the paired engine
+    patch (see ENGINE PATCHES: Player Name Resolver Hook) — the
+    IResolvePlayerName hook it implements doesn't exist in vanilla OpenRA.
 
 
 AUDIO
@@ -441,6 +450,33 @@ ENGINE PATCHES  (CN fork — not in mainline OpenRA)
     Road split logic (SplitRoadRun): roads end cleanly before ramps with
     3-wide end-cap tiles instead of painting over slope tiles.
     Ramp guard (tileType > 0 check) prevents roads from overwriting ramps.
+
+  Player Name Resolver Hook  [Player.cs, TraitsInterfaces.cs]
+    New IResolvePlayerName interface (ResolvePlayerName(Player)); Player.cs
+    queries every PlayerActor trait implementing it and uses the first
+    non-null result as the display name. Doesn't exist in vanilla OpenRA —
+    added purely so the mod-side BotPlayerNames trait (see UI & PLAYER)
+    has somewhere to plug in.
+
+  Label Strikethrough  [LabelWidget.cs]
+    LabelWidgetInfo gained Strikethrough (bool) and IsStrikethroughVisible
+    (Func<bool>) — draws a 1px horizontal line through the text when true.
+    Generic widget-level support; not present in vanilla OpenRA. Consumed
+    by GameInfoStatsLogic to strike through a defeated player's name in
+    the player list (see UI & PLAYER: Defeated Player Strikethrough).
+
+  Missile Enhancements  [Missile.cs, IJammableProjectile.cs]
+    Three additions, none in vanilla OpenRA:
+    (1) Second overlaid trail image (Trail2Image/Trail2Sequences/
+    Trail2Palette/Trail2Interval/Trail2WhenDeactivated) so a missile can
+    render two independent trail animations (e.g. smoke + fire) at once.
+    (2) IJammableProjectile interface (IsJammable/SourceActor/GuidedTarget/
+    Position), implemented by Missile — plumbing only, nothing currently
+    reads it (no consumer in engine or mod yet).
+    (3) Correctness fix: clamp h1 into [0, 2*loopRadius] in the homing
+    inner-tick loop-geometry math so ISqrt is never fed a negative value
+    when a slow/agile missile (small loopRadius) must climb more than a
+    full loop diameter (e.g. a tall cliff).
 
   Named Handicap Tiers  [LobbyUtils.cs]
     Lobby's generic 0-95% handicap slider is replaced with Easy/Normal/Hard/
