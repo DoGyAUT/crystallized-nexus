@@ -9,12 +9,12 @@ static class Program
 {
 	const string RepoOwner = "DoGyAUT";
 	const string RepoName = "crystallized-nexus";
-	const string ModId = "cn";
+	const string GameExeName = "CrystallizedNexus.exe";
 
 	static readonly string LauncherDir = AppContext.BaseDirectory;
 	static readonly string GameDir = Path.Combine(LauncherDir, "game");
 	static readonly string VersionFile = Path.Combine(LauncherDir, "version.txt");
-	static readonly string EngineExe = Path.Combine(GameDir, "engine", "bin", "OpenRA.exe");
+	static readonly string GameExe = Path.Combine(GameDir, GameExeName);
 
 	static async Task<int> Main(string[] args)
 	{
@@ -81,7 +81,10 @@ static class Program
 
 	static bool WaitForGameToClose()
 	{
-		while (Process.GetProcessesByName("OpenRA").Length > 0)
+		bool IsRunning() => Process.GetProcessesByName("OpenRA").Length > 0
+			|| Process.GetProcessesByName("CrystallizedNexus").Length > 0;
+
+		while (IsRunning())
 		{
 			Console.WriteLine("Please close the running game before updating, then press Enter.");
 			Console.ReadLine();
@@ -115,8 +118,12 @@ static class Program
 
 	static async Task DownloadAndInstall(HttpClient http, Release release)
 	{
-		var asset = release.Assets.FirstOrDefault(a => a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-			?? throw new InvalidOperationException($"Release {release.TagName} has no .zip asset.");
+		// The packaging workflow attaches Windows (x86 + x64), Linux and macOS assets to the
+		// same release - pick the Windows x64 "winportable" zip (flat folder, no installer).
+		var asset = release.Assets.FirstOrDefault(a =>
+				a.Name.Contains("winportable", StringComparison.OrdinalIgnoreCase) &&
+				a.Name.Contains("x64", StringComparison.OrdinalIgnoreCase))
+			?? throw new InvalidOperationException($"Release {release.TagName} has no Windows x64 winportable asset.");
 
 		Console.WriteLine($"Downloading {asset.Name}...");
 
@@ -151,23 +158,20 @@ static class Program
 
 	static int LaunchGame()
 	{
-		if (!File.Exists(EngineExe))
+		if (!File.Exists(GameExe))
 		{
-			Console.WriteLine($"Could not find {EngineExe}.");
+			Console.WriteLine($"Could not find {GameExe}.");
 			Pause();
 			return 1;
 		}
 
-		var modsPath = Path.Combine(GameDir, "mods");
-		var psi = new ProcessStartInfo(EngineExe)
+		// The packaged winportable launcher exe already has the mod/engine/search-path
+		// arguments baked in - no extra arguments needed here.
+		var psi = new ProcessStartInfo(GameExe)
 		{
-			WorkingDirectory = Path.GetDirectoryName(EngineExe),
+			WorkingDirectory = GameDir,
 			UseShellExecute = false,
 		};
-
-		psi.ArgumentList.Add($"Game.Mod={ModId}");
-		psi.ArgumentList.Add("Engine.EngineDir=..");
-		psi.ArgumentList.Add($"Engine.ModSearchPaths={modsPath},./mods");
 
 		Console.WriteLine("Starting game...");
 		using var process = Process.Start(psi);
