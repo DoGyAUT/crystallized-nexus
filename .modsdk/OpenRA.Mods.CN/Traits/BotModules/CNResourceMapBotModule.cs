@@ -256,9 +256,20 @@ namespace OpenRA.Mods.Common.Traits
 
 			for (var i = 0; i < offsets.Length; i++)
 			{
+				// Bound the column before folding into the flat index — otherwise a column that
+				// walks off the left/right edge silently wraps into the previous/next row instead
+				// of being excluded, corrupting the threat score for edge-of-map indices.
+				var nx = x + offsets[i];
+				if (nx < 0 || nx >= resourceMapIndicesColumnCount)
+					continue;
+
 				for (var j = 0; j < offsets.Length; j++)
 				{
-					var offsetIndex = x + offsets[i] + (y + offsets[j]) * resourceMapIndicesColumnCount;
+					var ny = y + offsets[j];
+					if (ny < 0 || ny >= resourceMapIndicesRowCount)
+						continue;
+
+					var offsetIndex = nx + ny * resourceMapIndicesColumnCount;
 					if (offsetIndex == index || offsetIndex < 0 || offsetIndex >= resourceMapIndices.Length)
 						continue;
 

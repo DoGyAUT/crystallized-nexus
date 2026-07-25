@@ -392,8 +392,35 @@ namespace OpenRA.Mods.CN.Traits
 				unit.Location.X + (int)(toTarget.X * ratio),
 				unit.Location.Y + (int)(toTarget.Y * ratio));
 
-			if (cell != unit.Location)
-				bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, cell), false));
+			if (cell == unit.Location)
+				return;
+
+			var mobile = unit.TraitOrDefault<Mobile>();
+			if (mobile != null && (!world.Map.Contains(cell) || !mobile.CanEnterCell(cell)))
+			{
+				var validCell = FindNearestValidMoveCell(mobile, cell);
+				if (!validCell.HasValue || validCell.Value == unit.Location)
+					return;
+
+				cell = validCell.Value;
+			}
+
+			bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, cell), false));
+		}
+
+		CPos? FindNearestValidMoveCell(Mobile mobile, CPos around)
+		{
+			for (var radius = 1; radius <= 4; radius++)
+			{
+				var best = world.Map.FindTilesInAnnulus(around, radius, radius)
+					.Where(c => world.Map.Contains(c) && mobile.CanEnterCell(c))
+					.MinByOrDefault(c => (c - around).LengthSquared);
+
+				if (best != default)
+					return best;
+			}
+
+			return null;
 		}
 
 		Actor FindNearestEnemy(Actor unit, int radius)

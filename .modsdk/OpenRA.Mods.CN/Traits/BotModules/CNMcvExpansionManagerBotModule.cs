@@ -697,7 +697,7 @@ namespace OpenRA.Mods.Common.Traits
 				case BotMcvExpansionMode.CheckResource:
 
 					var cr_refinarylocs = world.ActorsHavingTrait<Refinery>()
-						.Where(a => a.Owner == player && resourceMapModule.Info.RefineryTypes.Contains(a.Info.Name))
+						.Where(a => a.Owner.IsAlliedWith(player) && resourceMapModule.Info.RefineryTypes.Contains(a.Info.Name))
 						.Select(a => (a.Location, a.Owner != player))
 						.ToArray();
 
