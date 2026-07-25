@@ -24,6 +24,15 @@ RENDERING & VOXELS
   PeriodicSpriteEffect
     Periodic sprite effects (e.g. idle animations).
 
+  VoxelShadowSmoothing
+    Smooths the ground height/orientation used by projected voxel shadows
+    for hovering/flying units (forward-sampled, like Aircraft's own
+    TerrainAltitudeSmoothing). UseTerrainOrientation: false converges the
+    shadow to flat instead of tracking discrete ramp orientation. Requires
+    the paired engine patch (see ENGINE PATCHES: Voxel Shadow
+    Ground-Orientation Hook) — without it, ShadowGroundOrientation is
+    computed but never consumed by the renderer.
+
 
 WEATHER & ATMOSPHERE
 --------------------
@@ -229,5 +238,15 @@ ENGINE PATCHES  (CN fork — not in mainline OpenRA)
     Brutal for the cn mod only (gated on Game.ModData.Manifest.Id == "cn";
     other internal mods keep the vanilla % slider). Session.Client.Handicap
     holds a small tier index (0=Normal,1=Easy,2=Hard,3=Brutal), not a percent.
+
+  Voxel Shadow Ground-Orientation Hook  [RenderVoxels.cs, ModelRenderable.cs]
+    IRenderVoxelShadowModifier gained ShadowGroundOrientation alongside the
+    existing ShadowGroundZ, threaded through ModelRenderable /
+    FinalizedModelRenderable the same way. Previously the shadow's ground
+    orientation was always sampled live per-frame from the actor's current
+    cell with no smoothing, so hovering/flying voxels crossing a ramp cell
+    boundary would see their shadow's projection matrix snap discontinuously.
+    Falls back to the live per-cell lookup when no modifier overrides it.
+    Consumed by the mod's VoxelShadowSmoothing trait (see RENDERING & VOXELS).
 
 ================================================================================
