@@ -432,9 +432,10 @@ ENGINE PATCHES  (CN fork — not in mainline OpenRA)
     glDepthMask(false) for additive / subtractive blend modes. Prevents
     additive sprites from punching through opaque geometry.
 
-  Multi-Cell Mobile  [Mobile.cs]
-    Multi-cell footprint support for mobile units, mirroring Building.cs
-    pattern. Uses local A* instead of HPA* pathfinding.
+  Multi-Cell Mobile  [SHELVED — not currently in the codebase]
+    Was planned: multi-cell footprint support for mobile units, mirroring
+    Building.cs pattern, local A* instead of HPA* pathfinding. Put on hold;
+    may be revisited later. Nothing to carry through the bleed upgrade.
 
   TSMapGenerator Extensions  [TSMapGenerator.cs]
     Road split logic (SplitRoadRun): roads end cleanly before ramps with
