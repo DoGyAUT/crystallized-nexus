@@ -190,7 +190,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			if (!squad.IsOperational)
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
+				// Route back through the squad's own role state machine instead of hardcoding the
+				// ground flee/dissolve path — WaveParticipantRoles also includes Artillery and
+				// Subterranean squads, whose own flee states explicitly persist and reform rather
+				// than dissolving (see ArtilleryFleeState / SubAssaultReburrowState). Retreat orders
+				// are still generic and issued regardless of role.
+				Retreat(squad, flee: true, rearm: true, repair: true);
+				squad.SquadManager.InitializeSquadStateForRole(squad);
 				return;
 			}
 
