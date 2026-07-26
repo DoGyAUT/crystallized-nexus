@@ -181,7 +181,6 @@ gaspotter:
 	Inherits@attack: ^BasicInfantryAttack
 	Defaults:
 		Filename: gaspotter.shp
-	Defaults:
 		Tick: 80
 		Offset: 0, 0, 16
 	stand:
@@ -255,6 +254,91 @@ gaspotter.member:
 	Inherits@attack: ^BasicInfantryAttack
 	Defaults:
 		Filename: gaspotter.shp
+
+gmisinf:
+	Inherits: ^BasicInfantry
+	Inherits@attack: ^BasicInfantryAttack
+	Defaults:
+		Filename: gmisinf.shp
+		Tick: 80
+		Offset: 0, 0, 16
+	stand:
+		Facings: 8
+		ShadowStart: 468
+	run:
+		Start: 8
+		Length: 10
+		Facings: 8
+		ShadowStart: 476
+	idle1:
+		Start: 168
+		Length: 20
+		ShadowStart: 636
+	idle2:
+		Start: 188
+		Length: 20
+		ShadowStart: 656
+	attack:
+		Start: 88
+		Length: 10
+		Facings: 8
+		ShadowStart: 556
+	attack-muzzle:
+		Start: 88
+		Length: 10
+		Facings: 8
+		ShadowStart: 556
+		IgnoreWorldTint: True
+	prone-attack:
+		Start: 368
+		Length: 10
+		Facings: 8
+		ShadowStart: 836
+	prone-attack-muzzle:
+		Start: 368
+		Length: 10
+		Facings: 8
+		ShadowStart: 836
+		IgnoreWorldTint: True
+	prone-run:
+		Start: 288
+		Length: 10
+		Facings: 8
+		ShadowStart: 756
+	prone-stand:
+		Start: 280
+		Facings: 8
+		Stride: 1
+		ShadowStart: 748
+	die-twirling:
+		Start: 208
+		Length: 20
+		ShadowStart: 676
+	die-flying:
+		Start: 228
+		Length: 20
+		ShadowStart: 696
+	die-exploding:
+		Filename: death_explode.shp
+		Length: *
+	die-crushed:
+		Start: 217
+		Length: 5
+		ShadowStart: 685
+		Tick: 800
+		ZOffset: -511
+	standup:
+		Start: 248
+		Length: 2
+		Facings: 8
+		ShadowStart: 716
+	die-melting:
+		Filename: electro.shp
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+		Length: *
+		IgnoreWorldTint: True
+	icon:
+		Filename: gmisinficon.shp
 
 nasol:
 	Inherits: ^BasicInfantry

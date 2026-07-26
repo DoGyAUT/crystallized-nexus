@@ -38,6 +38,18 @@ E2R3.Member:
 	RenderSprites:
 		Image: E2
 
+GMISINF.Member:
+	Inherits: GMISINF
+	Inherits@SQUAD: ^MobSquadMember
+	-MobSpawnerMaster:
+	-SelectionDecorations:
+	-Buildable:
+	-UpdatesPlayerStatistics:
+	-ProducibleWithLevel:
+	-BotCapabilities:
+	RenderSprites:
+		Image: GMISINF
+
 GASPOTTER.Member:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
