@@ -196,8 +196,8 @@
 		Shadow: true
 		Inaccuracy: 0c256
 		Image: missile
-		HorizontalRateOfTurn: 15
-		VerticalRateOfTurn: 17
+		HorizontalRateOfTurn: 24
+		VerticalRateOfTurn: 28
 		TrailImage: durasmoke_large
 		TrailPalette: effect
 		Trail2Image: htrail
