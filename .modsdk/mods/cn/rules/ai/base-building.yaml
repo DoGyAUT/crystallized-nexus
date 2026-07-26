@@ -8,6 +8,9 @@ Player:
 		TopologyLocomotors: tracked
 		ChokepointSealMaxWidth: 15
 
+	CNGarrisonBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+
 	CNBaseBuilderBotModule@cn:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		
@@ -49,7 +52,7 @@ Player:
 		ProductionTypes: gapile, nahand, gaweap, naweap, gahpad, nahpad
 		TechTypes: garadr, naradr, gaarmory, gatech, gadept, gaplug, natmpl, namisl, napyra
 		SiloTypes: gasilo
-		DefenseTypes: gamg, gagat, gasam, gacan, gasen, gamortar, nalasr, nasam, naflamer, nagat, naobel, napuls
+		DefenseTypes: gamg, gagat, gasam, gacan, gasen, gamortar, gafort, nalasr, nasam, naflamer, nagat, naobel, napuls
 		MaxRefineriesPerCluster: 2
 		RefineryClusterRadius: 10
 		MaxResourceCellsToCheck: 16
@@ -66,7 +69,7 @@ Player:
 		StructureProductionResumeDelay: 3000
 		WallTypes: gawall, nawall
 		GateTypes: gagate_a, gagate_b, nagate_a, nagate_b
-		ProtectedByWalls: gaarmory, gatech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls
+		ProtectedByWalls: gaarmory, gatech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls, gafort
 		EnableChokepointSealing: true
 		BasePerimeterWallMinimumStructures: 8
 		BasePerimeterWallPadding: 4

@@ -41,6 +41,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Special (Obelisk, EMP): outermost radius on enemy approach vector.</summary>
 		Special,
+
+		/// <summary>Garrison bunker: universal role (garrisoned infantry mix adapts to local need), placed like artillery.</summary>
+		GarrisonDefense,
 	}
 
 	public class CNBuildingLayoutEntry

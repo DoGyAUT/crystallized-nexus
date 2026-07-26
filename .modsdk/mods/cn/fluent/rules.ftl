@@ -373,6 +373,13 @@ actor-gasniper =
        Strong vs Infantry
        Weak vs Vehicles and Aircraft
 
+actor-gmisinf =
+    .name = Missile Trooper
+    .description =
+    GDF anti-tank and anti-air infantry.
+       Strong vs Vehicles and Aircraft
+       Weak vs Infantry
+
 
 actor-ghost =
     .name = Ghost Stalker
@@ -564,6 +571,14 @@ actor-gamortar =
     Long-range modular base defense.
        Strong vs Ground units
        Weak vs Aircraft
+
+actor-gafort =
+    .name = Fortress Garrison Bunker
+    .description =
+    Heavily armored bunker that garrisons up to 12 infantry.
+    Garrisoned troops fire from 6 ports with extended range.
+       Strong vs Infantry
+       Weak when empty
 
 ## gdi-vehicles.yaml
 actor-apc =

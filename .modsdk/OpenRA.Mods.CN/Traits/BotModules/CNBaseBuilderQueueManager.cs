@@ -2023,6 +2023,19 @@ namespace OpenRA.Mods.Common.Traits
 							break;
 						}
 
+						case DefenseRole.GarrisonDefense:
+						{
+							// Same placement style as Special (Obelisk) - outermost radius on the main approach
+							// vector, since a bunker's job is to be the first thing the enemy walks into.
+							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
+								outerRadius - 2 > baseBuilder.Info.MinimumDefenseRadius ? outerRadius - 2 : baseBuilder.Info.MinimumDefenseRadius,
+								outerRadius);
+							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
+								.OrderByDescending(c => FormationScore(c, outerRadius))
+								.ThenBy(c => (c - targetCell).LengthSquared);
+							break;
+						}
+
 						case DefenseRole.Special:
 						{
 							// Outermost radius directly on the main approach vector.

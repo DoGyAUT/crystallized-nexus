@@ -2393,6 +2393,45 @@ gamgsam:
 	icon:
 		Filename: gamgicon.shp
 
+gafort:
+	Defaults:
+		TilesetFilenames:
+			TEMPERATE: gafort.shp
+			SNOW: gafort.shp
+			DESERT: gafort.shp
+		DepthSprite:
+		Offset: 12, -32, 48
+	idle:
+		ShadowStart: 3
+	damaged-idle:
+		Start: 1
+		ShadowStart: 4
+	dead:
+		Start: 2
+		ShadowStart: 5
+		Tick: 400
+	make:
+		TilesetFilenames:
+			TEMPERATE: gafortmk.shp
+			SNOW: gafortmk.shp
+			DESERT: gafortmk.shp
+		Length: 26
+		ShadowStart: 26
+	emp-overlay:
+		Filename: emp_fx01.shp
+		TilesetFilenames:
+		Length: *
+		Offset: 0, 0, 13
+		ZOffset: 512
+		BlendMode: Additive
+		IgnoreWorldTint: True
+		DepthSprite:
+	icon:
+		Filename: gaforticon.shp
+		TilesetFilenames:
+		Offset: 0, 0
+		DepthSprite:
+
 gahpad:
 	Defaults:
 		TilesetFilenames:

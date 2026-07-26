@@ -462,3 +462,47 @@ GAMORTAR:
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
 		Capabilities: Defense, ArmorDefense, ArtilleryDefense
+
+GAFORT:
+	Inherits: ^Support
+	Inherits@2: ^4x4Shape
+	Inherits@AUTOTARGET: ^AutoTargetAll
+	Inherits@CARGOPIPS: ^CargoPips
+	WithSpriteBody:
+	Valued:
+		Cost: 800
+	Tooltip:
+		Name: actor-gafort.name
+	Buildable:
+		Queue: Support
+		BuildPaletteOrder: 80
+		Prerequisites: gapile, gaarmory, ~structures.gdi, ~techlevel.high, ~tech.gdf
+		Description: actor-gafort.description
+	Building:
+		Footprint: xxxx xxxx xxxx xxxx
+		Dimensions: 4,4
+	CNHealth:
+		HP: 1000
+	Armor:
+		Type: Heavy
+	RevealsShroud:
+		Range: 14c146
+	Turreted:
+		TurnSpeed: 255
+	-QuantizeFacingsFromSequence:
+	BodyOrientation:
+		QuantizedFacings: 8
+	IsometricSelectable:
+		Height: 48
+	Cargo:
+		MaxWeight: 6
+		PipCount: 6
+		Types: Infantry
+	AttackGarrisoned:
+		Armaments: garrisoned
+		PortOffsets: 543,0,181, 317,-482,181, -317,-482,181, -543,0,181, -317,482,181, 317,482,181
+		PortYaws: 0, 176, 341, 512, 682, 853
+		PortCones: 86, 86, 86, 86, 86, 86
+	ProvidesPrerequisite@buildingname:
+	BotCapabilities:
+		Capabilities: Defense, GarrisonDefense
