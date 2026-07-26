@@ -7,6 +7,11 @@ GMinigun:
 	Warhead@1Dam: SpreadDamage
 		Damage: 80
 
+// Garrison variant - +50% range for units firing from bunker fire ports.
+GMinigun_Garrisoned:
+	Inherits: GMinigun
+	Range: 6c0
+
 NMinigun:
 	Inherits: ^MG
 	ReloadDelay: 21
@@ -15,6 +20,11 @@ NMinigun:
 	Report: rifle_n1.aud, rifle_n2.aud #carbine_n1.aud, carbine_n2.aud, carbine_n3.aud #infgun3.aud, gostgun1.aud, slvkgun1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 60
+
+// Garrison variant - +50% range for units firing from bunker fire ports.
+NMinigun_Garrisoned:
+	Inherits: NMinigun
+	Range: 6c0
 
 M1Carbine:
 	Inherits: ^MG
@@ -59,6 +69,11 @@ EliteCadreGun:
 		Damage: 50
 	Warhead@2Eff: CreateEffect
 		Explosions: gatpiff_single
+
+// Garrison variant - +50% range for units firing from bunker fire ports.
+EliteCadreGun_Garrisoned:
+	Inherits: EliteCadreGun
+	Range: 7c512
 
 VulcanTower:
 	Inherits: ^MG
@@ -318,6 +333,11 @@ Sniper:
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Building
 
+// Garrison variant - +50% range for units firing from bunker fire ports.
+Sniper_Garrisoned:
+	Inherits: Sniper
+	Range: 15c0
+
 Sniper_large:
 	Inherits: ^Sniper
 	ReloadDelay: 110
@@ -337,3 +357,8 @@ Sniper_large:
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Building
+
+// Garrison variant - +50% range for units firing from bunker fire ports.
+Sniper_large_Garrisoned:
+	Inherits: Sniper_large
+	Range: 16c512

@@ -25,6 +25,9 @@ NASOL:
 		Speed: 71
 	Armament@PRIMARY:
 		Weapon: NMinigun
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: NMinigun_Garrisoned
 	AttackFrontal:
 		Voice: Attack
 		FacingTolerance: 0
@@ -78,6 +81,10 @@ E3:
 		Speed: 56
 	Armament:
 		Weapon: Bazooka
+		LocalOffset: 356,0,967
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: Bazooka_Garrisoned
 		LocalOffset: 356,0,967
 	TakeCover:
 		ProneOffset: 52,64,-652
@@ -173,6 +180,9 @@ NACAD:
 		Weapon: EliteCadreGrenade
 		LocalOffset: 260,0,680
 		FireDelay: 10
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: EliteCadreGun_Garrisoned
 	AttackFrontal:
 		Voice: Attack
 		FacingTolerance: 0
@@ -215,6 +225,9 @@ SHADOW:
 		Speed: 71
 	Armament@primary:
 		Weapon: Sniper
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: Sniper_Garrisoned
 	AttackFrontal:
 		Voice: Attack
 		FacingTolerance: 0
@@ -268,6 +281,10 @@ ACOLYTE:
 		Speed: 71
 	Armament@primary:
 		Weapon: AcolyteGun
+		LocalOffset: 260,0,680
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: AcolyteGun_Garrisoned
 		LocalOffset: 260,0,680
 	AttackFrontal:
 		Voice: Attack

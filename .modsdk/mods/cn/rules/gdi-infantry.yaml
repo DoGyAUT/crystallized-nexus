@@ -33,6 +33,10 @@ GASOL:
 	Armament@PRIMARY:
 		Weapon: GMinigun
 		LocalOffset: 0,0,785
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: GMinigun_Garrisoned
+		LocalOffset: 0,0,785
 	MobSpawnerMaster:
 		Actors: GASOL.Member, GASOL.Member, GASOL.Member
 		DisableRespawning: true
@@ -87,6 +91,11 @@ E2:
 		Weapon: Grenade
 		LocalOffset: 0,0,785
 		FireDelay: 5
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: Grenade_Garrisoned
+		LocalOffset: 0,0,785
+		FireDelay: 5
 	TakeCover:
 		ProneOffset: 160,128,-555
 	AttackFrontal:
@@ -116,6 +125,55 @@ E2R3:
 	MobSpawnerMaster:
 		Actors: E2R3.Member, E2R3.Member, E2R3.Member
 	-Buildable:
+
+GMISINF:
+	Inherits: ^Soldier
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	Inherits@SQUAD: ^MobSquadMaster
+	Buildable:
+		Queue: Infantry
+		BuildPaletteOrder: 30
+		Prerequisites: ~gapile, garadr, ~techlevel.low, ~tech.gdf
+		Description: actor-gmisinf.description
+	Voiced:
+		VoiceSet: Discthrower
+	Valued:
+		Cost: 250
+	Tooltip:
+		Name: actor-gmisinf.name
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	CNHealth:
+		HP: 120
+	Armor:
+		Type: Light
+	Mobile:
+		Speed: 56
+	Armament:
+		Weapon: Bazooka
+		LocalOffset: 356,0,967
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: Bazooka_Garrisoned
+		LocalOffset: 356,0,967
+	TakeCover:
+		ProneOffset: 52,64,-652
+	AttackFrontal:
+		Voice: Attack
+		FacingTolerance: 0
+	MobSpawnerMaster:
+		Actors: GMISINF.Member
+		DisableRespawning: true
+	WithSplitAttackPaletteInfantryBody:
+		DefaultAttackSequence: attack
+	RevealsShroud:
+		Range: 7c0
+	ProducibleWithLevel:
+		Prerequisites: barracks.upgraded
+	BotCapabilities:
+		Capabilities: Infantry, AntiArmor, AntiAir
 
 ENGINEER:
 	Inherits: ^Soldier
@@ -235,6 +293,10 @@ GASNIPER:
 		AssaultMoveCondition: assault-move
 	Armament@PRIMARY:
 		Weapon: Sniper_large
+		LocalOffset: 260,0,680
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: Sniper_large_Garrisoned
 		LocalOffset: 260,0,680
 	Cloak@SELF:
 		InitialDelay: 90

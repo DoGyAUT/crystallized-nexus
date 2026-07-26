@@ -7,6 +7,11 @@ Bazooka:
 	Warhead@1Dam: SpreadDamage
 		Damage: 30
 
+// Garrison variant - +50% range for units firing from bunker fire ports.
+Bazooka_Garrisoned:
+	Inherits: Bazooka
+	Range: 9c0
+
 HoverMissile:
 	Inherits: ^DefaultMissile
 	ReloadDelay: 68

@@ -258,9 +258,23 @@
 		Blockable: true
 		DamageActorsInLine: true
 		BeamColor: 0080FFC8
+		Distortion: 1.5
+		DistortionWidth: 0c192
+		DistortionWaveScale: 10
+		DistortionWaveSpeed: 0.05
+		DistortionEdgeSoftness: 0.6
+		TrailParticles: true
+		TrailParticleCount: 20
+		TrailParticleLifetime: 18
+		TrailParticleSpeed: 20, 90
+		TrailParticleLength: 64
+		TrailParticleWidth: 20
+		TrailParticleStartColor: 80C8FFC8
+		TrailParticleEndColor: 0080FF00
 	Warhead@1Dam: SpreadDamage
 		Range: 0, 32
 		Damage: 150
+		ValidRelationships: Neutral, Enemy
 	Warhead@2Sparks: SparkBurst
 		ValidTargets: Vehicle, Cyborg, Air, Building
 		Count: 20
@@ -282,18 +296,28 @@
 	ReloadDelay: 50
 	Range: 6c768
 	Report: railshot01.aud, railshot02.aud, railshot03.aud, railshot04.aud, railshot05.aud
-	Projectile: Bullet
-		Speed: 1c0
-		Image: railgun_small
-		Shadow: true
-		LaunchAngle: 75
-		Palette: effect
-		ContrailLength: 10
-		ContrailStartWidth: 0c64
-		ContrailEndWidth: 0c16
-		ContrailStartColor: 00FFFFC8
+	Projectile: Railgun
+		Duration: 15
+		Blockable: true
+		DamageActorsInLine: true
+		BeamColor: 0080FF00
+		HelixColor: 80C8FFC8
+		Distortion: 1.5
+		DistortionWidth: 0c512
+		DistortionWaveScale: 10
+		DistortionWaveSpeed: 0.05
+		DistortionEdgeSoftness: 0.6
+		TrailParticles: true
+		TrailParticleCount: 40
+		TrailParticleLifetime: 34
+		TrailParticleSpeed: 20, 90
+		TrailParticleLength: 64
+		TrailParticleWidth: 20
+		TrailParticleStartColor: 80C8FFC8
+		TrailParticleEndColor: 0080FF00
 	Warhead@1Dam: SpreadDamage
 		Damage: 36
+		ValidRelationships: Neutral, Enemy
 	Warhead@2Eff: CreateEffect
 		Explosions: apexplosion01
 		ExplosionPalette: effect

@@ -3,12 +3,6 @@ LtRail:
 	Inherits@FLASH: ^FlashSmallW
 	Warhead@1Dam: SpreadDamage
 		ValidRelationships: Neutral, Enemy
-	Warhead@2Dam: SpreadDamage
-		Range: 0, 32
-		Falloff: 50, 50 # Only does half damage to friendly units
-		Damage: 150
-		AffectsParent: false
-		ValidRelationships: Ally
 
 MechRailgun:
 	Inherits: ^RailgunCannon
@@ -278,3 +272,8 @@ AcolyteGun:
 		Explosions: water_piff
 		ExplosionPalette: ra
 		ValidTargets: Water
+
+// Garrison variant - +50% range for units firing from bunker fire ports.
+AcolyteGun_Garrisoned:
+	Inherits: AcolyteGun
+	Range: 9c746
