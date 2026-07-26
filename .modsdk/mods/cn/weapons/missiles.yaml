@@ -154,6 +154,7 @@ RedEye2:
 	ValidTargets: Air
 	Projectile: Missile
 		Arm: 1
+		HorizontalRateOfTurn: 64
 		VerticalRateOfTurn: 140
 		RangeLimit: 25c0
 		Speed: 288
