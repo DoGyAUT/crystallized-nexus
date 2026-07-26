@@ -58,5 +58,7 @@
 		#                              # presence to trigger the Tension state
 		# TensionScanInterval: 50      # ticks between Tension scans (50 ticks = 2s)
 		# MaxWeight: 100               # hard cap on accumulated weight per player
-		# FadeStep: 0.02               # per-tick volume step for crossfades; higher = snappier
-		#                              # transitions, lower = smoother/slower blending
+		# FadeStep: 0.008              # per-tick volume step for crossfades (default 0.008, ~5s
+		#                              # fade at 25 ticks/s); higher = snappier transitions,
+		#                              # lower = smoother/slower blending. Composer feedback:
+		#                              # the old 0.02 default (~2s) felt too abrupt.

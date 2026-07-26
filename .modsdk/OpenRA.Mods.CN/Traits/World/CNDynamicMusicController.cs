@@ -62,7 +62,7 @@ namespace OpenRA.Mods.CN.Traits
 		public readonly float MaxWeight = 100f;
 
 		[Desc("Per-tick volume step used to fade stems toward their target volume.")]
-		public readonly float FadeStep = 0.02f;
+		public readonly float FadeStep = 0.008f;
 
 		public override object Create(ActorInitializer init) { return new CNDynamicMusicController(this, init.Self); }
 	}
