@@ -169,3 +169,51 @@ RedEye2:
 		Damage: 50
 		ValidTargets: Air, Ground
 		DamageTypes: SmallExplosionDeath
+
+WardenClusterBombs:
+	Inherits: ^DefaultMissile
+	ReloadDelay: 90
+	Range: 12c0
+	Report: launcher01.aud, launcher02.aud, launcher03.aud, launcher04.aud
+	ValidTargets: Air
+	Projectile: Missile
+		Arm: 1
+		HorizontalRateOfTurn: 64
+		VerticalRateOfTurn: 96
+		RangeLimit: 20c0
+		Speed: 320
+	Warhead@1Dam: SpreadDamage
+		Spread: 96
+		Damage: 40
+		ValidTargets: Air
+		DamageTypes: SmallExplosionDeath
+	Warhead@2Eff: CreateEffect
+		ImpactActors: false
+		Explosions: sonic_impact
+		ImpactSounds: thunderhit1.ogg
+	Warhead@Cluster: FireCluster
+		Weapon: WardenFlakBurst
+		RandomClusterCount: 6
+		Dimensions: 3,3
+		Footprint: xxx xxx xxx
+
+// Sub-munitions fired by WardenClusterBombs on impact - short-range, near-instant
+// detonation so they read as a scatter of flak bursts around the main hit rather than
+// visible missiles flying further out.
+WardenFlakBurst:
+	ValidTargets: Air, Ground
+	Range: 1c0
+	Projectile: Bullet
+		Speed: 200
+		Blockable: false
+		Image: bullet
+		Shadow: false
+	Warhead@1Dam: SpreadDamage
+		Spread: 128
+		Damage: 25
+		ValidTargets: Air, Ground
+		DamageTypes: SmallExplosionDeath, Prone50Percent, TriggerProne
+	Warhead@2Eff: CreateEffect
+		ImpactActors: false
+		Explosions: piff, piffs
+		ExplosionPalette: effect
