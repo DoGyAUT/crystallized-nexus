@@ -242,6 +242,7 @@ IonStormStrike:
 	Inherits@DefaultWahead: ^SmallExplosionWarhead
 	Inherits@FLASH: ^FlashLargeW
 	ValidTargets: Ground, Water, Air
+	-Warhead@TerrainDeformation:
 	Warhead@1Dam: SpreadDamage
 		Spread: 0c512
 		Damage: 100
@@ -264,6 +265,7 @@ IonStormAmbientBolt:
 	Inherits@DefaultWahead: ^SmallExplosionWarhead
 	Inherits@FLASH: ^FlashLargeW
 	ValidTargets: Ground, Water, Air
+	-Warhead@TerrainDeformation:
 	Warhead@1Dam: SpreadDamage
 		Spread: 0c512
 		Damage: 50
