@@ -400,7 +400,7 @@ ltnk:
 		BlendMode: Additive
 		BloomGlow: True
 	icon:
-		Filename: tickicon.shp
+		Filename: ltnkicon.shp
 
 ttnk:
 	Inherits: ^VehicleOverlays
@@ -557,7 +557,7 @@ mmch2:
 warden:
 	Defaults:
 		Filename: warden.shp
-		Scale: 0.8
+		Scale: 0.9
 	Inherits: ^VehicleOverlays
 	stand:
 		Facings: -8
@@ -584,7 +584,7 @@ warden:
 		BlendMode: Additive
 		BloomGlow: True
 	icon:
-		Filename: mmchicon.shp
+		Filename: wardenicon.shp
 
 jugg:
 	Defaults:
@@ -677,6 +677,7 @@ mmch.husk:
 warden.husk:
 	Defaults:
 		Filename: warden.shp
+		Scale: 0.9
 	stand:
 		Facings: -8
 		Stride: 18

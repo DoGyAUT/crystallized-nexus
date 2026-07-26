@@ -708,7 +708,7 @@ WARDEN:
 	WithSpriteTurret:
 		Recoils: True
 	Armament:
-		Weapon: WardenClusterBombs
+		Weapon: WardenAutoCannon
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		Recoil: 128
