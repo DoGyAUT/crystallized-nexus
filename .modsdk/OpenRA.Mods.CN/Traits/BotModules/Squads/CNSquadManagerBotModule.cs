@@ -220,6 +220,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Maximum absolute dynamic score contribution from one NeedRules entry. 0 disables the cap.")]
 		public readonly int MaxNeedScorePerTag = 100;
 
+		[Desc("Score penalty applied to a tag's rolling performance for each unit lost from a squad carrying that tag.")]
+		public readonly int PerformancePenaltyPerLoss = 8;
+
+		[Desc("Per-cleanup-pass decay (0-1) applied to every tag's rolling performance penalty, recovering it back toward 0 " +
+			"when its squads stop losing units. Lower = forgets losses faster.")]
+		public readonly float PerformanceDecay = 0.97f;
+
+		[Desc("Maximum (most negative) rolling performance penalty a single tag can accumulate. 0 disables the cap.")]
+		public readonly int MaxPerformancePenaltyPerTag = 40;
+
 		[Desc("Randomness exponent for template selection (squad formation and production). " +
 			"Templates are chosen by a weighted lottery where the chance is proportional to " +
 			"max(1, EffectiveScore)^TemplateSelectionSharpness, so every template keeps getting used over time. " +
@@ -412,6 +422,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		Dictionary<string, int> activeGlobalThreatCounts = [];
 		Dictionary<string, int> scratchGlobalThreatCounts = [];
 
+		// Rolling per-tag performance penalty, <= 0. Dragged down by units lost from squads
+		// carrying the tag, recovers back toward 0 over time via PerformanceDecay when a tag's
+		// squads stop losing units. Read by GetTagScore, written in PurgeDeadUnits.
+		readonly Dictionary<string, float> tagPerformance = [];
+
 		// Per-tick building caches — one Building scan each per world tick, shared across all squads.
 		IReadOnlyList<Actor> cachedOwnBuildings = [];
 		int cachedOwnBuildingsTick = -1;
@@ -531,8 +546,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			{
 				cleanupTicks = CleanupInterval;
 				foreach (var squad in Squads)
-					PurgeDeadUnits(squad);
+					RecordLossesAndPurgeDeadUnits(squad);
 
+				DecayTagPerformance();
 				CleanSquads();
 				activeUnits.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
 				foreach (var actor in idleTickCounters.Keys
@@ -1419,6 +1435,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int GetTagScore(string tag)
 		{
 			var score = Info.TagWeights.GetValueOrDefault(tag);
+			score += (int)tagPerformance.GetValueOrDefault(tag);
+
 			if (!Info.NeedRules.TryGetValue(tag, out var rule))
 				return score;
 
@@ -1562,8 +1580,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 		}
 
-		static void PurgeDeadUnits(CNSquad squad)
+		void RecordLossesAndPurgeDeadUnits(CNSquad squad)
 		{
+			// Only true deaths count against a tag's performance - units leaving Units/IsInWorld
+			// for other reasons (e.g. boarding a carrier) are not losses.
+			if (squad.TemplateInfo != null)
+			{
+				var deaths = squad.Units.Count(a => a != null && a.IsDead);
+				if (deaths > 0)
+					foreach (var tag in squad.TemplateInfo.Tags)
+						ApplyPerformancePenalty(tag, deaths);
+			}
+
 			squad.Units.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
 			foreach (var assignment in squad.SlotAssignments)
 			{
@@ -1576,6 +1604,32 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				// "all aboard" indistinguishable from "no passengers" and stranding
 				// loaded transports forever.
 				assignment.Passengers.RemoveAll(a => a == null || a.IsDead);
+			}
+		}
+
+		void ApplyPerformancePenalty(string tag, int deaths)
+		{
+			var value = tagPerformance.GetValueOrDefault(tag) - deaths * Info.PerformancePenaltyPerLoss;
+			if (Info.MaxPerformancePenaltyPerTag > 0)
+				value = Math.Max(value, -Info.MaxPerformancePenaltyPerTag);
+
+			tagPerformance[tag] = value;
+		}
+
+		// Recovers every tracked tag's performance penalty back toward 0 each cleanup pass, so a
+		// tag that stops losing units stops being avoided instead of staying penalised forever.
+		void DecayTagPerformance()
+		{
+			if (tagPerformance.Count == 0)
+				return;
+
+			foreach (var tag in tagPerformance.Keys.ToList())
+			{
+				var value = tagPerformance[tag] * Info.PerformanceDecay;
+				if (value > -0.5f)
+					tagPerformance.Remove(tag);
+				else
+					tagPerformance[tag] = value;
 			}
 		}
 
