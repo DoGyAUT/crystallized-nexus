@@ -1,6 +1,7 @@
 Bazooka:
 	Inherits: ^DefaultMissile
 	Report: missile_v1.ogg, missile_v2.ogg
+	MinRange: 3c0
 	Projectile: Missile
 		Image: missile_small
 	Warhead@1Dam: SpreadDamage
@@ -11,6 +12,7 @@ HoverMissile:
 	ReloadDelay: 68
 	Burst: 2
 	Range: 8c0
+	MinRange: 3c0
 	Report: hovrmis1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 40
@@ -19,6 +21,7 @@ MammothTusk:
 	Inherits: ^DefaultMissile
 	ReloadDelay: 80
 	Range: 6c768
+	MinRange: 3c0
 	Report: tankmisl1.aud
 	ValidTargets: Ground, Air
 	Burst: 2
@@ -31,6 +34,7 @@ Mammoth2Tusk:
 	Inherits: ^DefaultMissile
 	ReloadDelay: 80
 	Range: 8c768
+	MinRange: 3c0
 	Report: missile_v1.ogg, missile_v2.ogg
 	ValidTargets: Ground, Air
 	Burst: 4
@@ -44,6 +48,7 @@ BikeMissile:
 	Inherits: ^DefaultMissile
 	ReloadDelay: 80
 	Range: 5c0
+	MinRange: 3c0
 	Burst: 2
 	BurstDelays: 10
 	Report: missile_v1.ogg, missile_v2.ogg
@@ -56,7 +61,7 @@ Dragon:
 	Inherits: ^DefaultMissile
 	ReloadDelay: 250
 	Range: 8c0
-	MinRange: 0c512
+	MinRange: 3c0
 	Burst: 6
 	BurstDelays: 5
 	Report: rocket01.aud, rocket02.aud, rocket03.aud, rocket04.aud, rocket05.aud, rocket06.aud
@@ -67,6 +72,7 @@ HydraDragon:
 	Inherits: ^DefaultMissile
 	ReloadDelay: 200
 	Range: 7c768
+	MinRange: 3c0
 	Report: rocket01.aud, rocket02.aud, rocket03.aud, rocket04.aud, rocket05.aud, rocket06.aud
 	Burst: 12
 	BurstDelays: 10
