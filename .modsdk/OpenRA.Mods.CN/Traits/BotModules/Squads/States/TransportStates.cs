@@ -306,8 +306,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class TransportLoadState : CNStateBase, ICNState
 	{
 		// Abort threshold: if no new passenger has boarded within this time, transition to safe
-		// state. 1500 ticks ≈ ~100 seconds at 15 ticks/sec.
-		const int MaxLoadTicks = 1500;
+		// state. 3000 ticks ≈ ~200 seconds at 15 ticks/sec - raised from 1500 (~100s) since APC
+		// squads were frequently timing out and departing half-empty while production caught up.
+		const int MaxLoadTicks = 3000;
 		int lastProgressTick;
 		int lastBoardedCount;
 
