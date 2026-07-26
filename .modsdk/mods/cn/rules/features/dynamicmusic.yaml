@@ -3,62 +3,17 @@
 
 ^BaseWorld:
 	CNDynamicMusicController:
-		# Empty until the composer delivers real stems. With no Side present in PeaceStems,
-		# the controller stays inert and the normal MusicPlaylist jukebox keeps playing.
-		#
-		# HOW TO CONFIGURE (for the composer / whoever wires up delivered stems):
-		#
-		# Each Side (currently "GDI" and "Nod") gets up to 4 filenames, one per intensity
-		# level. All 4 for a given Side start looping simultaneously in the background the
-		# moment that faction is loaded - they are NOT separate standalone songs, they are
-		# 4 layers of ONE continuous piece that get faded in/out on top of each other as the
-		# fight escalates. That means:
-		#   - Same tempo/key across all 4 layers of a Side (they play at once during fades)
-		#   - Identical loop length (in samples) across all 4, so they stay phase-locked
-		#     over many loop cycles instead of drifting apart
-		#   - Each file must itself loop seamlessly (restarts instantly at 0, no baked-in
-		#     fade-in/fade-out, no lead-in silence)
-		#   - Crossfades take ~2 seconds, so during a transition 2+ layers are audibly
-		#     overlapping - mix/master them to sound good stacked, not just solo
-		#
-		# Only Peace is required per Side; Tension/Combat/BigBattle are optional (an
-		# unlisted layer is simply silent forever, the rest still work).
-		#
-		# Delivered .ogg files go in mods/cn/audio/data/themes/ (already a registered sound
-		# package - no extra registration needed elsewhere, just drop the files in and
-		# reference the filename below).
-		#
-		# PeaceStems:
-		# 	GDI: cd_gditheme_peace.ogg
+		# Populate per side once stems are ready, e.g.:
+		PeaceStems:
+			GDI: Quiet.ogg
 		# 	Nod: cd_nodtheme_peace.ogg
-		# TensionStems:
-		# 	GDI: cd_gditheme_tension.ogg
+		TensionStems:
+			GDI: Tension.ogg
 		# 	Nod: cd_nodtheme_tension.ogg
-		# CombatStems:
-		# 	GDI: cd_gditheme_combat.ogg
+		CombatStems:
+			GDI: Engage.ogg
 		# 	Nod: cd_nodtheme_combat.ogg
-		# BigBattleStems:
-		# 	GDI: cd_gditheme_bigbattle.ogg
+		BigBattleStems:
+			GDI: LargeBattle.ogg
 		# 	Nod: cd_nodtheme_bigbattle.ogg
-		#
-		# BATTLE INTENSITY TUNING (how easily/quickly the state escalates - independent of
-		# which stems are used, safe to tweak for balance without touching audio at all):
-		#
-		# CombatThreshold: 5           # accumulated weight needed to enter Combat
-		# BigBattleThreshold: 20       # accumulated weight needed to enter BigBattle
-		# DecayRate: 0.2               # fraction of weight removed per decay tick (0-1);
-		#                              # higher = cools down faster after a fight ends
-		# DecayInterval: 125           # ticks between decay steps (125 ticks ~= 5s)
-		# FieldWeightMultiplier: 0.4   # weight multiplier for fights far from any of the
-		#                              # player's buildings (0-1); lower = field skirmishes
-		#                              # barely move the needle, only base attacks matter
-		# BaseProximityRadius: 15c0    # radius around own buildings that counts as "full
-		#                              # weight" combat (in cells, c0 suffix)
-		# TensionScanRadius: 20c0      # radius around own buildings scanned for enemy
-		#                              # presence to trigger the Tension state
-		# TensionScanInterval: 50      # ticks between Tension scans (50 ticks = 2s)
-		# MaxWeight: 100               # hard cap on accumulated weight per player
-		# FadeStep: 0.008              # per-tick volume step for crossfades (default 0.008, ~5s
-		#                              # fade at 25 ticks/s); higher = snappier transitions,
-		#                              # lower = smoother/slower blending. Composer feedback:
-		#                              # the old 0.02 default (~2s) felt too abrupt.
+		FadeStep: 0.008
