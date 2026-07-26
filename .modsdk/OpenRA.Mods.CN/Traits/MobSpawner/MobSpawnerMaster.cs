@@ -429,13 +429,25 @@ namespace OpenRA.Mods.CN.Traits
 					SpawnIntoWorld(self, se.Actor, centerPosition + Info.Offset);
 
 			// On initial production spawn: override the default MoveTo(spawnCell) activity
-			// so slaves move directly to the master's location instead of scattering to
-			// individual exit offsets. They will then follow via AssignSlaveActivity.
+			// so slaves move directly toward the master's rally-point destination instead of
+			// scattering to individual exit offsets. They will then follow via
+			// AssignSlaveActivity. Target the master's Move destination (not just its current
+			// position) - for short rally distances the master can already be idle by the time
+			// this runs (two AddFrameEndTask hops later), in which case self.Location already
+			// equals that same destination anyway. Without this, slaves used to snap to
+			// whatever position the master happened to be at when this ran, then only start
+			// truly moving once the master went idle and GatherStraySlaves picked them up -
+			// i.e. only after the master had already finished walking to the rally point.
 			if (isInitialSpawn)
 			{
 				self.World.AddFrameEndTask(_ =>
 					self.World.AddFrameEndTask(w =>
 					{
+						var targets = self.CurrentActivity?.GetTargets(self);
+						var destination = targets != null && targets.Any()
+							? GetSlaveMoveLocation(self, targets.First())
+							: self.Location;
+
 						foreach (var se in slaveEntries)
 						{
 							if (!se.IsValid || !se.Actor.IsInWorld)
@@ -446,7 +458,7 @@ namespace OpenRA.Mods.CN.Traits
 								continue;
 
 							se.Actor.CancelActivity();
-							se.Actor.QueueActivity(mv.MoveTo(self.Location, 2));
+							se.Actor.QueueActivity(mv.MoveTo(destination, 2));
 						}
 					}));
 			}
@@ -760,7 +772,7 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			var activity = self.CurrentActivity;
 
-			if (activity is Move || activity is Enter)
+			if (activity is Move || activity is Enter || activity is Mobile.LeaveProductionActivity)
 			{
 				MoveSlaves(self);
 				return;
