@@ -642,6 +642,94 @@ MMCH:
 	BotCapabilities:
 		Capabilities: Vehicle, AntiArmor
 
+WARDEN:
+	Inherits: ^Tank
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Valued:
+		Cost: 800
+	Tooltip:
+		Name: actor-warden.name
+	Voiced:
+		VoiceSet: Titan
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 50
+		Prerequisites: ~gaweap, ~techlevel.medium, ~tech.steel
+		Description: actor-warden.description
+	Mobile:
+		Locomotor: walker
+		TurnSpeed: 20
+		Speed: 56
+		AlwaysTurnInPlace: true
+		TerrainOrientationAdjustmentMargin: -1
+	CNHealth:
+		HP: 150
+	SecondaryHealth@ARMOR:
+		MaxHP: 200
+		InitialHP: -1
+		ArmorType: Heavy
+		RegenerateRate: 0
+		RegenerateDelay: 100
+		RegenerateInterval: 5
+		BypassDamageTypes: BypassArmor
+		PierceDamageTypes: PierceArmor
+		PiercePercentage: 40
+		RepairDamageTypes: RepairArmor
+		FullCondition: armor-up
+		EmptyCondition: armor-broken
+		DepletedSound:
+		RechargedSound:
+		BarColor: D4AA00
+	Armor:
+		Type: Light
+	RevealsShroud:
+		RequiresCondition: !inside-tunnel
+		Range: 8c0
+		MaxHeightDelta: 3
+	BodyOrientation:
+		QuantizedFacings: 32
+		UseClassicPerspectiveFudge: False
+	RenderSprites:
+		FullBrightPaletteIndexRanges: 255, 255
+	WithFacingSpriteBody:
+		Sequence: stand
+		RequiresCondition: !inside-tunnel
+	WithMoveAnimation:
+		MoveSequence: walk
+		ValidMovementTypes: Horizontal, Turn
+	Turreted:
+		TurnSpeed: 20
+	AttackTurreted:
+		Voice: Attack
+		PauseOnCondition: empdisable
+	WithSpriteTurret:
+		Recoils: True
+	Armament:
+		Weapon: WardenClusterBombs
+		MuzzleSequence: muzzle
+		MuzzlePalette: effect
+		Recoil: 128
+		RecoilRecovery: 32
+		LocalOffset: 650,458,1485, 650,-458,1485
+	DetectCloaked:
+		Range: 6c768
+	RenderDetectionCircle:
+	WithMuzzleOverlay:
+	Selectable:
+		Bounds: 905, 2534, 0, -482
+	Carryable:
+		LocalOffset: 0,0,577
+	SpawnActorOnDeath@HUSK:
+		Actor: WARDEN.Husk
+		OwnerType: InternalName
+		InternalOwner: Neutral
+		InheritFacing: true
+	BotCapabilities:
+		Capabilities: Vehicle, AntiArmor, AntiAir
+
 4TNK:
 	Inherits@VOXELS: ^VoxelTank
 	Inherits@VOXELDYNAMICS: ^VoxelDynamicsHeavy

@@ -554,6 +554,38 @@ mmch2:
 	icon:
 		Filename: mmchicon.shp
 
+warden:
+	Defaults:
+		Filename: warden.shp
+		Scale: 0.8
+	Inherits: ^VehicleOverlays
+	stand:
+		Facings: -8
+		Stride: 18
+		ShadowStart: 176
+		Offset: 0, 0, 12
+	walk:
+		Length: 18
+		Facings: -8
+		Tick: 65
+		ShadowStart: 176
+		Offset: 0, 0, 12
+	turret:
+		Start: 144
+		Facings: -32
+		Offset: 0, 0, 12
+	muzzle:
+		Filename: tankmuzzle_medium.png
+		Facings: -32
+		Offset: 0, 0, 128
+		Length: 5
+		ShadowStart: -1
+		IgnoreWorldTint: True
+		BlendMode: Additive
+		BloomGlow: True
+	icon:
+		Filename: mmchicon.shp
+
 jugg:
 	Defaults:
 		Filename: jugg.shp
@@ -640,6 +672,14 @@ mmch.husk:
 	stand:
 		Facings: -8
 		Stride: 22
+		Offset: 0, 0, 12
+
+warden.husk:
+	Defaults:
+		Filename: warden.shp
+	stand:
+		Facings: -8
+		Stride: 18
 		Offset: 0, 0, 12
 
 jugg.husk:

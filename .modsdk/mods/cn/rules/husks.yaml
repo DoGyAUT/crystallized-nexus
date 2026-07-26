@@ -496,6 +496,9 @@ SMECH.Husk:
 MMCH.Husk:
 	Inherits: ^SpriteVehicleHusk
 
+WARDEN.Husk:
+	Inherits: ^SpriteVehicleHusk
+
 JUGG.Husk:
 	Inherits: ^SpriteVehicleHusk
 

@@ -610,6 +610,12 @@ actor-mmch =
        Strong vs Vehicles
        Weak vs Infantry and Aircraft
 
+actor-warden =
+    .name = Warden
+    .description =
+    Soft target mechanized walker.
+       Strong vs Aircraft and Infantry
+       Weak vs Armor
 
 actor-4tnk-name = Mammoth Tank
 actor-4tnk-description =
