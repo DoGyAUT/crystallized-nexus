@@ -236,3 +236,92 @@ EliteCadreGrenade:
 		ImpactSounds: expnew13.aud
 		ValidTargets: Vehicle, Cyborg, Building
 		InvalidTargets: Infantry
+
+WardenClusterBombs:
+	Inherits: ^ArtilleryWeapon
+	Report: 20mm_v1.wav, 20mm_v2.wav, 20mm_v3.wav
+	ReloadDelay: 120
+	Range: 8c0
+	Burst: 4
+	BurstDelays: 6
+	ValidTargets: Ground, Air, Trees
+	Projectile: Bullet
+		Speed: 256
+		Blockable: true
+		Shadow: true
+		LaunchAngle: 45
+		Inaccuracy: 1c0
+		Image: DISCUS
+		BounceCount: 1
+		ContrailLength: 10
+		ContrailStartWidth: 0c32
+		ContrailEndWidth: 0c8
+	Warhead@1Dam: SpreadDamage
+		Spread: 154
+		Damage: 60
+		ValidTargets: Ground, Trees, Air
+	Warhead@2Eff: CreateEffect
+		Explosions: heexplosion01
+		ExplosionPalette: effect
+		ImpactSounds: explosion01.ogg, explosion02.ogg
+		ValidTargets: Ground, Trees, DeadInfantry
+	Warhead@5Eff: CreateEffect
+		Explosions: grenexplo1
+		ExplosionPalette: effect
+		ImpactSounds: expnew13.aud
+		ValidTargets: Vehicle, Cyborg, Building, Air
+		InvalidTargets: Infantry
+	Warhead@Cluster: FireCluster
+		Weapon: WardenFlakBurst
+		RandomClusterCount: 6
+		Dimensions: 3,3
+		Footprint: xxx xxx xxx
+
+// Ballistic AA flak shell - arcs up and airbursts near the target's altitude (proximity
+// detonation via AirburstAltitude) instead of homing in like a missile, then scatters
+// WardenFlakBurst submunitions from that point via FireCluster.
+WardenClusterBombs:
+	Inherits: ^Cannon
+	Inherits@BULLETVERSUS: ^BulletWarhead
+	-Warhead@2Eff:
+	-Warhead@3EffWater:
+	-Warhead@TerrainDeformation:
+	ReloadDelay: 90
+	Range: 12c0
+	ValidTargets: Air, Ground
+	Projectile: Bullet
+		LaunchAngle: 200
+		AirburstAltitude: 3c512
+	Warhead@1Dam: SpreadDamage
+		Spread: 96
+		Damage: 40
+		ValidTargets: Air, Ground
+		DamageTypes: SmallExplosionDeath
+	Warhead@2Eff: CreateEffect
+		ImpactActors: false
+		Explosions: sonic_impact
+		ImpactSounds: thunderhit1.ogg
+	Warhead@Cluster: FireCluster
+		Weapon: WardenFlakBurst
+		RandomClusterCount: 6
+		Dimensions: 3,3
+		Footprint: xxx xxx xxx
+
+WardenFlakBurst:
+	Inherits@BULLETVERSUS: ^BulletWarhead
+	ValidTargets: Air, Ground
+	Range: 1c0
+	Projectile: Bullet
+		Speed: 200
+		Blockable: false
+		Image: bullet
+		Shadow: false
+	Warhead@1Dam: SpreadDamage
+		Spread: 128
+		Damage: 25
+		ValidTargets: Air, Ground
+		DamageTypes: SmallExplosionDeath, Prone50Percent, TriggerProne
+	Warhead@2Eff: CreateEffect
+		ImpactActors: false
+		Explosions: piff, piffs
+		ExplosionPalette: effect
