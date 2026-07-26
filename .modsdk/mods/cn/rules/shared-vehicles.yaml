@@ -32,7 +32,7 @@ LPST:
 		MaxHeightDelta: 3
 	RevealsShroud@DEPLOYED:
 		RequiresCondition: !undeployed
-		Range: 8c0
+		Range: 18c0
 		MaxHeightDelta: 3
 	WithMakeAnimation:
 	GrantCondition@PREVIEWWORKAROUND:
