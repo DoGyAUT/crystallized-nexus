@@ -70,9 +70,15 @@ namespace OpenRA.Mods.CN.Traits
 			return null;
 		}
 
-		bool TryGetNames(string faction, out ImmutableArray<string> names)
+		bool TryGetNames(Player player, out ImmutableArray<string> names)
 		{
-			if (info.Names.TryGetValue(faction, out names) && !names.IsDefaultOrEmpty)
+			// Exact faction match first (e.g. "nod"), then the faction's side (e.g. GDI sub-factions
+			// "gdf"/"steel"/"zocom" all fall back to the "gdi" pool), then the generic default pool.
+			if (info.Names.TryGetValue(player.Faction.InternalName, out names) && !names.IsDefaultOrEmpty)
+				return true;
+
+			if (player.Faction.Side != null &&
+				info.Names.TryGetValue(player.Faction.Side.ToLowerInvariant(), out names) && !names.IsDefaultOrEmpty)
 				return true;
 
 			if (info.Names.TryGetValue(DefaultFaction, out names) && !names.IsDefaultOrEmpty)
@@ -84,7 +90,7 @@ namespace OpenRA.Mods.CN.Traits
 
 		string PickUniqueName(Player player, HashSet<string> usedNames)
 		{
-			if (!TryGetNames(player.Faction.InternalName, out var rawNames) || rawNames.IsDefaultOrEmpty)
+			if (!TryGetNames(player, out var rawNames) || rawNames.IsDefaultOrEmpty)
 				return null;
 
 			var names = rawNames.Where(n => !string.IsNullOrWhiteSpace(n)).ToArray();
