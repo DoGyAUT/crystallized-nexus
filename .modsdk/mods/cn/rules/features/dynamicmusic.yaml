@@ -40,3 +40,23 @@
 		# BigBattleStems:
 		# 	GDI: cd_gditheme_bigbattle.ogg
 		# 	Nod: cd_nodtheme_bigbattle.ogg
+		#
+		# BATTLE INTENSITY TUNING (how easily/quickly the state escalates - independent of
+		# which stems are used, safe to tweak for balance without touching audio at all):
+		#
+		# CombatThreshold: 5           # accumulated weight needed to enter Combat
+		# BigBattleThreshold: 20       # accumulated weight needed to enter BigBattle
+		# DecayRate: 0.2               # fraction of weight removed per decay tick (0-1);
+		#                              # higher = cools down faster after a fight ends
+		# DecayInterval: 125           # ticks between decay steps (125 ticks ~= 5s)
+		# FieldWeightMultiplier: 0.4   # weight multiplier for fights far from any of the
+		#                              # player's buildings (0-1); lower = field skirmishes
+		#                              # barely move the needle, only base attacks matter
+		# BaseProximityRadius: 15c0    # radius around own buildings that counts as "full
+		#                              # weight" combat (in cells, c0 suffix)
+		# TensionScanRadius: 20c0      # radius around own buildings scanned for enemy
+		#                              # presence to trigger the Tension state
+		# TensionScanInterval: 50      # ticks between Tension scans (50 ticks = 2s)
+		# MaxWeight: 100               # hard cap on accumulated weight per player
+		# FadeStep: 0.02               # per-tick volume step for crossfades; higher = snappier
+		#                              # transitions, lower = smoother/slower blending
