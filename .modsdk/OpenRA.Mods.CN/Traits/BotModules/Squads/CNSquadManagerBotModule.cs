@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.CN.Traits.BotModules.Squads.States;
+using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
@@ -1614,6 +1615,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				value = Math.Max(value, -Info.MaxPerformancePenaltyPerTag);
 
 			tagPerformance[tag] = value;
+			AIUtils.BotDebug($"CN AI: Tag '{tag}' lost {deaths} unit(s), performance penalty now {value:0.0}.");
 		}
 
 		// Recovers every tracked tag's performance penalty back toward 0 each cleanup pass, so a
