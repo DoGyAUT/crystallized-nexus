@@ -5,15 +5,15 @@
 	CNDynamicMusicController:
 		# Populate per side once stems are ready, e.g.:
 		PeaceStems:
-			GDI: Quiet.ogg
+		#	GDI: Quiet.ogg
 		# 	Nod: cd_nodtheme_peace.ogg
 		TensionStems:
-			GDI: Tension.ogg
+		#	GDI: Tension.ogg
 		# 	Nod: cd_nodtheme_tension.ogg
 		CombatStems:
-			GDI: Engage.ogg
+		#	GDI: Engage.ogg
 		# 	Nod: cd_nodtheme_combat.ogg
 		BigBattleStems:
-			GDI: LargeBattle.ogg
+		#	GDI: LargeBattle.ogg
 		# 	Nod: cd_nodtheme_bigbattle.ogg
 		FadeStep: 0.008
