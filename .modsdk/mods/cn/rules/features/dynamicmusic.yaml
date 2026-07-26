@@ -5,7 +5,29 @@
 	CNDynamicMusicController:
 		# Empty until the composer delivers real stems. With no Side present in PeaceStems,
 		# the controller stays inert and the normal MusicPlaylist jukebox keeps playing.
-		# Populate per side once stems are ready, e.g.:
+		#
+		# HOW TO CONFIGURE (for the composer / whoever wires up delivered stems):
+		#
+		# Each Side (currently "GDI" and "Nod") gets up to 4 filenames, one per intensity
+		# level. All 4 for a given Side start looping simultaneously in the background the
+		# moment that faction is loaded - they are NOT separate standalone songs, they are
+		# 4 layers of ONE continuous piece that get faded in/out on top of each other as the
+		# fight escalates. That means:
+		#   - Same tempo/key across all 4 layers of a Side (they play at once during fades)
+		#   - Identical loop length (in samples) across all 4, so they stay phase-locked
+		#     over many loop cycles instead of drifting apart
+		#   - Each file must itself loop seamlessly (restarts instantly at 0, no baked-in
+		#     fade-in/fade-out, no lead-in silence)
+		#   - Crossfades take ~2 seconds, so during a transition 2+ layers are audibly
+		#     overlapping - mix/master them to sound good stacked, not just solo
+		#
+		# Only Peace is required per Side; Tension/Combat/BigBattle are optional (an
+		# unlisted layer is simply silent forever, the rest still work).
+		#
+		# Delivered .ogg files go in mods/cn/audio/data/themes/ (already a registered sound
+		# package - no extra registration needed elsewhere, just drop the files in and
+		# reference the filename below).
+		#
 		# PeaceStems:
 		# 	GDI: cd_gditheme_peace.ogg
 		# 	Nod: cd_nodtheme_peace.ogg
