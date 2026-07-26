@@ -46,7 +46,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (GetDockType.Overlaps(dock.GetDockType))
 			{
 				var currentActivity = self.CurrentActivity;
-				if (currentActivity == null || (currentActivity is not CNFindAndDeliverResources && currentActivity.NextActivity == null))
+				var willRequeue = currentActivity == null || (currentActivity is not CNFindAndDeliverResources && currentActivity.NextActivity == null);
+				Log.Write("debug", $"[DockDebug] CNHarvester.OnDockCompleted: hostDead={hostActor.IsDead}, currentActivity={currentActivity}, willRequeue={willRequeue}");
+
+				if (willRequeue)
 					self.QueueActivity(true, new CNFindAndDeliverResources(self));
 			}
 		}
