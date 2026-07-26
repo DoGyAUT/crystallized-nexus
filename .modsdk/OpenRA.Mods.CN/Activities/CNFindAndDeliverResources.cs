@@ -137,11 +137,44 @@ namespace OpenRA.Mods.Common.Activities
 
 		Activity CreateMoveToBestDock(Actor self)
 		{
-			var bestDockActor = cnHarvesterBotModule?.ChooseBestRefineryForDelivery(self, lastHarvestedCell ?? self.Location);
+			var fromCell = lastHarvestedCell ?? self.Location;
+			var bestDockActor = cnHarvesterBotModule?.ChooseBestRefineryForDelivery(self, fromCell)
+				?? ChooseLeastBusyRefinery(self, fromCell);
+
 			if (bestDockActor != null)
 				return new MoveToDock(self, bestDockActor, dockLineColor: dockClient.DockLineColor);
 
 			return new MoveToDock(self, dockLineColor: dockClient.DockLineColor);
+		}
+
+		// Player-controlled harvesters have no CNHarvesterBotModule to consult, so without this
+		// they always fall back to the engine's plain "closest dock" search - which ignores
+		// occupancy and piles every harvester onto the same nearest refinery even when a free one
+		// is only a few cells further away. Doesn't need the bot module's full resource-map-aware
+		// scoring, just enough occupancy-awareness to stop the pile-up.
+		Actor ChooseLeastBusyRefinery(Actor self, CPos fromCell)
+		{
+			Actor best = null;
+			var bestScore = int.MinValue;
+
+			foreach (var pair in self.World.ActorsWithTrait<IDockHost>())
+			{
+				var refinery = pair.Actor;
+				if (refinery.Owner != self.Owner || refinery.IsDead || !refinery.IsInWorld)
+					continue;
+
+				if (!dockClient.CanDockAt(refinery, pair.Trait, false, true))
+					continue;
+
+				var score = -pair.Trait.ReservationCount * 200 - (fromCell - refinery.Location).LengthSquared;
+				if (score > bestScore)
+				{
+					bestScore = score;
+					best = refinery;
+				}
+			}
+
+			return best;
 		}
 
 		CPos? ClosestHarvestablePos(Actor self)
