@@ -58,7 +58,7 @@ Player:
 				VisibleWeight: 14
 				GlobalWeight: 4
 			Siege:
-				EnemyCapabilities: Defense, Production, Tech, Superweapon
+				EnemyCapabilities: Defense, Production, Tech, Superweapon, Artillery
 				VisibleWeight: 8
 				GlobalWeight: 2
 			Harass:
@@ -133,6 +133,18 @@ Player:
 					1:
 						Count: 3
 						AllowedTypes: e2
+			GDI_MissileInfantry_AntiAir:
+				Role: Assault
+				Tags: AntiArmor, AntiAir, Infantry
+				MaxInstances: 6
+				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: gmisinf
 			GDI_JumpjetInfantry:
 				Role: Raider
 				Tags: AntiInfantry, AntiAir, Harass, Infantry
@@ -251,6 +263,18 @@ Player:
 					1:
 						Count: 3
 						AllowedTypes: hvr
+			GDI_Warden_AA:
+				Role: Raider
+				Tags: AntiAir, AntiInfantry, Harass, Vehicle
+				MaxInstances: 4
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Aircraft, Infantry
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: warden
 			GDI_Cyclops_Breaker:
 				Role: Assault
 				Tags: AntiArmor, Siege, Frontline, Vehicle
@@ -267,7 +291,7 @@ Player:
 				Role: ArtilleryAssault
 				Tags: Siege, Vehicle
 				Bias: 12
-				MaxInstances: 2
+				MaxInstances: 3
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
 				AttachToRole: Assault
@@ -275,7 +299,7 @@ Player:
 				PriorityTargetCapabilities: Defense, Production, Tech
 				Slots:
 					1:
-						Count: 2
+						Count: 3
 						AllowedTypes: jugg
 			GDI_Sonic_Breaker:
 				Role: Assault
@@ -499,7 +523,7 @@ Player:
 				Role: ArtilleryAssault
 				Tags: Siege, Vehicle
 				Bias: 12
-				MaxInstances: 2
+				MaxInstances: 3
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
 				AttachToRole: Assault
@@ -507,7 +531,7 @@ Player:
 				PriorityTargetCapabilities: Defense, Production, Tech
 				Slots:
 					1:
-						Count: 2
+						Count: 3
 						AllowedTypes: nhwtz
 			Nod_Subtank_Raid:
 				Role: SubterraneanAssault

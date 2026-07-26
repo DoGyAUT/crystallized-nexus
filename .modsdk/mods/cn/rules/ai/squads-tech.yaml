@@ -58,7 +58,7 @@ Player:
 				VisibleWeight: 14
 				GlobalWeight: 4
 			Siege:
-				EnemyCapabilities: Defense, Production, Tech, Superweapon
+				EnemyCapabilities: Defense, Production, Tech, Superweapon, Artillery
 				VisibleWeight: 8
 				GlobalWeight: 2
 			Harass:
@@ -129,6 +129,18 @@ Player:
 					1:
 						Count: 3
 						AllowedTypes: e2
+			GDI_MissileInfantry_AntiAir:
+				Role: Assault
+				Tags: AntiArmor, AntiAir, Infantry
+				MaxInstances: 4
+				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: gmisinf
 			GDI_JumpjetInfantry:
 				Role: Raider
 				Tags: AntiInfantry, AntiAir, Harass, Infantry
@@ -247,11 +259,23 @@ Player:
 					1:
 						Count: 3
 						AllowedTypes: hvr
+			GDI_Warden_AA:
+				Role: Raider
+				Tags: AntiAir, AntiInfantry, Harass, Vehicle
+				MaxInstances: 3
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Aircraft, Infantry
+				Slots:
+					1:
+						Count: 3
+						AllowedTypes: warden
 			GDI_Juggernaut_Siege:
 				Role: ArtilleryAssault
 				Tags: Siege, Vehicle
 				Bias: 12
-				MaxInstances: 4
+				MaxInstances: 5
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 2
 				AttachToRole: Assault
@@ -259,7 +283,7 @@ Player:
 				PriorityTargetCapabilities: Superweapon, Tech, Defense, Production
 				Slots:
 					1:
-						Count: 3
+						Count: 4
 						AllowedTypes: jugg
 			GDI_Cyclops_Breaker:
 				Role: Assault
@@ -499,7 +523,7 @@ Player:
 				Role: ArtilleryAssault
 				Tags: Siege, Vehicle
 				Bias: 12
-				MaxInstances: 4
+				MaxInstances: 5
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 2
 				AttachToRole: Assault
@@ -507,7 +531,7 @@ Player:
 				PriorityTargetCapabilities: Superweapon, Tech, Defense, Production
 				Slots:
 					1:
-						Count: 3
+						Count: 4
 						AllowedTypes: nhwtz
 			Nod_Subtank_Raid:
 				Role: SubterraneanAssault
