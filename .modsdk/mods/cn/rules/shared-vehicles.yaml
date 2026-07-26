@@ -64,8 +64,8 @@ LPST:
 		Actor: LPST.Husk
 		OwnerType: InternalName
 		InternalOwner: Neutral
-	WithVoxelBody:
-		RequiresCondition: undeployed
+	CNWithVoxelBody:
+		RequiresCondition: !inside-tunnel && undeployed
 	WithSpriteBody@deployed:
 		RequiresCondition: !undeployed && real-actor
 	WithIdleOverlay@LIGHTS:
