@@ -81,8 +81,36 @@ Container@DEBUG_PANEL:
 			Height: 30
 			Font: Bold
 			Text: button-debug-panel-reset-shroud
-		Label@VISUALIZATIONS_TITLE:
+		Label@SELECTION_TITLE:
 			Y: 245
+			Font: Bold
+			Text: label-debug-panel-selection-title
+			Align: Center
+			Width: PARENT_WIDTH
+			Height: 20
+		Button@HEAL_SELECTED:
+			X: 45
+			Y: 275
+			Width: 140
+			Height: 30
+			Font: Bold
+			Text: button-debug-panel-heal-selected
+		Button@DISPOSE_SELECTED:
+			X: 195
+			Y: 275
+			Width: 140
+			Height: 30
+			Font: Bold
+			Text: button-debug-panel-dispose-selected
+		Button@KILL_SELECTED:
+			X: 345
+			Y: 275
+			Width: 140
+			Height: 30
+			Font: Bold
+			Text: button-debug-panel-kill-selected
+		Label@VISUALIZATIONS_TITLE:
+			Y: 320
 			Font: Bold
 			Text: label-debug-panel-visualizations-title
 			Align: Center
@@ -90,56 +118,56 @@ Container@DEBUG_PANEL:
 			Height: 20
 		Checkbox@SHOW_UNIT_PATHS:
 			X: 45
-			Y: 275
+			Y: 350
 			Width: 200
 			Height: 20
 			Font: Regular
 			Text: checkbox-debug-panel-show-unit-paths
 		Checkbox@SHOW_CUSTOMTERRAIN_OVERLAY:
 			X: 45
-			Y: 305
+			Y: 380
 			Height: 20
 			Width: 200
 			Font: Regular
 			Text: checkbox-debug-panel-show-customterrain-overlay
 		Checkbox@SHOW_ACTOR_TAGS:
 			X: 45
-			Y: 335
+			Y: 410
 			Height: 20
 			Width: 200
 			Font: Regular
 			Text: checkbox-debug-panel-show-actor-tags
 		Checkbox@SHOW_DEPTH_PREVIEW:
 			X: 45
-			Y: 365
+			Y: 440
 			Height: 20
 			Width: 200
 			Font: Regular
 			Text: checkbox-debug-panel-show-depth-preview
 		Checkbox@SHOW_COMBATOVERLAY:
 			X: 290
-			Y: 275
+			Y: 350
 			Height: 20
 			Width: 200
 			Font: Regular
 			Text: checkbox-debug-panel-show-combatoverlay
 		Checkbox@SHOW_GEOMETRY:
 			X: 290
-			Y: 305
+			Y: 380
 			Height: 20
 			Width: 200
 			Font: Regular
 			Text: checkbox-debug-panel-show-geometry
 		Checkbox@SHOW_TERRAIN_OVERLAY:
 			X: 290
-			Y: 335
+			Y: 410
 			Height: 20
 			Width: 200
 			Font: Regular
 			Text: checkbox-debug-panel-show-terrain-overlay
 		Checkbox@SHOW_SCREENMAP:
 			X: 290
-			Y: 365
+			Y: 440
 			Height: 20
 			Width: 200
 			Font: Regular
