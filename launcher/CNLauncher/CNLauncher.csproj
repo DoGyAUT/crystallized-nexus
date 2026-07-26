@@ -9,8 +9,9 @@
     <RootNamespace>CNLauncher</RootNamespace>
 
     <!-- Published as a single self-contained file so testers don't need the .NET runtime installed.
-         Build with -r win-x64 or -r linux-x64 to select the target platform. -->
-    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+         Build with -r win-x64, -r linux-x64, -r osx-x64 (Intel) or -r osx-arm64 (Apple
+         Silicon) to select the target platform. -->
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

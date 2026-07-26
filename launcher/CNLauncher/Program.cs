@@ -14,22 +14,33 @@ static class Program
 	// Linux ships a single self-mounting AppImage - no extraction, just chmod +x and run.
 	// The AppImage's AppRun script execs "usr/bin/openra-cn" internally, so that's the
 	// process name to watch for, not the AppImage filename itself.
+	// macOS ships a .dmg disk image containing a "OpenRA - <mod name>.app" bundle; we mount
+	// it, copy the .app out under our own fixed name, and detach. The bundle's
+	// CFBundleExecutable is "Launcher" (a native stub that NSTask-spawns the actual game and
+	// stays running for the whole session), so that's both what we exec and what we watch
+	// for when checking if the game is still running.
 	const string WindowsGameExeName = "CrystallizedNexus.exe";
 	const string LinuxGameFileName = "CrystallizedNexus.AppImage";
 	const string LinuxGameProcessName = "openra-cn";
+	const string MacAppBundleName = "CrystallizedNexus.app";
+	const string MacGameProcessName = "Launcher";
 
 	static readonly string LauncherDir = AppContext.BaseDirectory;
 	static readonly string GameDir = Path.Combine(LauncherDir, "game");
 	static readonly string VersionFile = Path.Combine(LauncherDir, "version.txt");
-	static readonly string GameExe = Path.Combine(GameDir, OperatingSystem.IsWindows() ? WindowsGameExeName : LinuxGameFileName);
+
+	static readonly string GameExe =
+		OperatingSystem.IsWindows() ? Path.Combine(GameDir, WindowsGameExeName) :
+		OperatingSystem.IsMacOS() ? Path.Combine(GameDir, MacAppBundleName, "Contents", "MacOS", MacGameProcessName) :
+		Path.Combine(GameDir, LinuxGameFileName);
 
 	static async Task<int> Main(string[] args)
 	{
 		Console.WriteLine("Crystallized Nexus test launcher");
 
-		if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+		if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
 		{
-			Console.WriteLine("Unsupported platform (only Windows and Linux builds are published).");
+			Console.WriteLine("Unsupported platform (only Windows, Linux and macOS builds are published).");
 			Pause();
 			return 1;
 		}
@@ -97,7 +108,7 @@ static class Program
 	{
 		bool IsRunning() => OperatingSystem.IsWindows()
 			? Process.GetProcessesByName("OpenRA").Length > 0 || Process.GetProcessesByName("CrystallizedNexus").Length > 0
-			: Process.GetProcessesByName(LinuxGameProcessName).Length > 0;
+			: Process.GetProcessesByName(OperatingSystem.IsMacOS() ? MacGameProcessName : LinuxGameProcessName).Length > 0;
 
 		while (IsRunning())
 		{
@@ -143,6 +154,12 @@ static class Program
 				?? throw new InvalidOperationException($"Release {release.TagName} has no Windows x64 winportable asset.");
 		}
 
+		if (OperatingSystem.IsMacOS())
+		{
+			return release.Assets.FirstOrDefault(a => a.Name.EndsWith(".dmg", StringComparison.OrdinalIgnoreCase))
+				?? throw new InvalidOperationException($"Release {release.TagName} has no macOS disk image asset.");
+		}
+
 		return release.Assets.FirstOrDefault(a => a.Name.EndsWith(".AppImage", StringComparison.OrdinalIgnoreCase))
 			?? throw new InvalidOperationException($"Release {release.TagName} has no Linux AppImage asset.");
 	}
@@ -184,6 +201,47 @@ static class Program
 				File.Delete(zipPath);
 			}
 		}
+		else if (OperatingSystem.IsMacOS())
+		{
+			var dmgPath = Path.Combine(Path.GetTempPath(), $"cn-launcher-{Guid.NewGuid():N}.dmg");
+			await using (var fileStream = File.Create(dmgPath))
+			await using (var responseStream = await response.Content.ReadAsStreamAsync())
+				await CopyWithProgressAsync(responseStream, fileStream, totalBytes);
+
+			var mountPoint = Path.Combine(Path.GetTempPath(), $"cn-launcher-mount-{Guid.NewGuid():N}");
+			Directory.CreateDirectory(mountPoint);
+
+			Console.WriteLine("Mounting disk image...");
+			try
+			{
+				RunProcess("hdiutil", ["attach", dmgPath, "-mountpoint", mountPoint, "-nobrowse", "-quiet"]);
+
+				var appBundle = Directory.GetDirectories(mountPoint, "*.app").FirstOrDefault()
+					?? throw new InvalidOperationException("Disk image does not contain an .app bundle.");
+
+				var destApp = Path.Combine(GameDir, MacAppBundleName);
+				if (Directory.Exists(GameDir))
+					Directory.Delete(GameDir, recursive: true);
+
+				Directory.CreateDirectory(GameDir);
+				Console.WriteLine("Copying application...");
+				CopyDirectory(appBundle, destApp);
+
+				RunProcess("hdiutil", ["detach", mountPoint, "-quiet"]);
+
+				// Unsigned build - clear any quarantine flag so Gatekeeper doesn't block it,
+				// and make sure the bundle executables kept their execute bit through the copy.
+				RunProcess("xattr", ["-cr", destApp]);
+				foreach (var f in Directory.GetFiles(Path.Combine(destApp, "Contents", "MacOS"), "*", SearchOption.AllDirectories))
+					File.SetUnixFileMode(f, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+						UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+			}
+			finally
+			{
+				Directory.Delete(mountPoint, recursive: true);
+				File.Delete(dmgPath);
+			}
+		}
 		else
 		{
 			// The AppImage is a single self-mounting executable - no extraction needed,
@@ -198,6 +256,29 @@ static class Program
 				UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
 				UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
 		}
+	}
+
+	static void CopyDirectory(string sourceDir, string destDir)
+	{
+		Directory.CreateDirectory(destDir);
+
+		foreach (var dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+			Directory.CreateDirectory(Path.Combine(destDir, Path.GetRelativePath(sourceDir, dir)));
+
+		foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+			File.Copy(file, Path.Combine(destDir, Path.GetRelativePath(sourceDir, file)), overwrite: true);
+	}
+
+	static void RunProcess(string fileName, IEnumerable<string> arguments)
+	{
+		var psi = new ProcessStartInfo(fileName) { UseShellExecute = false };
+		foreach (var arg in arguments)
+			psi.ArgumentList.Add(arg);
+
+		using var process = Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start {fileName}.");
+		process.WaitForExit();
+		if (process.ExitCode != 0)
+			throw new InvalidOperationException($"{fileName} exited with code {process.ExitCode}.");
 	}
 
 	static async Task CopyWithProgressAsync(Stream source, Stream destination, long? totalBytes)
@@ -243,8 +324,8 @@ static class Program
 			return 1;
 		}
 
-		// The packaged launcher (Windows exe / Linux AppRun) already has the mod/engine/
-		// search-path arguments baked in - no extra arguments needed here.
+		// The packaged launcher (Windows exe / Linux AppRun / macOS .app) already has the
+		// mod/engine/search-path arguments baked in - no extra arguments needed here.
 		var psi = new ProcessStartInfo(GameExe)
 		{
 			WorkingDirectory = GameDir,
