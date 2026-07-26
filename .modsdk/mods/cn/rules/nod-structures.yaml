@@ -310,6 +310,9 @@ NAHAND:
 		Name: actor-nahand.name
 	ProvidesPrerequisite:
 		Prerequisite: barracks
+	ProvidesPrerequisite@nod:
+		Factions: nod
+		Prerequisite: structures.nod
 	Building:
 		Footprint: xxxx xxxx
 		Dimensions: 4,2
@@ -415,6 +418,9 @@ NAWEAP:
 		Name: actor-naweap.name
 	ProvidesPrerequisite:
 		Prerequisite: factory
+	ProvidesPrerequisite@nod:
+		Factions: nod
+		Prerequisite: structures.nod
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 50
@@ -564,6 +570,9 @@ NARADR:
 		Name: actor-naradr.name
 	ProvidesPrerequisite:
 		Prerequisite: radar
+	ProvidesPrerequisite@nod:
+		Factions: nod
+		Prerequisite: structures.nod
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -691,6 +700,9 @@ NAPYRA:
 		Cost: 1500
 	Tooltip:
 		Name: actor-napyra.name
+	ProvidesPrerequisite@nod:
+		Factions: nod
+		Prerequisite: structures.nod
 	Building:
 		Footprint: xxxx xxxx xxxx xxxx
 		Dimensions: 4,4

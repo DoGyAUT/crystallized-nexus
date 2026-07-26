@@ -296,6 +296,18 @@ GAPILE:
 		Name: actor-gapile.name
 	ProvidesPrerequisite:
 		Prerequisite: barracks
+	ProvidesPrerequisite@gdi:
+		Factions: gdi, gdf, steel, zocom
+		Prerequisite: structures.gdi
+	ProvidesPrerequisite@gdf:
+		Factions: gdf
+		Prerequisite: tech.gdf
+	ProvidesPrerequisite@steel:
+		Factions: steel
+		Prerequisite: tech.steel
+	ProvidesPrerequisite@zocom:
+		Factions: zocom
+		Prerequisite: tech.zocom
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -410,6 +422,18 @@ GAWEAP:
 		Name: actor-gaweap.name
 	ProvidesPrerequisite:
 		Prerequisite: factory
+	ProvidesPrerequisite@gdi:
+		Factions: gdi, gdf, steel, zocom
+		Prerequisite: structures.gdi
+	ProvidesPrerequisite@gdf:
+		Factions: gdf
+		Prerequisite: tech.gdf
+	ProvidesPrerequisite@steel:
+		Factions: steel
+		Prerequisite: tech.steel
+	ProvidesPrerequisite@zocom:
+		Factions: zocom
+		Prerequisite: tech.zocom
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 50
@@ -667,6 +691,18 @@ GARADR:
 		Name: actor-garadr.name
 	ProvidesPrerequisite:
 		Prerequisite: radar
+	ProvidesPrerequisite@gdi:
+		Factions: gdi, gdf, steel, zocom
+		Prerequisite: structures.gdi
+	ProvidesPrerequisite@gdf:
+		Factions: gdf
+		Prerequisite: tech.gdf
+	ProvidesPrerequisite@steel:
+		Factions: steel
+		Prerequisite: tech.steel
+	ProvidesPrerequisite@zocom:
+		Factions: zocom
+		Prerequisite: tech.zocom
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
@@ -730,6 +766,18 @@ GAARMORY:
 	Power:
 		Amount: -50
 	ProvidesPrerequisite@buildingname:
+	ProvidesPrerequisite@gdi:
+		Factions: gdi, gdf, steel, zocom
+		Prerequisite: structures.gdi
+	ProvidesPrerequisite@gdf:
+		Factions: gdf
+		Prerequisite: tech.gdf
+	ProvidesPrerequisite@steel:
+		Factions: steel
+		Prerequisite: tech.steel
+	ProvidesPrerequisite@zocom:
+		Factions: zocom
+		Prerequisite: tech.zocom
 	RequiresBuildableArea:
 		AreaTypes: building
 	IsometricSelectable:
@@ -752,6 +800,18 @@ GATECH:
 		Name: actor-gatech.name
 	ProvidesPrerequisite:
 		Prerequisite: tech
+	ProvidesPrerequisite@gdi:
+		Factions: gdi, gdf, steel, zocom
+		Prerequisite: structures.gdi
+	ProvidesPrerequisite@gdf:
+		Factions: gdf
+		Prerequisite: tech.gdf
+	ProvidesPrerequisite@steel:
+		Factions: steel
+		Prerequisite: tech.steel
+	ProvidesPrerequisite@zocom:
+		Factions: zocom
+		Prerequisite: tech.zocom
 	Building:
 		Footprint: xxx xxx
 		Dimensions: 3,2
