@@ -134,8 +134,8 @@ Hellstorm:
 	Projectile: Missile
 		MinimumLaunchAngle: -96
 		MaximumLaunchAngle: 32
-		HorizontalRateOfTurn: 32
-		VerticalRateOfTurn: 64
+		HorizontalRateOfTurn: 64
+		VerticalRateOfTurn: 128
 		CruiseAltitude: 4c0
 		MaximumLaunchSpeed: 0c356
 		MinimumLaunchSpeed: 0c356
