@@ -221,11 +221,14 @@ namespace OpenRA.Mods.CN.Traits
 			else if (tensionActive)
 				state = CNMusicState.Tension;
 
+			// Exclusive layers: only the current intensity's stem plays at a time. FadeStep-based
+			// crossfading in Step() still gives a smooth transition between whichever stems are
+			// ramping up/down, but they don't stay stacked on top of each other afterwards.
 			FadeTo(
-				1f,
-				state >= CNMusicState.Tension ? 1f : 0f,
-				state >= CNMusicState.Combat ? 1f : 0f,
-				state >= CNMusicState.BigBattle ? 1f : 0f);
+				state == CNMusicState.Peace ? 1f : 0f,
+				state == CNMusicState.Tension ? 1f : 0f,
+				state == CNMusicState.Combat ? 1f : 0f,
+				state == CNMusicState.BigBattle ? 1f : 0f);
 		}
 
 		void FadeTo(float peace, float tension, float combat, float bigBattle)
