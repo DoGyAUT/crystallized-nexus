@@ -99,3 +99,36 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "$RELEASE_TAG" .modsdk/build/windows/*
+
+  macos:
+    name: macOS Disk Image
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Install .NET 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Prepare Environment
+        run: echo "GIT_TAG=${RELEASE_TAG}" >> ${GITHUB_ENV}
+
+      # Unsigned build: MACOS_DEVELOPER_IDENTITY/CERTIFICATE/NOTARIZATION secrets are not
+      # configured, so buildpackage.sh skips codesigning and notarization. Testers will see
+      # a Gatekeeper "unidentified developer" warning on first launch.
+      - name: Package Disk Image
+        working-directory: .modsdk
+        run: |
+          make engine
+          mkdir -p build/macos
+          ./packaging/macos/buildpackage.sh "${GIT_TAG}" "${PWD}/build/macos"
+
+      - name: Upload Package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$RELEASE_TAG" .modsdk/build/macos/*
