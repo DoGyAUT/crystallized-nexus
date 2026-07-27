@@ -1,7 +1,10 @@
 LtRail:
 	Inherits: ^Railgun
-	Inherits@FLASH: ^FlashSmallW
+	Inherits@FLASH: ^FlashTinyW
 	Warhead@1Dam: SpreadDamage
+		Range: 0, 32
+		Damage: 50
+	Warhead@FLASH: CreateEffect
 		ValidRelationships: Neutral, Enemy
 
 MechRailgun:
@@ -13,6 +16,8 @@ MechRailgun:
 	BurstDelays: 40
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
+	Warhead@FLASH: CreateEffect
+		ValidRelationships: Neutral, Enemy
 
 CyclopsLauncher:
 	Inherits: ^RailgunCannon

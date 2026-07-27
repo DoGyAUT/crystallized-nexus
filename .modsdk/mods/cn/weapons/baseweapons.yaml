@@ -278,6 +278,8 @@
 		AffectsParent: false
 		ValidRelationships: Neutral, Enemy
 	Warhead@2Sparks: SparkBurst
+		AffectsParent: false
+		ValidRelationships: Neutral, Enemy
 		ValidTargets: Vehicle, Cyborg, Air, Building
 		Count: 20
 		Speed: 60, 180
@@ -322,12 +324,16 @@
 		AffectsParent: false
 		ValidRelationships: Neutral, Enemy
 	Warhead@2Eff: CreateEffect
+		AffectsParent: false
+		ValidRelationships: Neutral, Enemy
 		Explosions: apexplosion01
 		ExplosionPalette: effect
 		ImpactSounds: Tank_hit_HE_v1.ogg, Tank_hit_HE_v2.ogg, Tank_hit_HE_v3.ogg
 		ValidTargets: Ground, Air, DeadInfantry
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@3EffWater: CreateEffect
+		AffectsParent: false
+		ValidRelationships: Neutral, Enemy
 		Explosions: small_watersplash
 		ExplosionPalette: player
 		ImpactSounds: ssplash3.aud
@@ -337,6 +343,8 @@
 		SmudgeType: MediumCrater
 		InvalidTargets: Vehicle, Building, Wall
 	Warhead@5Eff: CreateEffect
+		AffectsParent: false
+		ValidRelationships: Neutral, Enemy
 		Explosions: pboom1, pboom2, pboom3
 		ExplosionPalette: effect
 		ImpactSounds: tank_hit_v1.ogg, tank_hit_v2.ogg, tank_hit_v3.ogg, tank_hit_v4.ogg, tank_hit_v5.ogg
