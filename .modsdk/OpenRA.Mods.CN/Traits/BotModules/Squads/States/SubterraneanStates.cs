@@ -108,7 +108,60 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				targetPos += offset;
 			}
 
-			return squad.World.Map.CellContaining(targetPos);
+			var idealCell = squad.World.Map.CellContaining(targetPos);
+
+			// The raw insertion point is a value-weighted centroid of building positions, so in a
+			// densely-packed base it often lands on or beside an actual building footprint.
+			// SubterraneanTransitionTerrainTypes only validates terrain type, not occupancy, so
+			// without this the Move order silently reroutes to whatever open cell the pathfinder
+			// can reach - usually near the base's outer edge, not the soft interior it's aiming for.
+			return FindNearestOpenSurfaceCell(squad, source, idealCell) ?? idealCell;
+		}
+
+		/// <summary>
+		/// Expands outward in rings from <paramref name="idealCell"/> to find the closest cell the
+		/// source actor can actually enter, so deep-insertion/ambush points don't get silently
+		/// deflected to the base perimeter by unchecked building occupancy.
+		/// </summary>
+		public static CPos? FindNearestOpenSurfaceCell(CNSquad squad, Actor source, CPos idealCell)
+		{
+			var mobile = source.TraitOrDefault<Mobile>();
+			if (mobile == null)
+				return null;
+
+			var map = squad.World.Map;
+			const int MaxSearchRadius = 6;
+
+			for (var radius = 0; radius <= MaxSearchRadius; radius++)
+			{
+				CPos? best = null;
+				var bestDistSq = long.MaxValue;
+
+				for (var dy = -radius; dy <= radius; dy++)
+				{
+					for (var dx = -radius; dx <= radius; dx++)
+					{
+						if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius)
+							continue;
+
+						var candidate = idealCell + new CVec(dx, dy);
+						if (!map.Contains(candidate) || !mobile.CanEnterCell(candidate))
+							continue;
+
+						var distSq = (long)dx * dx + (long)dy * dy;
+						if (distSq < bestDistSq)
+						{
+							bestDistSq = distSq;
+							best = candidate;
+						}
+					}
+				}
+
+				if (best.HasValue)
+					return best;
+			}
+
+			return null;
 		}
 	}
 
@@ -328,21 +381,30 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	}
 
 	/// <summary>
-	/// Reborrow: retreat underground, move back to base to recover.
-	/// After reaching base, return to Idle (squad stays alive for future use).
+	/// Reborrow: dive to a short safe distance instead of trekking all the way home. The squad is
+	/// already submerged and unseen while moving, so once it's clear of the immediate danger it
+	/// heads straight back to Idle to pick a fresh target - letting it keep raiding elsewhere in
+	/// or around the same base rather than a long round trip. Falls back to base if no safe nearby
+	/// cell is found.
 	/// </summary>
 	sealed class SubAssaultReburrowState : CNStateBase, ICNState
 	{
-		const int MaxRetreatTicks = 900;
-		bool retreatIssued;
+		const int MinRetreatCells = 6;
+		const int MaxRetreatCells = 14;
+		const int MaxRetreatTicks = 250;
+
 		CPos retreatCell;
 		int retreatStartTick;
 
 		public void Activate(CNSquad squad)
 		{
-			retreatIssued = false;
-			retreatCell = CPos.Zero;
 			retreatStartTick = squad.World.WorldTick;
+			retreatCell = FindRetreatCell(squad, MinRetreatCells, MaxRetreatCells) ??
+				squad.SquadManager.GetRandomBaseCenter();
+
+			foreach (var unit in squad.OrderableUnits)
+				squad.Bot.QueueOrder(new Order("Move", unit,
+					Target.FromCell(squad.World, retreatCell), false));
 		}
 
 		public void Tick(CNSquad squad)
@@ -350,28 +412,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			if (!retreatIssued)
-			{
-				// Move to base — subterranean locomotor re-burrows automatically.
-				retreatCell = squad.SquadManager.GetRandomBaseCenter();
-				foreach (var unit in squad.OrderableUnits)
-					squad.Bot.QueueOrder(new Order("Move", unit,
-						Target.FromCell(squad.World, retreatCell), false));
-
-				retreatIssued = true;
-			}
-
 			var retreatPos = squad.World.Map.CenterOfCell(retreatCell);
-			var homeRange = WDist.FromCells(8);
+			var arrived = squad.OrderableUnits.All(u =>
+				(u.CenterPosition - retreatPos).Length <= WDist.FromCells(2).Length);
 
-			var allHome = squad.OrderableUnits.All(u =>
-				(u.CenterPosition - retreatPos).Length <= homeRange.Length);
-
-			// Wait until the squad actually returns home instead of immediately
-			// retargeting as soon as it burrows.
-			if (allHome)
-				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultIdleState());
-			else if (squad.World.WorldTick - retreatStartTick > MaxRetreatTicks)
+			if (arrived || squad.World.WorldTick - retreatStartTick > MaxRetreatTicks)
 				squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultIdleState());
 		}
 
@@ -630,7 +675,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var ambushOffset = new WVec(normalized.X, normalized.Y, 0) *
 				WDist.FromCells(5).Length / 1024;
 
-			return enemyPos + ambushOffset;
+			var idealCell = world.Map.CellContaining(enemyPos + ambushOffset);
+
+			// As with the SUBTANK deep-insertion point, the raw offset often lands on/beside a
+			// building footprint - without this the SAPC would silently surface at the nearest
+			// open cell the pathfinder can reach, typically the base's edge rather than its core.
+			var openCell = SubterraneanHelpers.FindNearestOpenSurfaceCell(squad, source, idealCell);
+			return openCell.HasValue ? world.Map.CenterOfCell(openCell.Value) : enemyPos + ambushOffset;
 		}
 
 		static Actor FindAmbushTarget(CNSquad squad, Actor source)
