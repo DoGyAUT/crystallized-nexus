@@ -43,7 +43,9 @@ Player:
 			Transport: 4
 			Infantry: 5
 			Vehicle: 6
-			Aircraft: 3
+			Aircraft: 6
+			Siege: 5
+			Harass: 5
 		NeedRules:
 			AntiInfantry:
 				EnemyCapabilities: Infantry
@@ -277,7 +279,7 @@ Player:
 						AllowedTypes: warden
 			GDI_Cyclops_Breaker:
 				Role: Assault
-				Tags: AntiArmor, Siege, Frontline, Vehicle
+				Tags: AntiArmor, Harass, Frontline, Vehicle
 				MaxInstances: 3
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
@@ -318,6 +320,7 @@ Player:
 				Role: Assault
 				Tags: AntiArmor, AntiAir, Siege, Frontline, Vehicle
 				Bias: 20
+				IgnoresCashReserve: true
 				MaxInstances: 1
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
@@ -327,6 +330,19 @@ Player:
 					1:
 						Count: 1
 						AllowedTypes: hmec
+			GDI_ZoneTrooper_Tech:
+				Role: Assault
+				Tags: AntiInfantry, AntiArmor, Frontline, Infantry
+				Bias: 8
+				MaxInstances: 3
+				PriorityTargetCapabilities: Infantry, Vehicle, Harvester, Economy
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: ztrooper
 			GDI_Orca_Bomber:
 				Role: AircraftAttack
 				Tags: Siege, Harass, Aircraft
@@ -497,6 +513,7 @@ Player:
 				Role: Assault
 				Tags: AntiArmor, Siege, Frontline, Vehicle
 				Bias: 18
+				IgnoresCashReserve: true
 				MaxInstances: 2
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
