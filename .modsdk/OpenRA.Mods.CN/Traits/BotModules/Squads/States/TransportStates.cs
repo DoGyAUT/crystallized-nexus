@@ -404,15 +404,65 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			lastBoardedCount = 0;
 			passengerToCarrier.Clear();
 
-			// Stop all carriers and escorts so they stay put while passengers walk to them.
+			// Relocate to a nearby open cell before loading instead of stopping wherever
+			// production left the carrier - that's often right at the war factory apron, a spot
+			// congested with own traffic and buildings that makes it hard for recruited infantry
+			// to path in and board. Air transports don't have this problem since they already
+			// pick a clear landing cell (FindLandingCell); this is the ground equivalent. Falls
+			// back to stopping in place if nothing clear is found nearby.
+			var rallyCarrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead);
+			var rallyCell = rallyCarrier != null ? FindLoadRallyCell(squad, rallyCarrier) : null;
+
 			foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
-				squad.Bot.QueueOrder(new Order("Stop", carrier, false));
+				squad.Bot.QueueOrder(rallyCell.HasValue
+					? new Order("Move", carrier, Target.FromCell(squad.World, rallyCell.Value), false)
+					: new Order("Stop", carrier, false));
+
 			foreach (var escort in squad.EscortUnits.Where(u => !u.IsDead && u.IsInWorld))
 				squad.Bot.QueueOrder(new Order("Stop", escort, false));
 
 			// Issue boarding orders immediately (don't wait up to 75 ticks for first Tick).
 			AssignPassengersToCarriers(squad);
 			IssueBoardingOrders(squad, idleOnly: false);
+		}
+
+		const int RallySearchRadius = 6;
+		const int CongestionCheckCells = 2;
+
+		// Finds the nearest cell within RallySearchRadius that's genuinely clear (no actors
+		// within CongestionCheckCells) for the carrier to park at while loading. Returns null if
+		// nothing clear is found, so the caller can fall back to stopping in place.
+		static CPos? FindLoadRallyCell(CNSquad squad, Actor carrier)
+		{
+			var mobile = carrier.TraitOrDefault<Mobile>();
+			if (mobile == null)
+				return null;
+
+			var map = squad.World.Map;
+			var origin = carrier.Location;
+
+			for (var radius = 0; radius <= RallySearchRadius; radius++)
+			{
+				for (var dy = -radius; dy <= radius; dy++)
+				{
+					for (var dx = -radius; dx <= radius; dx++)
+					{
+						if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius)
+							continue;
+
+						var candidate = origin + new CVec(dx, dy);
+						if (!map.Contains(candidate) || !mobile.CanEnterCell(candidate))
+							continue;
+
+						var congestion = squad.World.FindActorsInCircle(
+							map.CenterOfCell(candidate), WDist.FromCells(CongestionCheckCells)).Count();
+						if (congestion == 0)
+							return candidate;
+					}
+				}
+			}
+
+			return null;
 		}
 
 		public void Tick(CNSquad squad)
