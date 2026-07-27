@@ -227,6 +227,7 @@ Player:
 			AADefense: 6
 			ArtilleryDefense: 5
 			Special: 5
+			GarrisonDefense: 5
 		
 		# Neutral base building targets.
 		# Tech-stage overlays are applied first, then profile budgets scale Production/Tech/Defense behavior in code.
