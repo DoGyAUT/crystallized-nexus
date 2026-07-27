@@ -257,15 +257,16 @@
 		Duration: 15
 		Blockable: true
 		DamageActorsInLine: true
-		BeamColor: 0080FFC8
+		BeamColor: 0080FF00
+		HelixColor: 80C8FFC8
 		Distortion: 1.5
-		DistortionWidth: 0c192
+		DistortionWidth: 0c512
 		DistortionWaveScale: 10
 		DistortionWaveSpeed: 0.05
 		DistortionEdgeSoftness: 0.6
 		TrailParticles: true
-		TrailParticleCount: 20
-		TrailParticleLifetime: 18
+		TrailParticleCount: 40
+		TrailParticleLifetime: 34
 		TrailParticleSpeed: 20, 90
 		TrailParticleLength: 64
 		TrailParticleWidth: 20
@@ -274,6 +275,7 @@
 	Warhead@1Dam: SpreadDamage
 		Range: 0, 32
 		Damage: 150
+		AffectsParent: false
 		ValidRelationships: Neutral, Enemy
 	Warhead@2Sparks: SparkBurst
 		ValidTargets: Vehicle, Cyborg, Air, Building
@@ -317,6 +319,7 @@
 		TrailParticleEndColor: 0080FF00
 	Warhead@1Dam: SpreadDamage
 		Damage: 36
+		AffectsParent: false
 		ValidRelationships: Neutral, Enemy
 	Warhead@2Eff: CreateEffect
 		Explosions: apexplosion01
