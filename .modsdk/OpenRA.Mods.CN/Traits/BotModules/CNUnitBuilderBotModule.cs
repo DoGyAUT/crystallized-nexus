@@ -867,8 +867,15 @@ namespace OpenRA.Mods.CN.Traits
 		bool HasBudgetFor(ActorInfo actorInfo, int committedCost, ILookup<string, ProductionQueue> queuesByCategory)
 		{
 			var cost = actorInfo.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+
+			// Rare/expensive high-priority units (IgnoresCashReserve templates) skip the reserve buffer -
+			// they'd otherwise almost never clear DesiredCashReserve against cheaper, more frequent demand.
+			var skipsReserve = squadManager != null && !squadManager.IsTraitDisabled &&
+				squadManager.GetTypesIgnoringCashReserve().Contains(actorInfo.Name);
+			var reserve = skipsReserve ? 0 : GetDesiredReserve(queuesByCategory);
+
 			return playerResources.GetCashAndResources() >=
-				GetActiveProductionMinCashRequirement() + GetDesiredReserve(queuesByCategory) + committedCost + cost;
+				GetActiveProductionMinCashRequirement() + reserve + committedCost + cost;
 		}
 
 		bool HasReservationBudget(ActorInfo actorInfo, int committedCost, ILookup<string, ProductionQueue> queuesByCategory)

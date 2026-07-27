@@ -128,6 +128,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"Used only when ScaleWithBuilding is set. Formula: scaledMax = buildingCount * SquadsPerBuilding.")]
 		public readonly int SquadsPerBuilding = 1;
 
+		[Desc("If true, this template's units skip the production queue's normal DesiredCashReserve/" +
+			"AdditionalCashReservePerQueue buffer when checking affordability - only the flat " +
+			"ProductionMinCashRequirement applies. For rare, expensive, high-priority units (heavy Bias, " +
+			"Count:1 slots) that would otherwise almost never clear the cash-reserve bar against cheaper, " +
+			"more frequent demand from other squads.")]
+		public readonly bool IgnoresCashReserve = false;
+
 		[Desc("Slot definitions keyed by slot name.")]
 		[FieldLoader.LoadUsing(nameof(LoadSlots))]
 		public readonly Dictionary<string, CNSlotInfo> Slots = [];
@@ -877,6 +884,29 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			return cap;
+		}
+
+		HashSet<string> typesIgnoringCashReserve;
+
+		// Unit types that appear in any slot of an IgnoresCashReserve template - cached since the
+		// template roster is static config, and this is looked up per candidate unit during production.
+		public IReadOnlySet<string> GetTypesIgnoringCashReserve()
+		{
+			if (typesIgnoringCashReserve != null)
+				return typesIgnoringCashReserve;
+
+			typesIgnoringCashReserve = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (var (_, template) in OrderedTemplates())
+			{
+				if (!template.IgnoresCashReserve || !TemplateAppliesToFaction(template))
+					continue;
+
+				foreach (var (_, slot) in template.Slots)
+					foreach (var allowedType in slot.AllowedTypes)
+						typesIgnoringCashReserve.Add(allowedType);
+			}
+
+			return typesIgnoringCashReserve;
 		}
 
 		static void AddPreferredDemand(
