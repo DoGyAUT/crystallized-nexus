@@ -467,3 +467,52 @@ JUMPJET.Husk:
 		FallbackSequence: die-splash
 	Interactable:
 	WithShadow:
+
+ZTROOPER:
+	Inherits: ^SoldierHeavy
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Inherits@SQUAD: ^MobSquadMaster
+	Inherits@TIBIMMUNE: ^TiberiumImmuneMovement
+	Buildable:
+		Queue: Infantry
+		BuildPaletteOrder: 80
+		Prerequisites: ~gapile, garadr, gatech, ~techlevel.high, ~tech.zocom
+		Description: actor-ztrooper.description
+	Valued:
+		Cost: 1200
+	Tooltip:
+		Name: actor-ztrooper.name
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Buildable:
+		Queue: Infantry
+		BuildPaletteOrder: 70
+		Prerequisites: ~gapile, garadr, ~techlevel.medium, ~tech.zocom
+		Description: actor-ztrooper.description
+	Voiced:
+		VoiceSet: Trooper
+	CNHealth:
+		HP: 200
+	Armor:
+		Type: Heavy
+	Mobile:
+		Speed: 71
+		Voice: Attack
+		SharesCell: False
+	RevealsShroud:
+		Range: 9c921
+	Armament@primary:
+		Weapon: LtRail
+		LocalOffset: 724,91,1131
+	MobSpawnerMaster:
+		Actors: ZTROOPER.Member, ZTROOPER.Member, ZTROOPER.Member
+		DisableRespawning: true
+	AttackFrontal:
+		Voice: Attack
+		FacingTolerance: 0
+	WithSplitAttackPaletteInfantryBody:
+		DefaultAttackSequence: attack
+	BotCapabilities:
+		Capabilities: Infantry, AntiInfantry, AntiArmor

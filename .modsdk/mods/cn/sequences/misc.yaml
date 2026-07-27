@@ -868,7 +868,7 @@ durasmoke_large:
 		Length: *
 		ZOffset: 1023
 		Offset: 0, 0, 24
-		Tick: 60
+		Tick: 40
 		BlendMode: Alpha
 	idle-overlay:
 		Filename: durasmoke_large.png
@@ -884,7 +884,7 @@ durasmoke_medium:
 		Length: *
 		ZOffset: 1023
 		Offset: 0, 0, 24
-		Tick: 60
+		Tick: 40
 		BlendMode: Alpha
 
 durasmoke_small:
@@ -893,7 +893,7 @@ durasmoke_small:
 		Length: *
 		ZOffset: 1023
 		Offset: 0, 0, 24
-		Tick: 60
+		Tick: 40
 		BlendMode: Alpha
 
 htrail:
@@ -903,6 +903,7 @@ htrail:
 		ZOffset: 1023
 		Offset: 0, 0, 48
 		Tick: 10
+		Scale: 0.5
 		BlendMode: Alpha
 		IgnoreWorldTint: True
 		BloomGlow: True

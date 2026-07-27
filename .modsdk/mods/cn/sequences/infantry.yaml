@@ -340,6 +340,64 @@ gmisinf:
 	icon:
 		Filename: gmisinficon.shp
 
+ztrooper:
+	Defaults:
+		Filename: ztrooper.shp
+	Defaults:
+		Tick: 80
+		Offset: 0, 0, 16
+	stand:
+		Facings: 8
+		ShadowStart: 268
+	run:
+		Start: 8
+		Length: 7
+		Facings: 8
+		ShadowStart: 268
+	idle1:
+		Start: 144
+		Length: 30
+		ShadowStart: 404
+	idle2:
+		Start: 175
+		Length: 38
+		ShadowStart: 435
+	attack:
+		Start: 64
+		Length: 10
+		Facings: 8
+		ShadowStart: 324
+	attack-muzzle:
+		Start: 64
+		Length: 10
+		Facings: 8
+		ShadowStart: 324
+		IgnoreWorldTint: True
+	die-twirling:
+		Start: 232
+		Length: 28
+		ShadowStart: 492
+	die-flying:
+		Start: 214
+		Length: 18
+		ShadowStart: 474
+	die-exploding:
+		Filename: death_explode.shp
+		Length: *
+	die-crushed:
+		Start: 255
+		Length: 5
+		ShadowStart: 515
+		Tick: 800
+		ZOffset: -511
+	die-melting:
+		Filename: electro.shp
+		Frames: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+		Length: *
+		IgnoreWorldTint: True
+	icon:
+		Filename: ztroopericon.shp
+
 nasol:
 	Inherits: ^BasicInfantry
 	Inherits@attack: ^BasicInfantryAttack

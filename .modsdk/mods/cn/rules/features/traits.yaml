@@ -1,3 +1,4 @@
+
 ^EmpVisualEffects:
 	WithColoredOverlay@EMPDISABLE:
 		Color: 000000B4
@@ -48,6 +49,10 @@
 		DamageInterval: 16
 		Terrain: Tiberium, BlueTiberium, RedTiberium
 		RequiresCondition: !inside-tunnel
+
+^TiberiumImmuneMovement:
+	Mobile:
+		Locomotor: heavyfoot
 
 ^DamagedByVeins:
 	DamagedByTerrain@VEINS:

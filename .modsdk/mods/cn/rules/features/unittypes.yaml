@@ -161,6 +161,12 @@
 	RenderSprites:
 		FullBrightPaletteIndexRanges: 240, 255
 
+^SoldierHeavy:
+	Inherits@1: ^Soldier
+	Inherits@2: ^TiberiumImmuneMovement
+	-TakeCover:
+	-DamagedByTerrain:
+
 ^Cyborg:
 	Inherits@1: ^Infantry
 	Inherits@2: ^EmpDisable

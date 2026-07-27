@@ -110,3 +110,14 @@ JUMPJET.Member:
 	-BotCapabilities:
 	RenderSprites:
 		Image: JUMPJET
+
+ZTROOPER.Member:
+	Inherits: ZTROOPER
+	Inherits@SQUAD: ^MobSquadMember
+	-MobSpawnerMaster:
+	-SelectionDecorations:
+	-Buildable:
+	-UpdatesPlayerStatistics:
+	-BotCapabilities:
+	RenderSprites:
+		Image: ZTROOPER

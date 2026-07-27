@@ -380,6 +380,15 @@ actor-gmisinf =
        Strong vs Vehicles and Aircraft
        Weak vs Infantry
 
+actor-ztrooper =
+    .name = Zone Trooper
+    .description =
+    ZOCOM heavy assault infantry in Tiberium-hazard armor.
+    Railgun fire pierces through everything in its path.
+    Immune to Tiberium damage and unhindered crossing it.
+       Strong vs Infantry and Vehicles
+       Weak vs Aircraft
+
 
 actor-ghost =
     .name = Ghost Stalker
