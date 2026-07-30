@@ -24,6 +24,10 @@ namespace OpenRA.Mods.Common.Traits
 		// How many bases one build order may try before giving up for this pass.
 		const int MaxBasePlacementAttempts = 3;
 
+		// Deficit used for a building that fills a base's capability floor: above any real fraction deficit,
+		// so filling the floor wins over topping up a category that is merely below its share.
+		const int CapabilityFloorDeficit = int.MaxValue / 2;
+
 		public readonly string Category;
 		public int WaitTicks;
 
@@ -1145,8 +1149,14 @@ namespace OpenRA.Mods.Common.Traits
 				// Check the number of this structure and its variants
 				var count = CountExistingAndQueuedBuilding(name);
 
+				// A base still missing one of its guaranteed capabilities may build past the global fraction
+				// cap. The cap is measured against ALL bases, so without this the redundancy floor fails
+				// exactly when it matters: the main base holds the whole quota and the expansion, however
+				// exposed, never gets its first barracks. Bounded per base, and BuildingLimits still apply.
+				var capabilityFloorException = baseBuilder.AllowsCapabilityFloorException(name);
+
 				// Do we want to build this structure?
-				if (count * 100 > frac.Value * playerBuildings.Length)
+				if (count * 100 > frac.Value * playerBuildings.Length && !capabilityFloorException)
 					continue;
 
 				if (baseBuilder.Info.BuildingLimits.TryGetValue(name, out var limit) && baseBuilder.GetScaledBuildingLimit(limit) <= count)
@@ -1198,7 +1208,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (baseBuilder.Info.VeinsOnlyBuildingTypes.Contains(name) && !baseBuilder.HasVeinResources())
 					continue;
 
-				var deficit = frac.Value * baseBuildingCount - count * 100;
+				// A floor exception has to outrank the normal deficits as well, otherwise it is inert: the
+				// type it applies to is by definition over its share and would always sort last.
+				var deficit = capabilityFloorException
+					? CapabilityFloorDeficit
+					: frac.Value * baseBuildingCount - count * 100;
 				if (deficit < bestFractionDeficit)
 					continue;
 

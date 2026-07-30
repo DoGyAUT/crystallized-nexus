@@ -44,7 +44,7 @@ namespace OpenRA.Mods.Common.Traits
 	/// <summary>
 	/// The capability a building contributes to its base. Used for the redundancy floor: every base that
 	/// is not an outpost keeps at least one of each of these, and only the surplus follows the base role.
-	/// Air production is deliberately absent - it is allowed to concentrate completely.
+	/// Declared in the order the floor is filled when a base is missing several at once.
 	/// </summary>
 	public enum CNBaseCapability { None, Power, InfantryProduction, VehicleProduction, AirProduction }
 
@@ -325,6 +325,11 @@ namespace OpenRA.Mods.Common.Traits
 			"itself (DefenseRoleLimits) is unaffected - this only decides which base the next defense goes to.")]
 		public readonly int FrontBaseDefenseShareBonusPct = 100;
 
+		[Desc("How many buildings per base may be built past the global BuildingFractions cap in order to fill",
+			"that base's capability floor. This is the only way the fraction cap can be exceeded; BuildingLimits",
+			"still apply unconditionally. 0 disables the exception (the floor then silently fails when a",
+			"fraction is globally saturated).")]
+		public readonly int MaxCapabilityFloorExceptionsPerBase = 3;
 
 		[FieldLoader.LoadUsing(nameof(LoadBuildingLayouts))]
 		[Desc("Per-building-type layout overrides.")]
@@ -1383,10 +1388,11 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// True while this base is still missing its one guaranteed building of that capability. Outposts are
-		// exempt (they are meant to stay small), and air production never counts - it may concentrate fully.
+		// exempt - they are meant to stay small. Air production is in the floor like everything else: it may
+		// spread across bases, so losing one base no longer costs the bot its entire air force.
 		bool LacksCapabilityFloor(CNBotBase targetBase, CNBaseCapability capability)
 		{
-			if (capability == CNBaseCapability.None || capability == CNBaseCapability.AirProduction)
+			if (capability == CNBaseCapability.None)
 				return false;
 
 			if (targetBase.Role == CNBaseRole.Outpost)
@@ -1397,6 +1403,54 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 			return true;
+		}
+
+		// Capabilities in the order a base fills them when it is missing several at once. Only the first
+		// MaxCapabilityFloorExceptionsPerBase of them may bypass the global fraction cap at any one time;
+		// as soon as one is satisfied the next moves up, so nothing is permanently excluded.
+		static readonly CNBaseCapability[] FloorCapabilities =
+		[
+			CNBaseCapability.Power,
+			CNBaseCapability.InfantryProduction,
+			CNBaseCapability.VehicleProduction,
+			CNBaseCapability.AirProduction,
+		];
+
+		/// <summary>
+		/// True when this building type is needed to fill some base's capability floor and may therefore be
+		/// built even though its BuildingFractions share is globally used up. Without this the floor fails
+		/// silently: the main base holds the whole quota and an expansion never gets its first barracks.
+		/// </summary>
+		public bool AllowsCapabilityFloorException(string actorType)
+		{
+			if (!Info.EnableBaseRoles || Info.MaxCapabilityFloorExceptionsPerBase <= 0)
+				return false;
+
+			var capability = GetBaseCapability(actorType);
+			if (capability == CNBaseCapability.None)
+				return false;
+
+			foreach (var targetBase in GetBases())
+			{
+				if (!LacksCapabilityFloor(targetBase, capability))
+					continue;
+
+				// Hard bound: a base may only ever have this many buildings in flight past the cap.
+				var rank = 0;
+				foreach (var candidate in FloorCapabilities)
+				{
+					if (candidate == capability)
+						break;
+
+					if (LacksCapabilityFloor(targetBase, candidate))
+						rank++;
+				}
+
+				if (rank < Info.MaxCapabilityFloorExceptionsPerBase)
+					return true;
+			}
+
+			return false;
 		}
 
 		// Which base a category belongs in once the floor is covered.
