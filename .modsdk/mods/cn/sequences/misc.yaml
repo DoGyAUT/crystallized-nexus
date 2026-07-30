@@ -193,7 +193,7 @@ explosion:
 		Filename: ring1.shp
 		ZRamp: 1
 		Tick: 100
-		IgnoreWorldTint: False
+		#IgnoreWorldTint: False
 		BloomGlow: True
 	ionring_mini:
 		Filename: ringmini.shp
@@ -206,6 +206,29 @@ explosion:
 		ZOffset: -512
 		ZRamp: 1
 		Offset: 0, 0, 12
+	ionring_mini_fast:
+		Filename: ringmini.shp
+		ZRamp: 1
+		Tick: 20
+		BloomGlow: True
+		Offset: 0, -6, 6
+	cnc3ionbeam_mini:
+		Filename: ionbeam.shp
+		Offset: 0, -60, 60
+		Tick: 50
+		BloomGlow: True
+		Alpha: 0.7
+		AlphaFade: False
+		Scale: 0.5
+	cnc3ionbeam:
+		Filename: ionbeam.shp
+		Offset: 0, -60, 60
+		Tick: 80
+		BloomGlow: True
+		AlphaFade: False
+	cnc3ion_piffs:
+		Filename: w_piffs.shp
+		Scale: 1.3
 	ionbeam:
 		Filename: ionbeam.shp
 		Offset: 0, -60, 60
