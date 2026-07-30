@@ -320,6 +320,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Distance from a base center to a known chokepoint at which the base counts as holding it.")]
 		public readonly int OutpostChokepointRadius = 12;
 
+		[Desc("How close a base has to be to a remembered attack to be given the Military role.",
+			"Beyond this the bot has no front near that base and the base keeps its economic role.")]
+		public readonly int MilitaryRoleThreatRadius = 32;
+
 		[Desc("Percent bonus on the base closest to the front when the global defense budget is distributed",
 			"across bases. 100 = that base may claim twice its size-proportional share. The global budget",
 			"itself (DefenseRoleLimits) is unaffected - this only decides which base the next defense goes to.")]
@@ -1297,11 +1301,18 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
-				// The front: whatever the bot currently believes is dangerous. Without contact there is no
-				// front, and then there is no military base either - everything stays Core/Economy.
-				var front = GetBestDefenseHotspot(BaseOrigin) ?? (DefenseCenter == default ? null : DefenseCenter);
+				// The front has to be an attack that actually happened. GetBestDefenseHotspot falls back to
+				// the nearest map chokepoint when nothing has been attacked yet - fine for aiming the first
+				// turrets, but as a role trigger it meant every map handed out a front from tick 0, so the
+				// second base was always claimed as Military and Economy could not occur below three bases.
+				var front = GetRecordedDangerHotspot(BaseOrigin) ?? (DefenseCenter == default ? null : DefenseCenter);
 				if (front != null)
 				{
+					// And the base has to be at that front, not merely the closest one the bot happens to
+					// own: an attack on the main base used to relabel an expansion on the far side of the map.
+					var threatRadius = Math.Max(1, Info.MilitaryRoleThreatRadius);
+					var threatRadiusSq = (long)threatRadius * threatRadius;
+
 					CNBotBase military = null;
 					var bestDistance = long.MaxValue;
 					foreach (var b in bases)
@@ -1310,7 +1321,7 @@ namespace OpenRA.Mods.Common.Traits
 							continue;
 
 						var distance = (b.Center - front.Value).LengthSquared;
-						if (distance >= bestDistance)
+						if (distance > threatRadiusSq || distance >= bestDistance)
 							continue;
 
 						bestDistance = distance;
@@ -1953,30 +1964,41 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// The strongest remembered attack near the reference, or null when nothing has actually been
+		/// attacked. Unlike <see cref="GetBestDefenseHotspot"/> this does NOT fall back to map topology, so
+		/// callers that need evidence of a real threat do not get handed the nearest chokepoint instead.
+		/// </summary>
+		public CPos? GetRecordedDangerHotspot(CPos reference, DefenseRole role = DefenseRole.Default)
+		{
+			if (!Info.EnableDefenseDangerMemory || defenseDangerMemory.Count == 0)
+				return null;
+
+			CPos? bestHotspot = null;
+			var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
+			var bestScore = int.MinValue;
+
+			foreach (var kv in defenseDangerMemory)
+			{
+				var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
+				if (weight < minimumWeight)
+					continue;
+
+				// Prefer serious repeated attacks, but keep nearby pressure responsive.
+				var score = weight - (kv.Key - reference).LengthSquared / 8;
+				if (score <= bestScore)
+					continue;
+
+				bestScore = score;
+				bestHotspot = kv.Key;
+			}
+
+			return bestHotspot;
+		}
+
 		public CPos? GetBestDefenseHotspot(CPos reference, DefenseRole role = DefenseRole.Default)
 		{
-			CPos? bestHotspot = null;
-
-			if (Info.EnableDefenseDangerMemory && defenseDangerMemory.Count > 0)
-			{
-				var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
-				var bestScore = int.MinValue;
-
-				foreach (var kv in defenseDangerMemory)
-				{
-					var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
-					if (weight < minimumWeight)
-						continue;
-
-					// Prefer serious repeated attacks, but keep nearby pressure responsive.
-					var score = weight - (kv.Key - reference).LengthSquared / 8;
-					if (score <= bestScore)
-						continue;
-
-					bestScore = score;
-					bestHotspot = kv.Key;
-				}
-			}
+			var bestHotspot = GetRecordedDangerHotspot(reference, role);
 
 			// Early game: no attack recorded yet -> aim the first defenses at the nearest map chokepoint.
 			if (bestHotspot == null && TacticalMapModule != null && Info.TopologyHotspotWeight > 0)
