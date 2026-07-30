@@ -90,8 +90,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>What this base is for. See <see cref="CNBaseRole"/>.</summary>
 		public CNBaseRole Role;
 
-		/// <summary>Lowest ActorID among this base's construction yards. Stable key for the role cache.</summary>
+		/// <summary>Lowest ActorID among this base's construction yards, or its buildings when it has none.
+		/// Stable key for the role cache.</summary>
 		public uint AnchorId;
+
+		/// <summary>False for a group of buildings left behind by a construction yard that packed up.
+		/// Such a group still holds ground and still counts, but nothing new is planned into it.</summary>
+		public bool IsBuildSite => ConstructionYards.Count > 0;
 
 		public readonly List<Actor> ConstructionYards = [];
 		public readonly List<Actor> Buildings = [];
@@ -1141,7 +1146,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>
 		/// The bot's bases, rebuilt at most once per tick. Construction yards within BaseClusterRadius of
-		/// each other form one base (single linkage); every building is assigned to the closest base.
+		/// each other form one base (single linkage); a building joins the closest base that is near enough
+		/// to have built it. Buildings left over - typically a base whose construction yard packed up and
+		/// drove off - form their own yard-less groups instead of being handed to a base across the map.
 		/// </summary>
 		public IReadOnlyList<CNBotBase> GetBases()
 		{
@@ -1158,7 +1165,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (conyards.Count == 0)
 			{
-				// No construction yard left: keep one synthetic base so placement still has an anchor.
+				// No construction yard left at all: keep one synthetic base so placement still has an anchor.
 				var orphan = new CNBotBase { Center = BaseOrigin };
 				orphan.Buildings.AddRange(GetCachedPlayerBuildings());
 				if (orphan.Buildings.Count > 0)
@@ -1171,8 +1178,90 @@ namespace OpenRA.Mods.Common.Traits
 				return cachedBotBases;
 			}
 
-			// Single-linkage clustering over a handful of construction yards - O(n²) is fine here.
-			var parent = new int[conyards.Count];
+			foreach (var group in ClusterByDistance(conyards, Info.BaseClusterRadius))
+			{
+				var b = new CNBotBase();
+				b.ConstructionYards.AddRange(group);
+				b.Center = AverageLocation(group);
+				b.GridAnchor = SnapToBaseGrid(b.Center);
+				b.AnchorId = LowestActorId(group);
+				bases.Add(b);
+			}
+
+			// A building belongs to the closest base that could plausibly have built it, i.e. one whose build
+			// radius reaches it. Without that bound a construction yard packing up (UnDeployConyard runs on
+			// MoveConyardTick) dropped its entire base onto whichever base was left, however far away: plan
+			// centers, NearBuilding clusters, the raster anchor and the defense share were then all computed
+			// over a base scattered across half the map, and jumped again when the yard redeployed.
+			var membershipRadius = GetBaseMembershipRadius();
+			var membershipRadiusSq = (long)membershipRadius * membershipRadius;
+			List<Actor> unclaimed = null;
+
+			foreach (var building in GetCachedPlayerBuildings())
+			{
+				CNBotBase best = null;
+				var bestDistance = long.MaxValue;
+				foreach (var b in bases)
+				{
+					var distance = (building.Location - b.Center).LengthSquared;
+					if (distance >= bestDistance)
+						continue;
+
+					bestDistance = distance;
+					best = b;
+				}
+
+				if (best != null && bestDistance <= membershipRadiusSq)
+					best.Buildings.Add(building);
+				else
+					(unclaimed ??= []).Add(building);
+			}
+
+			// What is left over keeps its own identity: a yard-less base that still holds ground and is worth
+			// counting, but is not a build site - see GetOrderedBasesForBuilding.
+			if (unclaimed != null)
+			{
+				foreach (var group in ClusterByDistance(unclaimed, Info.BaseClusterRadius))
+				{
+					var b = new CNBotBase();
+					b.Buildings.AddRange(group);
+					b.Center = AverageLocation(group);
+					b.GridAnchor = SnapToBaseGrid(b.Center);
+					b.AnchorId = LowestActorId(group);
+					bases.Add(b);
+				}
+			}
+
+			ApplyBaseRoles(bases);
+			cachedBotBases = bases;
+			return cachedBotBases;
+		}
+
+		/// <summary>
+		/// How far from its center a base still counts a building as its own. Uses the largest radius the
+		/// base could ever reach rather than its current one, so the membership test does not depend on the
+		/// building count it is about to produce.
+		/// </summary>
+		int GetBaseMembershipRadius()
+		{
+			return Info.DynamicBaseRadius ? GetActiveMaxDynamicBaseRadius() : Info.MaxBaseRadius;
+		}
+
+		static uint LowestActorId(List<Actor> actors)
+		{
+			var lowest = uint.MaxValue;
+			foreach (var a in actors)
+				if (a.ActorID < lowest)
+					lowest = a.ActorID;
+
+			return lowest;
+		}
+
+		// Single-linkage clustering: two actors within radius of each other belong to the same group.
+		// Used for construction yards and, with the same rule, for buildings no base reaches any more.
+		static List<List<Actor>> ClusterByDistance(List<Actor> actors, int radius)
+		{
+			var parent = new int[actors.Count];
 			for (var i = 0; i < parent.Length; i++)
 				parent[i] = i;
 
@@ -1187,13 +1276,13 @@ namespace OpenRA.Mods.Common.Traits
 				return x;
 			}
 
-			var clusterRadius = Math.Max(1, Info.BaseClusterRadius);
+			var clusterRadius = Math.Max(1, radius);
 			var clusterRadiusSq = clusterRadius * clusterRadius;
-			for (var i = 0; i < conyards.Count; i++)
+			for (var i = 0; i < actors.Count; i++)
 			{
-				for (var j = i + 1; j < conyards.Count; j++)
+				for (var j = i + 1; j < actors.Count; j++)
 				{
-					if ((conyards[i].Location - conyards[j].Location).LengthSquared > clusterRadiusSq)
+					if ((actors[i].Location - actors[j].Location).LengthSquared > clusterRadiusSq)
 						continue;
 
 					var ri = Find(i);
@@ -1203,51 +1292,17 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			var byRoot = new Dictionary<int, CNBotBase>();
-			for (var i = 0; i < conyards.Count; i++)
+			var byRoot = new Dictionary<int, List<Actor>>();
+			for (var i = 0; i < actors.Count; i++)
 			{
 				var root = Find(i);
-				if (!byRoot.TryGetValue(root, out var b))
-					byRoot[root] = b = new CNBotBase();
+				if (!byRoot.TryGetValue(root, out var group))
+					byRoot[root] = group = [];
 
-				b.ConstructionYards.Add(conyards[i]);
+				group.Add(actors[i]);
 			}
 
-			foreach (var b in byRoot.Values)
-			{
-				b.Center = AverageLocation(b.ConstructionYards);
-				b.GridAnchor = SnapToBaseGrid(b.Center);
-
-				var anchorId = uint.MaxValue;
-				foreach (var cy in b.ConstructionYards)
-					if (cy.ActorID < anchorId)
-						anchorId = cy.ActorID;
-
-				b.AnchorId = anchorId;
-				bases.Add(b);
-			}
-
-			// Every building belongs to the base whose center is closest to it.
-			foreach (var building in GetCachedPlayerBuildings())
-			{
-				var best = bases[0];
-				var bestDistance = (building.Location - best.Center).LengthSquared;
-				for (var i = 1; i < bases.Count; i++)
-				{
-					var distance = (building.Location - bases[i].Center).LengthSquared;
-					if (distance >= bestDistance)
-						continue;
-
-					bestDistance = distance;
-					best = bases[i];
-				}
-
-				best.Buildings.Add(building);
-			}
-
-			ApplyBaseRoles(bases);
-			cachedBotBases = bases;
-			return cachedBotBases;
+			return byRoot.Values.ToList();
 		}
 
 		/// <summary>
@@ -1294,7 +1349,12 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var b in bases)
 				b.Role = CNBaseRole.Economy;
 
-			var core = GetBaseNearestIn(bases, BaseOrigin);
+			// Core and Military describe what a base is FOR, so they only go to bases that can still build.
+			var buildSites = bases.Where(b => b.IsBuildSite).ToList();
+			if (buildSites.Count == 0)
+				buildSites = bases;
+
+			var core = GetBaseNearestIn(buildSites, BaseOrigin);
 			core.Role = CNBaseRole.Core;
 
 			if (bases.Count > 1)
@@ -1337,7 +1397,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					CNBotBase military = null;
 					var bestDistance = long.MaxValue;
-					foreach (var b in bases)
+					foreach (var b in buildSites)
 					{
 						if (b.Role != CNBaseRole.Economy)
 							continue;
@@ -1428,7 +1488,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (capability == CNBaseCapability.None)
 				return false;
 
-			if (targetBase.Role == CNBaseRole.Outpost)
+			if (targetBase.Role == CNBaseRole.Outpost || !targetBase.IsBuildSite)
 				return false;
 
 			foreach (var building in targetBase.Buildings)
@@ -1572,6 +1632,12 @@ namespace OpenRA.Mods.Common.Traits
 		public IReadOnlyList<CNBotBase> GetOrderedBasesForBuilding(string actorType, BuildingType type, string nearBuilding)
 		{
 			var bases = GetBases();
+
+			// Groups without a construction yard are not build sites. They are skipped entirely unless the
+			// bot has nothing else left, in which case placement falls back to whatever it still holds.
+			if (bases.Any(b => b.IsBuildSite))
+				bases = bases.Where(b => b.IsBuildSite).ToList();
+
 			if (bases.Count <= 1)
 				return bases;
 
