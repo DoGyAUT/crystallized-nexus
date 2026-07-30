@@ -330,6 +330,20 @@ namespace OpenRA.Mods.Common.Traits
 			"Beyond this the bot has no front near that base and the base keeps its economic role.")]
 		public readonly int MilitaryRoleThreatRadius = 32;
 
+		[Desc("Minimum ticks a base keeps a role before it may be given a different one. A role change",
+			"switches what gets built there but takes nothing back, so a role that follows the decaying",
+			"danger memory tick by tick leaves half-finished structure in both directions.")]
+		public readonly int BaseRoleMinimumHoldTicks = 3000;
+
+		[Desc("Percent of " + nameof(MilitaryRoleThreatRadius) + " a base that already holds the Military role",
+			"may be away from the threat before it loses it. Above 100 this is the hysteresis band that keeps",
+			"a front base from flipping back the moment the remembered attack decays a little.")]
+		public readonly int MilitaryRoleReleasePct = 150;
+
+		[Desc("How far the defense reference may drift before the cached access bearings, high-ground edges",
+			"and chokepoint anchors are rebuilt. Same idea as CNTacticalMapBotModule's BaseMoveThreshold.")]
+		public readonly int FlankCacheMoveThreshold = 6;
+
 		[Desc("Percent bonus on the base closest to the front when the global defense budget is distributed",
 			"across bases. 100 = that base may claim twice its size-proportional share. The global budget",
 			"itself (DefenseRoleLimits) is unaffected - this only decides which base the next defense goes to.")]
@@ -1315,7 +1329,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int GetBaseRadiusForOverlay(CNBotBase targetBase) => GetEffectiveMaxBaseRadius(targetBase.Buildings.Count);
 
 		// --- Base roles ---
-		readonly Dictionary<uint, CNBaseRole> baseRoleByAnchor = [];
+		readonly Dictionary<uint, (CNBaseRole Role, int SinceTick)> baseRoleByAnchor = [];
 		int nextBaseRoleTick;
 
 		// The role decision needs the chokepoint list, so it runs on its own slow timer; in between, the
@@ -1333,7 +1347,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			foreach (var b in bases)
-				b.Role = baseRoleByAnchor.TryGetValue(b.AnchorId, out var role) ? role : CNBaseRole.Economy;
+				b.Role = baseRoleByAnchor.TryGetValue(b.AnchorId, out var held) ? held.Role : CNBaseRole.Economy;
 
 			// A single base is always the core, whatever a stale entry says.
 			if (bases.Count == 1)
@@ -1342,20 +1356,49 @@ namespace OpenRA.Mods.Common.Traits
 
 		void EvaluateBaseRoles(List<CNBotBase> bases)
 		{
-			baseRoleByAnchor.Clear();
+			// A role change switches what gets built in a base but takes nothing back, so a role that
+			// follows the decaying danger memory tick by tick leaves half-finished structure in both
+			// directions. A base that has held a role for less than BaseRoleMinimumHoldTicks keeps it, and
+			// the roles that are exclusive are not handed out again while somebody still holds them.
+			var holdTicks = Math.Max(0, Info.BaseRoleMinimumHoldTicks);
+			var locked = new bool[bases.Count];
+			var coreHeld = false;
+			var militaryHeld = false;
 
-			// Everything that is not the start base and not holding a chokepoint defaults to Economy:
-			// expansions are placed at resources, so that is the honest default.
-			foreach (var b in bases)
-				b.Role = CNBaseRole.Economy;
+			for (var i = 0; i < bases.Count; i++)
+			{
+				if (!baseRoleByAnchor.TryGetValue(bases[i].AnchorId, out var held))
+					continue;
+
+				// A group that lost its construction yard cannot keep a role that describes a build site.
+				if (!bases[i].IsBuildSite && (held.Role == CNBaseRole.Core || held.Role == CNBaseRole.Military))
+					continue;
+
+				if (world.WorldTick - held.SinceTick >= holdTicks)
+					continue;
+
+				locked[i] = true;
+				bases[i].Role = held.Role;
+				coreHeld |= held.Role == CNBaseRole.Core;
+				militaryHeld |= held.Role == CNBaseRole.Military;
+			}
+
+			// Everything unlocked falls back to Economy: expansions are placed at resources, so that is the
+			// honest default for a base with no other distinguishing feature.
+			for (var i = 0; i < bases.Count; i++)
+				if (!locked[i])
+					bases[i].Role = CNBaseRole.Economy;
 
 			// Core and Military describe what a base is FOR, so they only go to bases that can still build.
-			var buildSites = bases.Where(b => b.IsBuildSite).ToList();
-			if (buildSites.Count == 0)
-				buildSites = bases;
+			var freeBuildSites = new List<CNBotBase>();
+			for (var i = 0; i < bases.Count; i++)
+				if (!locked[i] && bases[i].IsBuildSite)
+					freeBuildSites.Add(bases[i]);
 
-			var core = GetBaseNearestIn(buildSites, BaseOrigin);
-			core.Role = CNBaseRole.Core;
+			if (!coreHeld && freeBuildSites.Count > 0)
+				GetBaseNearestIn(freeBuildSites, BaseOrigin).Role = CNBaseRole.Core;
+			else if (!coreHeld && bases.Count > 0)
+				GetBaseNearestIn(bases, BaseOrigin).Role = CNBaseRole.Core;
 
 			if (bases.Count > 1)
 			{
@@ -1367,9 +1410,10 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var outpostRadius = Math.Max(1, Info.OutpostChokepointRadius);
 					var outpostRadiusSq = outpostRadius * outpostRadius;
-					foreach (var b in bases)
+					for (var i = 0; i < bases.Count; i++)
 					{
-						if (b.Role == CNBaseRole.Core || b.Buildings.Count > Info.OutpostMaxStructures)
+						var b = bases[i];
+						if (locked[i] || b.Role == CNBaseRole.Core || b.Buildings.Count > Info.OutpostMaxStructures)
 							continue;
 
 						foreach (var chokepoint in chokepoints)
@@ -1388,7 +1432,7 @@ namespace OpenRA.Mods.Common.Traits
 				// turrets, but as a role trigger it meant every map handed out a front from tick 0, so the
 				// second base was always claimed as Military and Economy could not occur below three bases.
 				var front = GetRecordedDangerHotspot(BaseOrigin) ?? (DefenseCenter == default ? null : DefenseCenter);
-				if (front != null)
+				if (front != null && !militaryHeld)
 				{
 					// And the base has to be at that front, not merely the closest one the bot happens to
 					// own: an attack on the main base used to relabel an expansion on the far side of the map.
@@ -1397,7 +1441,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					CNBotBase military = null;
 					var bestDistance = long.MaxValue;
-					foreach (var b in buildSites)
+					foreach (var b in freeBuildSites)
 					{
 						if (b.Role != CNBaseRole.Economy)
 							continue;
@@ -1413,10 +1457,40 @@ namespace OpenRA.Mods.Common.Traits
 					if (military != null)
 						military.Role = CNBaseRole.Military;
 				}
+				else if (front != null && militaryHeld)
+				{
+					// Releasing the Military role needs clearly weaker evidence than gaining it, otherwise the
+					// base flips back as soon as the remembered attack decays a little past the radius.
+					var releaseRadius = Math.Max(1, Info.MilitaryRoleThreatRadius) * Math.Max(100, Info.MilitaryRoleReleasePct) / 100;
+					var releaseRadiusSq = (long)releaseRadius * releaseRadius;
+					foreach (var b in bases)
+						if (b.Role == CNBaseRole.Military && (b.Center - front.Value).LengthSquared > releaseRadiusSq)
+							b.Role = CNBaseRole.Economy;
+				}
+				else if (militaryHeld)
+				{
+					// Nothing remembered anywhere any more: the front is gone, not merely further away.
+					foreach (var b in bases)
+						if (b.Role == CNBaseRole.Military)
+							b.Role = CNBaseRole.Economy;
+				}
 			}
 
+			// Stamp the tick only where the role actually changed, so the hold measures how long a base has
+			// really been what it is. Entries of bases that no longer exist are dropped.
+			var refreshed = new Dictionary<uint, (CNBaseRole Role, int SinceTick)>(bases.Count);
 			foreach (var b in bases)
-				baseRoleByAnchor[b.AnchorId] = b.Role;
+			{
+				var sinceTick = baseRoleByAnchor.TryGetValue(b.AnchorId, out var previous) && previous.Role == b.Role
+					? previous.SinceTick
+					: world.WorldTick;
+
+				refreshed[b.AnchorId] = (b.Role, sinceTick);
+			}
+
+			baseRoleByAnchor.Clear();
+			foreach (var kv in refreshed)
+				baseRoleByAnchor[kv.Key] = kv.Value;
 		}
 
 		// How much of the global defense budget a base may claim: what it has to protect, doubled (by
@@ -2214,7 +2288,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		void EnsureFlankCache(CPos defenseCenter)
 		{
-			if (cachedFlankCenter == defenseCenter)
+			// Tolerance rather than exact equality. The reference used to be DefenseCenter, which changed at
+			// most every DefenseCenterUpdateInterval; since it comes from the decaying danger memory the
+			// argmax can flip between a handful of remembered hotspots, and each flip rebuilt the bearings,
+			// the high-ground set and the chokepoint anchors. A few cells of drift changes none of them
+			// meaningfully - the cone test is 45 degrees wide.
+			var threshold = Math.Max(0, Info.FlankCacheMoveThreshold);
+			if (cachedFlankCenter != new CPos(int.MinValue, int.MinValue)
+				&& (cachedFlankCenter - defenseCenter).LengthSquared <= threshold * threshold)
 				return;
 
 			cachedFlankCenter = defenseCenter;
