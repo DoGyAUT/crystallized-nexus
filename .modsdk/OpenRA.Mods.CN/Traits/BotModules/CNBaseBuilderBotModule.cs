@@ -325,6 +325,7 @@ namespace OpenRA.Mods.Common.Traits
 			"itself (DefenseRoleLimits) is unaffected - this only decides which base the next defense goes to.")]
 		public readonly int FrontBaseDefenseShareBonusPct = 100;
 
+
 		[FieldLoader.LoadUsing(nameof(LoadBuildingLayouts))]
 		[Desc("Per-building-type layout overrides.")]
 		public readonly Dictionary<string, CNBuildingLayoutEntry> BuildingLayouts = [];
@@ -1102,7 +1103,9 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// --- Base clustering ---
-		readonly List<CNBotBase> cachedBotBases = [];
+		// Assigned as a whole, never filled in place: the debug overlay reads this from the render thread
+		// and must never observe a half-built list.
+		List<CNBotBase> cachedBotBases = [];
 		int cachedBotBasesTick = -1;
 
 		/// <summary>
@@ -1115,7 +1118,7 @@ namespace OpenRA.Mods.Common.Traits
 				return cachedBotBases;
 
 			cachedBotBasesTick = world.WorldTick;
-			cachedBotBases.Clear();
+			var bases = new List<CNBotBase>();
 
 			var conyards = new List<Actor>();
 			foreach (var a in ConstructionYardBuildings.Actors)
@@ -1131,7 +1134,9 @@ namespace OpenRA.Mods.Common.Traits
 					orphan.Center = AverageLocation(orphan.Buildings);
 
 				orphan.GridAnchor = SnapToBaseGrid(orphan.Center);
-				cachedBotBases.Add(orphan);
+				bases.Add(orphan);
+				ApplyBaseRoles(bases);
+				cachedBotBases = bases;
 				return cachedBotBases;
 			}
 
@@ -1188,30 +1193,40 @@ namespace OpenRA.Mods.Common.Traits
 						anchorId = cy.ActorID;
 
 				b.AnchorId = anchorId;
-				cachedBotBases.Add(b);
+				bases.Add(b);
 			}
 
 			// Every building belongs to the base whose center is closest to it.
 			foreach (var building in GetCachedPlayerBuildings())
 			{
-				var best = cachedBotBases[0];
+				var best = bases[0];
 				var bestDistance = (building.Location - best.Center).LengthSquared;
-				for (var i = 1; i < cachedBotBases.Count; i++)
+				for (var i = 1; i < bases.Count; i++)
 				{
-					var distance = (building.Location - cachedBotBases[i].Center).LengthSquared;
+					var distance = (building.Location - bases[i].Center).LengthSquared;
 					if (distance >= bestDistance)
 						continue;
 
 					bestDistance = distance;
-					best = cachedBotBases[i];
+					best = bases[i];
 				}
 
 				best.Buildings.Add(building);
 			}
 
-			ApplyBaseRoles();
+			ApplyBaseRoles(bases);
+			cachedBotBases = bases;
 			return cachedBotBases;
 		}
+
+		/// <summary>
+		/// Pure read for the debug overlay (render thread): hands back whatever the sim thread last
+		/// published, and never rebuilds or recomputes anything.
+		/// </summary>
+		public IReadOnlyList<CNBotBase> BasesForOverlay() => cachedBotBases;
+
+		/// <summary>Build radius the overlay draws for a base. Same value the placement search uses.</summary>
+		public int GetBaseRadiusForOverlay(CNBotBase targetBase) => GetEffectiveMaxBaseRadius(targetBase.Buildings.Count);
 
 		// --- Base roles ---
 		readonly Dictionary<uint, CNBaseRole> baseRoleByAnchor = [];
@@ -1219,7 +1234,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// The role decision needs the chokepoint list, so it runs on its own slow timer; in between, the
 		// per-tick rebuild just reads back what was decided for the same construction yard.
-		void ApplyBaseRoles()
+		void ApplyBaseRoles(List<CNBotBase> bases)
 		{
 			if (!Info.EnableBaseRoles)
 				return;
@@ -1227,31 +1242,31 @@ namespace OpenRA.Mods.Common.Traits
 			if (world.WorldTick >= nextBaseRoleTick)
 			{
 				nextBaseRoleTick = world.WorldTick + Math.Max(1, Info.BaseRoleUpdateInterval);
-				EvaluateBaseRoles();
+				EvaluateBaseRoles(bases);
 				return;
 			}
 
-			foreach (var b in cachedBotBases)
+			foreach (var b in bases)
 				b.Role = baseRoleByAnchor.TryGetValue(b.AnchorId, out var role) ? role : CNBaseRole.Economy;
 
 			// A single base is always the core, whatever a stale entry says.
-			if (cachedBotBases.Count == 1)
-				cachedBotBases[0].Role = CNBaseRole.Core;
+			if (bases.Count == 1)
+				bases[0].Role = CNBaseRole.Core;
 		}
 
-		void EvaluateBaseRoles()
+		void EvaluateBaseRoles(List<CNBotBase> bases)
 		{
 			baseRoleByAnchor.Clear();
 
 			// Everything that is not the start base and not holding a chokepoint defaults to Economy:
 			// expansions are placed at resources, so that is the honest default.
-			foreach (var b in cachedBotBases)
+			foreach (var b in bases)
 				b.Role = CNBaseRole.Economy;
 
-			var core = GetBaseNearestIn(cachedBotBases, BaseOrigin);
+			var core = GetBaseNearestIn(bases, BaseOrigin);
 			core.Role = CNBaseRole.Core;
 
-			if (cachedBotBases.Count > 1)
+			if (bases.Count > 1)
 			{
 				var chokepoints = TacticalMapModule != null && TacticalMapModule.TopologyReady
 					? TacticalMapModule.GetUsefulChokepointsForOwnBase()
@@ -1261,7 +1276,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var outpostRadius = Math.Max(1, Info.OutpostChokepointRadius);
 					var outpostRadiusSq = outpostRadius * outpostRadius;
-					foreach (var b in cachedBotBases)
+					foreach (var b in bases)
 					{
 						if (b.Role == CNBaseRole.Core || b.Buildings.Count > Info.OutpostMaxStructures)
 							continue;
@@ -1284,7 +1299,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					CNBotBase military = null;
 					var bestDistance = long.MaxValue;
-					foreach (var b in cachedBotBases)
+					foreach (var b in bases)
 					{
 						if (b.Role != CNBaseRole.Economy)
 							continue;
@@ -1302,7 +1317,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			foreach (var b in cachedBotBases)
+			foreach (var b in bases)
 				baseRoleByAnchor[b.AnchorId] = b.Role;
 		}
 
