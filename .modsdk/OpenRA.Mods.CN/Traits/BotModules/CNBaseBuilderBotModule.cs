@@ -1382,8 +1382,9 @@ namespace OpenRA.Mods.Common.Traits
 				if (!baseRoleByAnchor.TryGetValue(bases[i].AnchorId, out var held))
 					continue;
 
-				// A group that lost its construction yard cannot keep a role that describes a build site.
-				if (!bases[i].IsBuildSite && (held.Role == CNBaseRole.Core || held.Role == CNBaseRole.Military))
+				// A group that lost its construction yard cannot keep a steering role - every one of them
+				// describes what gets built somewhere, and nothing gets built there any more.
+				if (!bases[i].IsBuildSite && held.Role != CNBaseRole.Secondary)
 					continue;
 
 				if (world.WorldTick - held.SinceTick >= holdTicks)
@@ -1426,7 +1427,8 @@ namespace OpenRA.Mods.Common.Traits
 					for (var i = 0; i < bases.Count; i++)
 					{
 						var b = bases[i];
-						if (locked[i] || b.Role == CNBaseRole.Core || b.Buildings.Count > Info.OutpostMaxStructures)
+						if (locked[i] || !b.IsBuildSite || b.Role == CNBaseRole.Core
+							|| b.Buildings.Count > Info.OutpostMaxStructures)
 							continue;
 
 						foreach (var chokepoint in chokepoints)
@@ -1490,8 +1492,11 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Economy last and on evidence: whatever carries no role by now and actually has tiberium to work.
+			// Build sites only, like every other steering role - a group without a construction yard is
+			// skipped by GetOrderedBasesForBuilding, so a role pointing at it steers nothing at all.
 			for (var i = 0; i < bases.Count; i++)
-				if (!locked[i] && bases[i].Role == CNBaseRole.Secondary && HasEconomicSubstance(bases[i]))
+				if (!locked[i] && bases[i].IsBuildSite && bases[i].Role == CNBaseRole.Secondary
+					&& HasEconomicSubstance(bases[i]))
 					bases[i].Role = CNBaseRole.Economy;
 
 			// Stamp the tick only where the role actually changed, so the hold measures how long a base has
