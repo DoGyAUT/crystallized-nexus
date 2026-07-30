@@ -40,6 +40,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Small base holding a chokepoint. Defense and support only, no full build-out.</summary>
 		Outpost,
+
+		/// <summary>No role. A base that is none of the above steers nothing - it takes its share of the
+		/// ordinary build order like any other base and gets no category preference.</summary>
+		Secondary,
 	}
 
 	/// <summary>
@@ -343,6 +347,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How far the defense reference may drift before the cached access bearings, high-ground edges",
 			"and chokepoint anchors are rebuilt. Same idea as CNTacticalMapBotModule's BaseMoveThreshold.")]
 		public readonly int FlankCacheMoveThreshold = 6;
+
+		[Desc("Refineries a base needs before it counts as having economic substance and may take the",
+			"Economy role. A base that already works tiberium qualifies whatever the map says.")]
+		public readonly int EconomyRoleMinimumRefineries = 1;
+
+		[Desc("Valuable resource cells the nearest resource map indice needs, when the base has no refinery",
+			"yet, before the base counts as having economic substance. Matched to " + nameof(MinFiniteFieldCellsForRefinery) + ".")]
+		public readonly int EconomyRoleMinimumResourceCells = 12;
 
 		[Desc("Percent bonus on the base closest to the front when the global defense budget is distributed",
 			"across bases. 100 = that base may claim twice its size-proportional share. The global budget",
@@ -1347,7 +1359,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			foreach (var b in bases)
-				b.Role = baseRoleByAnchor.TryGetValue(b.AnchorId, out var held) ? held.Role : CNBaseRole.Economy;
+				b.Role = baseRoleByAnchor.TryGetValue(b.AnchorId, out var held) ? held.Role : CNBaseRole.Secondary;
 
 			// A single base is always the core, whatever a stale entry says.
 			if (bases.Count == 1)
@@ -1383,11 +1395,12 @@ namespace OpenRA.Mods.Common.Traits
 				militaryHeld |= held.Role == CNBaseRole.Military;
 			}
 
-			// Everything unlocked falls back to Economy: expansions are placed at resources, so that is the
-			// honest default for a base with no other distinguishing feature.
+			// Everything unlocked starts with no role. Economy is earned further down by actually having
+			// tiberium to work; it used to be the blanket default, which made a base at the far end of the
+			// map with not a grain of resource just as much an "Economy" base as one sitting in a field.
 			for (var i = 0; i < bases.Count; i++)
 				if (!locked[i])
-					bases[i].Role = CNBaseRole.Economy;
+					bases[i].Role = CNBaseRole.Secondary;
 
 			// Core and Military describe what a base is FOR, so they only go to bases that can still build.
 			var freeBuildSites = new List<CNBotBase>();
@@ -1443,7 +1456,7 @@ namespace OpenRA.Mods.Common.Traits
 					var bestDistance = long.MaxValue;
 					foreach (var b in freeBuildSites)
 					{
-						if (b.Role != CNBaseRole.Economy)
+						if (b.Role != CNBaseRole.Secondary)
 							continue;
 
 						var distance = (b.Center - front.Value).LengthSquared;
@@ -1465,16 +1478,21 @@ namespace OpenRA.Mods.Common.Traits
 					var releaseRadiusSq = (long)releaseRadius * releaseRadius;
 					foreach (var b in bases)
 						if (b.Role == CNBaseRole.Military && (b.Center - front.Value).LengthSquared > releaseRadiusSq)
-							b.Role = CNBaseRole.Economy;
+							b.Role = CNBaseRole.Secondary;
 				}
 				else if (militaryHeld)
 				{
 					// Nothing remembered anywhere any more: the front is gone, not merely further away.
 					foreach (var b in bases)
 						if (b.Role == CNBaseRole.Military)
-							b.Role = CNBaseRole.Economy;
+							b.Role = CNBaseRole.Secondary;
 				}
 			}
+
+			// Economy last and on evidence: whatever carries no role by now and actually has tiberium to work.
+			for (var i = 0; i < bases.Count; i++)
+				if (!locked[i] && bases[i].Role == CNBaseRole.Secondary && HasEconomicSubstance(bases[i]))
+					bases[i].Role = CNBaseRole.Economy;
 
 			// Stamp the tick only where the role actually changed, so the hold measures how long a base has
 			// really been what it is. Entries of bases that no longer exist are dropped.
@@ -1491,6 +1509,29 @@ namespace OpenRA.Mods.Common.Traits
 			baseRoleByAnchor.Clear();
 			foreach (var kv in refreshed)
 				baseRoleByAnchor[kv.Key] = kv.Value;
+		}
+
+		/// <summary>
+		/// Whether this base has anything to run an economy on: refineries already standing in it, or a
+		/// resource map indice with enough valuable cells within its reach. Same data the MCV expansion
+		/// scores its sites from, so "Economy" now means the same thing in both places.
+		/// </summary>
+		bool HasEconomicSubstance(CNBotBase targetBase)
+		{
+			if (targetBase.CountOfAny(Info.RefineryTypes) >= Math.Max(1, Info.EconomyRoleMinimumRefineries))
+				return true;
+
+			if (ResourceMapModule == null)
+				return false;
+
+			var indice = ResourceMapModule.FindClosestIndiceFromCPos(targetBase.Center);
+			if (indice == null || indice.ResourceCellsCount < Math.Max(1, Info.EconomyRoleMinimumResourceCells))
+				return false;
+
+			// FindClosestIndiceFromCPos always answers, however far away that indice is - so the reach
+			// still has to be checked, or every base on the map would inherit the nearest field.
+			var reach = GetBaseMembershipRadius();
+			return (indice.ResourceCellsCenter - targetBase.Center).LengthSquared <= (long)reach * reach;
 		}
 
 		// How much of the global defense budget a base may claim: what it has to protect, doubled (by

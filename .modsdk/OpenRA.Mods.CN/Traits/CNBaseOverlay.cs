@@ -76,7 +76,8 @@ namespace OpenRA.Mods.Common.Traits
 				CNBaseRole.Core => 'C',
 				CNBaseRole.Economy => 'E',
 				CNBaseRole.Military => 'M',
-				_ => 'O',
+				CNBaseRole.Outpost => 'O',
+				_ => 'S',
 			};
 		}
 
