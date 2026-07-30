@@ -46,6 +46,22 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Per-profile cash thresholds to trigger additional MCV building. Overrides BuildAdditionalMCVCashAmount for the active profile.")]
 		public readonly FrozenDictionary<string, int> BuildAdditionalMCVCashAmounts = null;
 
+		[Desc("Also expand when a genuinely good free spot exists, instead of only when the bot is rich.",
+			"The construction yard counts above stay in force as the ceiling.")]
+		public readonly bool EnableOpportunityExpansion = true;
+
+		[Desc("Cash required for an expansion triggered by a good spot rather than by " + nameof(BuildAdditionalMCVCashAmount) + ".",
+			"Should cover the MCV itself plus a little headroom.")]
+		public readonly int OpportunityExpansionCashAmount = 3500;
+
+		[Desc("How attractive a free spot has to be to trigger an expansion, in per-mille of one resource map",
+			"indice's area. Map-portable: 0 means the spot has to score net positive (resources there, no own",
+			"construction yard or refinery in range, no enemy nearby, path not absurd), higher demands more.")]
+		public readonly int ExpansionAttractionThresholdPermille = 0;
+
+		[Desc("Per-profile override of " + nameof(ExpansionAttractionThresholdPermille) + ".")]
+		public readonly FrozenDictionary<string, int> ExpansionAttractionThresholdsPermille = null;
+
 		[Desc("Delay (in ticks) for giving orders to idle MCVs.")]
 		public readonly int ScanForNewMcvInterval = 20;
 
@@ -595,7 +611,8 @@ namespace OpenRA.Mods.Common.Traits
 			return penalty;
 		}
 
-		public (CPos? ExpandLocation, int Attraction, CPos? CheckSpot) GetExpansionCenter(Actor mcv, Mobile mobile, bool allowfallback)
+		public (CPos? ExpandLocation, int Attraction, CPos? CheckSpot) GetExpansionCenter(Actor mcv, Mobile mobile, bool allowfallback,
+			BotMcvExpansionMode? modeOverride = null)
 		{
 			/*
 			 * indiceSideLengthSquare (which is equal to indiceSideLength * indiceSideLength) is used as the basic unit to calculate the attraction of a candidate,
@@ -639,7 +656,7 @@ namespace OpenRA.Mods.Common.Traits
 			 *     and apply some additional method to filter the indice for acceptable resource (not too low).
 			 */
 			var indiceSideLengthSquare = resourceMapModule.GetIndiceSideLength() * resourceMapModule.GetIndiceSideLength();
-			switch (mcvExpansionMode)
+			switch (modeOverride ?? mcvExpansionMode)
 			{
 				/*
 				 * CheckBase mode only considers the distance to current MCV, ally construction yard within range and enemy buildings within range.
@@ -917,6 +934,31 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// Is there a free spot worth sending an MCV to? Scored with the very same function the MCV itself
+		// uses to pick its target, just anchored on an existing construction yard and without a Mobile, so
+		// it costs one pass over the resource indices and no pathfinding.
+		bool HasAttractiveExpansionSpot(string profileKey)
+		{
+			if (resourceMapModule == null || resourceMapModule.GetIndicesLength() <= 0)
+				return false;
+
+			var reference = constructionYards.Actors.FirstOrDefault(a => !a.IsDead && a.IsInWorld);
+			if (reference == null)
+				return false;
+
+			var (_, attraction, _) = GetExpansionCenter(reference, null, false, BotMcvExpansionMode.CheckResource);
+			if (attraction == int.MinValue)
+				return false;
+
+			var permille = profileKey != null
+				&& Info.ExpansionAttractionThresholdsPermille != null
+				&& Info.ExpansionAttractionThresholdsPermille.TryGetValue(profileKey, out var profilePermille)
+				? profilePermille : Info.ExpansionAttractionThresholdPermille;
+
+			var indiceSideLength = resourceMapModule.GetIndiceSideLength();
+			return attraction >= permille * indiceSideLength * indiceSideLength / 1000;
+		}
+
 		void BuildMCV(IBot bot)
 		{
 			if (Info.McvTypes.Count <= 0)
@@ -935,16 +977,31 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.BuildAdditionalMCVCashAmounts != null
 				&& Info.BuildAdditionalMCVCashAmounts.TryGetValue(profileKey, out var profileCash)
 				? profileCash : Info.BuildAdditionalMCVCashAmount;
-			var mcvShouldHave = playerResources.GetCashAndResources() >= buildCashAmount
-				? Info.MinimumConstructionYardCount + additionalCYCount : Info.MinimumConstructionYardCount;
 
 			// If we only have 1 MCV and no conyard, we should be allowed to build another MCV.
 			// Otherwise, when an mcv is on the move and we should wait.
 			if ((conyardNum <= 0 && mcvNum > 1) || (conyardNum > 0 && mcvNum > 0))
 				return;
 
-			if (conyardNum + mcvNum >= mcvShouldHave)
+			// The construction yard count is now purely a ceiling, not the trigger. Before, it only rose
+			// above the minimum once the bot was sitting on BuildAdditionalMCVCashAmount, so profiles with
+			// no additional yards configured never expanded however good a free spot was, and the rest only
+			// expanded when rich enough to have hoarded five figures.
+			if (conyardNum + mcvNum >= Info.MinimumConstructionYardCount + additionalCYCount)
 				return;
+
+			// Replacing a lost base is unconditional; expanding beyond the minimum needs a reason.
+			if (conyardNum + mcvNum >= Info.MinimumConstructionYardCount)
+			{
+				var cash = playerResources.GetCashAndResources();
+				var richEnough = cash >= buildCashAmount;
+				var opportunity = Info.EnableOpportunityExpansion
+					&& cash >= Info.OpportunityExpansionCashAmount
+					&& HasAttractiveExpansionSpot(profileKey);
+
+				if (!richEnough && !opportunity)
+					return;
+			}
 
 			// We have MCV in production queue, let's wait.
 			if (mcvFactories.Actors
