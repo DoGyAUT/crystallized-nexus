@@ -22,6 +22,32 @@ namespace OpenRA.Mods.Common.Traits
 
 	public enum CNBasePlanCluster { Core, Expansion, Production, Tech, DefensePerimeter, Outpost }
 
+	/// <summary>
+	/// What a whole base is for. Derived from what is already there (start position, nearby tiberium,
+	/// distance to the front, chokepoint), never configured per map.
+	/// </summary>
+	public enum CNBaseRole
+	{
+		/// <summary>The starting base. Keeps the tech buildings; longest standing and best defended.</summary>
+		Core,
+
+		/// <summary>Sits on tiberium. Collects the refineries and silos.</summary>
+		Economy,
+
+		/// <summary>Closest to the front. Collects unit production above the per-base minimum.</summary>
+		Military,
+
+		/// <summary>Small base holding a chokepoint. Defense and support only, no full build-out.</summary>
+		Outpost,
+	}
+
+	/// <summary>
+	/// The capability a building contributes to its base. Used for the redundancy floor: every base that
+	/// is not an outpost keeps at least one of each of these, and only the surplus follows the base role.
+	/// Air production is deliberately absent - it is allowed to concentrate completely.
+	/// </summary>
+	public enum CNBaseCapability { None, Power, InfantryProduction, VehicleProduction, AirProduction }
+
 	public enum DefenseRole
 	{
 		/// <summary>Default: use existing inner/outer placement logic.</summary>
@@ -60,6 +86,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Center snapped to the global base raster. Anchor for the BaseGrid layout.</summary>
 		public CPos GridAnchor;
 
+		/// <summary>What this base is for. See <see cref="CNBaseRole"/>.</summary>
+		public CNBaseRole Role;
+
+		/// <summary>Lowest ActorID among this base's construction yards. Stable key for the role cache.</summary>
+		public uint AnchorId;
+
 		public readonly List<Actor> ConstructionYards = [];
 		public readonly List<Actor> Buildings = [];
 
@@ -68,6 +100,16 @@ namespace OpenRA.Mods.Common.Traits
 			var count = 0;
 			foreach (var b in Buildings)
 				if (b.Info.Name == actorType)
+					count++;
+
+			return count;
+		}
+
+		public int CountOfAny(ISet<string> actorTypes)
+		{
+			var count = 0;
+			foreach (var b in Buildings)
+				if (actorTypes.Contains(b.Info.Name))
 					count++;
 
 			return count;
@@ -263,6 +305,20 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Construction yards within this distance of each other are treated as one base.",
 			"Each base gets its own plan centers, raster anchor and build radius.")]
 		public readonly int BaseClusterRadius = 14;
+
+		[Desc("Give every base a role (see " + nameof(CNBaseRole) + ") and send the surplus of a category to the",
+			"base that role belongs to. The per-base minimum below is filled first, so no base loses a basic capability.")]
+		public readonly bool EnableBaseRoles = true;
+
+		[Desc("Ticks between base role reevaluations.")]
+		public readonly int BaseRoleUpdateInterval = 250;
+
+		[Desc("A base with at most this many buildings that also sits on a chokepoint becomes an Outpost:",
+			"defense and support only, and it is exempt from the per-base minimum.")]
+		public readonly int OutpostMaxStructures = 8;
+
+		[Desc("Distance from a base center to a known chokepoint at which the base counts as holding it.")]
+		public readonly int OutpostChokepointRadius = 12;
 
 		[FieldLoader.LoadUsing(nameof(LoadBuildingLayouts))]
 		[Desc("Per-building-type layout overrides.")]
@@ -1120,6 +1176,13 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				b.Center = AverageLocation(b.ConstructionYards);
 				b.GridAnchor = SnapToBaseGrid(b.Center);
+
+				var anchorId = uint.MaxValue;
+				foreach (var cy in b.ConstructionYards)
+					if (cy.ActorID < anchorId)
+						anchorId = cy.ActorID;
+
+				b.AnchorId = anchorId;
 				cachedBotBases.Add(b);
 			}
 
@@ -1141,7 +1204,186 @@ namespace OpenRA.Mods.Common.Traits
 				best.Buildings.Add(building);
 			}
 
+			ApplyBaseRoles();
 			return cachedBotBases;
+		}
+
+		// --- Base roles ---
+		readonly Dictionary<uint, CNBaseRole> baseRoleByAnchor = [];
+		int nextBaseRoleTick;
+
+		// The role decision needs the chokepoint list, so it runs on its own slow timer; in between, the
+		// per-tick rebuild just reads back what was decided for the same construction yard.
+		void ApplyBaseRoles()
+		{
+			if (!Info.EnableBaseRoles)
+				return;
+
+			if (world.WorldTick >= nextBaseRoleTick)
+			{
+				nextBaseRoleTick = world.WorldTick + Math.Max(1, Info.BaseRoleUpdateInterval);
+				EvaluateBaseRoles();
+				return;
+			}
+
+			foreach (var b in cachedBotBases)
+				b.Role = baseRoleByAnchor.TryGetValue(b.AnchorId, out var role) ? role : CNBaseRole.Economy;
+
+			// A single base is always the core, whatever a stale entry says.
+			if (cachedBotBases.Count == 1)
+				cachedBotBases[0].Role = CNBaseRole.Core;
+		}
+
+		void EvaluateBaseRoles()
+		{
+			baseRoleByAnchor.Clear();
+
+			// Everything that is not the start base and not holding a chokepoint defaults to Economy:
+			// expansions are placed at resources, so that is the honest default.
+			foreach (var b in cachedBotBases)
+				b.Role = CNBaseRole.Economy;
+
+			var core = GetBaseNearestIn(cachedBotBases, BaseOrigin);
+			core.Role = CNBaseRole.Core;
+
+			if (cachedBotBases.Count > 1)
+			{
+				var chokepoints = TacticalMapModule != null && TacticalMapModule.TopologyReady
+					? TacticalMapModule.GetUsefulChokepointsForOwnBase()
+					: null;
+
+				if (chokepoints != null && chokepoints.Count > 0)
+				{
+					var outpostRadius = Math.Max(1, Info.OutpostChokepointRadius);
+					var outpostRadiusSq = outpostRadius * outpostRadius;
+					foreach (var b in cachedBotBases)
+					{
+						if (b.Role == CNBaseRole.Core || b.Buildings.Count > Info.OutpostMaxStructures)
+							continue;
+
+						foreach (var chokepoint in chokepoints)
+						{
+							if ((chokepoint.Cell - b.Center).LengthSquared > outpostRadiusSq)
+								continue;
+
+							b.Role = CNBaseRole.Outpost;
+							break;
+						}
+					}
+				}
+
+				// The front: whatever the bot currently believes is dangerous. Without contact there is no
+				// front, and then there is no military base either - everything stays Core/Economy.
+				var front = GetBestDefenseHotspot(BaseOrigin) ?? (DefenseCenter == default ? null : DefenseCenter);
+				if (front != null)
+				{
+					CNBotBase military = null;
+					var bestDistance = long.MaxValue;
+					foreach (var b in cachedBotBases)
+					{
+						if (b.Role != CNBaseRole.Economy)
+							continue;
+
+						var distance = (b.Center - front.Value).LengthSquared;
+						if (distance >= bestDistance)
+							continue;
+
+						bestDistance = distance;
+						military = b;
+					}
+
+					if (military != null)
+						military.Role = CNBaseRole.Military;
+				}
+			}
+
+			foreach (var b in cachedBotBases)
+				baseRoleByAnchor[b.AnchorId] = b.Role;
+		}
+
+		static CNBotBase GetBaseNearestIn(List<CNBotBase> bases, CPos cell)
+		{
+			var best = bases[0];
+			var bestDistance = (cell - best.Center).LengthSquared;
+			for (var i = 1; i < bases.Count; i++)
+			{
+				var distance = (cell - bases[i].Center).LengthSquared;
+				if (distance >= bestDistance)
+					continue;
+
+				bestDistance = distance;
+				best = bases[i];
+			}
+
+			return best;
+		}
+
+		// --- Per-base capability floor ---
+		readonly Dictionary<string, CNBaseCapability> capabilityByActorType = [];
+
+		public CNBaseCapability GetBaseCapability(string actorType)
+		{
+			if (capabilityByActorType.TryGetValue(actorType, out var cached))
+				return cached;
+
+			var capability = CNBaseCapability.None;
+			if (Info.PowerTypes.Contains(actorType))
+				capability = CNBaseCapability.Power;
+			else
+			{
+				var actorInfo = world.Map.Rules.Actors.GetValueOrDefault(actorType);
+				var produces = actorInfo?.TraitInfos<ProductionInfo>();
+				if (produces != null)
+				{
+					foreach (var production in produces)
+					{
+						if (production.Produces.Contains("Infantry"))
+							capability = CNBaseCapability.InfantryProduction;
+						else if (production.Produces.Contains("Vehicle"))
+							capability = CNBaseCapability.VehicleProduction;
+						else if (production.Produces.Contains("Air"))
+							capability = CNBaseCapability.AirProduction;
+
+						if (capability != CNBaseCapability.None)
+							break;
+					}
+				}
+			}
+
+			capabilityByActorType[actorType] = capability;
+			return capability;
+		}
+
+		// True while this base is still missing its one guaranteed building of that capability. Outposts are
+		// exempt (they are meant to stay small), and air production never counts - it may concentrate fully.
+		bool LacksCapabilityFloor(CNBotBase targetBase, CNBaseCapability capability)
+		{
+			if (capability == CNBaseCapability.None || capability == CNBaseCapability.AirProduction)
+				return false;
+
+			if (targetBase.Role == CNBaseRole.Outpost)
+				return false;
+
+			foreach (var building in targetBase.Buildings)
+				if (GetBaseCapability(building.Info.Name) == capability)
+					return false;
+
+			return true;
+		}
+
+		// Which base a category belongs in once the floor is covered.
+		CNBaseRole? GetPreferredRoleFor(string actorType)
+		{
+			if (Info.RefineryTypes.Contains(actorType) || Info.SiloTypes.Contains(actorType))
+				return CNBaseRole.Economy;
+
+			if (Info.ProductionTypes.Contains(actorType) || Info.NavalProductionTypes.Contains(actorType))
+				return CNBaseRole.Military;
+
+			if (Info.TechTypes.Contains(actorType))
+				return CNBaseRole.Core;
+
+			return null;
 		}
 
 		static CPos AverageLocation(List<Actor> actors)
@@ -1240,8 +1482,20 @@ namespace OpenRA.Mods.Common.Traits
 			var fractions = GetActiveBuildingFractions();
 			var fraction = fractions != null && fractions.TryGetValue(actorType, out var f) ? f : 0;
 
+			// Redundancy floor before specialisation: a base that is still missing its one guaranteed power
+			// plant / infantry / vehicle production gets this building first, whatever its role says. Only
+			// the surplus follows the role, so losing the specialised base never removes a capability outright.
+			var capability = Info.EnableBaseRoles ? GetBaseCapability(actorType) : CNBaseCapability.None;
+			var preferredRole = Info.EnableBaseRoles ? GetPreferredRoleFor(actorType) : null;
+
 			return bases
-				.OrderByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
+				.OrderByDescending(b => LacksCapabilityFloor(b, capability))
+				.ThenByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
+
+				// An outpost holds a chokepoint with defense and support; it is the last choice for anything
+				// that belongs to a role, but still a choice if no other base can take it.
+				.ThenBy(b => preferredRole != null && b.Role == CNBaseRole.Outpost)
+				.ThenByDescending(b => preferredRole != null && b.Role == preferredRole.Value)
 				.ThenBy(b => b.CountOf(actorType) * 100 - fraction * b.Buildings.Count)
 				.ThenBy(b => b.Buildings.Count)
 				.ThenBy(b => (b.Center - BaseOrigin).LengthSquared)
