@@ -21,6 +21,9 @@ namespace OpenRA.Mods.Common.Traits
 {
 	sealed class CNBaseBuilderQueueManager
 	{
+		// How many bases one build order may try before giving up for this pass.
+		const int MaxBasePlacementAttempts = 3;
+
 		public readonly string Category;
 		public int WaitTicks;
 
@@ -1363,7 +1366,34 @@ namespace OpenRA.Mods.Common.Traits
 				.FirstOrDefault(kv => kv.Value.Contains(actorInfo.Name)).Key;
 		}
 
+		// Pick the base this building belongs to, then place it there. If that base has no room the next
+		// base in the preference order gets a try, so a full main base does not stall the whole queue.
 		(CPos? Location, CPos? BaseCenter, int Variant) ChooseBuildLocation(string actorType, bool distanceToBaseIsImportant, BuildingType type)
+		{
+			baseBuilder.Info.BuildingLayouts.TryGetValue(actorType, out var entry);
+			var orderedBases = baseBuilder.GetOrderedBasesForBuilding(actorType, type, entry?.NearBuilding);
+
+			// Only ordinary buildings are retried in another base. Defense and refinery placement is
+			// anchored on the threat / resource center rather than on the base, so a second pass would
+			// repeat the same expensive scan for the same result.
+			var attempts = type == BuildingType.Building
+				? Math.Min(orderedBases.Count, MaxBasePlacementAttempts)
+				: 1;
+			var lastResult = ((CPos?)null, (CPos?)null, 0);
+			for (var i = 0; i < attempts; i++)
+			{
+				var result = ChooseBuildLocationInBase(actorType, distanceToBaseIsImportant, type, orderedBases[i]);
+				if (result.Location.HasValue)
+					return result;
+
+				lastResult = result;
+			}
+
+			return lastResult;
+		}
+
+		(CPos? Location, CPos? BaseCenter, int Variant) ChooseBuildLocationInBase(string actorType, bool distanceToBaseIsImportant,
+			BuildingType type, CNBotBase targetBase)
 		{
 			var actorInfo = world.Map.Rules.Actors[actorType];
 			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
@@ -1486,14 +1516,44 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 			}
 
+			// One raster for the whole base. The step no longer depends on the building's own footprint:
+			// it is the base raster, or - for types that declare a tighter MinSpacing than GlobalMinSpacing -
+			// the finest exact subdivision of the raster their footprint still fits into. Anything bigger
+			// than one raster cell simply consumes the neighbouring cells; the gap between footprints is
+			// enforced by RespectsGeneralBuildingSpacing, not by the raster.
+			//
+			// The old formula (footprint + MinSpacing) gave every building type its own incommensurate
+			// pitch (3, 4, 5, ...), so buildings of different types never lined up, and for same-type
+			// buildings every second raster point produced a gap below GlobalMinSpacing and was rejected.
+			var baseGridPitch = Math.Max(1, baseBuilder.Info.BaseGridCellSize);
+
+			// Types with a BuildingLayouts entry are exempt from GlobalMinSpacing against their own kind
+			// (that is what keeps the power plant rows and helipad blocks tight), so they keep their
+			// declared padding here. Everything else must leave at least GlobalMinSpacing.
+			var gridPadding = baseBuilder.Info.BuildingLayouts.ContainsKey(actorType)
+				? Math.Max(0, minSpacing)
+				: Math.Max(minSpacing, baseBuilder.Info.GlobalMinSpacing);
+
+			int BaseGridStep(int dimension)
+			{
+				var span = Math.Max(1, dimension + gridPadding);
+				if (span >= baseGridPitch)
+					return baseGridPitch;
+
+				for (var divisor = 1; divisor < baseGridPitch; divisor++)
+					if (baseGridPitch % divisor == 0 && divisor >= span)
+						return divisor;
+
+				return baseGridPitch;
+			}
+
 			bool IsAlignedToBaseGrid(CPos cell, BuildingInfo candidateBuildingInfo, CPos gridAnchor)
 			{
 				if (layout != BaseBuildingLayout.BaseGrid || candidateBuildingInfo == null)
 					return false;
 
-				var gridPadding = Math.Max(0, minSpacing);
-				var gx = Math.Max(1, candidateBuildingInfo.Dimensions.X + gridPadding);
-				var gy = Math.Max(1, candidateBuildingInfo.Dimensions.Y + gridPadding);
+				var gx = BaseGridStep(candidateBuildingInfo.Dimensions.X);
+				var gy = BaseGridStep(candidateBuildingInfo.Dimensions.Y);
 				return ((cell.X - gridAnchor.X) % gx + gx) % gx == 0
 					&& ((cell.Y - gridAnchor.Y) % gy + gy) % gy == 0;
 			}
@@ -1599,12 +1659,14 @@ namespace OpenRA.Mods.Common.Traits
 							.ThenBy(c => (c - target).LengthSquared);
 					else if (activeLayout == BaseBuildingLayout.Grid || activeLayout == BaseBuildingLayout.BaseGrid)
 					{
-						var anchor = activeLayout == BaseBuildingLayout.Grid && sameTypeBuildings.Count > 0
+						var isBaseGrid = activeLayout == BaseBuildingLayout.BaseGrid;
+						var anchor = !isBaseGrid && sameTypeBuildings.Count > 0
 							? sameTypeBuildings[0]
 							: gridAnchor;
-						var gridPadding = Math.Max(0, minSpacing);
-						var gx = Math.Max(1, vbi.Dimensions.X + gridPadding);
-						var gy = Math.Max(1, vbi.Dimensions.Y + gridPadding);
+
+						// BaseGrid: the shared base raster. Grid: the legacy per-type raster.
+						var gx = isBaseGrid ? BaseGridStep(vbi.Dimensions.X) : Math.Max(1, vbi.Dimensions.X + Math.Max(0, minSpacing));
+						var gy = isBaseGrid ? BaseGridStep(vbi.Dimensions.Y) : Math.Max(1, vbi.Dimensions.Y + Math.Max(0, minSpacing));
 						cells = allCells
 							.Where(c => ((c.X - anchor.X) % gx + gx) % gx == 0
 								&& ((c.Y - anchor.Y) % gy + gy) % gy == 0)
@@ -1667,15 +1729,17 @@ namespace OpenRA.Mods.Common.Traits
 					: TryFindPos(BaseBuildingLayout.Compact);
 			}
 
-			var baseCenter = baseBuilder.GetRandomBaseCenter();
+			var baseCenter = targetBase.Center;
 			var planCenter = baseBuilder.GetBasePlanCenterForActor(
 				actorInfo,
+				targetBase,
 				baseCenter,
 				type == BuildingType.Defense,
 				type == BuildingType.Refinery);
 
-			// Cache once — GetEffectiveMaxBaseRadius() scans all world buildings otherwise.
-			var effectiveMaxRadius = baseBuilder.GetEffectiveMaxBaseRadius(playerBuildings.Length);
+			// The radius grows with the size of THIS base, not with the bot's total building count —
+			// otherwise a young expansion immediately claims the same radius as the fully built main base.
+			var effectiveMaxRadius = baseBuilder.GetEffectiveMaxBaseRadius(targetBase.Buildings.Count);
 
 			// If this building type has a NearBuilding override, shift the search center
 			// toward the average position of all existing buildings of that type.
@@ -1704,7 +1768,9 @@ namespace OpenRA.Mods.Common.Traits
 					};
 				}
 
-				var nearInstances = playerBuildings
+				// Only this base's instances count — otherwise a cluster in the main base drags
+				// the search center of an expansion back across the map.
+				var nearInstances = targetBase.Buildings
 					.Where(b => b.Info.Name == layoutEntry.NearBuilding)
 					.OrderBy(b => b.ActorID)
 					.ToList();
@@ -2289,7 +2355,7 @@ namespace OpenRA.Mods.Common.Traits
 								int? harvesterPathLength = null;
 
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledResourceCells, harvesterPathLength)
-									+ ScoreBaseGridAlignment(loc, bi, resourceBaseCenter);
+									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
 							}
@@ -2343,7 +2409,7 @@ namespace OpenRA.Mods.Common.Traits
 									continue;
 
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, null)
-									+ ScoreBaseGridAlignment(loc, bi, resourceBaseCenter);
+									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
 							}
@@ -2368,7 +2434,7 @@ namespace OpenRA.Mods.Common.Traits
 						var fallbackTarget = requestedResourceLoc
 							?? FindNearestReachableResource(resourceBaseCenter, resourceFallbackRadius)
 							?? baseCenter;
-						return FindPos(baseCenter, fallbackTarget, baseCenter, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
+						return FindPos(baseCenter, fallbackTarget, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
 					}
 
 					return (null, null, 0);
@@ -2437,7 +2503,7 @@ namespace OpenRA.Mods.Common.Traits
 						return (null, null, 0);
 					}
 
-					return FindPos(effectiveCenter, effectiveCenter, baseCenter, baseBuilder.Info.MinBaseRadius,
+					return FindPos(effectiveCenter, effectiveCenter, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius,
 						distanceToBaseIsImportant ? effectiveMaxRadius : world.Map.Grid.MaximumTileSearchRange);
 				}
 			}
@@ -2680,7 +2746,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (bi == null)
 				return (null, null, 0);
 
-			var baseCenter = baseBuilder.GetRandomBaseCenter();
+			var baseCenter = baseBuilder.PrimaryBase.Center;
 			foreach (var corridor in baseBuilder.TacticalMapModule.GetSealableCorridors(baseCenter))
 			{
 				var gateFootprint = ChokepointGateFootprint(corridor);
@@ -2717,7 +2783,10 @@ namespace OpenRA.Mods.Common.Traits
 				return (null, null, 0);
 
 			var horizontal = bi.Dimensions.X > bi.Dimensions.Y;
-			var baseCenter = baseBuilder.GetRandomBaseCenter();
+
+			// A stable center: with a random construction yard the bot switched which chokepoint it
+			// was sealing between calls and never finished a line.
+			var baseCenter = baseBuilder.PrimaryBase.Center;
 			foreach (var corridor in baseBuilder.TacticalMapModule.GetSealableCorridors(baseCenter))
 			{
 				// The gate orientation (3x1 vs 1x3) must match the wall line direction.

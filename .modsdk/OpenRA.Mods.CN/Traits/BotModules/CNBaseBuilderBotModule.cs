@@ -46,6 +46,55 @@ namespace OpenRA.Mods.Common.Traits
 		GarrisonDefense,
 	}
 
+	/// <summary>
+	/// One physical base of the bot: a cluster of construction yards that are close enough to each
+	/// other to share a build site, plus every building that is closer to this cluster than to any other.
+	/// Placement decisions (plan centers, raster anchor, build radius) are made per base, so a bot with
+	/// several construction yards expands each of them separately instead of aiming at the point in between.
+	/// </summary>
+	public sealed class CNBotBase
+	{
+		/// <summary>Average location of this base's construction yards.</summary>
+		public CPos Center;
+
+		/// <summary>Center snapped to the global base raster. Anchor for the BaseGrid layout.</summary>
+		public CPos GridAnchor;
+
+		public readonly List<Actor> ConstructionYards = [];
+		public readonly List<Actor> Buildings = [];
+
+		public int CountOf(string actorType)
+		{
+			var count = 0;
+			foreach (var b in Buildings)
+				if (b.Info.Name == actorType)
+					count++;
+
+			return count;
+		}
+
+		public CPos? AverageLocationOf(ISet<string> actorTypes)
+		{
+			var count = 0;
+			long x = 0;
+			long y = 0;
+			foreach (var b in Buildings)
+			{
+				if (!actorTypes.Contains(b.Info.Name))
+					continue;
+
+				x += b.Location.X;
+				y += b.Location.Y;
+				count++;
+			}
+
+			if (count == 0)
+				return null;
+
+			return new CPos((int)(x / count), (int)(y / count));
+		}
+	}
+
 	public class CNBuildingLayoutEntry
 	{
 		public readonly BaseBuildingLayout Layout = BaseBuildingLayout.Random;
@@ -204,6 +253,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Minimum spacing in cells between ANY two buildings regardless of type. 0 = disabled.")]
 		public readonly int GlobalMinSpacing = 0;
+
+		[Desc("Cell pitch of the shared base raster used by the " + nameof(BaseBuildingLayout.BaseGrid) + " layout.",
+			"One pitch for the whole base: every building origin snaps to this raster (or to an exact subdivision",
+			"of it for types that declare a tighter MinSpacing). Footprints that do not fit inside one raster cell",
+			"together with their padding simply consume the neighbouring cells - " + nameof(GlobalMinSpacing) + " enforces the gap.")]
+		public readonly int BaseGridCellSize = 4;
+
+		[Desc("Construction yards within this distance of each other are treated as one base.",
+			"Each base gets its own plan centers, raster anchor and build radius.")]
+		public readonly int BaseClusterRadius = 14;
 
 		[FieldLoader.LoadUsing(nameof(LoadBuildingLayouts))]
 		[Desc("Per-building-type layout overrides.")]
@@ -585,6 +644,7 @@ namespace OpenRA.Mods.Common.Traits
 		IResourceLayer resourceLayer;
 		IBotPositionsUpdated[] positionsUpdatedModules;
 		CPos initialBaseCenter;
+		CPos? baseGridOrigin;
 		public CPos? ResourceConyardCenter;
 		public IPathFinder PathFinder { get; private set; }
 		public Locomotor[] HarvesterLocomotorsList = Array.Empty<Locomotor>();
@@ -959,37 +1019,233 @@ namespace OpenRA.Mods.Common.Traits
 			return CNBasePlanCluster.Core;
 		}
 
-		public CPos GetBasePlanCenterForActor(ActorInfo actorInfo, CPos fallbackCenter, bool isDefense, bool isRefinery)
+		public CPos GetBasePlanCenterForActor(ActorInfo actorInfo, CNBotBase targetBase, CPos fallbackCenter, bool isDefense, bool isRefinery)
 		{
-			return GetBasePlanCenter(GetBasePlanClusterForActor(actorInfo, isDefense, isRefinery), fallbackCenter);
+			return GetBasePlanCenter(GetBasePlanClusterForActor(actorInfo, isDefense, isRefinery), targetBase, fallbackCenter);
 		}
 
-		public CPos GetBasePlanCenter(CNBasePlanCluster cluster, CPos fallbackCenter)
+		// Plan centers are computed from the buildings of ONE base only. Averaging over all bases put the
+		// target between them, so from the second construction yard on the bot dropped single buildings
+		// into the no man's land in between.
+		public CPos GetBasePlanCenter(CNBasePlanCluster cluster, CNBotBase targetBase, CPos fallbackCenter)
 		{
 			return cluster switch
 			{
-				CNBasePlanCluster.Expansion => AverageBuildingLocation(Info.RefineryTypes) ?? ResourceConyardCenter ?? fallbackCenter,
-				CNBasePlanCluster.Production => AverageBuildingLocation(Info.ProductionTypes) ?? fallbackCenter,
-				CNBasePlanCluster.Tech => AverageBuildingLocation(Info.TechTypes) ?? AverageBuildingLocation(Info.ProductionTypes) ?? fallbackCenter,
+				CNBasePlanCluster.Expansion => targetBase.AverageLocationOf(Info.RefineryTypes) ?? ResourceConyardCenter ?? fallbackCenter,
+				CNBasePlanCluster.Production => targetBase.AverageLocationOf(Info.ProductionTypes) ?? fallbackCenter,
+				CNBasePlanCluster.Tech => targetBase.AverageLocationOf(Info.TechTypes) ?? targetBase.AverageLocationOf(Info.ProductionTypes) ?? fallbackCenter,
 				CNBasePlanCluster.DefensePerimeter => DefenseCenter == default ? fallbackCenter : DefenseCenter,
 				CNBasePlanCluster.Outpost => ResourceConyardCenter ?? fallbackCenter,
-				_ => AverageBuildingLocation(Info.ConstructionYardTypes) ?? fallbackCenter
+				_ => targetBase.AverageLocationOf(Info.ConstructionYardTypes) ?? fallbackCenter
 			};
 		}
 
-		CPos? AverageBuildingLocation(IEnumerable<string> typeNames)
+		// --- Base clustering ---
+		readonly List<CNBotBase> cachedBotBases = [];
+		int cachedBotBasesTick = -1;
+
+		/// <summary>
+		/// The bot's bases, rebuilt at most once per tick. Construction yards within BaseClusterRadius of
+		/// each other form one base (single linkage); every building is assigned to the closest base.
+		/// </summary>
+		public IReadOnlyList<CNBotBase> GetBases()
 		{
-			var typeSet = typeNames as ISet<string> ?? typeNames.ToHashSet();
-			var buildings = GetCachedPlayerBuildings()
-				.Where(b => typeSet.Contains(b.Info.Name))
-				.ToArray();
+			if (world.WorldTick == cachedBotBasesTick && cachedBotBases.Count > 0)
+				return cachedBotBases;
 
-			if (buildings.Length == 0)
-				return null;
+			cachedBotBasesTick = world.WorldTick;
+			cachedBotBases.Clear();
 
-			return new CPos(
-				(int)buildings.Average(b => b.Location.X),
-				(int)buildings.Average(b => b.Location.Y));
+			var conyards = new List<Actor>();
+			foreach (var a in ConstructionYardBuildings.Actors)
+				if (!a.IsDead && a.IsInWorld)
+					conyards.Add(a);
+
+			if (conyards.Count == 0)
+			{
+				// No construction yard left: keep one synthetic base so placement still has an anchor.
+				var orphan = new CNBotBase { Center = BaseOrigin };
+				orphan.Buildings.AddRange(GetCachedPlayerBuildings());
+				if (orphan.Buildings.Count > 0)
+					orphan.Center = AverageLocation(orphan.Buildings);
+
+				orphan.GridAnchor = SnapToBaseGrid(orphan.Center);
+				cachedBotBases.Add(orphan);
+				return cachedBotBases;
+			}
+
+			// Single-linkage clustering over a handful of construction yards - O(n²) is fine here.
+			var parent = new int[conyards.Count];
+			for (var i = 0; i < parent.Length; i++)
+				parent[i] = i;
+
+			int Find(int x)
+			{
+				while (parent[x] != x)
+				{
+					parent[x] = parent[parent[x]];
+					x = parent[x];
+				}
+
+				return x;
+			}
+
+			var clusterRadius = Math.Max(1, Info.BaseClusterRadius);
+			var clusterRadiusSq = clusterRadius * clusterRadius;
+			for (var i = 0; i < conyards.Count; i++)
+			{
+				for (var j = i + 1; j < conyards.Count; j++)
+				{
+					if ((conyards[i].Location - conyards[j].Location).LengthSquared > clusterRadiusSq)
+						continue;
+
+					var ri = Find(i);
+					var rj = Find(j);
+					if (ri != rj)
+						parent[ri] = rj;
+				}
+			}
+
+			var byRoot = new Dictionary<int, CNBotBase>();
+			for (var i = 0; i < conyards.Count; i++)
+			{
+				var root = Find(i);
+				if (!byRoot.TryGetValue(root, out var b))
+					byRoot[root] = b = new CNBotBase();
+
+				b.ConstructionYards.Add(conyards[i]);
+			}
+
+			foreach (var b in byRoot.Values)
+			{
+				b.Center = AverageLocation(b.ConstructionYards);
+				b.GridAnchor = SnapToBaseGrid(b.Center);
+				cachedBotBases.Add(b);
+			}
+
+			// Every building belongs to the base whose center is closest to it.
+			foreach (var building in GetCachedPlayerBuildings())
+			{
+				var best = cachedBotBases[0];
+				var bestDistance = (building.Location - best.Center).LengthSquared;
+				for (var i = 1; i < cachedBotBases.Count; i++)
+				{
+					var distance = (building.Location - cachedBotBases[i].Center).LengthSquared;
+					if (distance >= bestDistance)
+						continue;
+
+					bestDistance = distance;
+					best = cachedBotBases[i];
+				}
+
+				best.Buildings.Add(building);
+			}
+
+			return cachedBotBases;
+		}
+
+		static CPos AverageLocation(List<Actor> actors)
+		{
+			long x = 0;
+			long y = 0;
+			foreach (var a in actors)
+			{
+				x += a.Location.X;
+				y += a.Location.Y;
+			}
+
+			return new CPos((int)(x / actors.Count), (int)(y / actors.Count));
+		}
+
+		/// <summary>
+		/// Snaps a cell onto the global base raster. All bases share one lattice (anchored at the bot's
+		/// original base location), so raster anchors stay commensurate between bases and never shift
+		/// under buildings that are already placed.
+		/// </summary>
+		public CPos SnapToBaseGrid(CPos cell)
+		{
+			var grid = Math.Max(1, Info.BaseGridCellSize);
+			var origin = BaseOrigin;
+
+			int Snap(int value, int originValue)
+			{
+				var delta = value - originValue;
+				var offset = (delta % grid + grid) % grid;
+				return value - offset + (offset * 2 >= grid ? grid : 0);
+			}
+
+			return new CPos(Snap(cell.X, origin.X), Snap(cell.Y, origin.Y));
+		}
+
+		/// <summary>The bot's original base location. Fixed on first use, unlike initialBaseCenter.</summary>
+		public CPos BaseOrigin
+		{
+			get
+			{
+				baseGridOrigin ??= initialBaseCenter;
+				return baseGridOrigin.Value;
+			}
+		}
+
+		/// <summary>The base around the bot's starting position. Stable anchor for base-wide decisions.</summary>
+		public CNBotBase PrimaryBase => GetBaseNearest(BaseOrigin);
+
+		public CNBotBase GetBaseNearest(CPos cell)
+		{
+			var bases = GetBases();
+			var best = bases[0];
+			var bestDistance = (cell - best.Center).LengthSquared;
+			for (var i = 1; i < bases.Count; i++)
+			{
+				var distance = (cell - bases[i].Center).LengthSquared;
+				if (distance >= bestDistance)
+					continue;
+
+				bestDistance = distance;
+				best = bases[i];
+			}
+
+			return best;
+		}
+
+		/// <summary>
+		/// Bases in the order they should be tried for one build order. Defenses and refineries follow the
+		/// threat / resource anchor, everything else goes to the base that has the fewest of that type.
+		/// </summary>
+		public IReadOnlyList<CNBotBase> GetOrderedBasesForBuilding(string actorType, BuildingType type, string nearBuilding)
+		{
+			var bases = GetBases();
+			if (bases.Count <= 1)
+				return bases;
+
+			if (type == BuildingType.Refinery)
+			{
+				var resourceAnchor = ResourceConyardCenter ?? BaseOrigin;
+				return bases.OrderBy(b => (b.Center - resourceAnchor).LengthSquared).ToList();
+			}
+
+			if (type == BuildingType.Defense)
+			{
+				var threatAnchor = DefenseCenter == default ? BaseOrigin : DefenseCenter;
+				return bases.OrderBy(b => (b.Center - threatAnchor).LengthSquared).ToList();
+			}
+
+			// A NearBuilding entry only makes sense in a base that actually has that building.
+			var wantsNearBuilding = !string.IsNullOrEmpty(nearBuilding) && nearBuilding != actorType;
+
+			// Need is measured against the base's own share, not against the raw count: a fresh expansion
+			// has none of anything, so a plain "fewest wins" would redirect the whole build order there.
+			// A base wants the type once it holds fewer than BuildingFractions says for its current size;
+			// the expansion grows into its own deficits as refineries and defenses arrive.
+			var fractions = GetActiveBuildingFractions();
+			var fraction = fractions != null && fractions.TryGetValue(actorType, out var f) ? f : 0;
+
+			return bases
+				.OrderByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
+				.ThenBy(b => b.CountOf(actorType) * 100 - fraction * b.Buildings.Count)
+				.ThenBy(b => b.Buildings.Count)
+				.ThenBy(b => (b.Center - BaseOrigin).LengthSquared)
+				.ToList();
 		}
 
 		readonly CNBaseBuilderQueueManager[] builders;
@@ -1048,6 +1304,10 @@ namespace OpenRA.Mods.Common.Traits
 		void IBotPositionsUpdated.UpdatedBaseCenter(CPos newLocation)
 		{
 			initialBaseCenter = newLocation;
+
+			// initialBaseCenter follows every MCV expansion. The raster origin must not: it is fixed to
+			// the first reported base location so the lattice never shifts under buildings already placed.
+			baseGridOrigin ??= newLocation;
 		}
 
 		void IBotPositionsUpdated.UpdatedDefenseCenter(CPos newLocation)

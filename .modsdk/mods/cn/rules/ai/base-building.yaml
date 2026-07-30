@@ -131,6 +131,12 @@ Player:
 		DefaultLayout: BaseGrid
 		SameTypeMinSpacing: 1
 		GlobalMinSpacing: 2
+		# One raster for the whole base. 2x2 buildings fill exactly one cell (footprint 2 + spacing 2),
+		# everything larger consumes the neighbouring cell. Types with their own MinSpacing (power plants,
+		# helipads, silos) snap to the 2-cell subdivision and keep their tight blocks.
+		BaseGridCellSize: 4
+		# Construction yards farther apart than this are separate bases with their own centers and raster anchor.
+		BaseClusterRadius: 14
 		BuildingLayouts:
 			gapowr:
 				Layout: BaseGrid
