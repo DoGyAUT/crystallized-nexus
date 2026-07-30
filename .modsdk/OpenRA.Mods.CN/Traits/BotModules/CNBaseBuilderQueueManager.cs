@@ -1080,8 +1080,12 @@ namespace OpenRA.Mods.Common.Traits
 						foreach (var tag in caps)
 							tagDefenseCounts[tag] = (tagDefenseCounts.TryGetValue(tag, out var tc) ? tc : 0) + 1;
 
-					var dr = GetDefenseRoleFromActor(a.Info);
-					if (dr != DefenseRole.Default)
+					// A defense counts towards every role it covers, not just its primary one. The
+					// candidate lookups match on any capability tag, so counting only one of them would
+					// let a multi-role building answer a role it never fills up (an Obelisk tagged
+					// InfantryDefense/ArmorDefense/Special used to raise the Special count alone and
+					// stayed eligible for the other two forever).
+					foreach (var dr in GetDefenseRolesFromActor(a.Info))
 						roleDefenseCounts[dr] = (roleDefenseCounts.TryGetValue(dr, out var rc) ? rc : 0) + 1;
 				}
 			}
@@ -1332,23 +1336,29 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var actorInfo in buildableThings.Where(a => baseBuilder.Info.DefenseTypes.Contains(a.Name)))
 			{
-				var role = GetDefenseRoleFromActor(actorInfo);
-				if (role == DefenseRole.Default)
-					continue;
+				// Rate a multi-role defense by its scarcest role: it is blocked as soon as any of the
+				// roles it covers is at its limit, so its deficit has to be the smallest one as well.
+				// Otherwise a building would keep winning on a role it is no longer allowed to fill.
+				var deficit = int.MaxValue;
+				var hasLimitedRole = false;
+				foreach (var role in GetDefenseRolesFromActor(actorInfo))
+				{
+					if (!activeDefLimits.TryGetValue(role.ToString(), out var roleLimit))
+						continue;
 
-				if (!activeDefLimits.TryGetValue(role.ToString(), out var roleLimit))
-					continue;
+					var roleCount = 0;
+					roleDefenseCounts?.TryGetValue(role, out roleCount);
+					hasLimitedRole = true;
+					deficit = Math.Min(deficit, roleLimit * baseBuildingCount - roleCount * 100);
+				}
 
-				var roleCount = 0;
-				roleDefenseCounts?.TryGetValue(role, out roleCount);
-				if (roleCount * 100 >= roleLimit * baseBuildingCount)
+				if (!hasLimitedRole || deficit <= 0)
 					continue;
 
 				if (!HasSufficientPowerForActor(actorInfo))
 					continue;
 
 				var typeCount = CountExistingAndQueuedBuilding(actorInfo.Name);
-				var deficit = roleLimit * baseBuildingCount - roleCount * 100;
 				if (deficit < bestDeficit)
 					continue;
 
@@ -1361,6 +1371,31 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return bestActor;
+		}
+
+		/// <summary>
+		/// Every defense role this actor covers. Placement needs a single role (see
+		/// <see cref="GetDefenseRoleFromActor"/>), but the role limits are budgets: a building occupies
+		/// a slot in each role it can answer.
+		/// </summary>
+		List<DefenseRole> GetDefenseRolesFromActor(ActorInfo actorInfo)
+		{
+			var roles = new List<DefenseRole>();
+			var caps = actorInfo.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			if (caps != null)
+				foreach (var tag in caps)
+					if (Enum.TryParse<DefenseRole>(tag, true, out var r) && r != DefenseRole.Default)
+						roles.Add(r);
+
+			if (roles.Count > 0)
+				return roles;
+
+			var fallback = baseBuilder.Info.DefenseRoles
+				.FirstOrDefault(kv => kv.Value.Contains(actorInfo.Name)).Key;
+			if (fallback != DefenseRole.Default)
+				roles.Add(fallback);
+
+			return roles;
 		}
 
 		DefenseRole GetDefenseRoleFromActor(ActorInfo actorInfo)
