@@ -173,6 +173,9 @@ Player:
 			Steamroller: 7500
 		# Opportunity expansion: MCV cost (2500) plus headroom, and the spot has to score net positive.
 		# Rush and Turtle expand sparingly - one extra yard, and only for a clearly good spot.
+		# A yard may only relocate out of a base this small. Larger bases would be left behind as dead
+		# weight - without a construction yard the group stops being a build site.
+		RelocateConyardMaxBaseSize: 12
 		OpportunityExpansionCashAmount: 3500
 		ExpansionAttractionThresholdPermille: 0
 		ExpansionAttractionThresholdsPermille:

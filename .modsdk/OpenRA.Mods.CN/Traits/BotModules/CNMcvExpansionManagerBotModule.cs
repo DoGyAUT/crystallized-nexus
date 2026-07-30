@@ -74,6 +74,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Should moving the oldest or newest conyard be preferred? Random ordering if unset.")]
 		public readonly bool? MoveOldConyardFirst = null;
 
+		[Desc("A construction yard may only pack up and drive off while the base it is the sole build source",
+			"of has at most this many buildings. Beyond that, relocating it abandons an established base:",
+			"the stock stays behind as dead weight the bot can no longer build around, and it continues from",
+			"the new, tiny site instead. -1 disables the check.")]
+		public readonly int RelocateConyardMaxBaseSize = 12;
+
 		[Desc("When economy is already covered, prefer CheckBase expansions as forward outposts instead of only resource expansions.")]
 		public readonly bool EnableStrategicOutposts = true;
 
@@ -1038,11 +1044,35 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// True while this construction yard is the sole build source of a base that has outgrown
+		// RelocateConyardMaxBaseSize. Moving it then leaves the whole base behind: without a yard the group
+		// is no longer a build site (see CNBotBase.IsBuildSite), so the bot carries on around the handful of
+		// buildings at the new spot while the old stock sits there as dead weight.
+		bool WouldAbandonEstablishedBase(Actor conyard)
+		{
+			if (cnBaseBuilder == null || Info.RelocateConyardMaxBaseSize < 0)
+				return false;
+
+			foreach (var b in cnBaseBuilder.GetBases())
+			{
+				if (!b.ConstructionYards.Contains(conyard))
+					continue;
+
+				// Another yard in the same base keeps building there after this one leaves.
+				return b.ConstructionYards.Count <= 1 && b.Buildings.Count > Info.RelocateConyardMaxBaseSize;
+			}
+
+			return false;
+		}
+
 		void UnDeployConyard(IBot bot)
 		{
 			if (mustUndeployCoyard != null && mustUndeployCoyard.IsInWorld && !mustUndeployCoyard.IsDead && mustUndeployCoyard.Owner == player)
 			{
-				if (IsExpansionGoalLocked(mustUndeployCoyard))
+				// The stuck-base recovery in CNBaseBuilderQueueManager nominates a yard whenever placement
+				// keeps failing around it - which is exactly what a FULL base looks like. Relocating out of
+				// one would abandon the very base that ran out of room, so it is refused here too.
+				if (IsExpansionGoalLocked(mustUndeployCoyard) || WouldAbandonEstablishedBase(mustUndeployCoyard))
 				{
 					mustUndeployCoyard = null;
 					return;
@@ -1072,8 +1102,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (conyardslist.Count > 1 || undeployEvenNoBase)
 			{
 				// We don't want to interrupt refinery production, otherwise it may cause a dead loop of deploy/undeploy.
+				// And a yard that is the only build source of an established base does not leave it at all.
 				var movableMCV = conyardslist.FirstOrDefault(a => !a.TraitsImplementing<ProductionQueue>()
-				.Any(t => t.Enabled && t.AllQueued().Any(q => resourceMapModule.Info.RefineryTypes.Contains(q.Item))));
+				.Any(t => t.Enabled && t.AllQueued().Any(q => resourceMapModule.Info.RefineryTypes.Contains(q.Item)))
+				&& !WouldAbandonEstablishedBase(a));
 
 				if (movableMCV != null)
 					bot.QueueOrder(new Order("DeployTransform", movableMCV, true));
