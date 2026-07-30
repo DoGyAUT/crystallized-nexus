@@ -1090,7 +1090,7 @@ namespace OpenRA.Mods.Common.Traits
 			// then fall back to the global combat analysis trend.
 			var ca = player.PlayerActor.TraitsImplementing<CombatAnalysisBotModule>()
 				.FirstOrDefault(m => !m.IsTraitDisabled);
-			var defenseCenterForThreat = baseBuilder.DefenseCenter == default ? baseBuilder.GetRandomBaseCenter() : baseBuilder.DefenseCenter;
+			var defenseCenterForThreat = baseBuilder.GetDefenseReference(baseBuilder.GetRandomBaseCenter());
 			var hotspotRole = baseBuilder.GetBestDefenseHotspotRole(defenseCenterForThreat);
 			var reactiveRole = hotspotRole != DefenseRole.Default
 				? hotspotRole
@@ -1846,9 +1846,13 @@ namespace OpenRA.Mods.Common.Traits
 						}
 					}
 
-					var defenseCenter = baseBuilder.DefenseCenter == default ? baseCenter : baseBuilder.DefenseCenter;
+					// The ring of defense candidates is centred on where the bot believes it is threatened.
+					// That used to be the raw position of whoever attacked last, so the whole ring jumped
+					// with every individual attacker; it is now the weighted danger hotspot, which merges
+					// nearby attacks and is scored by how often and how hard the bot was hit there.
+					var defenseCenter = baseBuilder.GetDefenseReference(baseCenter);
 					var rememberedHotspot = baseBuilder.GetBestDefenseHotspot(defenseCenter);
-					var targetCell = rememberedHotspot ?? (baseBuilder.DefenseCenter == default ? baseCenter : defenseCenter);
+					var targetCell = rememberedHotspot ?? defenseCenter;
 
 					// Reuse the outer-scope precomputed array (same data, avoids a second TraitInfoOrDefault pass).
 					var playerBuildingInfos = globalBuildingInfos;

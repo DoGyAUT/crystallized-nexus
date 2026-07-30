@@ -704,7 +704,20 @@ namespace OpenRA.Mods.Common.Traits
 			return Info.BasePerimeterWallMinimumStructures;
 		}
 
+		/// <summary>Raw position of the most recent attacker. Jumps with every hit - see <see cref="GetDefenseReference"/>.</summary>
 		public CPos DefenseCenter { get; private set; }
+
+		/// <summary>
+		/// Where the bot currently believes it is threatened. Prefers the weighted danger hotspot, which
+		/// merges attacks within DefenseDangerMemoryMergeRadius and is scored by how often and how hard the
+		/// bot was hit there, over the raw position of whoever shot last. The raw position moves with every
+		/// single attacker and made defense planning chase individual units around the base.
+		/// </summary>
+		public CPos GetDefenseReference(CPos fallback)
+		{
+			return GetRecordedDangerHotspot(fallback)
+				?? (DefenseCenter == default ? fallback : DefenseCenter);
+		}
 
 		// Staleness window for the cached active BuildingFractions / DefenseRoleLimits tables.
 		const int ActiveTableMaxAgeTicks = 25;
@@ -1114,7 +1127,7 @@ namespace OpenRA.Mods.Common.Traits
 				CNBasePlanCluster.Expansion => targetBase.AverageLocationOf(Info.RefineryTypes) ?? ResourceConyardCenter ?? fallbackCenter,
 				CNBasePlanCluster.Production => targetBase.AverageLocationOf(Info.ProductionTypes) ?? fallbackCenter,
 				CNBasePlanCluster.Tech => targetBase.AverageLocationOf(Info.TechTypes) ?? targetBase.AverageLocationOf(Info.ProductionTypes) ?? fallbackCenter,
-				CNBasePlanCluster.DefensePerimeter => DefenseCenter == default ? fallbackCenter : DefenseCenter,
+				CNBasePlanCluster.DefensePerimeter => GetDefenseReference(fallbackCenter),
 				CNBasePlanCluster.Outpost => ResourceConyardCenter ?? fallbackCenter,
 				_ => targetBase.AverageLocationOf(Info.ConstructionYardTypes) ?? fallbackCenter
 			};
@@ -1570,7 +1583,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (type == BuildingType.Defense)
 			{
-				var threatAnchor = DefenseCenter == default ? BaseOrigin : DefenseCenter;
+				var threatAnchor = GetDefenseReference(BaseOrigin);
 
 				// The defense budget itself stays global - DefenseRoleLimits are checked against the bot's
 				// total building count, so the bot never walls itself in just because it owns more bases.
