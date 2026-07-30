@@ -115,10 +115,12 @@ namespace OpenRA.Mods.Common.Traits
 					var currentBuildings = baseBuilder.GetCachedPlayerBuildings().Count;
 					var baseProviders = world.ActorsHavingTrait<BaseProvider>().Count(a => a.Owner == player);
 
+					// The retry delay is armed in both cases. Only the failure branch used to reset it,
+					// so after a successful recovery failRetryTicks stayed at or below zero and the next
+					// time the queue got stuck the check fired on every single tick instead of waiting.
+					failRetryTicks = baseBuilder.Info.StructureProductionResumeDelay;
 					if (currentBuildings < cachedBuildings || baseProviders > cachedBases)
 						failCount = 0;
-					else
-						failRetryTicks = baseBuilder.Info.StructureProductionResumeDelay;
 				}
 
 				if (failCount >= baseBuilder.Info.MaximumFailedPlacementAttempts)
@@ -647,7 +649,15 @@ namespace OpenRA.Mods.Common.Traits
 						lastFailedBuilding = currentBuilding.Item;
 						if (type == BuildingType.Defense)
 							defensePlacementCooldownTicks = 120;
-						if (baseBuilder.BaseExpansionModules == null)
+
+						// Length == 0, not == null: BaseExpansionModules is assigned in Created() from
+						// TraitsImplementing<IBotBaseExpansion>().ToArray() and is therefore never null —
+						// at worst an empty array. The old null check made this branch dead code, so
+						// cachedBuildings stayed at 0 forever while Tick's recovery path compares
+						// `currentBuildings < cachedBuildings` against it. That condition can never hold
+						// for a bot without an expansion module, leaving its build queue wedged until a
+						// new BaseProvider happens to appear.
+						if (baseBuilder.BaseExpansionModules == null || baseBuilder.BaseExpansionModules.Length == 0)
 						{
 							cachedBuildings = baseBuilder.GetCachedPlayerBuildings().Count;
 							cachedBases = world.ActorsHavingTrait<BaseProvider>().Count(a => a.Owner == player);
@@ -1839,7 +1849,16 @@ namespace OpenRA.Mods.Common.Traits
 						var seen = new HashSet<CPos>();
 						var dx = target.X - center.X;
 						var dy = target.Y - center.Y;
-						var denom = Math.Max(Math.Abs(dx), Math.Abs(dy));
+
+						// Euclidean normalisation, not Chebyshev (max(|dx|,|dy|)). TryAdd rejects any cell
+						// whose (Euclidean) distance from the centre exceeds maxRange, but the old divisor
+						// placed the main candidate at Chebyshev distance `radius` — up to 1.41x that in
+						// Euclidean terms for a diagonal target. The result was that for a diagonally
+						// placed enemy every main-direction candidate in the outer ~30% of the radius band
+						// was silently discarded, and since Radii() walks outer-to-inner and stops once
+						// maxCandidates is full, the cells actually aimed at the threat often never made
+						// the list at all — defenses fell back to the generic axis/diagonal ring.
+						var denom = (int)Exts.ISqrt((long)dx * dx + (long)dy * dy);
 						var px = dy == 0 ? 0 : -Math.Sign(dy);
 						var py = dx == 0 ? 0 : Math.Sign(dx);
 

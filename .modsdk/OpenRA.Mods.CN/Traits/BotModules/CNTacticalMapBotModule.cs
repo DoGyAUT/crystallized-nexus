@@ -325,7 +325,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		void Rebuild()
 		{
-			TopologyReady = true;
+			// TopologyReady is set only on success, at the end. It used to be set here, before the
+			// guards below — so a build that bailed out (no abstract graph yet, no locomotor) left the
+			// module permanently "ready" with zero chokepoints, and EnsureBuilt, which only rebuilds
+			// while !TopologyReady, never tried again. The tactical map stayed silently dead for the
+			// whole match. BuildOwnTopology returning false is exactly the "graph not created yet"
+			// case the WorldLoaded frame-end task is meant to avoid, so it must stay retryable.
 			ResetPerBaseCaches();
 			recheckTick = Math.Max(1, Info.TopologyRecheckInterval);
 			recomputeTick = Math.Max(1, Info.RecomputeInterval);
@@ -346,6 +351,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (registry.TryGetValue(key, out var existing) && existing != null)
 			{
 				Adopt(existing);
+				TopologyReady = true;
 				return;
 			}
 
@@ -355,6 +361,7 @@ namespace OpenRA.Mods.Common.Traits
 			shared = Publish();
 			registry[key] = shared;
 			sharedGeneration = shared.Generation;
+			TopologyReady = true;
 		}
 
 		void ResetPerBaseCaches()
@@ -442,16 +449,18 @@ namespace OpenRA.Mods.Common.Traits
 			chokepoints.Clear();
 			bridgeWatchCells.Clear();
 
+			// Terrain-only connectivity (BlockedByActor.None): topology should reflect permanent terrain (cliffs,
+			// water, bridges, ramps), NOT trees/buildings/units, which would create fake chokepoints around obstacles.
+			// Queried BEFORE the passability fill so a not-yet-created abstract graph costs nothing: this method is
+			// retryable (see Rebuild), and the fill is a full-map pass we don't want to repeat on every failed attempt.
+			var (graph, domains) = pathFinder.GetOverlayDataForLocomotor(locomotor, BlockedByActor.None);
+			if (graph == null || domains == null || graph.Count == 0)
+				return false;
+
 			// Cache terrain passability once so the scans/floods below don't call Locomotor.MovementCostForCell repeatedly.
 			passability = new CellLayer<bool>(world.Map);
 			foreach (var c in world.Map.AllCells)
 				passability[c] = locomotor.MovementCostForCell(c) != short.MaxValue;
-
-			// Terrain-only connectivity (BlockedByActor.None): topology should reflect permanent terrain (cliffs,
-			// water, bridges, ramps), NOT trees/buildings/units, which would create fake chokepoints around obstacles.
-			var (graph, domains) = pathFinder.GetOverlayDataForLocomotor(locomotor, BlockedByActor.None);
-			if (graph == null || domains == null || graph.Count == 0)
-				return false;
 
 			abstractDomains = domains;
 			nodeCells = graph.Keys.ToArray();
@@ -502,14 +511,20 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Chokepoints are found directly from the terrain (not from the coarse abstract graph, which over-produces
 			// noise): narrow separating passages, cliff ramps (marked below + above), and bridges.
-			foreach (var center in ScanPassageCenters())
-				Add(center, CNChokepointType.Passage);
+			// Order matters: the near-duplicate merge in AddTyped only drops a Passage that lands close
+			// to an ALREADY REGISTERED chokepoint. Scanning passages first meant bridges and ramps did
+			// not exist yet, so nothing could be merged away — and bridges/ramps are never merge-checked
+			// themselves. A single bridge therefore produced three markers (B in the middle, P at each
+			// approach), which then crowded out other approaches in GetTopologyHotspots' top-N.
+			// Discrete features first, passages last, so ChokepointMergeRadius actually does its job.
+			foreach (var center in ScanBridgeCenters())
+				Add(center, CNChokepointType.Bridge);
 
 			foreach (var endpoint in ScanRampEndpoints())
 				Add(endpoint, CNChokepointType.Ramp);
 
-			foreach (var center in ScanBridgeCenters())
-				Add(center, CNChokepointType.Bridge);
+			foreach (var center in ScanPassageCenters())
+				Add(center, CNChokepointType.Passage);
 
 			chokepoints.AddRange(byCell.Values);
 			lastBridgeSignature = CurrentBridgeSignature();
@@ -922,28 +937,23 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 				}
 
-				var enemyCount = world.Actors.Count(a => !a.IsDead && a.IsInWorld
-					&& a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy
-					&& a.Info.HasTraitInfo<BuildingInfo>());
+				// One world.Actors pass, not two: the count pre-check and the position set are the same
+				// filter, and world.Actors is the whole map. The set is discarded again if the pre-check
+				// decides nothing changed, which is far cheaper than walking every actor twice.
+				var enemyCells = EnemyBuildingCells();
 
-				// Skip if neither our base nor the enemy building count changed since the last completed scan -
-				// a cheap enough pre-check that it's worth doing before the full enemy-position set below.
-				if (!BaseMoved(reference.Value, usefulLastBaseRef) && !EnemyBuildingCountChanged(enemyCount, usefulLastEnemyCount))
+				// Skip if neither our base nor the enemy building count changed since the last completed scan.
+				if (!BaseMoved(reference.Value, usefulLastBaseRef) && !EnemyBuildingCountChanged(enemyCells.Count, usefulLastEnemyCount))
 				{
 					usefulNextRefreshTick = world.WorldTick + Math.Max(1, Info.UsefulRefreshInterval);
 					return;
 				}
 
 				usefulLastBaseRef = reference.Value;
-				usefulLastEnemyCount = enemyCount;
+				usefulLastEnemyCount = enemyCells.Count;
 				usefulReference = reference.Value;
 				usefulDomain = DomainOf(usefulReference);
-				usefulEnemyBuildings = world.Actors
-					.Where(a => !a.IsDead && a.IsInWorld
-						&& a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy
-						&& a.Info.HasTraitInfo<BuildingInfo>())
-					.Select(a => a.Location)
-					.ToHashSet();
+				usefulEnemyBuildings = enemyCells;
 				usefulBuilding.Clear();
 				usefulCursor = 0;
 			}
@@ -1243,20 +1253,19 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 				}
 
-				var enemyCount = world.Actors.Count(a => !a.IsDead && a.IsInWorld
-					&& a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy
-					&& a.Info.HasTraitInfo<BuildingInfo>());
+				// Single world.Actors pass, as in TickUsefulRefresh.
+				var enemyCells = EnemyBuildingCells();
 
-				if (!BaseMoved(reference.Value, corridorLastBaseRef) && !EnemyBuildingCountChanged(enemyCount, corridorLastEnemyCount))
+				if (!BaseMoved(reference.Value, corridorLastBaseRef) && !EnemyBuildingCountChanged(enemyCells.Count, corridorLastEnemyCount))
 				{
 					corridorNextRefreshTick = world.WorldTick + Math.Max(1, Info.UsefulRefreshInterval);
 					return;
 				}
 
 				corridorLastBaseRef = reference.Value;
-				corridorLastEnemyCount = enemyCount;
+				corridorLastEnemyCount = enemyCells.Count;
 				corridorBaseRef = reference.Value;
-				corridorEnemy = EnemyBuildingCells();
+				corridorEnemy = enemyCells;
 				corridorSeen = [];
 				corridorBuilding.Clear();
 				corridorSource.Clear();
@@ -1380,8 +1389,13 @@ namespace OpenRA.Mods.Common.Traits
 			var baseSign = Math.Sign(corridor.WallRunsHorizontal
 				? reference.Y - corridor.Center.Y
 				: reference.X - corridor.Center.X);
+
+			// Base exactly level with the corridor on the approach axis: there is no identifiable far
+			// side, so which side the wall would seal is undefined. Reject instead of accepting — this
+			// used to return true while GetChokepointDefenseAnchors skipped the very same corridor on
+			// the same condition, producing corridors marked sealable that never got a turret behind them.
 			if (baseSign == 0)
-				return true;
+				return false;
 
 			var farSeed = corridor.Center - approach * baseSign;
 			var barrier = new HashSet<CPos>(corridor.Cells);

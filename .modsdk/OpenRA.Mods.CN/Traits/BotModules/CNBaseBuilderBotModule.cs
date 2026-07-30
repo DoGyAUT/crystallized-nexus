@@ -360,7 +360,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How strongly tech-building placement prefers cells close to the chosen base/production core.")]
 		public readonly int TechPlacementCoreBiasWeight = 2;
 
-
 		[Desc("Try to build another production building if there is too much cash.")]
 		public readonly int NewProductionCashThreshold = 5000;
 
@@ -568,6 +567,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		public CPos DefenseCenter { get; private set; }
 
+		// Staleness window for the cached active BuildingFractions / DefenseRoleLimits tables.
+		const int ActiveTableMaxAgeTicks = 25;
+
+		// Staleness window for the cached supported-refinery capacity sweep.
+		const int SupportedRefineryCapacityMaxAgeTicks = 50;
+
 		// Actor, ActorCount.
 		public Dictionary<string, int> BuildingsBeingProduced = [];
 		public IBotBaseExpansion[] BaseExpansionModules;
@@ -596,10 +601,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Per-defense-center cache for the topology terrain terms (recomputed only when the center moves).
 		CPos cachedFlankCenter = new(int.MinValue, int.MinValue);
-		List<CVec> cachedAccessBearings = [];
+		readonly List<WVec> cachedAccessBearings = [];
 		readonly Dictionary<CPos, CNHighGroundEdge> cachedHighGround = [];
 		List<CPos> cachedChokepointDefenseAnchors = [];
-
 
 		public readonly struct DefensePlacementThreat
 		{
@@ -676,9 +680,38 @@ namespace OpenRA.Mods.Common.Traits
 			return cachedPlayerBuildings;
 		}
 
+		// Both active-value tables are rebuilt from the same small set of inputs (profile, tech stage,
+		// threat flag) and then frozen. ToFrozenDictionary builds a read-optimised hash structure and is
+		// meant for build-once/read-many — but these were freshly merged and frozen on every call, and
+		// ChooseBuildingToBuild alone calls GetActiveDefenseRoleLimits three times per pass. Cached until
+		// one of the inputs actually changes; the panic path additionally depends on which production
+		// buildings exist, so it carries a short staleness window on top.
+		FrozenDictionary<string, int> cachedBuildingFractions;
+		FrozenDictionary<string, int> cachedDefenseRoleLimits;
+		(BotProfile Profile, TechStage Stage, bool UnderThreat) cachedFractionKey = (BotProfile.Adaptive, TechStage.Early, false);
+		(BotProfile Profile, TechStage Stage) cachedDefenseKey = (BotProfile.Adaptive, TechStage.Early);
+		int cachedFractionTick = int.MinValue;
+		int cachedDefenseTick = int.MinValue;
+
+		bool IsUnderActiveThreat() =>
+			combatAnalysis != null && !combatAnalysis.IsTraitDisabled && combatAnalysis.HasActiveThreat();
+
 		// --- Profile + tech-stage aware getters ---
 		// BuildingFractions: merge TechStage overlay first, then apply strategic budget scaling.
 		public FrozenDictionary<string, int> GetActiveBuildingFractions()
+		{
+			var key = (ActiveProfile, ActiveTechStage, IsUnderActiveThreat());
+			if (cachedBuildingFractions != null && cachedFractionKey == key
+				&& world.WorldTick - cachedFractionTick < ActiveTableMaxAgeTicks)
+				return cachedBuildingFractions;
+
+			cachedFractionKey = key;
+			cachedFractionTick = world.WorldTick;
+			cachedBuildingFractions = BuildActiveBuildingFractions();
+			return cachedBuildingFractions;
+		}
+
+		FrozenDictionary<string, int> BuildActiveBuildingFractions()
 		{
 			var stageOverride = ActiveTechStage switch
 			{
@@ -688,7 +721,7 @@ namespace OpenRA.Mods.Common.Traits
 				_ => null
 			};
 
-			var underThreat = combatAnalysis != null && !combatAnalysis.IsTraitDisabled && combatAnalysis.HasActiveThreat();
+			var underThreat = IsUnderActiveThreat();
 
 			if ((stageOverride == null || stageOverride.Count == 0) && profileModule == null && !underThreat)
 				return Info.BuildingFractions;
@@ -752,6 +785,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (profileModule == null)
 				return Info.DefenseRoleLimits;
 
+			var key = (ActiveProfile, ActiveTechStage);
+			if (cachedDefenseRoleLimits != null && cachedDefenseKey == key
+				&& world.WorldTick - cachedDefenseTick < ActiveTableMaxAgeTicks)
+				return cachedDefenseRoleLimits;
+
+			cachedDefenseKey = key;
+			cachedDefenseTick = world.WorldTick;
+			cachedDefenseRoleLimits = BuildActiveDefenseRoleLimits();
+			return cachedDefenseRoleLimits;
+		}
+
+		FrozenDictionary<string, int> BuildActiveDefenseRoleLimits()
+		{
 			var merged = Info.DefenseRoleLimits != null
 				? new Dictionary<string, int>(Info.DefenseRoleLimits)
 				: [];
@@ -1084,11 +1130,19 @@ namespace OpenRA.Mods.Common.Traits
 						: resourceLayer.GetResource(c).Type != null))
 						continue;
 
-					var refs = world.FindActorsInCircle(conyard.CenterPosition, WDist.FromCells(Info.MaxBaseRadius))
-							.Count(a => a.Owner == player && Info.RefineryTypes.Contains(a.Info.Name));
+					// One circle query, two tallies: this used to run FindActorsInCircle twice over the
+					// identical circle, once per conyard, inside the periodic resource-location scan.
+					var refs = 0;
+					var enemies = 0;
+					foreach (var actor in world.FindActorsInCircle(conyard.CenterPosition, WDist.FromCells(Info.MaxBaseRadius)))
+					{
+						if (actor.Owner == player && Info.RefineryTypes.Contains(actor.Info.Name))
+							refs++;
+						else if (actor.Owner.RelationshipWith(player) == PlayerRelationship.Enemy)
+							enemies++;
+					}
 
-					var suitable = -world.FindActorsInCircle(conyard.CenterPosition, WDist.FromCells(Info.MaxBaseRadius))
-							.Count(a => a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy) - refs;
+					var suitable = -enemies - refs;
 
 					if (suitable > best)
 					{
@@ -1374,14 +1428,22 @@ namespace OpenRA.Mods.Common.Traits
 				.ToArray();
 		}
 
-		static long ScoreCellToward(CPos cell, CPos center, CPos target, int weight)
+		// World-space vector between two cells. Direction maths on raw CPos deltas is skewed on the
+		// RectangularIsometric grid, where a step in X and a step in Y are not the same physical
+		// distance — "toward the enemy" then means something different depending on the bearing.
+		WVec WorldVec(CPos from, CPos to) => world.Map.CenterOfCell(to) - world.Map.CenterOfCell(from);
+
+		// Both terms are ratios over targetLenSq (projection along the axis, and perpendicular offset
+		// relative to the axis length), so they are scale-invariant: moving the maths to world space
+		// corrects the geometry WITHOUT changing the magnitude the configured weights are tuned against.
+		long ScoreCellToward(CPos cell, CPos center, CPos target, int weight)
 		{
 			if (weight <= 0 || center == target)
 				return 0;
 
-			var toTarget = target - center;
-			var toCell = cell - center;
-			var targetLenSq = Math.Max(1, toTarget.LengthSquared);
+			var toTarget = WorldVec(center, target);
+			var toCell = WorldVec(center, cell);
+			var targetLenSq = Math.Max(1, toTarget.HorizontalLengthSquared);
 			var dot = (long)toCell.X * toTarget.X + (long)toCell.Y * toTarget.Y;
 			if (dot <= 0)
 				return 0;
@@ -1423,7 +1485,13 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			cachedFlankCenter = defenseCenter;
-			cachedAccessBearings = TacticalMapModule.GetAccessBearings(defenseCenter).ToList();
+
+			// Bearings are stored in world space so the cone tests below compare like with like.
+			// GetAccessBearings hands back cell deltas (chokepoint cell minus reference).
+			cachedAccessBearings.Clear();
+			foreach (var bearing in TacticalMapModule.GetAccessBearings(defenseCenter))
+				cachedAccessBearings.Add(WorldVec(defenseCenter, defenseCenter + bearing));
+
 			cachedHighGround.Clear();
 			foreach (var edge in TacticalMapModule.GetHighGroundEdges(defenseCenter))
 				if (HighGroundEdgeFacesAccess(edge, defenseCenter))
@@ -1457,28 +1525,10 @@ namespace OpenRA.Mods.Common.Traits
 			// Penalize cells facing a sealed flank (no access corridor: map edge / cliff / water).
 			if (Info.SealedFlankPenaltyWeight > 0 && cachedAccessBearings.Count > 0)
 			{
-				var v = cell - defenseCenter;
-				if (v.LengthSquared >= 9)
-				{
-					var aligned = false;
-					foreach (var b in cachedAccessBearings)
-					{
-						var dot = (long)v.X * b.X + (long)v.Y * b.Y;
-						if (dot <= 0)
-							continue;
-
-						// Within ~45 degrees of this corridor bearing counts as "facing an access".
-						var cross = (long)v.X * b.Y - (long)v.Y * b.X;
-						if (cross * cross <= dot * dot)
-						{
-							aligned = true;
-							break;
-						}
-					}
-
-					if (!aligned)
-						adjust -= Info.SealedFlankPenaltyWeight;
-				}
+				// Distance gate stays in cells (it only asks "is this far enough from the centre to
+				// have a meaningful bearing"); the cone test itself runs in world space, see VectorFacesAccess.
+				if ((cell - defenseCenter).LengthSquared >= 9 && !VectorFacesAccess(WorldVec(defenseCenter, cell)))
+					adjust -= Info.SealedFlankPenaltyWeight;
 			}
 
 			return adjust;
@@ -1489,12 +1539,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (cachedAccessBearings.Count == 0)
 				return false;
 
-			return VectorFacesAccess(edge.Cell - defenseCenter) && VectorFacesAccess(edge.Outward);
+			return VectorFacesAccess(WorldVec(defenseCenter, edge.Cell))
+				&& VectorFacesAccess(WorldVec(edge.Cell, edge.Cell + edge.Outward));
 		}
 
-		bool VectorFacesAccess(CVec v)
+		// True if v points within ~45 degrees of any access-corridor bearing. World space throughout:
+		// the same angular test on cell deltas accepts a visibly different cone depending on the
+		// bearing, because the isometric grid stretches one axis relative to the other.
+		bool VectorFacesAccess(WVec v)
 		{
-			if (v.LengthSquared == 0)
+			if (v.HorizontalLengthSquared == 0)
 				return true;
 
 			foreach (var b in cachedAccessBearings)
@@ -1504,7 +1558,10 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var cross = (long)v.X * b.Y - (long)v.Y * b.X;
-				if (cross * cross <= dot * dot)
+
+				// |cross| <= dot is the 45-degree cone. Compared without squaring: at world scale
+				// both sides reach ~1e11 and squaring them would overflow a long.
+				if (Math.Abs(cross) <= dot)
 					return true;
 			}
 
@@ -1525,9 +1582,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (threat.Weight <= 0)
 					continue;
 
-				var toThreat = threat.Location - coreCenter;
-				var toCell = cell - coreCenter;
-				var threatLenSq = Math.Max(1, toThreat.LengthSquared);
+				// World space, as in ScoreCellToward: approachDot is normalised by threatLenSq, so the
+				// magnitude the configured weight is tuned against is unchanged — only the geometry.
+				var toThreat = WorldVec(coreCenter, threat.Location);
+				var toCell = WorldVec(coreCenter, cell);
+				var threatLenSq = Math.Max(1, toThreat.HorizontalLengthSquared);
 				var approachDot = (long)toCell.X * toThreat.X + (long)toCell.Y * toThreat.Y;
 				if (approachDot > 0)
 				{
@@ -1642,9 +1701,12 @@ namespace OpenRA.Mods.Common.Traits
 			// Per-actor production
 			var productions = producer.TraitsImplementing<Production>();
 
-			// Player-wide production
+			// Player-wide production.
+			// FORK PATCH: upstream OpenRA has `!=` here (BaseBuilderBotModule.cs), which collects the
+			// production traits of every OTHER player — so the fallback derived rally-point locomotors
+			// from enemy factories instead of our own. `==` is what the comment above it describes.
 			if (!productions.Any())
-				productions = producer.World.ActorsWithTrait<Production>().Where(x => x.Actor.Owner != producer.Owner).Select(x => x.Trait);
+				productions = producer.World.ActorsWithTrait<Production>().Where(x => x.Actor.Owner == producer.Owner).Select(x => x.Trait);
 
 			var produces = productions.SelectMany(p => p.Info.Produces).ToHashSet();
 			var locomotors = Array.Empty<Locomotor>();
@@ -1904,16 +1966,28 @@ namespace OpenRA.Mods.Common.Traits
 			return !HasAdequateRefineryCount();
 		}
 
+		// Walks every resource indice. Reached via GetTargetRefineryCount -> HasAdequateRefineryCount,
+		// which ShouldExpandEconomy, ShouldAddProduction, the profile module and the queue manager all
+		// call — so this ran the full sweep many times per tick. The underlying indices are refreshed
+		// one per UpdateResourceMapInverval ticks, so a short cache cannot go meaningfully stale.
+		int cachedSupportedRefineryCapacity;
+		int cachedSupportedRefineryCapacityTick = int.MinValue;
+
 		int GetSupportedRefineryCapacity()
 		{
 			if (ResourceMapModule == null)
 				return int.MaxValue;
 
+			if (world.WorldTick - cachedSupportedRefineryCapacityTick < SupportedRefineryCapacityMaxAgeTicks)
+				return cachedSupportedRefineryCapacity;
+
 			var supportedCapacity = 0;
 			for (var i = 0; i < ResourceMapModule.GetIndicesLength(); i++)
 				supportedCapacity += GetSupportedRefineryCapacity(ResourceMapModule.GetIndice(i));
 
-			return Math.Max(Info.InititalMinimumRefineryCount, supportedCapacity);
+			cachedSupportedRefineryCapacityTick = world.WorldTick;
+			cachedSupportedRefineryCapacity = Math.Max(Info.InititalMinimumRefineryCount, supportedCapacity);
+			return cachedSupportedRefineryCapacity;
 		}
 
 		int GetSupportedRefineryCapacity(CNResourceIndice indice)
