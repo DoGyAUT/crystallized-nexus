@@ -1844,13 +1844,17 @@ namespace OpenRA.Mods.Common.Traits
 					var midRadius = innerRadius > 0 ? (innerRadius + outerRadius) / 2 : outerRadius;
 
 					// If defenseCenter (e.g. recorded attacker position) is farther than MaximumDefenseRadius
-					// from every ConYard, candidates generated around it will all fail IsCloseEnoughToBase.
+					// from the target base, candidates generated around it will all fail IsCloseEnoughToBase.
 					// Fall back to baseCenter so placements stay within base adjacency range.
+					//
+					// This checks the TARGET base's construction yards, not every yard the bot owns. With the
+					// latter, a threat recorded next to the main base kept every defense at the main base even
+					// when the distribution had picked the exposed expansion - the base choice never bound.
 					if (defenseCenter != baseCenter)
 					{
 						var outerRadiusSq = outerRadius * outerRadius;
 						var anyNear = false;
-						foreach (var cy in baseBuilder.ConstructionYardBuildings.Actors)
+						foreach (var cy in targetBase.ConstructionYards)
 						{
 							if (cy.IsDead || !cy.IsInWorld) continue;
 							if ((cy.Location - defenseCenter).LengthSquared <= outerRadiusSq) { anyNear = true; break; }

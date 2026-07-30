@@ -320,6 +320,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Distance from a base center to a known chokepoint at which the base counts as holding it.")]
 		public readonly int OutpostChokepointRadius = 12;
 
+		[Desc("Percent bonus on the base closest to the front when the global defense budget is distributed",
+			"across bases. 100 = that base may claim twice its size-proportional share. The global budget",
+			"itself (DefenseRoleLimits) is unaffected - this only decides which base the next defense goes to.")]
+		public readonly int FrontBaseDefenseShareBonusPct = 100;
+
 		[FieldLoader.LoadUsing(nameof(LoadBuildingLayouts))]
 		[Desc("Per-building-type layout overrides.")]
 		public readonly Dictionary<string, CNBuildingLayoutEntry> BuildingLayouts = [];
@@ -1301,7 +1306,15 @@ namespace OpenRA.Mods.Common.Traits
 				baseRoleByAnchor[b.AnchorId] = b.Role;
 		}
 
-		static CNBotBase GetBaseNearestIn(List<CNBotBase> bases, CPos cell)
+		// How much of the global defense budget a base may claim: what it has to protect, doubled (by
+		// default) for the base at the front. Never zero, so a brand new expansion is not weighted out.
+		static long DefenseShareWeight(CNBotBase targetBase, CNBotBase frontBase, int frontBonus)
+		{
+			var weight = Math.Max(1, targetBase.Buildings.Count);
+			return targetBase == frontBase ? weight * frontBonus / 100 : weight;
+		}
+
+		static CNBotBase GetBaseNearestIn(IReadOnlyList<CNBotBase> bases, CPos cell)
 		{
 			var best = bases[0];
 			var bestDistance = (cell - best.Center).LengthSquared;
@@ -1469,7 +1482,34 @@ namespace OpenRA.Mods.Common.Traits
 			if (type == BuildingType.Defense)
 			{
 				var threatAnchor = DefenseCenter == default ? BaseOrigin : DefenseCenter;
-				return bases.OrderBy(b => (b.Center - threatAnchor).LengthSquared).ToList();
+
+				// The defense budget itself stays global - DefenseRoleLimits are checked against the bot's
+				// total building count, so the bot never walls itself in just because it owns more bases.
+				// What is distributed here is WHERE the next defense goes. Each base gets a share of the
+				// defenses that exist, weighted by how much it has to protect, and the base closest to the
+				// front gets a bonus on top of that share. Ordering by the largest shortfall means an exposed
+				// expansion catches up first instead of waiting for the main base to stop consuming the pot.
+				var frontBase = GetBaseNearestIn(bases, threatAnchor);
+				var frontBonus = 100 + Math.Max(0, Info.FrontBaseDefenseShareBonusPct);
+
+				var totalWeight = 0L;
+				var totalDefenses = 0;
+				foreach (var b in bases)
+				{
+					totalWeight += DefenseShareWeight(b, frontBase, frontBonus);
+					totalDefenses += b.CountOfAny(Info.DefenseTypes);
+				}
+
+				if (totalWeight <= 0)
+					return bases.OrderBy(b => (b.Center - threatAnchor).LengthSquared).ToList();
+
+				var defenses = totalDefenses;
+				var weightSum = totalWeight;
+				return bases
+					.OrderByDescending(b => defenses * DefenseShareWeight(b, frontBase, frontBonus) * 100 / weightSum
+						- b.CountOfAny(Info.DefenseTypes) * 100L)
+					.ThenBy(b => (b.Center - threatAnchor).LengthSquared)
+					.ToList();
 			}
 
 			// A NearBuilding entry only makes sense in a base that actually has that building.
