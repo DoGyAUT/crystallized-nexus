@@ -1310,10 +1310,34 @@ namespace OpenRA.Mods.Common.Traits
 				if (!HasSufficientPowerForActor(actorInfo))
 					continue;
 
+				// The requested role still has room, but this candidate may cover other roles that are
+				// already full. Checking only the requested one would let an expensive multi-role
+				// building spend a cheap role's budget long after its own role ran out.
+				if (reactiveDefLimits != null && IsAnyDefenseRoleFull(actorInfo, reactiveDefLimits, roleDefenseCounts))
+					continue;
+
 				return actorInfo;
 			}
 
 			return null;
+		}
+
+		/// <summary>True if any role this defense covers is at or above its share of the base.</summary>
+		bool IsAnyDefenseRoleFull(ActorInfo actorInfo, IReadOnlyDictionary<string, int> defLimits,
+			Dictionary<DefenseRole, int> roleDefenseCounts)
+		{
+			foreach (var r in GetDefenseRolesFromActor(actorInfo))
+			{
+				if (!defLimits.TryGetValue(r.ToString(), out var limit))
+					continue;
+
+				var count = 0;
+				roleDefenseCounts?.TryGetValue(r, out count);
+				if (count * 100 >= limit * playerBuildings.Length)
+					return true;
+			}
+
+			return false;
 		}
 
 		ActorInfo ChoosePlannedDefense(
