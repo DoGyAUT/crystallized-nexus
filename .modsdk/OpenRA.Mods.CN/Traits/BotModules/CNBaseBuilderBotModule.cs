@@ -14,6 +14,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -475,8 +476,16 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int HighGroundEdgeWeight = 90;
 
 		[Desc("Penalty applied to a defense candidate whose direction from the defense center matches no access corridor",
-			"(e.g. facing a map edge / cliff / water with no enemy approach). 0 disables the sealed-flank penalty.")]
+			"(e.g. facing a map edge / cliff / water with no enemy approach). 0 disables the sealed-flank test entirely.")]
 		public readonly int SealedFlankPenaltyWeight = 80;
+
+		[Desc("Treat a sealed flank as a veto rather than only as a score penalty. The veto can never starve",
+			"placement: when every candidate faces a sealed flank the bot falls back to the scored ordering.")]
+		public readonly bool VetoSealedFlankDefenses = true;
+
+		[Desc("How far beyond a defense candidate the bot probes for reachable ground when the map has no known",
+			"access corridors at all. Nothing passable within this distance means the cell faces nowhere.")]
+		public readonly int SealedFlankProbeCells = 6;
 
 		[Desc("Bonus for defense candidates placed on the base side of a sealable chokepoint wall/gate line.")]
 		public readonly int ChokepointDefenseAnchorWeight = 160;
@@ -2177,6 +2186,58 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return adjust;
+		}
+
+		/// <summary>
+		/// True when nothing an attacker could arrive from lies beyond this cell, so a defense there would
+		/// cover a map edge, a cliff or open water. Used as a veto by defense placement.
+		/// </summary>
+		public bool IsSealedFlankCell(CPos cell, CPos defenseCenter)
+		{
+			if (TacticalMapModule == null || Info.SealedFlankPenaltyWeight <= 0)
+				return false;
+
+			EnsureFlankCache(defenseCenter);
+
+			// Too close to the centre to have a meaningful bearing - same gate the score penalty uses.
+			if ((cell - defenseCenter).LengthSquared < 9)
+				return false;
+
+			if (cachedAccessBearings.Count > 0)
+				return !VectorFacesAccess(WorldVec(defenseCenter, cell));
+
+			// No known corridors on this map: the score penalty used to silently do nothing here, which is
+			// how turrets ended up lining the map edge. Fall back to asking the terrain directly whether
+			// there is any ground out there at all.
+			return !HasReachableGroundBeyond(cell, defenseCenter);
+		}
+
+		// Coarse outward probe: step away from the base along the candidate's bearing and look for ground an
+		// attacker could stand on. Uses the harvester locomotors the module already holds - not exactly an
+		// attacker's movement class, but enough to tell solid ground from map edge, cliff and water.
+		bool HasReachableGroundBeyond(CPos cell, CPos defenseCenter)
+		{
+			if (HarvesterLocomotorsList.Length == 0)
+				return true;
+
+			var delta = cell - defenseCenter;
+			var step = new CVec(Math.Sign(delta.X), Math.Sign(delta.Y));
+			if (step == CVec.Zero)
+				return true;
+
+			var probe = Math.Max(1, Info.SealedFlankProbeCells);
+			for (var i = 1; i <= probe; i++)
+			{
+				var next = cell + step * i;
+				if (!world.Map.Contains(next))
+					return false;
+
+				foreach (var locomotor in HarvesterLocomotorsList)
+					if (locomotor.MovementCostForCell(next) != PathGraph.MovementCostForUnreachableCell)
+						return true;
+			}
+
+			return false;
 		}
 
 		bool HighGroundEdgeFacesAccess(CNHighGroundEdge edge, CPos defenseCenter)

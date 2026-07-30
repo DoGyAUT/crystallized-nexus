@@ -2170,17 +2170,29 @@ namespace OpenRA.Mods.Common.Traits
 						}
 					}
 
-					foreach (var cell in sortedDefenseCells)
+					// A sealed flank is a veto, not a nudge. As a -80 score term it lost routinely against the
+					// high-ground bonus (up to 90 per height level), the chokepoint anchor (160) and the
+					// formation spacing terms, so defenses kept going up facing map edges and cliffs.
+					// Run as a first pass so it can never starve placement: if every candidate faces a sealed
+					// flank, the second pass drops the veto and takes the best-scoring cell anyway.
+					var orderedDefenseCells = sortedDefenseCells.ToList();
+					var vetoPasses = baseBuilder.Info.VetoSealedFlankDefenses ? 2 : 1;
+					for (var pass = 0; pass < vetoPasses; pass++)
 					{
-						if (!world.CanPlaceBuilding(cell, defVariantActorInfo, defVbi, null)) continue;
-						if (!defVbi.IsCloseEnoughToBase(world, player, defVariantActorInfo, cell)) continue;
-						if (IsTooCloseToValuableResources(cell, defVbi, baseBuilder.Info.DefenseResourceAvoidanceRadius)) continue;
+						var vetoSealedFlanks = vetoPasses == 2 && pass == 0;
+						foreach (var cell in orderedDefenseCells)
+						{
+							if (vetoSealedFlanks && baseBuilder.IsSealedFlankCell(cell, defenseCenter)) continue;
+							if (!world.CanPlaceBuilding(cell, defVariantActorInfo, defVbi, null)) continue;
+							if (!defVbi.IsCloseEnoughToBase(world, player, defVariantActorInfo, cell)) continue;
+							if (IsTooCloseToValuableResources(cell, defVbi, baseBuilder.Info.DefenseResourceAvoidanceRadius)) continue;
 
-						if (defMinSpacing > 0 && allDefenseBuildings.Count > 0
-							&& allDefenseBuildings.Any(loc => (cell - loc).LengthSquared < defMinSpacingSq))
-							continue;
+							if (defMinSpacing > 0 && allDefenseBuildings.Count > 0
+								&& allDefenseBuildings.Any(loc => (cell - loc).LengthSquared < defMinSpacingSq))
+								continue;
 
-						return (cell, defenseCenter, defVariant);
+							return (cell, defenseCenter, defVariant);
+						}
 					}
 
 					// Do not fall back to a full vanilla annulus scan here: defense placement
