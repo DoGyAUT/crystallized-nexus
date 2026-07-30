@@ -8,6 +8,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.CN.Traits;
+using OpenRA.Mods.CN.Traits.BotModules.Squads;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -62,6 +63,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		int fillTicks;
 		int swapTicks;
+		CNSquadManagerBotModule squadManager;
 
 		public CNGarrisonBotModule(Actor self, CNGarrisonBotModuleInfo info)
 			: base(info)
@@ -69,8 +71,19 @@ namespace OpenRA.Mods.Common.Traits
 			world = self.World;
 		}
 
+		void RefreshActiveSquadManager(IBot bot)
+		{
+			if (squadManager != null && squadManager.IsTraitEnabled())
+				return;
+
+			squadManager = bot.Player.PlayerActor.TraitsImplementing<CNSquadManagerBotModule>()
+				.FirstOrDefault(t => t.IsTraitEnabled());
+		}
+
 		void IBotTick.BotTick(IBot bot)
 		{
+			RefreshActiveSquadManager(bot);
+
 			var doFill = --fillTicks <= 0;
 			if (doFill)
 				fillTicks = Info.ScanInterval;
@@ -133,15 +146,21 @@ namespace OpenRA.Mods.Common.Traits
 			return need == CNGarrisonNeed.AntiAir ? Info.AntiAirCapability : Info.AntiArmorCapability;
 		}
 
-		bool HasCapability(Actor a, string capability)
+		static bool HasCapability(Actor a, string capability)
 		{
 			return a.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains(capability) ?? false;
 		}
 
 		void TickFill(IBot bot, Player player, List<Actor> garrisons)
 		{
-			var idleInfantry = world.ActorsHavingTrait<IPositionable>()
-				.Where(a => a.Owner == player && a.IsInWorld && !a.IsDead && a.IsIdle && HasCapability(a, Info.InfantryCapability))
+			// Squad members are off limits. "Idle" is not the same as "unassigned": a squad parked in
+			// CNWaveHoldState waiting for the next attack wave sits still and reports IsIdle, and the
+			// garrison pass used to pull exactly those units out of the staging wave and into bunkers.
+			// CNRepairManagerBotModule already gates on this; the same gate belongs here.
+			var idleInfantry = world.ActorsHavingTrait<Mobile>()
+				.Where(a => a.Owner == player && a.IsInWorld && !a.IsDead && a.IsIdle
+					&& HasCapability(a, Info.InfantryCapability)
+					&& squadManager?.IsUnitAssignedToSquad(a) != true)
 				.ToList();
 
 			var spareCount = idleInfantry.Count - Info.MinimumSpareInfantry;
@@ -164,13 +183,11 @@ namespace OpenRA.Mods.Common.Traits
 
 				// HasSpace() reflects committed state only; QueueOrder doesn't apply until the order resolves
 				// later, so track how much we've already earmarked this pass ourselves.
-				var pendingWeight = 0;
-				while (pool.Count > 0 && cargo.HasSpace(pendingWeight + 1))
+				for (var pendingWeight = 0; pool.Count > 0 && cargo.HasSpace(pendingWeight + 1); pendingWeight++)
 				{
 					var pick = PickBestForNeed(pool, need);
 					pool.Remove(pick);
 					bot.QueueOrder(new Order("EnterTransport", pick, Target.FromActor(garrison), false));
-					pendingWeight++;
 				}
 			}
 		}

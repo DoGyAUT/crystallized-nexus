@@ -5,6 +5,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
@@ -179,14 +180,14 @@ namespace OpenRA.Mods.CN.Traits
 
 			if (isDeployed)
 			{
-				if (distSq <= group.SafeRange * group.SafeRange)
+				if (distSq <= RangeSq(group.SafeRange))
 					TryUndeploy(bot, unit, group);
 			}
 			else
 			{
-				if (distSq <= group.DeployRange * group.DeployRange)
+				if (distSq <= RangeSq(group.DeployRange))
 					TryDeploy(bot, unit, group);
-				else if (distSq <= group.ScanRadius * group.ScanRadius)
+				else if (distSq <= RangeSq(group.ScanRadius))
 					MoveIntoRange(bot, unit, nearestEnemy, group.DeployRange);
 			}
 		}
@@ -214,12 +215,12 @@ namespace OpenRA.Mods.CN.Traits
 
 			if (isDeployed)
 			{
-				if (distSq <= group.SafeRange * group.SafeRange)
+				if (distSq <= RangeSq(group.SafeRange))
 					TryUndeploy(bot, unit, group);
 			}
 			else
 			{
-				if (distSq <= group.DeployRange * group.DeployRange)
+				if (distSq <= RangeSq(group.DeployRange))
 					TryDeploy(bot, unit, group);
 			}
 		}
@@ -233,10 +234,15 @@ namespace OpenRA.Mods.CN.Traits
 
 			var isDeployed = deployState == DeployState.Deployed;
 
+			// Same hostility filter FindNearestEnemy uses. Without the NonCombatant/world-owner checks
+			// any neutral or civilian building counted as a threat, so a support unit standing next to
+			// a civvie hut was permanently "threatened" and never deployed at all.
 			var threatened = world.FindActorsInCircle(unit.CenterPosition, WDist.FromCells(group.ThreatRange))
 				.Any(a =>
 					!a.IsDead && a.IsInWorld && a != unit
 					&& !player.IsAlliedWith(a.Owner)
+					&& !a.Owner.NonCombatant
+					&& a.Owner != world.WorldActor.Owner
 					&& a.Info.HasTraitInfo<ITargetableInfo>());
 
 			if (threatened)
@@ -291,12 +297,12 @@ namespace OpenRA.Mods.CN.Traits
 
 			var distSq = DistSq(unit, target);
 
-			if (distSq <= group.DeployRange * group.DeployRange)
+			if (distSq <= RangeSq(group.DeployRange))
 			{
 				TryDeploy(bot, unit, group);
 				abilityDeployedAt[unit] = world.WorldTick;
 			}
-			else if (distSq <= group.ScanRadius * group.ScanRadius)
+			else if (distSq <= RangeSq(group.ScanRadius))
 				MoveIntoRange(bot, unit, target, group.DeployRange);
 		}
 
@@ -435,12 +441,23 @@ namespace OpenRA.Mods.CN.Traits
 					&& a.Info.HasTraitInfo<ITargetableInfo>()
 					&& !a.Info.HasTraitInfo<LineBuildInfo>()
 					&& shroud.IsVisible(a.Location))
-				.MinByOrDefault(a => (a.Location - unit.Location).LengthSquared);
+				.MinByOrDefault(a => (a.CenterPosition - unit.CenterPosition).HorizontalLengthSquared);
 		}
 
-		static int DistSq(Actor a, Actor b)
+		// Horizontal world-space distance, matching the metric FindActorsInCircle scans with.
+		// This used to be (a.Location - b.Location).LengthSquared, i.e. CELL space, while the enemy
+		// scan itself ran on a WDist.FromCells world circle. On the RectangularIsometric grid the two
+		// metrics differ per axis, so DeployRange and SafeRange effectively changed with the bearing
+		// to the target. Z is dropped so an aircraft's cruise altitude doesn't inflate the distance.
+		static long DistSq(Actor a, Actor b)
 		{
-			return (a.Location - b.Location).LengthSquared;
+			return (a.CenterPosition - b.CenterPosition).HorizontalLengthSquared;
+		}
+
+		static long RangeSq(int cells)
+		{
+			var range = WDist.FromCells(Math.Max(0, cells)).Length;
+			return (long)range * range;
 		}
 	}
 }

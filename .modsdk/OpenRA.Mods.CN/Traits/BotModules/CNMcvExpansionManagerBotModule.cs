@@ -394,15 +394,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.EnableStrategicOutposts || Info.CBmodeFrontlineOutpostBonus <= 0)
 				return 0;
 
-			var vx = enemyBaseCenter.X - friendlyBaseCenter.X;
-			var vy = enemyBaseCenter.Y - friendlyBaseCenter.Y;
-			var lenSq = (long)vx * vx + (long)vy * vy;
+			// Projection/rejection are computed in WORLD space, not cell space. On the RectangularIsometric
+			// grid a CVec's X and Y are not the same physical length, so doing the dot/cross product on raw
+			// cell coordinates skewed the corridor: CBmodeOutpostCorridorWidth meant something different
+			// along the north-south axis than along east-west, and "58% of the way to the enemy" landed
+			// somewhere else entirely depending on which way the two bases happened to lie.
+			var map = world.Map;
+			var friendlyPos = map.CenterOfCell(friendlyBaseCenter);
+			var enemyPos = map.CenterOfCell(enemyBaseCenter);
+			var candidatePos = map.CenterOfCell(candidate);
+
+			var axis = enemyPos - friendlyPos;
+			var lenSq = (long)axis.X * axis.X + (long)axis.Y * axis.Y;
 			if (lenSq <= 0)
 				return 0;
 
-			var cx = candidate.X - friendlyBaseCenter.X;
-			var cy = candidate.Y - friendlyBaseCenter.Y;
-			var dot = (long)cx * vx + (long)cy * vy;
+			var toCandidate = candidatePos - friendlyPos;
+			var dot = (long)toCandidate.X * axis.X + (long)toCandidate.Y * axis.Y;
 			if (dot <= 0 || dot >= lenSq)
 				return 0;
 
@@ -413,22 +421,29 @@ namespace OpenRA.Mods.Common.Traits
 			if (progressDelta > progressTolerance)
 				return 0;
 
-			var corridorWidth = Math.Max(1, Info.CBmodeOutpostCorridorWidth);
-			var cross = (long)cx * vy - (long)cy * vx;
-			var perpendicularDistSq = cross * cross / lenSq;
-			if (perpendicularDistSq > corridorWidth * corridorWidth)
+			// Corridor width converted to world units so the comparison stays in one metric. The
+			// perpendicular offset is |cross| / |axis| — divided before squaring, because at world
+			// scale cross itself already reaches ~4e10 and cross * cross would overflow a long.
+			var corridorWidth = WDist.FromCells(Math.Max(1, Info.CBmodeOutpostCorridorWidth)).Length;
+			var corridorWidthSq = (long)corridorWidth * corridorWidth;
+			var cross = (long)toCandidate.X * axis.Y - (long)toCandidate.Y * axis.X;
+			var perpendicularDist = Math.Abs(cross) / Math.Max(1, axis.HorizontalLength);
+			var perpendicularDistSq = perpendicularDist * perpendicularDist;
+			if (perpendicularDistSq > corridorWidthSq)
 				return 0;
 
-			var enemyMinRange = Math.Max(0, Info.CBmodeOutpostEnemyMinRange);
-			if (enemyMinRange > 0 && (candidate - enemyBaseCenter).LengthSquared < enemyMinRange * enemyMinRange)
+			var enemyMinRange = WDist.FromCells(Math.Max(0, Info.CBmodeOutpostEnemyMinRange));
+			if (enemyMinRange.Length > 0 &&
+				(candidatePos - enemyPos).HorizontalLengthSquared < (long)enemyMinRange.Length * enemyMinRange.Length)
 				return 0;
 
-			var friendlyMinRange = Math.Max(0, Info.CBmodeOutpostFriendlyMinRange);
-			if (friendlyMinRange > 0 && (candidate - friendlyBaseCenter).LengthSquared < friendlyMinRange * friendlyMinRange)
+			var friendlyMinRange = WDist.FromCells(Math.Max(0, Info.CBmodeOutpostFriendlyMinRange));
+			if (friendlyMinRange.Length > 0 &&
+				(candidatePos - friendlyPos).HorizontalLengthSquared < (long)friendlyMinRange.Length * friendlyMinRange.Length)
 				return 0;
 
 			var progressScore = (progressTolerance - progressDelta) * Info.CBmodeFrontlineOutpostBonus / progressTolerance;
-			var corridorScore = (int)((corridorWidth * corridorWidth - perpendicularDistSq) * Info.CBmodeFrontlineOutpostBonus / (corridorWidth * corridorWidth));
+			var corridorScore = (int)((corridorWidthSq - perpendicularDistSq) * Info.CBmodeFrontlineOutpostBonus / corridorWidthSq);
 
 			return (progressScore + corridorScore) / 2;
 		}
@@ -850,6 +865,13 @@ namespace OpenRA.Mods.Common.Traits
 				SwitchExpansionMode(Info.InitialExpansionMode);
 				currentExpansionGoal = Info.InitialExpansionMode == BotMcvExpansionMode.CheckResource
 					? ExpansionGoal.Economy : ExpansionGoal.BaseExtension;
+
+				// Requires<CNResourceMapBotModuleInfo> only guarantees the trait exists, not that it is
+				// enabled — a RequiresCondition on the resource map used to take this straight into a
+				// NullReferenceException on the very first bot tick. Stay dormant until it comes up
+				// instead: every expansion decision below is derived from the resource map.
+				if (resourceMapModule == null)
+					return;
 
 				pathDistanceSquareFactor = resourceMapModule.GetIndiceRowCount() * resourceMapModule.GetIndiceRowCount()
 					+ resourceMapModule.GetIndiceColumnCount() * resourceMapModule.GetIndiceColumnCount();

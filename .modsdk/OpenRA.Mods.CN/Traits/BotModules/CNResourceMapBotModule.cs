@@ -68,6 +68,9 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class CNResourceMapBotModule : ConditionalTrait<CNResourceMapBotModuleInfo>, IBotTick
 	{
+		// How many indices the amortized initial scan processes per bot tick.
+		const int InitialScanIndicesPerTick = 8;
+
 		readonly World world;
 		readonly Player player;
 		IResourceLayer resourceLayer;
@@ -80,6 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		int updateResourceMapIndex;
 		int updateResourceMapInterval;
+		int initialScanIndex = int.MaxValue;
 		bool firstTick = true;
 
 		public CNResourceMapBotModule(Actor self, CNResourceMapBotModuleInfo info)
@@ -122,8 +126,7 @@ namespace OpenRA.Mods.Common.Traits
 								xoffset + i % resourceMapIndicesColumnCount * indiceSideLength + (indiceSideLength >> 1),
 								yoffset + i / resourceMapIndicesColumnCount * indiceSideLength + (indiceSideLength >> 1)).ToCPos(map)));
 
-					for (var i = 0; i < resourceMapIndices.Length; i++)
-						UpdateResourceMap(i);
+					initialScanIndex = 0;
 				}
 
 				firstTick = false;
@@ -131,6 +134,18 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (resourceMapIndices == null || resourceMapIndices.Length == 0)
 				return;
+
+			// Initial full scan, spread over several ticks. Doing every indice in one frame meant a
+			// FindTilesInAnnulus + FindActorsInCircle pair per indice back to back — over a hundred of
+			// them on a large map, all inside the first bot tick, for every bot in the match at once.
+			if (initialScanIndex < resourceMapIndices.Length)
+			{
+				var end = Math.Min(resourceMapIndices.Length, initialScanIndex + InitialScanIndicesPerTick);
+				for (; initialScanIndex < end; initialScanIndex++)
+					UpdateResourceMap(initialScanIndex);
+
+				return;
+			}
 
 			if (--updateResourceMapInterval <= 0)
 			{

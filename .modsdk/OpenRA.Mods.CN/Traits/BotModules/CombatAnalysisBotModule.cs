@@ -94,18 +94,22 @@ namespace OpenRA.Mods.Common.Traits
 		public bool HasActiveThreat() =>
 			weights.Values.Any(w => w >= Info.ReactThreshold);
 
-		/// <summary>Returns the role with the highest threat weight above ReactThreshold, or Default if none.</summary>
+		/// <summary>Returns the role with the highest threat weight at or above ReactThreshold, or Default if none.</summary>
 		public DefenseRole GetHighestThreatRole()
 		{
+			// Seeded just below ReactThreshold, not at ReactThreshold - 1: the old seed let a role
+			// one point under the threshold win, so this reported an active role while HasActiveThreat()
+			// (which tests >= ReactThreshold) still said there was no threat. Callers like
+			// CNUnitBuilderBotModule.BuildPanicUnit gate on one and pick with the other.
 			var bestRole = DefenseRole.Default;
-			var bestWeight = Info.ReactThreshold - 1f;
+			var bestWeight = 0f;
 			foreach (var kv in weights)
 			{
-				if (kv.Value > bestWeight)
-				{
-					bestWeight = kv.Value;
-					bestRole = kv.Key;
-				}
+				if (kv.Value < Info.ReactThreshold || kv.Value <= bestWeight)
+					continue;
+
+				bestWeight = kv.Value;
+				bestRole = kv.Key;
 			}
 
 			return bestRole;
