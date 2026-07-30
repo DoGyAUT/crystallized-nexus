@@ -33,6 +33,34 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		}
 
 		/// <summary>
+		/// True when a carrier's cargo hold is genuinely full: the weight actually aboard leaves no
+		/// room for another unit.
+		/// <para>
+		/// Two things this must NOT do. It must not use Cargo.HasSpace(), because that also counts
+		/// reservedWeight, which the engine reserves the moment a passenger *starts* its Enter
+		/// activity — a ground transport orders its infantry to board from across the base, so every
+		/// seat is reserved while they are still walking and the transport departs nearly empty.
+		/// </para>
+		/// <para>
+		/// And it must not count passengers, because CN infantry squads are MobSpawnerMasters whose
+		/// slaves carry Passenger.Weight 0 (see ^MobSquadMember). One gasol squad is a single unit of
+		/// weight but four bodies in the hold, so PassengerCount against MaxWeight declared an APC
+		/// full after two squads when it can carry five.
+		/// </para>
+		/// </summary>
+		protected static bool IsCarrierFull(Cargo cargo)
+		{
+			if (cargo == null)
+				return true;
+
+			var usedWeight = 0;
+			foreach (var passenger in cargo.Passengers)
+				usedWeight += passenger.Info.TraitInfoOrDefault<PassengerInfo>()?.Weight ?? 1;
+
+			return cargo.Info.MaxWeight - usedWeight < 1;
+		}
+
+		/// <summary>
 		/// Horizontal (X/Y only) squared distance. Aircraft carry their cruise
 		/// altitude in Z, so a 3-D distance check would never report a flying
 		/// transport as "arrived"; callers comparing an airborne actor against a

@@ -10,6 +10,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -28,20 +29,37 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			// Find the squad we should attach to.
+			// Find the squad we should attach to. Spread artillery squads out instead of stacking
+			// them all behind whichever assault squad happens to be first in the list: prefer one
+			// nobody has claimed yet, and among equals the nearest, so each push gets its own
+			// fire support instead of one squad towing the entire artillery park.
 			if (squad.AttachedTo == null || !squad.AttachedTo.IsValid)
 			{
+				var taken = squad.SquadManager.Squads
+					.Where(s => s != squad && s.AttachedTo != null)
+					.Select(s => s.AttachedTo)
+					.ToHashSet();
+
 				var attachable = squad.SquadManager.Squads
 					.Where(s => s.IsValid &&
 						(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush))
-					.ToArray();
+					.ToList();
 
-				squad.AttachedTo = attachable.FirstOrDefault(s => s.IsTargetValid) ??
-					attachable.FirstOrDefault();
+				squad.AttachedTo =
+					PickNearest(squad, attachable.Where(s => !taken.Contains(s) && s.IsTargetValid)) ??
+					PickNearest(squad, attachable.Where(s => !taken.Contains(s))) ??
+					PickNearest(squad, attachable.Where(s => s.IsTargetValid)) ??
+					PickNearest(squad, attachable);
 			}
 
 			if (squad.AttachedTo != null)
 				squad.FuzzyStateMachine.ChangeState(squad, new ArtilleryHangBackState());
+		}
+
+		static CNSquad PickNearest(CNSquad squad, IEnumerable<CNSquad> candidates)
+		{
+			var origin = squad.CenterPosition();
+			return candidates.MinByOrDefault(s => (s.CenterPosition() - origin).LengthSquared);
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -55,9 +73,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	{
 		const int HangBackSearchRadius = 4;
 
-		CPos? lastHangBackCell;
+		// Even when the hang-back cell hasn't moved, the order is refreshed on this interval.
+		// Suppressing the reissue purely on "same cell" stranded any unit whose order had been
+		// overridden in the meantime (retreat, repair run): it never received the move again and
+		// sat where it stopped while the rest of the battery followed the assault.
+		const int ReissueIntervalTicks = 150;
 
-		public void Activate(CNSquad squad) { lastHangBackCell = null; }
+		CPos? lastHangBackCell;
+		int lastOrderTick;
+
+		public void Activate(CNSquad squad)
+		{
+			lastHangBackCell = null;
+			lastOrderTick = squad.World.WorldTick - ReissueIntervalTicks;
+		}
 
 		public void Tick(CNSquad squad)
 		{
@@ -126,10 +155,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			var anchorCell = squad.World.Map.CellContaining(hangBackPos);
 			var hangBackCell = FindHangBackCell(squad, anchorCell);
-			if (hangBackCell == lastHangBackCell)
+			if (hangBackCell == lastHangBackCell &&
+				squad.World.WorldTick - lastOrderTick < ReissueIntervalTicks)
 				return;
 
 			lastHangBackCell = hangBackCell;
+			lastOrderTick = squad.World.WorldTick;
 			foreach (var unit in squad.OrderableUnits)
 				squad.Bot.QueueOrder(new Order("AttackMove", unit,
 					Target.FromCell(squad.World, hangBackCell), false));

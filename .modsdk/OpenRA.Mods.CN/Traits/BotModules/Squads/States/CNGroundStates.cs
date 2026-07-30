@@ -461,14 +461,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
+			// Issue the retreat, then dissolve so the units return to the manager's pool and get
+			// reformed into a full-strength squad rather than limping on understrength.
+			//
+			// This used to be spelled as a transition to CNGroundIdleState with the dissolve hidden
+			// in Deactivate. Behaviourally identical (Idle was the only exit), but it read as if the
+			// squad regrouped and carried on, and it booby-trapped the state: *any* future
+			// transition out of Flee would have silently destroyed the squad.
 			Retreat(squad, flee: true, rearm: true, repair: true);
-			squad.FuzzyStateMachine.ChangeState(squad, new CNGroundIdleState());
-		}
-
-		public void Deactivate(CNSquad squad)
-		{
 			squad.SquadManager.UnregisterSquad(squad);
 		}
+
+		public void Deactivate(CNSquad squad) { }
 	}
 
 	// ---------------------------------------------------------------------------

@@ -175,7 +175,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// recruited the full complement. Under capacity we wait while the squad manager tops up
 			// passengers (squad.AcceptingPassengers); MaxLoadTicks is the fail-safe.
 			var waiting = passengers.Count(u => u.IsInWorld);
-			var carrierFull = cargo == null || !cargo.HasSpace(1);
+			var carrierFull = IsCarrierFull(cargo);
 			var fullyRecruitedAndAboard =
 				waiting == 0 && squad.RecruitedPassengerCount >= squad.DesiredPassengerCount;
 
@@ -309,6 +309,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		// state. 3000 ticks ≈ ~200 seconds at 15 ticks/sec - raised from 1500 (~100s) since APC
 		// squads were frequently timing out and departing half-empty while production caught up.
 		const int MaxLoadTicks = 3000;
+		const int RallySearchRadius = 6;
+		const int CongestionCheckCells = 2;
+
 		int lastProgressTick;
 		int lastBoardedCount;
 
@@ -337,7 +340,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				var carrierId = passengerToCarrier[id];
 				var carrierGone = !cargoByCarrier.TryGetValue(carrierId, out var cargo) || cargo == null;
-				if (!livePassengers.Contains(id) || carrierGone || !cargo.HasSpace(1))
+
+				// Occupancy, not HasSpace(): the seats this carrier's own still-walking passengers
+				// have reserved must not count as "full", or every assignment would be dropped and
+				// re-made every tick while the infantry is en route (see IsCarrierFull).
+				if (!livePassengers.Contains(id) || carrierGone || IsCarrierFull(cargo))
 					passengerToCarrier.Remove(id);
 			}
 
@@ -347,10 +354,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				if (pending.ContainsKey(carrierId))
 					pending[carrierId]++;
 
+			// Free capacity in WEIGHT, not passenger count: a mob-squad master boards with several
+			// zero-weight slaves, so counting bodies makes a carrier look full long before it is.
 			int Free(uint carrierId)
 			{
 				var cargo = cargoByCarrier[carrierId];
-				return cargo == null ? 0 : cargo.Info.MaxWeight - cargo.PassengerCount - pending[carrierId];
+				if (cargo == null)
+					return 0;
+
+				var usedWeight = 0;
+				foreach (var passenger in cargo.Passengers)
+					usedWeight += passenger.Info.TraitInfoOrDefault<PassengerInfo>()?.Weight ?? 1;
+
+				return cargo.Info.MaxWeight - usedWeight - pending[carrierId];
 			}
 
 			foreach (var passenger in passengers)
@@ -410,10 +426,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// to path in and board. Air transports don't have this problem since they already
 			// pick a clear landing cell (FindLandingCell); this is the ground equivalent. Falls
 			// back to stopping in place if nothing clear is found nearby.
-			var rallyCarrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead);
+			var rallyCarrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead && u.IsInWorld);
 			var rallyCell = rallyCarrier != null ? FindLoadRallyCell(squad, rallyCarrier) : null;
 
-			foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
+			foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld))
 				squad.Bot.QueueOrder(rallyCell.HasValue
 					? new Order("Move", carrier, Target.FromCell(squad.World, rallyCell.Value), false)
 					: new Order("Stop", carrier, false));
@@ -426,12 +442,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			IssueBoardingOrders(squad, idleOnly: false);
 		}
 
-		const int RallySearchRadius = 6;
-		const int CongestionCheckCells = 2;
-
-		// Finds the nearest cell within RallySearchRadius that's genuinely clear (no actors
+		// Finds the nearest cell within RallySearchRadius that's genuinely clear (no foreign actors
 		// within CongestionCheckCells) for the carrier to park at while loading. Returns null if
 		// nothing clear is found, so the caller can fall back to stopping in place.
+		//
+		// The squad's own units are excluded from the congestion count. Without that exclusion the
+		// carrier counted *itself* — it is always within CongestionCheckCells of any candidate near
+		// its own position — so radius 0 could never win and the transport always drove several
+		// cells away, dragging the loading point out from under the infantry already walking to it.
 		static CPos? FindLoadRallyCell(CNSquad squad, Actor carrier)
 		{
 			var mobile = carrier.TraitOrDefault<Mobile>();
@@ -440,6 +458,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			var map = squad.World.Map;
 			var origin = carrier.Location;
+			var own = squad.Units.Concat(squad.PassengerUnits).ToHashSet();
 
 			for (var radius = 0; radius <= RallySearchRadius; radius++)
 			{
@@ -454,9 +473,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 						if (!map.Contains(candidate) || !mobile.CanEnterCell(candidate))
 							continue;
 
-						var congestion = squad.World.FindActorsInCircle(
-							map.CenterOfCell(candidate), WDist.FromCells(CongestionCheckCells)).Count();
-						if (congestion == 0)
+						var congested = squad.World.FindActorsInCircle(
+								map.CenterOfCell(candidate), WDist.FromCells(CongestionCheckCells))
+							.Any(a => !own.Contains(a));
+						if (!congested)
 							return candidate;
 					}
 				}
@@ -508,11 +528,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// so transports leave full instead of with whatever boarded first. MaxLoadTicks is the
 			// fail-safe for the case where the economy simply can't produce enough infantry.
 			var waiting = passengers.Count(u => u.IsInWorld);
-			var carriersFull = validCarriers.All(c =>
-			{
-				var cargo = c.TraitOrDefault<Cargo>();
-				return cargo == null || !cargo.HasSpace(1);
-			});
+			var carriersFull = validCarriers.All(c => IsCarrierFull(c.TraitOrDefault<Cargo>()));
 			var fullyRecruitedAndAboard =
 				waiting == 0 && squad.RecruitedPassengerCount >= squad.DesiredPassengerCount;
 			var allLoaded = anyCargo && (carriersFull || fullyRecruitedAndAboard);
@@ -667,7 +683,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			// Fail-safe idle check: if the transport has been at/near the LZ for too long
 			// with passengers still aboard, force unload to prevent permanent idle.
-			var lzCarriers = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
+			// IsInWorld matters here: a carrier that has left the world (a SAPC burrowed into a
+			// tunnel, a carrier being transported) keeps reporting its last CenterPosition, which
+			// would pin the "all arrived" check to a stale spot forever.
+			var lzCarriers = squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld).ToList();
 			if (dropCell.HasValue && lzCarriers.Any(c => c.TraitOrDefault<Cargo>()?.IsEmpty() == false))
 			{
 				var lzTargetPos = squad.World.Map.CenterOfCell(dropCell.Value);
@@ -692,7 +711,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Find a drop-off target if we don't have one yet (squad starts without a target)
 			if (!squad.IsTargetValid)
 			{
-				var carrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead);
+				var carrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead && u.IsInWorld);
 				if (carrier == null)
 				{
 					squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
@@ -709,7 +728,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.SetActorToTarget(dropTarget);
 			}
 
-			var leadCarrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead);
+			var leadCarrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead && u.IsInWorld);
 			if (leadCarrier == null)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
@@ -724,7 +743,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			// Emergency unload: if any carrier is critically damaged, drop passengers now.
-			var carriers = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
+			var carriers = squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld).ToList();
 			if (carriers.Any(c => c.TraitOrDefault<IHealth>()?.DamageState >= DamageState.Critical))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportUnloadState());
@@ -1032,7 +1051,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			var leadCarrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead);
+			var leadCarrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead && u.IsInWorld);
 			if (leadCarrier == null)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
@@ -1064,7 +1083,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				}
 			}
 
-			var carriers = squad.CarrierUnits.Where(u => !u.IsDead).ToList();
+			var carriers = squad.CarrierUnits.Where(u => !u.IsDead && u.IsInWorld).ToList();
 			if (carriers.Any(c => c.TraitOrDefault<IHealth>()?.DamageState >= DamageState.Heavy))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new TransportReturnState());
