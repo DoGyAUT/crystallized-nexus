@@ -6,7 +6,7 @@
 	ReloadDelay: 100
 	Burst: 4
 	BurstDelays: 6
-	Report: 20mm_v1.wav, 20mm_v2.wav, 20mm_v3.wav
+	Report: 20mm_v1.ogg, 20mm_v2.ogg, 20mm_v3.ogg
 	Projectile: Bullet
 		Inaccuracy: 1c0
 	Warhead@1Dam: SpreadDamage
@@ -254,7 +254,7 @@ WardenAutoCannon:
 	Burst: 4
 	BurstDelays: 6
 	Range: 8c0
-	Report: 20mm_v1.wav, 20mm_v2.wav, 20mm_v3.wav
+	Report: 20mm_v1.ogg, 20mm_v2.ogg, 20mm_v3.ogg
 	ValidTargets: Ground, Air, DeadInfantry
 	Projectile: Bullet
 		-Image:
