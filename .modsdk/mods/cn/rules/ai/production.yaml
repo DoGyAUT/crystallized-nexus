@@ -1,17 +1,24 @@
 Player:
 	CNUnitBuilderBotModule@Combat:
+		# Reserve = DesiredCashReserve + AdditionalCashReservePerQueue * queueCount, where one queue is one
+		# production BUILDING (^ProductionInfantry/Vehicle/Air each add a ProductionQueue). BuildingLimits
+		# allow up to 22 of them, so the per-queue slope, not the flat reserve, dominates a developed base:
+		# Turtle at 18 queues held back 380 + 18*60 = 1460 credits and blocked ~2/3 of all production passes.
+		# The slope only has to cover the drip-drain of builds already running - at most one item per queue
+		# (BaseMaxQueuedItemsPerQueue), and whatever the bot is about to queue is charged separately as
+		# committedCost. Halved; the flat reserve keeps protecting the base builder's own 500 min-cash.
 		RushProductionMinCashRequirement: 150
 		RushDesiredCashReserve: 280
-		RushAdditionalCashReservePerQueue: 50
+		RushAdditionalCashReservePerQueue: 25
 		TurtleProductionMinCashRequirement: 200
 		TurtleDesiredCashReserve: 380
-		TurtleAdditionalCashReservePerQueue: 60
+		TurtleAdditionalCashReservePerQueue: 30
 		ExpansionProductionMinCashRequirement: 280
 		ExpansionDesiredCashReserve: 550
-		ExpansionAdditionalCashReservePerQueue: 65
+		ExpansionAdditionalCashReservePerQueue: 32
 		TechProductionMinCashRequirement: 220
 		TechDesiredCashReserve: 550
-		TechAdditionalCashReservePerQueue: 75
+		TechAdditionalCashReservePerQueue: 38
 		SteamrollerProductionMinCashRequirement: 80
 		SteamrollerDesiredCashReserve: 120
-		SteamrollerAdditionalCashReservePerQueue: 28
+		SteamrollerAdditionalCashReservePerQueue: 14
