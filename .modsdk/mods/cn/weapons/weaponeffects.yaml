@@ -74,3 +74,19 @@
 		AffectsParent: true
 		Explosions: large_flash_y
 		ExplosionPalette: effect
+
+^WithDecorationBullets:
+	Projectile: InstantHitWithFakeBullets
+		Blockable: true
+		FakeBulletNumber: 2
+		FakeBulletSpeed: 1536
+		FakeBulletSpawnInterval: 3
+		FakeBulletInaccuracy: 0c450
+		ContrailDelay: 0
+		ContrailStartColor: FFFF00
+		ContrailStartColorAlpha: 255
+		ContrailEndColor: FFAA00
+		ContrailEndColorAlpha: 255
+		ContrailLength: 2
+		ContrailStartWidth: 18
+		ContrailZOffset: 3000

@@ -1,7 +1,8 @@
 GMinigun:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 26
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c0
 	Report: rifle_g1.aud, rifle_g2.aud #carbine_g1.aud, carbine_g2.aud #infgun3.aud, gostgun1.aud, slvkgun1.aud
 	Warhead@1Dam: SpreadDamage
@@ -14,8 +15,9 @@ GMinigun_Garrisoned:
 
 NMinigun:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 21
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c512
 	Report: rifle_n1.aud, rifle_n2.aud #carbine_n1.aud, carbine_n2.aud, carbine_n3.aud #infgun3.aud, gostgun1.aud, slvkgun1.aud
 	Warhead@1Dam: SpreadDamage
@@ -28,18 +30,21 @@ NMinigun_Garrisoned:
 
 M1Carbine:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	Report: infgun3.aud, gostgun1.aud, slvkgun1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 120
 
 Vulcan:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	Report: chaingn1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
 
 Vulcan2:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 50
 	Burst: 3
 	Range: 6c0
@@ -49,6 +54,7 @@ Vulcan2:
 
 Vulcan3:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 30
 	Burst: 3
 	Report: cygun1.aud
@@ -57,10 +63,12 @@ Vulcan3:
 
 EliteCadreGun:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	Range: 5c0
 	ReloadDelay: 50
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 0c256
+		ContrailStartWidth: 20
 	Range: 5c0
 	Report: confcarbine01.aud, confcarbine02.aud, confcarbine03.aud
 	Burst: 4
@@ -77,12 +85,14 @@ EliteCadreGun_Garrisoned:
 
 VulcanTower:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 40
 	Range: 7c0
 	Burst: 12
 	BurstDelays: 4
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c0
+		ContrailStartWidth: 20
 	Report: Bren_v1.wav, Bren_v2.wav, Bren_v3.wav #chaingn1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 150
@@ -99,12 +109,14 @@ VulcanTower:
 
 VulcanTowerGattling:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 40
 	Range: 7c0
 	Burst: 36
 	BurstDelays: 2
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c512
+		ContrailStartWidth: 20
 	Report: Bren_v1.wav, Bren_v2.wav, Bren_v3.wav #chaingn1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 150
@@ -121,12 +133,13 @@ VulcanTowerGattling:
 
 JumpCannon:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 40
 	Burst: 2
 	Range: 5c0
 	Report: jumpjet1.aud
 	ValidTargets: Ground, Air
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 0c512
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
@@ -162,10 +175,11 @@ OrcaCannon:
 
 AssaultCannon:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 50
 	Burst: 12
 	BurstDelays: 4
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c0
 	Range: 6c0
 	Report: mgfire.aud
@@ -184,10 +198,11 @@ AssaultCannon:
 
 HeavyAssaultCannon:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 100
 	Burst: 10
 	BurstDelays: 5
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 0c512
 	Range: 8c0
 	Report: hmg.aud
@@ -207,8 +222,9 @@ HeavyAssaultCannon:
 
 RaiderCannon:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 55
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 0c128
 	Range: 6c0
 	Burst: 3
@@ -229,14 +245,16 @@ RaiderCannon:
 
 GattlingCannon:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 250
 	Range: 8c0
 	Burst: 100
 	BurstDelays: 2
 	AfterFireSound: gattling_start.aud
 	Report: gattling01.aud, gattling02.aud, gattling03.aud
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 2c0
+		ContrailStartWidth: 20
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
 	Warhead@2Eff: CreateEffect
@@ -280,6 +298,7 @@ HydraCannon:
 
 Pistola:
 	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	Range: 3c0
 	Report: gun18.aud
 	Warhead@1Dam: SpreadDamage
@@ -291,13 +310,15 @@ Pistola:
 
 Marksmanrifle:
 	Inherits: ^Sniper
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 100
 	Range: 7c0
 	Burst: 3
 	BurstDelays: 7
 	Report: carbine_n1.aud, carbine_n2.aud, carbine_n3.aud
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 0c512
+		FakeBulletNumber: 1
 	Warhead@1Dam: SpreadDamage
 		Spread: 36
 		Damage: 50
@@ -315,9 +336,12 @@ Marksmanrifle:
 
 Sniper:
 	Inherits: ^Sniper
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 90
 	Range: 10c0
 	Report: sniper1.aud, sniper2.aud, sniper3.aud
+	Projectile: InstantHitWithFakeBullets
+		FakeBulletNumber: 1
 	Warhead@1Dam: SpreadDamage
 		Spread: 36
 		Damage: 200
@@ -340,9 +364,12 @@ Sniper_Garrisoned:
 
 Sniper_large:
 	Inherits: ^Sniper
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 110
 	Range: 11c0
 	Report: sniperrifle1.ogg
+	Projectile: InstantHitWithFakeBullets
+		FakeBulletNumber: 1
 	Warhead@1Dam: SpreadDamage
 		Spread: 36
 		Damage: 250

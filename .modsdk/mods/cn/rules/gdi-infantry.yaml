@@ -357,6 +357,7 @@ JUMPJET:
 		Range: 6c0
 	Armament:
 		Weapon: JumpCannon
+		LocalOffset: 0,0,785
 	-Crushable:
 	AttackFrontal:
 		Voice: Attack
