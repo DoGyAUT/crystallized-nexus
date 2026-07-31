@@ -148,8 +148,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	// ---------------------------------------------------------------------------
 	// Wave move-to-rally: squad marches to the staging cell in front of the
-	// enemy base. On arrival (or timeout), it hands off to the role's regular
-	// idle state which then engages normally.
+	// enemy base and waits there for the rest of the wave. It hands off to the
+	// role's regular idle state — which then engages normally — once enough of
+	// the wave has assembled, or when the staging timeout runs out.
 	// ---------------------------------------------------------------------------
 	sealed class CNWaveMoveToRallyState : CNStateBase, ICNState
 	{
@@ -158,7 +159,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		readonly CPos rallyCell;
 		Actor waveTarget;
 		WPos rallyPos;
-		int startTick;
+		int stagingStartTick;
 		int lastProgressTick;
 		long lastDistanceSq;
 
@@ -171,8 +172,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Activate(CNSquad squad)
 		{
 			rallyPos = squad.World.Map.CenterOfCell(rallyCell);
-			startTick = squad.World.WorldTick;
-			lastProgressTick = startTick;
+			stagingStartTick = 0;
+			lastProgressTick = squad.World.WorldTick;
 			lastDistanceSq = (squad.CenterPosition() - rallyPos).LengthSquared;
 
 			if (waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld)
@@ -212,11 +213,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			var arrivalDist = WDist.FromCells(squad.SquadManager.Info.AttackWaveStagingArrivalCells);
 			var arrivalSq = (long)arrivalDist.Length * arrivalDist.Length;
-			var liveUnits = squad.Units
-				.Where(u => u != null && !u.IsDead && u.IsInWorld)
-				.ToList();
-			var arrived = liveUnits.Count(u => (u.CenterPosition - rallyPos).LengthSquared <= arrivalSq);
-			var enoughArrived = liveUnits.Count > 0 && arrived >= System.Math.Max(1, liveUnits.Count * 2 / 3);
+
+			// The staging timeout is a budget for WAITING at the rally point, not for getting there.
+			// It used to start when the squad set off, so on a large map the march consumed it whole
+			// and the squad was already "timed out" the moment it arrived — no waiting happened at all.
+			var selfArrived = HasArrivedAtRally(squad, rallyPos, arrivalSq);
+			if (selfArrived && stagingStartTick == 0)
+				stagingStartTick = squad.World.WorldTick;
 
 			var currentDistanceSq = (squad.CenterPosition() - rallyPos).LengthSquared;
 			const long ProgressThresholdSq = (long)MinProgressDistance * MinProgressDistance;
@@ -232,9 +235,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (nearbyEnemy != null)
 				squad.SetActorToTarget(nearbyEnemy);
 
-			var timedOut = squad.World.WorldTick - startTick >= squad.SquadManager.Info.AttackWaveStagingTimeoutTicks;
-			var stuck = squad.World.WorldTick - lastProgressTick >= MaxNoProgressTicks;
-			if (enoughArrived || nearbyEnemy != null || timedOut || stuck)
+			var timedOut = stagingStartTick != 0 &&
+				squad.World.WorldTick - stagingStartTick >= squad.SquadManager.Info.AttackWaveStagingTimeoutTicks;
+
+			// Stuck detection only covers the march. Once the squad is at the rally point it stops
+			// closing on it by definition, so leaving this armed would evict every waiting squad
+			// after MaxNoProgressTicks and defeat the staging. From then on the timeout governs,
+			// with the manager's AttackWaveMaxActiveTicks as the outer backstop.
+			var stuck = stagingStartTick == 0 && squad.World.WorldTick - lastProgressTick >= MaxNoProgressTicks;
+
+			if (EnoughWaveParticipantsArrived(squad, rallyPos, arrivalSq) || nearbyEnemy != null || timedOut || stuck)
 			{
 				if (nearbyEnemy == null && waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld)
 					squad.SetActorToTarget(waveTarget);
@@ -244,5 +254,64 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		public void Deactivate(CNSquad squad) { }
+
+		/// <summary>
+		/// True once two thirds of a squad's live units stand within arrival tolerance of the rally
+		/// point. Every wave shares one rally cell, so this is safe to ask about any participant.
+		/// </summary>
+		static bool HasArrivedAtRally(CNSquad squad, WPos rallyPos, long arrivalSq)
+		{
+			var live = 0;
+			var arrived = 0;
+			foreach (var unit in squad.Units)
+			{
+				if (unit == null || unit.IsDead || !unit.IsInWorld)
+					continue;
+
+				live++;
+				if ((unit.CenterPosition - rallyPos).LengthSquared <= arrivalSq)
+					arrived++;
+			}
+
+			return live > 0 && arrived >= System.Math.Max(1, live * 2 / 3);
+		}
+
+		/// <summary>
+		/// The condition for leaving the rally point: enough of the WAVE has assembled — not just
+		/// enough of this one squad. Judging only its own units made the rally cell a shared waypoint
+		/// rather than a meeting point, so squads filed into the enemy base one after another.
+		/// <para>
+		/// Every participant evaluates this against the same unpruned participant set within a single
+		/// manager tick (squads are updated before MonitorActiveWave prunes), so the wave releases as
+		/// a body instead of cascading one squad at a time.
+		/// </para>
+		/// </summary>
+		static bool EnoughWaveParticipantsArrived(CNSquad squad, WPos rallyPos, long arrivalSq)
+		{
+			var mgr = squad.SquadManager;
+
+			// The wave dissolved (target died, hard timeout) or this squad was dropped from it —
+			// fall back to judging itself, otherwise it would wait for a wave that no longer exists.
+			if (!mgr.IsWaveLaunched || !mgr.WaveParticipants.Contains(squad))
+				return HasArrivedAtRally(squad, rallyPos, arrivalSq);
+
+			var participants = 0;
+			var arrived = 0;
+			foreach (var participant in mgr.WaveParticipants)
+			{
+				if (participant == null || !participant.IsValid)
+					continue;
+
+				participants++;
+				if (HasArrivedAtRally(participant, rallyPos, arrivalSq))
+					arrived++;
+			}
+
+			if (participants == 0)
+				return true;
+
+			var percent = System.Math.Clamp(mgr.Info.AttackWaveStagingMinArrivedPercent, 1, 100);
+			return arrived >= System.Math.Max(1, participants * percent / 100);
+		}
 	}
 }

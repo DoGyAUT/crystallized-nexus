@@ -306,6 +306,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Cells of arrival tolerance at the rally point.")]
 		public readonly int AttackWaveStagingArrivalCells = 5;
 
+		[Desc("Percent of the wave's participating squads that must have reached the rally point before any of them " +
+			"moves on to the attack. Below 100 the wave tolerates stragglers; the staging timeout releases it either way.")]
+		public readonly int AttackWaveStagingMinArrivedPercent = 66;
+
 		[Desc("Cells of random scatter around the hold position so wave-holding squads don't stack on top of each other.")]
 		public readonly int WaveHoldScatterCells = 4;
 
