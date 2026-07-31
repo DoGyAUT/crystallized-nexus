@@ -334,6 +334,7 @@ Player:
 				Role: Assault
 				Tags: AntiInfantry, AntiArmor, Frontline, Infantry
 				Bias: 8
+				IgnoresCashReserve: true
 				MaxInstances: 3
 				PriorityTargetCapabilities: Infantry, Vehicle, Harvester, Economy
 				ScaleWithBuilding: gapile
