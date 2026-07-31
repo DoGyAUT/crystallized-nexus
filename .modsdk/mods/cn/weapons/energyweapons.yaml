@@ -55,7 +55,7 @@ CyclopsLauncher:
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
-		ExplosionPalette: player
+		ExplosionPalette: terrain
 		ImpactSounds: ssplash3.aud
 		ValidTargets: Water
 		InvalidTargets: Vehicle

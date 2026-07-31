@@ -859,6 +859,7 @@ SAPC:
 		Condition: submerged
 		SubterraneanTransitionImage: dig
 		SubterraneanTransitionSequence: idle
+		SubterraneanTransitionPalette: terrain
 		SubterraneanTransitionSound: subdril1.aud
 	Carryable:
 		RequiresCondition: !submerged
@@ -943,6 +944,7 @@ SUBTANK:
 		Condition: submerged
 		SubterraneanTransitionImage: dig
 		SubterraneanTransitionSequence: idle
+		SubterraneanTransitionPalette: terrain
 		SubterraneanTransitionSound: subdril1.aud
 	Carryable:
 		RequiresCondition: !submerged

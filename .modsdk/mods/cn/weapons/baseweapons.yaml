@@ -11,7 +11,7 @@
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@3EffWater: CreateEffect
 		Explosions: water_piffs
-		ExplosionPalette: ra
+		ExplosionPalette: terrain
 		ValidTargets: Water
 		InvalidTargets: Vehicle
 	Warhead@3Eff: CreateEffect
@@ -47,7 +47,7 @@
 		ValidTargets: Ground, Air, DeadInfantry
 	Warhead@3EffWater: CreateEffect
 		Explosions: water_piffs
-		ExplosionPalette: ra
+		ExplosionPalette: terrain
 		ValidTargets: Water
 		InvalidTargets: Vehicle
 	Warhead@4Sparks: SparkBurst
@@ -85,7 +85,7 @@
 		ValidTargets: Ground, Air, DeadInfantry
 	Warhead@3EffWater: CreateEffect
 		Explosions: water_piffs
-		ExplosionPalette: ra
+		ExplosionPalette: terrain
 		ValidTargets: Water
 		InvalidTargets: Vehicle
 	Warhead@4Sparks: SparkBurst
@@ -125,7 +125,7 @@
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
-		ExplosionPalette: player
+		ExplosionPalette: terrain
 		ImpactSounds: ssplash3.aud
 		ValidTargets: Water
 		InvalidTargets: Vehicle
@@ -220,7 +220,7 @@
 		ValidTargets: Ground
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
-		ExplosionPalette: player
+		ExplosionPalette: terrain
 		ImpactSounds: ssplash3.aud
 		ValidTargets: Water
 		InvalidTargets: Vehicle
@@ -335,7 +335,7 @@
 		AffectsParent: false
 		ValidRelationships: Neutral, Enemy
 		Explosions: small_watersplash
-		ExplosionPalette: player
+		ExplosionPalette: terrain
 		ImpactSounds: ssplash3.aud
 		ValidTargets: Water
 		InvalidTargets: Vehicle
@@ -384,7 +384,7 @@
 		ValidTargets: Ground, Air
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
-		ExplosionPalette: player
+		ExplosionPalette: terrain
 		ImpactSounds: ssplash3.aud
 		ValidTargets: Water
 		InvalidTargets: Vehicle
