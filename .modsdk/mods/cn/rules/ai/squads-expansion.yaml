@@ -18,8 +18,8 @@ Player:
 		AttackWaveFallbackMinSquads: 2
 		AttackWaveSizeGrowthInterval: 9000
 		AttackWaveSizeGrowthAmount: 1
-		AttackWaveStagingOffsetCells: 12
-		AttackWaveStagingTimeoutTicks: 600
+		AttackWaveStagingOffsetCells: 18
+		AttackWaveStagingTimeoutTicks: 900
 		AttackWaveStagingArrivalCells: 5
 		WaveHoldScatterCells: 4
 		WaveParticipantRoles: Assault, ArtilleryAssault, SubterraneanAssault, Raider, Stealth, AircraftAttack, AircraftRaider
