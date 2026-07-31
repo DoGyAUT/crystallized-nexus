@@ -55,7 +55,7 @@ CyclopsLauncher:
 		InvalidTargets: Vehicle, Cyborg
 	Warhead@3EffWater: CreateEffect
 		Explosions: small_watersplash
-		ExplosionPalette: player
+		ExplosionPalette: terrain
 		ImpactSounds: ssplash3.aud
 		ValidTargets: Water
 		InvalidTargets: Vehicle
@@ -300,7 +300,7 @@ AcolyteGun:
 	Warhead@3EffWater: CreateEffect
 		AffectsParent: True
 		Explosions: water_piff
-		ExplosionPalette: ra
+		ExplosionPalette: terrain
 		ValidTargets: Water
 
 // Garrison variant - +50% range for units firing from bunker fire ports.

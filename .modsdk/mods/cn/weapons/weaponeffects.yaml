@@ -110,8 +110,8 @@ BulletCasing:
 		AirThreshold: 8c0
 		ImpactActors: false
 	Warhead@3EffWater: CreateEffect
-		Explosions: water_piffs
-		ExplosionPalette: ra
+		Explosions: water_piff
+		ExplosionPalette: terrain
 		ValidTargets: Water
 		InvalidTargets: Ground, Air
 		AirThreshold: 8c0
@@ -133,3 +133,5 @@ CannonCasing:
 		Shadow: true
 	Warhead@2Eff: CreateEffect
 		Explosions: cannoncasingscorch1, cannoncasingscorch2, cannoncasingscorch3, cannoncasingscorch4, cannoncasingscorch5, cannoncasingscorch6, cannoncasingscorch7
+	Warhead@3EffWater: CreateEffect
+		Explosions: water_piffs
