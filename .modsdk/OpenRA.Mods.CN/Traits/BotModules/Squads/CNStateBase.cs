@@ -290,7 +290,35 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		protected virtual bool ShouldFlee(CNSquad squad)
 		{
 			return ShouldFlee(squad, (friendlies, enemies) =>
-				!CNAttackOrFleeFuzzy.Default.CanAttack(friendlies, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
+				CannotAttackEvenTogether(CNAttackOrFleeFuzzy.Default, squad, friendlies, enemies));
+		}
+
+		/// <summary>
+		/// The squad flees only when it wants to flee on its own AND the combined friendly force
+		/// present cannot carry the fight either. Counting the neighbours must only ever talk a squad
+		/// into standing its ground, never out of it.
+		/// <para>
+		/// That guarantee has to be enforced here rather than by handing the evaluator a bigger
+		/// collection, because CanAttack aggregates own health as sumCur/sumMax — a ratio, not a sum.
+		/// Battered neighbours pull it down, and a healthy squad sits on the one Normal-health rule
+		/// that attacks unconditionally; diluting it into Injured exposes Flee outcomes that the squad
+		/// alone never had. Adding allies would then make it flee in exactly the situation the whole
+		/// change exists to fix.
+		/// </para>
+		/// <para>
+		/// Fixing the aggregation inside the fuzzy system instead would hit every caller, including
+		/// the ones that behave correctly today. Evaluating twice is the smaller instrument: the
+		/// second, larger evaluation is short-circuited away unless the squad alone already wants out,
+		/// so the common case still costs one pass.
+		/// </para>
+		/// </summary>
+		protected static bool CannotAttackEvenTogether(
+			CNAttackOrFleeFuzzy fuzzy, CNSquad squad,
+			IReadOnlyCollection<Actor> friendlies, IReadOnlyCollection<Actor> enemies)
+		{
+			var boost = squad.SquadManager.GetAttackFuzzyBoost();
+			return !fuzzy.CanAttack(squad.Units, enemies, boost) &&
+				!fuzzy.CanAttack(friendlies, enemies, boost);
 		}
 
 		/// <summary>

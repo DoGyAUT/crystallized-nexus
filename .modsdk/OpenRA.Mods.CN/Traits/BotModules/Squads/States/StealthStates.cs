@@ -124,7 +124,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// trade with an even or weaker enemy and only flee when injured/outgunned. The Raider
 			// profile fled even at full health against a healthy enemy, which made them too timid.
 			return ShouldFlee(squad, (friendlies, enemies) =>
-				!CNAttackOrFleeFuzzy.Default.CanAttack(friendlies, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
+				CannotAttackEvenTogether(CNAttackOrFleeFuzzy.Default, squad, friendlies, enemies));
 		}
 	}
 

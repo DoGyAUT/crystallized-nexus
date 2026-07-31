@@ -70,7 +70,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				if (activeAttackers.Count == 0)
 					return false;
 
-				return !CNAttackOrFleeFuzzy.Default.CanAttack(friendlies, activeAttackers, squad.SquadManager.GetAttackFuzzyBoost());
+				return CannotAttackEvenTogether(CNAttackOrFleeFuzzy.Default, squad, friendlies, activeAttackers);
 			});
 		}
 
