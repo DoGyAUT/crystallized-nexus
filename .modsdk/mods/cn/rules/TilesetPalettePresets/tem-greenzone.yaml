@@ -1,0 +1,11 @@
+^Palettes:
+	LoadPaletteWithLightModifiedAndRBGSwapped@terraintem:
+		RBGSwapMode: GRB
+	LoadPaletteWithLightModifiedAndRBGSwapped@terraindectem:
+		RBGSwapMode: GRB
+	LoadPaletteWithLightModifiedAndRBGSwapped@playertem:
+		RBGSwapMode: GRB
+	LoadPaletteWithLightModifiedAndRBGSwapped@playertem-nobright:
+		RBGSwapMode: GRB
+	LoadPaletteWithLightModifiedAndRBGSwapped@playertem-nomuzzle:
+		RBGSwapMode: GRB
