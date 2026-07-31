@@ -289,11 +289,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// --- Flee decision ---
 		protected virtual bool ShouldFlee(CNSquad squad)
 		{
-			return ShouldFlee(squad, enemies =>
-				!CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
+			return ShouldFlee(squad, (friendlies, enemies) =>
+				!CNAttackOrFleeFuzzy.Default.CanAttack(friendlies, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
 		}
 
-		protected static bool ShouldFlee(CNSquad squad, Func<IReadOnlyCollection<Actor>, bool> flee)
+		/// <summary>
+		/// Evaluates the flee decision, handing the callback the friendly force present for this fight
+		/// and the enemies threatening it. The callback used to receive only the enemies and weighed
+		/// squad.Units against them, so a squad fighting shoulder to shoulder with two others judged
+		/// the engagement as if it stood alone — all three concluded they were outnumbered and withdrew
+		/// from a fight the combined force was winning.
+		/// </summary>
+		protected static bool ShouldFlee(CNSquad squad, Func<IReadOnlyCollection<Actor>, IReadOnlyCollection<Actor>, bool> flee)
 		{
 			if (!squad.IsValid)
 				return false;
@@ -315,7 +322,45 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (enemies.Count == 0)
 				return false;
 
-			return flee(enemies);
+			return flee(FriendlyForce(squad, units), enemies);
+		}
+
+		/// <summary>
+		/// The friendly fighting force actually present: the squad's own units plus every other
+		/// friendly combat unit already found inside the danger radius, so this costs no extra scan.
+		/// <para>
+		/// Own units only count when they belong to a squad — loose stragglers, harvesters and
+		/// half-built forces are not a fighting force and must not talk the squad into standing its
+		/// ground. Allied players are counted too, but their squad membership is unknowable from here,
+		/// so mobile armed units stand in for it; that also keeps allied defensive structures out,
+		/// which would inflate the firepower of a force that cannot follow the fight.
+		/// </para>
+		/// </summary>
+		static IReadOnlyCollection<Actor> FriendlyForce(CNSquad squad, List<Actor> unitsInDangerRadius)
+		{
+			// Start from the whole squad so a strung-out squad is never rated weaker than before.
+			var force = new HashSet<Actor>();
+			foreach (var unit in squad.Units)
+				if (unit != null && !unit.IsDead && unit.IsInWorld)
+					force.Add(unit);
+
+			var player = squad.Bot.Player;
+			foreach (var unit in unitsInDangerRadius)
+			{
+				if (unit.IsDead || !unit.IsInWorld || !unit.Info.HasTraitInfo<AttackBaseInfo>())
+					continue;
+
+				if (unit.Owner == player)
+				{
+					if (squad.SquadManager.IsUnitAssignedToSquad(unit))
+						force.Add(unit);
+				}
+				else if (unit.Owner.RelationshipWith(player) == PlayerRelationship.Ally &&
+					unit.Info.HasTraitInfo<MobileInfo>())
+					force.Add(unit);
+			}
+
+			return force;
 		}
 
 		// --- Enemy finding (delegate to CNSquadHelper) ---

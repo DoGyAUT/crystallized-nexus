@@ -156,8 +156,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		protected override bool ShouldFlee(CNSquad squad)
 		{
-			return ShouldFlee(squad, enemies =>
-				!CNAttackOrFleeFuzzy.Raider.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
+			return ShouldFlee(squad, (friendlies, enemies) =>
+				!CNAttackOrFleeFuzzy.Raider.CanAttack(friendlies, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
 		}
 
 		// Kiting only pays off when backing away actually buys something: the threat must be able

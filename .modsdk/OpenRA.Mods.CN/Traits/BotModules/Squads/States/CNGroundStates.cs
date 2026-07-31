@@ -61,7 +61,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		protected override bool ShouldFlee(CNSquad squad)
 		{
-			return ShouldFlee(squad, enemies =>
+			return ShouldFlee(squad, (friendlies, enemies) =>
 			{
 				// Only react to enemies that are actively attacking (have an Attack or FlyAttack
 				// activity). Nearby units that are patrolling or targeting other forces should not
@@ -70,7 +70,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				if (activeAttackers.Count == 0)
 					return false;
 
-				return !CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, activeAttackers, squad.SquadManager.GetAttackFuzzyBoost());
+				return !CNAttackOrFleeFuzzy.Default.CanAttack(friendlies, activeAttackers, squad.SquadManager.GetAttackFuzzyBoost());
 			});
 		}
 
