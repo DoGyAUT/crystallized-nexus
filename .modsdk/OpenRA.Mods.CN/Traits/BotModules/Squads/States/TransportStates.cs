@@ -885,11 +885,39 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var mgr = squad.SquadManager;
 			var ourBasePos = squad.World.Map.CenterOfCell(mgr.GetRandomBaseCenter());
 
+			// Restrict to the player the attack wave is engaging, so "soft rear" means the rear of
+			// THAT enemy. Without this the scan ran over every enemy on the map, and the depth
+			// tiebreaker below (farther from our base scores higher) actively pulled the drop toward
+			// a more distant, uninvolved opponent — the transport went off and attacked someone else
+			// entirely while the rest of the army focused a different player.
+			// No wave running (or its target already dead): fall back to considering everyone.
+			var waveTarget = mgr.WaveTarget;
+			var focusOwner = waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld
+				? waveTarget.Owner
+				: null;
+
+			var best = ScoreRearTargets(mgr, ourBasePos, focusOwner);
+			if (best == null && focusOwner != null)
+				best = ScoreRearTargets(mgr, ourBasePos, null);
+
+			// Final fallbacks: any undefended building, then the closest building of any kind.
+			return best
+				?? CNSquadHelper.FindUnprotectedTarget(squad)
+				?? mgr.FindClosestEnemyBuilding(carrier);
+		}
+
+		// Highest-value non-defense building, optionally limited to a single owner. Null if none match.
+		static Actor ScoreRearTargets(CNSquadManagerBotModule mgr, WPos ourBasePos, Player owner)
+		{
 			Actor best = null;
 			var bestScore = int.MinValue;
+
 			foreach (var building in mgr.GetCachedEnemyBuildings())
 			{
 				if (!mgr.IsLiveEnemyActor(building))
+					continue;
+
+				if (owner != null && building.Owner != owner)
 					continue;
 
 				var caps = building.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
@@ -918,10 +946,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				}
 			}
 
-			// Fallbacks: any undefended building, then the closest building of any kind.
-			return best
-				?? CNSquadHelper.FindUnprotectedTarget(squad)
-				?? mgr.FindClosestEnemyBuilding(carrier);
+			return best;
 		}
 
 		static CPos? FindSaferDropCell(CNSquad squad, Actor carrier, Actor target)
