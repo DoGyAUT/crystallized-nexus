@@ -318,7 +318,7 @@ GAGAT:
 		Types: turret
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
-		Capabilities: Defense, InfantryDefense
+		Capabilities: Defense, InfantryDefense, Special
 
 GASEN:
 	Inherits: ^Support
@@ -333,7 +333,7 @@ GASEN:
 		RequiresCondition: !build-incomplete
 		Type: wall
 	Valued:
-		Cost: 600
+		Cost: 900
 	Tooltip:
 		Name: actor-gasen.name
 	Buildable:
@@ -369,7 +369,7 @@ GASEN:
 	IsometricSelectable:
 		Height: 48
 	Armament:
-		Weapon: 20mmAutoCannon
+		Weapon: LtRail
 		LocalOffset: 910,0,1570
 		MuzzleSequence: muzzle_cannon
 		MuzzlePalette: effect
@@ -391,7 +391,7 @@ GASEN:
 		Types: turret
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
-		Capabilities: Defense, InfantryDefense
+		Capabilities: Defense, InfantryDefense, ArmorDefense, Special
 
 GAMORTAR:
 	Inherits: ^Support

@@ -69,7 +69,7 @@ Player:
 		StructureProductionResumeDelay: 3000
 		WallTypes: gawall, nawall
 		GateTypes: gagate_a, gagate_b, nagate_a, nagate_b
-		ProtectedByWalls: gaarmory, gatech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls
+		ProtectedByWalls: gaarmory, gatech, napyra, garadr, naradr, gaplug, natmpl, namisl
 		EnableChokepointSealing: true
 		BasePerimeterWallMinimumStructures: 8
 		BasePerimeterWallPadding: 4
