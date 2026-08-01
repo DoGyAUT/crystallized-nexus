@@ -4474,7 +4474,7 @@ Actors:
 		Location: 150,89
 		Owner: Neutral
 
-Rules:
+Rules: cn|rules/TilesetPalettePresets/tem-ice2lava.yaml
 	^BaseWorld:
 		TerrainLighting:
 			Intensity: 0.93
