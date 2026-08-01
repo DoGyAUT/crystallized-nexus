@@ -38,6 +38,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		protected void ForceNewLeader() { leader = null; }
 
+		/// <summary>
+		/// True if the unit sits behind the leader as seen along the march direction, so calling it
+		/// forward to the leader is genuinely forward motion. With no usable direction (no target)
+		/// every straggler counts as behind, which is the old, direction-blind behaviour.
+		/// </summary>
+		protected static bool IsBehindLeader(Actor unit, Actor leader, WVec marchDirection)
+		{
+			if (marchDirection == WVec.Zero)
+				return true;
+
+			var offset = unit.CenterPosition - leader.CenterPosition;
+			return (long)offset.X * marchDirection.X + (long)offset.Y * marchDirection.Y <= 0;
+		}
+
 		static Actor ElectNewLeader(CNSquad squad)
 		{
 			IEnumerable<Actor> candidates = squad.OrderableUnits.Where(a => !a.IsDead).ToList();
@@ -228,15 +242,25 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class CNGroundAttackMoveState : CNGroundStateBase, ICNState
 	{
 		const int StuckTimeoutTicks = 200;
+
+		// Regrouping is entered and left at different fill levels. With one threshold for both, a
+		// squad sitting at the boundary flipped every evaluation - halt, gather, march, spread,
+		// halt - and crawled to the target in a series of reversals. Entering needs the squad to be
+		// genuinely torn apart; leaving only needs it reasonably closed up again.
+		const int RegroupEnterPercent = 50;
+		const int RegroupLeavePercent = 75;
+
 		int lastUpdatedTick;
 		CPos? lastLeaderLocation;
 		Actor lastTarget;
+		bool regrouping;
 
 		public void Activate(CNSquad squad)
 		{
 			lastUpdatedTick = squad.World.WorldTick;
 			lastLeaderLocation = null;
 			lastTarget = null;
+			regrouping = false;
 		}
 
 		public void Tick(CNSquad squad)
@@ -291,8 +315,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			// Regroup: stop leader only when the squad is genuinely split (< 2/3 packed).
-			// Wider radius and looser threshold mean minor stragglers don't halt the group.
+			// Regroup: hold the leader only while the squad is genuinely torn apart.
 			var regroupCells = Math.Max(4, squad.Units.Count / 2);
 			var regroupRadius = WDist.FromCells(regroupCells);
 			var nearPack = squad.World
@@ -300,13 +323,33 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				.Where(squad.Units.Contains)
 				.ToHashSet();
 
-			if (nearPack.Count < squad.Units.Count * 2 / 3)
+			var liveCount = squad.Units.Count(a => a != null && !a.IsDead && a.IsInWorld);
+			var packedPercent = liveCount > 0 ? nearPack.Count * 100 / liveCount : 100;
+			regrouping = regrouping
+				? packedPercent < RegroupLeavePercent
+				: packedPercent < RegroupEnterPercent;
+
+			if (regrouping)
 			{
 				squad.Bot.QueueOrder(new Order("Stop", leader, false));
-				var stragglers = squad.OrderableUnits.Where(a => !nearPack.Contains(a)).ToArray();
-				squad.Bot.QueueOrder(new Order("AttackMove", null,
-					Target.FromCell(squad.World, leader.Location), false,
-					groupedActors: stragglers));
+
+				// Only units BEHIND the leader are called back to it. "Straggler" used to mean
+				// anything outside the radius regardless of direction, so units that had pushed
+				// ahead were ordered to drive back to the leader's cell - and forward again on the
+				// next evaluation. That reversal, not the halt, is what made a squad visibly
+				// oscillate. Anything already ahead simply holds while the rear closes up.
+				var marchDirection = squad.TargetActor != null && !squad.TargetActor.IsDead && squad.TargetActor.IsInWorld
+					? squad.TargetActor.CenterPosition - leader.CenterPosition
+					: WVec.Zero;
+
+				var behind = squad.OrderableUnits
+					.Where(a => !nearPack.Contains(a) && IsBehindLeader(a, leader, marchDirection))
+					.ToArray();
+
+				if (behind.Length > 0)
+					squad.Bot.QueueOrder(new Order("AttackMove", null,
+						Target.FromCell(squad.World, leader.Location), false,
+						groupedActors: behind));
 			}
 			else
 			{
