@@ -233,7 +233,7 @@ Player:
 			InfantryDefense: 10
 			ArmorDefense: 8
 			AADefense: 6
-			ArtilleryDefense: 5
+			ArtilleryDefense: 8
 			GarrisonDefense: 5
 		
 		# Neutral base building targets.
