@@ -202,12 +202,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Tells the AI what building types are considered defenses.")]
 		public readonly FrozenSet<string> DefenseTypes = FrozenSet<string>.Empty;
 
-		[FieldLoader.LoadUsing(nameof(LoadDefenseRoles))]
-		[Desc("Maps tactical roles to lists of defense building types.",
-			"Valid roles: InfantryDefense, ArmorDefense, AADefense, ArtilleryDefense, SpecialDefense, GarrisonDefense.",
-			"Example: AADefense: gasam, nasam")]
-		public readonly Dictionary<DefenseRole, FrozenSet<string>> DefenseRoles = [];
-
 		[Desc("Maximum percentage of total base buildings allowed per defense role.",
 			"Use key 'Total' to cap all defenses combined.",
 			"Example: Total: 25, InfantryDefense: 10 — max 25% of base can be defenses, of which max 10% are anti-infantry.")]
@@ -233,21 +227,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Upper bound on the percent the chokepoint boost may add.")]
 		public readonly int ChokepointDefenseBoostMaxPct = 40;
-
-		static object LoadDefenseRoles(MiniYaml yaml)
-		{
-			var result = new Dictionary<DefenseRole, FrozenSet<string>>();
-			var node = yaml.NodeWithKeyOrDefault("DefenseRoles");
-			if (node == null) return result;
-			foreach (var n in node.Value.Nodes)
-				if (Enum.TryParse<DefenseRole>(n.Key, out var role))
-					result[role] = n.Value.Value
-						.Split(',')
-						.Select(s => s.Trim())
-						.Where(s => s.Length > 0)
-						.ToFrozenSet();
-			return result;
-		}
 
 		internal static readonly FrozenSet<string> DefaultAirThreatTargetTypes = new HashSet<string> { "Air" }.ToFrozenSet();
 		internal static readonly FrozenSet<string> DefaultInfantryThreatTargetTypes = new HashSet<string> { "Infantry" }.ToFrozenSet();
@@ -786,7 +765,7 @@ namespace OpenRA.Mods.Common.Traits
 		const int ActiveTableMaxAgeTicks = 25;
 
 		// DefenseRoleLimits key capping all defenses together rather than a single role.
-		const string TotalDefenseLimitKey = "Total";
+		public const string TotalDefenseLimitKey = "Total";
 
 		// Staleness window for the cached supported-refinery capacity sweep.
 		const int SupportedRefineryCapacityMaxAgeTicks = 50;

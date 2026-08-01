@@ -1189,16 +1189,9 @@ namespace OpenRA.Mods.Common.Traits
 
 						if (hitLimit) continue;
 					}
-					else
-					{
-						// Fallback: DefenseRoles-based check for actors without BotCapabilities.
-						var role = GetDefenseRoleFromActor(actor);
-						if (role != DefenseRole.Default &&
-							activeDefLimits.TryGetValue(role.ToString(), out var roleLimit) &&
-							roleDefenseCounts != null && roleDefenseCounts.TryGetValue(role, out var roleCnt) &&
-							roleCnt * 100 >= roleLimit * playerBuildings.Length)
-							continue;
-					}
+
+					// A defense without BotCapabilities declares no role at all, so only the Total cap
+					// (checked above) governs it.
 				}
 
 				// If we're considering to build a naval structure, check whether there is enough water inside the base perimeter
@@ -1274,17 +1267,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (role == DefenseRole.Default)
 				return null;
 
-			// Find candidates by BotCapabilities tag matching the role enum name,
-			// with fallback to the DefenseRoles dictionary.
+			// Find candidates by BotCapabilities tag matching the role enum name.
 			var roleStr = role.ToString();
 			var candidates = buildableThings
-				.Where(b =>
-				{
-					var caps = b.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
-					if (caps != null)
-						return caps.Contains(roleStr);
-					return baseBuilder.Info.DefenseRoles.TryGetValue(role, out var types) && types.Contains(b.Name);
-				})
+				.Where(b => b.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains(roleStr) ?? false)
 				.ToList();
 
 			if (candidates.Count == 0)
@@ -1358,9 +1344,13 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 
 			var baseBuildingCount = Math.Max(1, playerBuildings.Length);
-			if (activeDefLimits.TryGetValue("Total", out var totalLimit) &&
-				totalDefenseCount * 100 >= totalLimit * baseBuildingCount)
-				return null;
+			var totalDeficit = int.MaxValue;
+			if (activeDefLimits.TryGetValue(CNBaseBuilderBotModule.TotalDefenseLimitKey, out var totalLimit))
+			{
+				totalDeficit = totalLimit * baseBuildingCount - totalDefenseCount * 100;
+				if (totalDeficit <= 0)
+					return null;
+			}
 
 			ActorInfo bestActor = null;
 			var bestDeficit = int.MinValue;
@@ -1390,7 +1380,14 @@ namespace OpenRA.Mods.Common.Traits
 					deficit = Math.Min(deficit, roleLimit * baseBuildingCount - roleCount * 100);
 				}
 
-				if (!hasLimitedRole || deficit <= 0)
+				// A defense that is budgeted against no role at all - a pure high-value tower, since
+				// SpecialDefense is not a budget - is governed by the Total cap alone, so it inherits
+				// that headroom. Skipping it instead made it silently unbuildable: no error, no lint
+				// hit, the building simply never appeared.
+				if (!hasLimitedRole)
+					deficit = totalDeficit;
+
+				if (deficit <= 0)
 					continue;
 
 				if (!HasSufficientPowerForActor(actorInfo))
@@ -1433,20 +1430,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// throttled. A tower is capped by what it defends against; its worth steers selection.
 		/// </para>
 		/// </summary>
-		List<DefenseRole> GetDefenseRolesFromActor(ActorInfo actorInfo)
+		static List<DefenseRole> GetDefenseRolesFromActor(ActorInfo actorInfo)
 		{
 			var roles = new List<DefenseRole>();
 			foreach (var role in ParseDeclaredDefenseRoles(actorInfo))
 				if (role != DefenseRole.SpecialDefense && !roles.Contains(role))
 					roles.Add(role);
-
-			if (roles.Count > 0)
-				return roles;
-
-			var fallback = baseBuilder.Info.DefenseRoles
-				.FirstOrDefault(kv => kv.Value.Contains(actorInfo.Name)).Key;
-			if (fallback != DefenseRole.Default && fallback != DefenseRole.SpecialDefense)
-				roles.Add(fallback);
 
 			return roles;
 		}
@@ -1457,7 +1446,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// placement style (outermost radius on the enemy approach vector). Otherwise the first
 		/// declared role wins.
 		/// </summary>
-		DefenseRole GetDefenseRoleFromActor(ActorInfo actorInfo)
+		static DefenseRole GetDefenseRoleFromActor(ActorInfo actorInfo)
 		{
 			var first = DefenseRole.Default;
 			foreach (var role in ParseDeclaredDefenseRoles(actorInfo))
@@ -1469,11 +1458,7 @@ namespace OpenRA.Mods.Common.Traits
 					first = role;
 			}
 
-			if (first != DefenseRole.Default)
-				return first;
-
-			return baseBuilder.Info.DefenseRoles
-				.FirstOrDefault(kv => kv.Value.Contains(actorInfo.Name)).Key;
+			return first;
 		}
 
 		/// <summary>
