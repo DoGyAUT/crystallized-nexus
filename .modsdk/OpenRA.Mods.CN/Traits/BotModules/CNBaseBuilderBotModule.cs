@@ -210,8 +210,29 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Maximum percentage of total base buildings allowed per defense role.",
 			"Use key 'Total' to cap all defenses combined.",
-			"Example: Total: 25, AntiInf: 10 — max 25% of base can be defenses, of which max 10% are anti-infantry.")]
+			"Example: Total: 25, InfantryDefense: 10 — max 25% of base can be defenses, of which max 10% are anti-infantry.")]
 		public readonly FrozenDictionary<string, int> DefenseRoleLimits = null;
+
+		[Desc("Percent added to a defense role's limit while the combat analysis reports an active threat in that role.",
+			"Scales with how hard the role is pressed and falls away on its own as the threat weights decay.")]
+		public readonly int ThreatDefenseRoleBoostPct = 50;
+
+		[Desc("Percent added to the Total defense limit while any role is under threat, driven by the strongest one.",
+			"Damped relative to the role boost: without it Total stays the binding cap and the amount of defense",
+			"could not grow at all, but matching the role boost would turn the whole budget into towers.")]
+		public readonly int ThreatDefenseTotalBoostPct = 25;
+
+		[Desc("Threat weight at which the boosts above reach their full value, as a multiple of the combat analysis",
+			"ReactThreshold. Lower means the bot reacts to a light raid almost as strongly as to a full assault.")]
+		public readonly float ThreatDefenseSaturationFactor = 3f;
+
+		[Desc("Percent added to every defense limit for each usable way into the bot's bases beyond the first,",
+			"applied with no attack under way. A base with several approaches needs more defense than one with a",
+			"single choke. 0 disables proactive scaling.")]
+		public readonly int ChokepointDefenseBoostPct = 10;
+
+		[Desc("Upper bound on the percent the chokepoint boost may add.")]
+		public readonly int ChokepointDefenseBoostMaxPct = 40;
 
 		static object LoadDefenseRoles(MiniYaml yaml)
 		{
@@ -764,6 +785,9 @@ namespace OpenRA.Mods.Common.Traits
 		// Staleness window for the cached active BuildingFractions / DefenseRoleLimits tables.
 		const int ActiveTableMaxAgeTicks = 25;
 
+		// DefenseRoleLimits key capping all defenses together rather than a single role.
+		const string TotalDefenseLimitKey = "Total";
+
 		// Staleness window for the cached supported-refinery capacity sweep.
 		const int SupportedRefineryCapacityMaxAgeTicks = 50;
 
@@ -884,7 +908,7 @@ namespace OpenRA.Mods.Common.Traits
 		FrozenDictionary<string, int> cachedBuildingFractions;
 		FrozenDictionary<string, int> cachedDefenseRoleLimits;
 		(BotProfile Profile, TechStage Stage, bool UnderThreat) cachedFractionKey = (BotProfile.Adaptive, TechStage.Early, false);
-		(BotProfile Profile, TechStage Stage) cachedDefenseKey = (BotProfile.Adaptive, TechStage.Early);
+		(BotProfile Profile, TechStage Stage, bool UnderThreat) cachedDefenseKey = (BotProfile.Adaptive, TechStage.Early, false);
 		int cachedFractionTick = int.MinValue;
 		int cachedDefenseTick = int.MinValue;
 
@@ -980,7 +1004,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (profileModule == null)
 				return Info.DefenseRoleLimits;
 
-			var key = (ActiveProfile, ActiveTechStage);
+			// The threat flag is part of the key so an attack starting or ending takes effect at once
+			// rather than up to ActiveTableMaxAgeTicks later. Its magnitude is not: the threat weights
+			// move continuously and would defeat the cache entirely, so the staleness window carries
+			// that, which bounds it to well under a second.
+			var key = (ActiveProfile, ActiveTechStage, IsUnderActiveThreat());
 			if (cachedDefenseRoleLimits != null && cachedDefenseKey == key
 				&& world.WorldTick - cachedDefenseTick < ActiveTableMaxAgeTicks)
 				return cachedDefenseRoleLimits;
@@ -998,8 +1026,83 @@ namespace OpenRA.Mods.Common.Traits
 				: [];
 
 			ApplyProfileDefenseBudget(merged);
+			ApplyThreatDefenseBudget(merged);
+			ApplyChokepointDefenseBudget(merged);
 
 			return merged.ToFrozenDictionary();
+		}
+
+		/// <summary>
+		/// Reactive scaling: how much defense the bot is allowed to build depends on what is actually
+		/// happening to it. The limits are otherwise threat-blind - the same 25% Total applied whether
+		/// nothing had happened all game or three enemies were attacking at once, and only the profile
+		/// scaled them. A role being pressed gets more room, and Total grows with it so the amount can
+		/// rise rather than merely shift between roles.
+		/// <para>
+		/// Nothing here has to be undone: the boost is derived from the combat analysis weights every
+		/// time the table is rebuilt, so it fades out by itself as those weights decay.
+		/// </para>
+		/// </summary>
+		void ApplyThreatDefenseBudget(Dictionary<string, int> values)
+		{
+			if (combatAnalysis == null || combatAnalysis.IsTraitDisabled)
+				return;
+
+			if (Info.ThreatDefenseRoleBoostPct <= 0 && Info.ThreatDefenseTotalBoostPct <= 0)
+				return;
+
+			var strongest = 0f;
+			foreach (var key in values.Keys.ToArray())
+			{
+				if (key == TotalDefenseLimitKey)
+					continue;
+
+				if (!Enum.TryParse<DefenseRole>(key, true, out var role) || role == DefenseRole.Default)
+					continue;
+
+				var intensity = combatAnalysis.GetThreatIntensity(role, Info.ThreatDefenseSaturationFactor);
+				if (intensity <= 0f)
+					continue;
+
+				strongest = Math.Max(strongest, intensity);
+				values[key] = BoostLimit(values[key], Info.ThreatDefenseRoleBoostPct, intensity);
+			}
+
+			if (strongest > 0f && values.TryGetValue(TotalDefenseLimitKey, out var total))
+				values[TotalDefenseLimitKey] = BoostLimit(total, Info.ThreatDefenseTotalBoostPct, strongest);
+		}
+
+		/// <summary>
+		/// Proactive scaling: a base the enemy can walk into from four directions needs more defense
+		/// than one behind a single choke, and that is knowable before the first attack. Uses the same
+		/// chokepoint set the placement logic already works from, so this adds no new scan.
+		/// </summary>
+		void ApplyChokepointDefenseBudget(Dictionary<string, int> values)
+		{
+			if (Info.ChokepointDefenseBoostPct <= 0 || TacticalMapModule == null || !TacticalMapModule.TopologyReady)
+				return;
+
+			// One way in is the baseline the neutral limits already assume, so only the extra
+			// approaches count.
+			var extraApproaches = TacticalMapModule.GetUsefulChokepointsForOwnBase().Count - 1;
+			if (extraApproaches <= 0)
+				return;
+
+			var boostPct = Math.Min(Info.ChokepointDefenseBoostMaxPct, extraApproaches * Info.ChokepointDefenseBoostPct);
+			if (boostPct <= 0)
+				return;
+
+			foreach (var key in values.Keys.ToArray())
+				values[key] = BoostLimit(values[key], boostPct, 1f);
+		}
+
+		static int BoostLimit(int value, int boostPct, float scale)
+		{
+			if (boostPct <= 0 || scale <= 0f)
+				return value;
+
+			var boosted = value * (1f + boostPct / 100f * scale);
+			return Math.Max(1, (int)Math.Round(boosted, MidpointRounding.AwayFromZero));
 		}
 
 		void ApplyProfileBuildingBudget(Dictionary<string, int> values)
