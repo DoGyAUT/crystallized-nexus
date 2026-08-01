@@ -2763,3 +2763,5 @@ Actors:
 	Actor955: capyr02
 		Owner: Neutral
 		Location: 90,-57
+
+Rules:  cn|rules/TilesetPalettePresets/tem-wateronly-jade.yaml
