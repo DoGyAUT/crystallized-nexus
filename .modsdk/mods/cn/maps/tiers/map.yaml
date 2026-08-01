@@ -446,7 +446,7 @@ Actors:
 		Location: 61,0
 		Owner: Neutral
 
-Rules:
+Rules: cn|rules/TilesetPalettePresets/tem-wateronly-rosered.yaml
 	^BaseWorld:
 		TerrainLighting:
 			Intensity: 0.79

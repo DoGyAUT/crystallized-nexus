@@ -1138,7 +1138,7 @@ Actors:
 		Location: 112,77
 		Owner: Neutral
 
-Rules:
+Rules: cn|rules/TilesetPalettePresets/tem-wateronly-orange.yaml
 	World:
 		TerrainTunnelLayer:
 		ElevatedBridgeLayer:
