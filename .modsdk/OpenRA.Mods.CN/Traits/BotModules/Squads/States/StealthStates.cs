@@ -123,8 +123,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Default (not Raider) profile: stealth tanks are hard-hitting ambushers that should
 			// trade with an even or weaker enemy and only flee when injured/outgunned. The Raider
 			// profile fled even at full health against a healthy enemy, which made them too timid.
-			return ShouldFlee(squad, enemies =>
-				!CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
+			return ShouldFlee(squad, (friendlies, enemies) =>
+				CannotAttackEvenTogether(CNAttackOrFleeFuzzy.Default, squad, friendlies, enemies));
 		}
 	}
 

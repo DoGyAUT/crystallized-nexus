@@ -156,11 +156,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Percentage multiplier applied to the profile's TechBudget per named handicap tier",
 			"(Easy/Normal/Hard/Brutal, see CNHandicapTiers). 100 = no change. Missing tiers or an",
 			"empty dict leave TechBudget unscaled - this only affects difficulty, not bot profile.")]
-		public readonly Dictionary<string, int> TechBudgetDifficultyScale = new();
+		public readonly Dictionary<string, int> TechBudgetDifficultyScale = [];
 
 		[Desc("Percentage multiplier applied to MidTechTicks/LateTechTicks per named handicap tier.",
 			"Lower than 100 makes that difficulty reach tech stages sooner; 100 = no change.")]
-		public readonly Dictionary<string, int> TechTickDifficultyScale = new();
+		public readonly Dictionary<string, int> TechTickDifficultyScale = [];
 
 		[Desc("Rush profile budget shares: expansion, tech, defense, production.")]
 		public readonly int RushExpansionBudget = 12;

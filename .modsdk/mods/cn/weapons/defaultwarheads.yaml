@@ -267,7 +267,7 @@
 			Superheavy: 90
 			Shield: 80
 			Stability: 100
-		DamageTypes: ExplosionDeath, TriggerProne, Prone100Percent, BypassArmor
+		DamageTypes: BulletDeath, TriggerProne, Prone100Percent, BypassArmor
 
 ^SonicWarhead:
 	Warhead@1Dam: SpreadDamage
@@ -288,7 +288,7 @@
 			Superheavy: 30
 			Shield: 400
 			Stability: 500
-		DamageTypes: SmallExplosionDeath, TriggerProne, Prone100Percent
+		DamageTypes: BulletDeath, TriggerProne, Prone100Percent
 
 ^TiberiumWarhead:
 	Warhead@1Dam: SpreadDamage

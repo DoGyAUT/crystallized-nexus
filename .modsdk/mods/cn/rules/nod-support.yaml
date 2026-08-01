@@ -216,7 +216,7 @@ NAOBEL:
 	Power:
 		Amount: -150
 	BotCapabilities:
-		Capabilities: Defense, InfantryDefense, ArmorDefense, Special
+		Capabilities: Defense, InfantryDefense, ArmorDefense, SpecialDefense
 
 NALASR:
 	Inherits: ^Support

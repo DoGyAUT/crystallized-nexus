@@ -114,6 +114,7 @@ namespace OpenRA.Mods.CN.Traits
 	{
 		sealed class QueueReservation
 		{
+			public Actor QueueActor;
 			public string TemplateName;
 			public int LastProgressTick;
 		}
@@ -199,6 +200,7 @@ namespace OpenRA.Mods.CN.Traits
 				return;
 
 			var queuesByCategory = AIUtils.FindQueuesByCategory(player);
+			PruneDeadQueueReservations();
 			var existingByType = BuildExistingCounts(queuesByCategory);
 
 			// Under active attack with essentially nothing to defend with (no squads yet, or very few units
@@ -345,8 +347,7 @@ namespace OpenRA.Mods.CN.Traits
 			string preferredQueueCategory,
 			int committedCost)
 		{
-			ActorInfo best = null;
-			var bestScore = float.MinValue;
+			var candidates = new List<(ActorInfo Actor, int Score)>();
 
 			foreach (var (typeName, missingCount) in demand)
 			{
@@ -371,16 +372,31 @@ namespace OpenRA.Mods.CN.Traits
 				if (!HasBudgetFor(actorInfo, committedCost, queuesByCategory))
 					continue;
 
-				var score = (float)missingCount;
-
-				if (score > bestScore)
-				{
-					bestScore = score;
-					best = actorInfo;
-				}
+				candidates.Add((actorInfo, missingCount));
 			}
 
-			return best;
+			if (candidates.Count == 0)
+				return null;
+
+			// Weighted-random rather than a hard argmax, matching how template selection already works
+			// (WeightedTemplateOrder + TemplateSelectionSharpness) and what CLAUDE.md states the bot
+			// should do: use everything continuously, with demand as a light bias only.
+			//
+			// Argmax was pathological here because competing units of the same category end up with
+			// near-identical demand scores — observed live: gmisinf 16540, e2 16539, gasol 16140. A
+			// single point of lead handed that queue to one type permanently, and the runners-up were
+			// never built at all. That included the infantry types transport templates recruit as
+			// passengers, which is why loading APCs sat at "wanted=4 pool=0" indefinitely.
+			if (squadManager != null && !squadManager.IsTraitDisabled)
+				return squadManager.WeightedTemplateOrder(candidates, c => c.Score)[0].Actor;
+
+			// No squad manager available: keep the previous highest-demand-wins behaviour.
+			var fallback = candidates[0];
+			foreach (var candidate in candidates)
+				if (candidate.Score > fallback.Score)
+					fallback = candidate;
+
+			return fallback.Actor;
 		}
 
 		// True if the bot has essentially nothing to defend itself with: no squads formed yet, or very few
@@ -438,7 +454,6 @@ namespace OpenRA.Mods.CN.Traits
 			ILookup<string, ProductionQueue> queuesByCategory,
 			Dictionary<string, int> existingByType)
 		{
-			var builtAny = false;
 			var committedCost = 0;
 
 			foreach (var category in Info.UnitQueues)
@@ -461,12 +476,8 @@ namespace OpenRA.Mods.CN.Traits
 
 					existingByType[unit.Name] = existingByType.GetValueOrDefault(unit.Name) + 1;
 					committedCost += unit.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
-					builtAny = true;
 				}
 			}
-
-			if (builtAny)
-				return;
 		}
 
 		ActorInfo ChooseFallbackUnit(ProductionQueue queue, Dictionary<string, int> existingByType)
@@ -586,6 +597,13 @@ namespace OpenRA.Mods.CN.Traits
 			var result = new List<ProductionQueue>();
 			foreach (var queue in queuesByCategory[queueType])
 			{
+				// NOTE: `>`, not `>=` — deliberate, do not "fix" this again. The comparison is
+				// off-by-one relative to the constant names: BaseMaxQueuedItemsPerQueue = 1 actually
+				// permits two items in flight, EconomyOverflowMaxQueuedItemsPerQueue = 2 permits three.
+				// That extra slot is what keeps a factory from idling between units — production only
+				// tops queues up every FeedbackTime ticks, so at a true depth of one the factory sits
+				// dead for up to that long after each unit completes. The mod's build rates are tuned
+				// against this behaviour; tightening it to >= measurably cut unit output.
 				if (queue.AllQueued().Count() > GetMaxQueuedItemsPerQueue())
 					continue;
 
@@ -643,11 +661,32 @@ namespace OpenRA.Mods.CN.Traits
 			return true;
 		}
 
+		// Drops reservations belonging to production buildings that no longer exist. A reservation is
+		// only released when its template is finished or stalls, so a factory destroyed mid-reservation
+		// left its entry behind forever — and CountReservedTemplateQueues kept counting that phantom
+		// against GetEffectiveMaxInstances, which permanently stopped the bot from building that
+		// template once enough factories had been lost over a long game.
+		// Keyed on the owning actor rather than on presence in queuesByCategory: that lookup drops
+		// queues whose trait is merely disabled (low power), and a temporary power-down should not
+		// throw away a reservation the bot is still working toward.
+		void PruneDeadQueueReservations()
+		{
+			if (queueReservations.Count == 0)
+				return;
+
+			foreach (var (actorId, reservation) in queueReservations.ToList())
+			{
+				var queueActor = reservation.QueueActor;
+				if (queueActor == null || queueActor.IsDead || !queueActor.IsInWorld || queueActor.Disposed)
+					queueReservations.Remove(actorId);
+			}
+		}
+
 		QueueReservation GetOrCreateReservation(ProductionQueue queue)
 		{
 			if (!queueReservations.TryGetValue(queue.Actor.ActorID, out var reservation))
 			{
-				reservation = new QueueReservation { LastProgressTick = world.WorldTick };
+				reservation = new QueueReservation { QueueActor = queue.Actor, LastProgressTick = world.WorldTick };
 				queueReservations.Add(queue.Actor.ActorID, reservation);
 			}
 
@@ -721,14 +760,29 @@ namespace OpenRA.Mods.CN.Traits
 				// Boost priority for squads we will actually reinforce:
 				// forming squads (not yet operational) and home-role squads.
 				// Operational attack squads are skipped — we don't reinforce them.
+				// Transports still loading at base count too, mirroring GetReservedTemplateBuild:
+				// otherwise a half-loaded transport is classified as a "fresh" template rather than a
+				// deficit, and loses the priority that finishing a started squad is supposed to get.
 				if (!squad.IsValid ||
-					(squad.IsOperational && !squad.AllowsOperationalReinforcement) ||
+					(squad.IsOperational && !squad.AllowsOperationalReinforcement && !squad.AcceptingPassengers) ||
 					!string.Equals(squad.TemplateName, templateName, StringComparison.OrdinalIgnoreCase))
 					continue;
 
 				foreach (var assignment in OrderedAssignments(squad.SlotAssignments))
 				{
 					if (assignment.MissingCount <= 0 || assignment.SlotInfo.IsPassenger)
+						continue;
+
+					if (SelectBuildableType(queue, assignment.SlotInfo, existingByType) != null)
+						return true;
+				}
+
+				if (!squad.AcceptingPassengers)
+					continue;
+
+				foreach (var assignment in squad.SlotAssignments)
+				{
+					if (!assignment.SlotInfo.IsPassenger || assignment.MissingToRecruit <= 0)
 						continue;
 
 					if (SelectBuildableType(queue, assignment.SlotInfo, existingByType) != null)
@@ -747,10 +801,18 @@ namespace OpenRA.Mods.CN.Traits
 			if (!squadManager.Info.Teams.TryGetValue(templateName, out var template) || !TemplateAppliesToFaction(template))
 				return null;
 
+			// AcceptingPassengers widens the filter on purpose. A transport squad whose carrier slot is
+			// filled counts as operational (MinSlotsToActivate is 1 for the APC templates) and does not
+			// allow operational reinforcement, so it used to be excluded here entirely — while every
+			// passenger slot below is skipped as well. The reservation path was therefore completely
+			// blind to a loading transport's missing infantry, and since BuildDemand hands each queue to
+			// the reservation first and only falls through to the passenger-aware demand path when the
+			// reservation yields nothing, transports simply never got topped up. They departed on the
+			// MaxLoadTicks timeout with whatever they were formed with.
 			foreach (var squad in squadManager.Squads
 				.Where(s => s.IsValid &&
 					string.Equals(s.TemplateName, templateName, StringComparison.OrdinalIgnoreCase) &&
-					(!s.IsOperational || s.AllowsOperationalReinforcement))
+					(!s.IsOperational || s.AllowsOperationalReinforcement || s.AcceptingPassengers))
 				.OrderBy(s => s.IsOperational ? 1 : 0)
 				.ThenByDescending(s => s.TemplateInfo != null ? squadManager.GetEffectiveScore(s.TemplateInfo) : 0))
 			{
@@ -762,6 +824,22 @@ namespace OpenRA.Mods.CN.Traits
 					var reservedType = SelectBuildableType(queue, assignment.SlotInfo, existingByType);
 					if (reservedType != null)
 						return reservedType;
+				}
+
+				// Passengers are handled separately: OrderedAssignments deliberately omits them (they are
+				// not squad Units), and the deficit must be measured with MissingToRecruit, since a boarded
+				// passenger has left the world and no longer shows up in MissingCount.
+				if (!squad.AcceptingPassengers)
+					continue;
+
+				foreach (var assignment in squad.SlotAssignments)
+				{
+					if (!assignment.SlotInfo.IsPassenger || assignment.MissingToRecruit <= 0)
+						continue;
+
+					var passengerType = SelectBuildableType(queue, assignment.SlotInfo, existingByType);
+					if (passengerType != null)
+						return passengerType;
 				}
 			}
 
@@ -867,8 +945,15 @@ namespace OpenRA.Mods.CN.Traits
 		bool HasBudgetFor(ActorInfo actorInfo, int committedCost, ILookup<string, ProductionQueue> queuesByCategory)
 		{
 			var cost = actorInfo.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+
+			// Rare/expensive high-priority units (IgnoresCashReserve templates) skip the reserve buffer -
+			// they'd otherwise almost never clear DesiredCashReserve against cheaper, more frequent demand.
+			var skipsReserve = squadManager != null && !squadManager.IsTraitDisabled &&
+				squadManager.GetTypesIgnoringCashReserve().Contains(actorInfo.Name);
+			var reserve = skipsReserve ? 0 : GetDesiredReserve(queuesByCategory);
+
 			return playerResources.GetCashAndResources() >=
-				GetActiveProductionMinCashRequirement() + GetDesiredReserve(queuesByCategory) + committedCost + cost;
+				GetActiveProductionMinCashRequirement() + reserve + committedCost + cost;
 		}
 
 		bool HasReservationBudget(ActorInfo actorInfo, int committedCost, ILookup<string, ProductionQueue> queuesByCategory)

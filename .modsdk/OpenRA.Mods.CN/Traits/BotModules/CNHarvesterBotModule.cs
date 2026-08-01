@@ -413,7 +413,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in toRemove)
 			{
 				harvesters.Remove(a);
-				harvesterRefineryAssignment.Remove(a);
+				ClearHarvesterRefinery(a);
 			}
 
 			var newHarvesters = world.ActorsHavingTrait<Harvester>().Where(a => !unitCannotBeOrdered(a) && !harvesters.ContainsKey(a));
@@ -493,7 +493,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Clear stale assignment before scoring so this harvester doesn't penalise its own old refinery.
-			harvesterRefineryAssignment.Remove(h.Actor);
+			ClearHarvesterRefinery(h.Actor);
 			var refineryAnchor = FindBestRefineryAnchor(h.Actor, h);
 			var newSafeResourcePatch = FindNextResource(h.Actor, h, refineryAnchor);
 			AIUtils.BotDebug($"CN AI: Harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
@@ -505,7 +505,7 @@ namespace OpenRA.Mods.Common.Traits
 					assignedRefinery = FindBestRefineryForResource(h.Actor, h.DockClientManager, world.Map.CellContaining(newSafeResourcePatch.CenterPosition), out _);
 
 				if (assignedRefinery != null)
-					harvesterRefineryAssignment[h.Actor] = assignedRefinery;
+					SetHarvesterRefinery(h.Actor, assignedRefinery);
 			}
 			else
 				h.NoResourcesCooldown = Info.ScanIntervalMultiplerWhenNoResources;
@@ -524,7 +524,10 @@ namespace OpenRA.Mods.Common.Traits
 				.Select(kvp => kvp.Key);
 
 			var avoidanceCostForBin = new Dictionary<int2, int>();
-			var cellRadius = Info.HarvesterEnemyAvoidanceRadius.Length / 1024;
+
+			// Clamped to >= 1: this is the divisor in CellToBin, so a HarvesterEnemyAvoidanceRadius
+			// configured below one cell would throw DivideByZeroException on the first path search.
+			var cellRadius = Math.Max(1, Info.HarvesterEnemyAvoidanceRadius.Length / 1024);
 			var minCellCost = harv.Mobile.Locomotor.Info.TerrainSpeeds.Values.Min(ti => ti.Cost);
 			var cellCostMultiplier = Info.HarvesterEnemyAvoidanceCostMultipler;
 
@@ -595,7 +598,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				score -= dock.ReservationCount * Info.RefineryOccupancyPenalty;
-				var persistentAssigned = harvesterRefineryAssignment.Values.Count(r => r == refinery);
+				var persistentAssigned = CountAssignedHarvesters(refinery);
 				score -= persistentAssigned * Info.RefineryOccupancyPenalty;
 				var busyHarvesterCount = CountBusyHarvestersNearRefinery(refinery, actor);
 				score -= busyHarvesterCount * Info.BusyRefineryNearbyHarvesterPenalty;
@@ -636,7 +639,7 @@ namespace OpenRA.Mods.Common.Traits
 					score += Info.RespawningFieldBonus / 2;
 
 				var dockPressure = dock.ReservationCount;
-				var persistentAssigned = harvesterRefineryAssignment.Values.Count(r => r == refinery);
+				var persistentAssigned = CountAssignedHarvesters(refinery);
 				var busyHarvesterCount = CountBusyHarvestersNearRefinery(refinery, actor);
 				dockPressure += persistentAssigned;
 
@@ -668,7 +671,7 @@ namespace OpenRA.Mods.Common.Traits
 					.FirstOrDefault(host => dockClientManager != null && dockClientManager.CanDockAt(best, host, false, true));
 
 				if (bestDock != null &&
-					(bestBusy > 0 || bestDock.ReservationCount > 0 || harvesterRefineryAssignment.Values.Any(r => r == best)) &&
+					(bestBusy > 0 || bestDock.ReservationCount > 0 || CountAssignedHarvesters(best) > 0) &&
 					bestFreeDistance <= bestDistance + Info.FreeRefineryDistanceSlack)
 				{
 					return bestFree;
@@ -710,7 +713,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			score -= dock.ReservationCount * Info.RefineryOccupancyPenalty;
-			var persistentAssigned = harvesterRefineryAssignment.Values.Count(r => r == refinery);
+			var persistentAssigned = CountAssignedHarvesters(refinery);
 			score -= persistentAssigned * Info.RefineryOccupancyPenalty;
 			var busyHarvesterCount = CountBusyHarvestersNearRefinery(refinery, actor);
 			score -= busyHarvesterCount * Info.BusyRefineryNearbyHarvesterPenalty;
@@ -760,32 +763,100 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		int CountBusyHarvestersNearRefinery(Actor refinery, Actor requester)
+		// Per-tick cache of "which harvesters are tying up which refinery". Rebuilding this per query
+		// meant a full world-wide ActorsWithTrait<Harvester>() scan for every candidate refinery, inside
+		// a loop over every refinery, for every harvester scored — roughly O(harvesters² x refineries)
+		// worth of world scans every ScanForDockReassignmentInterval ticks. One scan per tick now serves
+		// every caller. Same for the persistent-assignment tally, which was an O(n) Count() per refinery.
+		int busyCacheTick = -1;
+		readonly Dictionary<Actor, HashSet<Actor>> busyHarvestersByRefinery = [];
+
+		void RefreshRefineryPressureCache()
 		{
-			var count = 0;
-			var radius = WDist.FromCells(Math.Max(1, Info.BusyRefineryNearbyHarvesterRadius));
+			if (busyCacheTick == world.WorldTick)
+				return;
+
+			busyCacheTick = world.WorldTick;
+			busyHarvestersByRefinery.Clear();
+
+			var liveRefineries = new List<Actor>();
+			foreach (var refinery in refineries.Actors)
+				if (!refinery.IsDead && refinery.IsInWorld)
+					liveRefineries.Add(refinery);
+
+			if (liveRefineries.Count == 0)
+				return;
+
+			var radius = WDist.FromCells(Math.Max(1, Info.BusyRefineryNearbyHarvesterRadius)).Length;
+			var radiusSq = (long)radius * radius;
+
 			foreach (var pair in world.ActorsWithTrait<Harvester>())
 			{
 				var harvActor = pair.Actor;
-				if (harvActor == requester || harvActor.Owner != player || harvActor.IsDead || !harvActor.IsInWorld)
+				if (harvActor.Owner != player || harvActor.IsDead || !harvActor.IsInWorld)
 					continue;
 
-				var harvester = pair.Trait;
-				var dockClientManager = harvActor.TraitOrDefault<DockClientManager>();
-				var reservedHere = dockClientManager?.ReservedHostActor == refinery;
-				var nearby = (harvActor.CenterPosition - refinery.CenterPosition).Length <= radius.Length;
-				if (!reservedHere && !nearby)
-					continue;
+				var reserved = harvActor.TraitOrDefault<DockClientManager>()?.ReservedHostActor;
+				var isEmpty = pair.Trait.IsEmpty;
 
-				// Treat both unloading and already-waiting harvesters as busy even after they start
-				// shedding load, because they still occupy the same dock queue.
-				if (harvester.IsEmpty && !reservedHere)
-					continue;
+				foreach (var refinery in liveRefineries)
+				{
+					var reservedHere = reserved == refinery;
+					var nearby = (harvActor.CenterPosition - refinery.CenterPosition).HorizontalLengthSquared <= radiusSq;
+					if (!reservedHere && !nearby)
+						continue;
 
-				count++;
+					// Treat both unloading and already-waiting harvesters as busy even after they start
+					// shedding load, because they still occupy the same dock queue.
+					if (isEmpty && !reservedHere)
+						continue;
+
+					if (!busyHarvestersByRefinery.TryGetValue(refinery, out var set))
+						busyHarvestersByRefinery[refinery] = set = [];
+
+					set.Add(harvActor);
+				}
 			}
+		}
 
-			return count;
+		int CountBusyHarvestersNearRefinery(Actor refinery, Actor requester)
+		{
+			RefreshRefineryPressureCache();
+
+			if (!busyHarvestersByRefinery.TryGetValue(refinery, out var busy))
+				return 0;
+
+			// The requester never counts against itself.
+			return requester != null && busy.Contains(requester) ? busy.Count - 1 : busy.Count;
+		}
+
+		// Live tally kept in lockstep with harvesterRefineryAssignment rather than cached per tick:
+		// HarvestIfAble deliberately clears its own harvester's assignment mid-tick before scoring, so
+		// that it doesn't penalise its own previous refinery — a per-tick snapshot would hide that.
+		readonly Dictionary<Actor, int> assignedHarvestersByRefinery = [];
+
+		int CountAssignedHarvesters(Actor refinery) => assignedHarvestersByRefinery.GetValueOrDefault(refinery);
+
+		void SetHarvesterRefinery(Actor harvester, Actor refinery)
+		{
+			ClearHarvesterRefinery(harvester);
+			if (refinery == null)
+				return;
+
+			harvesterRefineryAssignment[harvester] = refinery;
+			assignedHarvestersByRefinery[refinery] = assignedHarvestersByRefinery.GetValueOrDefault(refinery) + 1;
+		}
+
+		void ClearHarvesterRefinery(Actor harvester)
+		{
+			if (!harvesterRefineryAssignment.Remove(harvester, out var previous) || previous == null)
+				return;
+
+			var remaining = assignedHarvestersByRefinery.GetValueOrDefault(previous) - 1;
+			if (remaining > 0)
+				assignedHarvestersByRefinery[previous] = remaining;
+			else
+				assignedHarvestersByRefinery.Remove(previous);
 		}
 
 		void INotifyActorDisposing.Disposing(Actor self)

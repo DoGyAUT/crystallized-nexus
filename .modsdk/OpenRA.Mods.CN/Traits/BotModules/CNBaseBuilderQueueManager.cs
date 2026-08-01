@@ -21,6 +21,13 @@ namespace OpenRA.Mods.Common.Traits
 {
 	sealed class CNBaseBuilderQueueManager
 	{
+		// How many bases one build order may try before giving up for this pass.
+		const int MaxBasePlacementAttempts = 3;
+
+		// Deficit used for a building that fills a base's capability floor: above any real fraction deficit,
+		// so filling the floor wins over topping up a category that is merely below its share.
+		const int CapabilityFloorDeficit = int.MaxValue / 2;
+
 		public readonly string Category;
 		public int WaitTicks;
 
@@ -115,10 +122,12 @@ namespace OpenRA.Mods.Common.Traits
 					var currentBuildings = baseBuilder.GetCachedPlayerBuildings().Count;
 					var baseProviders = world.ActorsHavingTrait<BaseProvider>().Count(a => a.Owner == player);
 
+					// The retry delay is armed in both cases. Only the failure branch used to reset it,
+					// so after a successful recovery failRetryTicks stayed at or below zero and the next
+					// time the queue got stuck the check fired on every single tick instead of waiting.
+					failRetryTicks = baseBuilder.Info.StructureProductionResumeDelay;
 					if (currentBuildings < cachedBuildings || baseProviders > cachedBases)
 						failCount = 0;
-					else
-						failRetryTicks = baseBuilder.Info.StructureProductionResumeDelay;
 				}
 
 				if (failCount >= baseBuilder.Info.MaximumFailedPlacementAttempts)
@@ -647,7 +656,15 @@ namespace OpenRA.Mods.Common.Traits
 						lastFailedBuilding = currentBuilding.Item;
 						if (type == BuildingType.Defense)
 							defensePlacementCooldownTicks = 120;
-						if (baseBuilder.BaseExpansionModules == null)
+
+						// Length == 0, not == null: BaseExpansionModules is assigned in Created() from
+						// TraitsImplementing<IBotBaseExpansion>().ToArray() and is therefore never null —
+						// at worst an empty array. The old null check made this branch dead code, so
+						// cachedBuildings stayed at 0 forever while Tick's recovery path compares
+						// `currentBuildings < cachedBuildings` against it. That condition can never hold
+						// for a bot without an expansion module, leaving its build queue wedged until a
+						// new BaseProvider happens to appear.
+						if (baseBuilder.BaseExpansionModules == null || baseBuilder.BaseExpansionModules.Length == 0)
 						{
 							cachedBuildings = baseBuilder.GetCachedPlayerBuildings().Count;
 							cachedBases = world.ActorsHavingTrait<BaseProvider>().Count(a => a.Owner == player);
@@ -1063,8 +1080,13 @@ namespace OpenRA.Mods.Common.Traits
 						foreach (var tag in caps)
 							tagDefenseCounts[tag] = (tagDefenseCounts.TryGetValue(tag, out var tc) ? tc : 0) + 1;
 
-					var dr = GetDefenseRoleFromActor(a.Info);
-					if (dr != DefenseRole.Default)
+					// A defense counts towards every threat role it covers, not just its primary one.
+					// The candidate lookups match on any capability tag, so counting only one of them
+					// would let a multi-role building answer a role it never fills up (an Obelisk
+					// tagged InfantryDefense/ArmorDefense used to raise one count alone and stayed
+					// eligible for the other forever). SpecialDefense is not among them - see
+					// GetDefenseRolesFromActor.
+					foreach (var dr in GetDefenseRolesFromActor(a.Info))
 						roleDefenseCounts[dr] = (roleDefenseCounts.TryGetValue(dr, out var rc) ? rc : 0) + 1;
 				}
 			}
@@ -1073,7 +1095,7 @@ namespace OpenRA.Mods.Common.Traits
 			// then fall back to the global combat analysis trend.
 			var ca = player.PlayerActor.TraitsImplementing<CombatAnalysisBotModule>()
 				.FirstOrDefault(m => !m.IsTraitDisabled);
-			var defenseCenterForThreat = baseBuilder.DefenseCenter == default ? baseBuilder.GetRandomBaseCenter() : baseBuilder.DefenseCenter;
+			var defenseCenterForThreat = baseBuilder.GetDefenseReference(baseBuilder.GetRandomBaseCenter());
 			var hotspotRole = baseBuilder.GetBestDefenseHotspotRole(defenseCenterForThreat);
 			var reactiveRole = hotspotRole != DefenseRole.Default
 				? hotspotRole
@@ -1132,8 +1154,14 @@ namespace OpenRA.Mods.Common.Traits
 				// Check the number of this structure and its variants
 				var count = CountExistingAndQueuedBuilding(name);
 
+				// A base still missing one of its guaranteed capabilities may build past the global fraction
+				// cap. The cap is measured against ALL bases, so without this the redundancy floor fails
+				// exactly when it matters: the main base holds the whole quota and the expansion, however
+				// exposed, never gets its first barracks. Bounded per base, and BuildingLimits still apply.
+				var capabilityFloorException = baseBuilder.AllowsCapabilityFloorException(name);
+
 				// Do we want to build this structure?
-				if (count * 100 > frac.Value * playerBuildings.Length)
+				if (count * 100 > frac.Value * playerBuildings.Length && !capabilityFloorException)
 					continue;
 
 				if (baseBuilder.Info.BuildingLimits.TryGetValue(name, out var limit) && baseBuilder.GetScaledBuildingLimit(limit) <= count)
@@ -1161,16 +1189,9 @@ namespace OpenRA.Mods.Common.Traits
 
 						if (hitLimit) continue;
 					}
-					else
-					{
-						// Fallback: DefenseRoles-based check for actors without BotCapabilities.
-						var role = GetDefenseRoleFromActor(actor);
-						if (role != DefenseRole.Default &&
-							activeDefLimits.TryGetValue(role.ToString(), out var roleLimit) &&
-							roleDefenseCounts != null && roleDefenseCounts.TryGetValue(role, out var roleCnt) &&
-							roleCnt * 100 >= roleLimit * playerBuildings.Length)
-							continue;
-					}
+
+					// A defense without BotCapabilities declares no role at all, so only the Total cap
+					// (checked above) governs it.
 				}
 
 				// If we're considering to build a naval structure, check whether there is enough water inside the base perimeter
@@ -1185,7 +1206,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (baseBuilder.Info.VeinsOnlyBuildingTypes.Contains(name) && !baseBuilder.HasVeinResources())
 					continue;
 
-				var deficit = frac.Value * baseBuildingCount - count * 100;
+				// A floor exception has to outrank the normal deficits as well, otherwise it is inert: the
+				// type it applies to is by definition over its share and would always sort last.
+				var deficit = capabilityFloorException
+					? CapabilityFloorDeficit
+					: frac.Value * baseBuildingCount - count * 100;
 				if (deficit < bestFractionDeficit)
 					continue;
 
@@ -1242,21 +1267,29 @@ namespace OpenRA.Mods.Common.Traits
 			if (role == DefenseRole.Default)
 				return null;
 
-			// Find candidates by BotCapabilities tag matching the role enum name,
-			// with fallback to the DefenseRoles dictionary.
+			// Find candidates by BotCapabilities tag matching the role enum name.
 			var roleStr = role.ToString();
 			var candidates = buildableThings
-				.Where(b =>
-				{
-					var caps = b.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
-					if (caps != null)
-						return caps.Contains(roleStr);
-					return baseBuilder.Info.DefenseRoles.TryGetValue(role, out var types) && types.Contains(b.Name);
-				})
+				.Where(b => b.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains(roleStr) ?? false)
 				.ToList();
 
 			if (candidates.Count == 0)
 				return null;
+
+			// The loop below returns the first candidate that passes, so the order IS the decision.
+			// Unordered, that was whichever the production queue happened to list first, forever: for
+			// any role several towers can fill, the first one answered every reactive build and the
+			// rest never got a turn - gamg took every InfantryDefense call with gagat sitting behind
+			// it, gacan every ArmorDefense call ahead of gasen and gamortar.
+			//
+			// Rarity is the same preference ChoosePlannedDefense already applies on a tie, so the two
+			// paths no longer disagree about what to build. Worth leads it while under threat, which
+			// is what the SpecialDefense tag buys now that it no longer blocks a budget.
+			var preferHighValue = baseBuilder.IsUnderActiveThreat();
+			candidates = candidates
+				.OrderByDescending(a => preferHighValue && IsHighValueDefense(a))
+				.ThenBy(a => CountExistingAndQueuedBuilding(a.Name))
+				.ToList();
 
 			var reactiveDefLimits = baseBuilder.GetActiveDefenseRoleLimits();
 
@@ -1279,10 +1312,34 @@ namespace OpenRA.Mods.Common.Traits
 				if (!HasSufficientPowerForActor(actorInfo))
 					continue;
 
+				// The requested role still has room, but this candidate may cover other roles that are
+				// already full. Checking only the requested one would let an expensive multi-role
+				// building spend a cheap role's budget long after its own role ran out.
+				if (reactiveDefLimits != null && IsAnyDefenseRoleFull(actorInfo, reactiveDefLimits, roleDefenseCounts))
+					continue;
+
 				return actorInfo;
 			}
 
 			return null;
+		}
+
+		/// <summary>True if any role this defense covers is at or above its share of the base.</summary>
+		bool IsAnyDefenseRoleFull(ActorInfo actorInfo, IReadOnlyDictionary<string, int> defLimits,
+			Dictionary<DefenseRole, int> roleDefenseCounts)
+		{
+			foreach (var r in GetDefenseRolesFromActor(actorInfo))
+			{
+				if (!defLimits.TryGetValue(r.ToString(), out var limit))
+					continue;
+
+				var count = 0;
+				roleDefenseCounts?.TryGetValue(r, out count);
+				if (count * 100 >= limit * playerBuildings.Length)
+					return true;
+			}
+
+			return false;
 		}
 
 		ActorInfo ChoosePlannedDefense(
@@ -1295,65 +1352,177 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 
 			var baseBuildingCount = Math.Max(1, playerBuildings.Length);
-			if (activeDefLimits.TryGetValue("Total", out var totalLimit) &&
-				totalDefenseCount * 100 >= totalLimit * baseBuildingCount)
-				return null;
+			var totalDeficit = int.MaxValue;
+			if (activeDefLimits.TryGetValue(CNBaseBuilderBotModule.TotalDefenseLimitKey, out var totalLimit))
+			{
+				totalDeficit = totalLimit * baseBuildingCount - totalDefenseCount * 100;
+				if (totalDeficit <= 0)
+					return null;
+			}
 
 			ActorInfo bestActor = null;
 			var bestDeficit = int.MinValue;
 			var bestTypeCount = int.MaxValue;
+			var bestHighValue = false;
+
+			// Worth only breaks ties while something is actually attacking. Outside a threat the bot
+			// keeps spreading its defenses by deficit and rarity, so it does not sink its whole
+			// defense budget into the most expensive tower during a quiet build-up.
+			var preferHighValue = baseBuilder.IsUnderActiveThreat();
 
 			foreach (var actorInfo in buildableThings.Where(a => baseBuilder.Info.DefenseTypes.Contains(a.Name)))
 			{
-				var role = GetDefenseRoleFromActor(actorInfo);
-				if (role == DefenseRole.Default)
-					continue;
+				// Rate a multi-role defense by its scarcest role: it is blocked as soon as any of the
+				// roles it covers is at its limit, so its deficit has to be the smallest one as well.
+				// Otherwise a building would keep winning on a role it is no longer allowed to fill.
+				var deficit = int.MaxValue;
+				var hasLimitedRole = false;
+				foreach (var role in GetDefenseRolesFromActor(actorInfo))
+				{
+					if (!activeDefLimits.TryGetValue(role.ToString(), out var roleLimit))
+						continue;
 
-				if (!activeDefLimits.TryGetValue(role.ToString(), out var roleLimit))
-					continue;
+					var roleCount = 0;
+					roleDefenseCounts?.TryGetValue(role, out roleCount);
+					hasLimitedRole = true;
+					deficit = Math.Min(deficit, roleLimit * baseBuildingCount - roleCount * 100);
+				}
 
-				var roleCount = 0;
-				roleDefenseCounts?.TryGetValue(role, out roleCount);
-				if (roleCount * 100 >= roleLimit * baseBuildingCount)
+				// A defense that is budgeted against no role at all - a pure high-value tower, since
+				// SpecialDefense is not a budget - is governed by the Total cap alone, so it inherits
+				// that headroom. Skipping it instead made it silently unbuildable: no error, no lint
+				// hit, the building simply never appeared.
+				if (!hasLimitedRole)
+					deficit = totalDeficit;
+
+				if (deficit <= 0)
 					continue;
 
 				if (!HasSufficientPowerForActor(actorInfo))
 					continue;
 
 				var typeCount = CountExistingAndQueuedBuilding(actorInfo.Name);
-				var deficit = roleLimit * baseBuildingCount - roleCount * 100;
+				var highValue = preferHighValue && IsHighValueDefense(actorInfo);
+
 				if (deficit < bestDeficit)
 					continue;
 
-				if (deficit == bestDeficit && typeCount >= bestTypeCount)
-					continue;
+				if (deficit == bestDeficit)
+				{
+					if (highValue != bestHighValue)
+					{
+						if (!highValue)
+							continue;
+					}
+					else if (typeCount >= bestTypeCount)
+						continue;
+				}
 
 				bestActor = actorInfo;
 				bestDeficit = deficit;
 				bestTypeCount = typeCount;
+				bestHighValue = highValue;
 			}
 
 			return bestActor;
 		}
 
-		DefenseRole GetDefenseRoleFromActor(ActorInfo actorInfo)
+		/// <summary>
+		/// Every defense role this actor is BUDGETED against: the role limits are budgets, and a
+		/// building occupies a slot in each threat it can answer. Placement needs a single role
+		/// instead (see <see cref="GetDefenseRoleFromActor"/>).
+		/// <para>
+		/// SpecialDefense is deliberately absent. It marks a high-value tower rather than a threat
+		/// answered, so as a budget it could only ever subtract: every high-value tower of both
+		/// factions shared one narrow cap, and the more threats a tower covered the harder it was
+		/// throttled. A tower is capped by what it defends against; its worth steers selection.
+		/// </para>
+		/// </summary>
+		static List<DefenseRole> GetDefenseRolesFromActor(ActorInfo actorInfo)
 		{
-			var caps = actorInfo.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
-			if (caps != null)
-			{
-				var result = DefenseRole.Default;
-				foreach (var tag in caps)
-					if (Enum.TryParse<DefenseRole>(tag, true, out var r) && r != DefenseRole.Default)
-						result = r;
-				if (result != DefenseRole.Default)
-					return result;
-			}
+			var roles = new List<DefenseRole>();
+			foreach (var role in ParseDeclaredDefenseRoles(actorInfo))
+				if (role != DefenseRole.SpecialDefense && !roles.Contains(role))
+					roles.Add(role);
 
-			return baseBuilder.Info.DefenseRoles
-				.FirstOrDefault(kv => kv.Value.Contains(actorInfo.Name)).Key;
+			return roles;
 		}
 
+		/// <summary>
+		/// The single role that decides how this defense is PLACED. SpecialDefense wins when present:
+		/// it is the most specific statement a building makes about itself and carries its own
+		/// placement style (outermost radius on the enemy approach vector). Otherwise the first
+		/// declared role wins.
+		/// </summary>
+		static DefenseRole GetDefenseRoleFromActor(ActorInfo actorInfo)
+		{
+			var first = DefenseRole.Default;
+			foreach (var role in ParseDeclaredDefenseRoles(actorInfo))
+			{
+				if (role == DefenseRole.SpecialDefense)
+					return role;
+
+				if (first == DefenseRole.Default)
+					first = role;
+			}
+
+			return first;
+		}
+
+		/// <summary>
+		/// Defense roles in the order the actor declares them. Reads the Capabilities array rather
+		/// than CapabilitySet: the set is a HashSet whose enumeration order is not guaranteed, and
+		/// the placement role used to be whichever parseable tag it happened to see last.
+		/// </summary>
+		static IEnumerable<DefenseRole> ParseDeclaredDefenseRoles(ActorInfo actorInfo)
+		{
+			var caps = actorInfo.TraitInfoOrDefault<BotCapabilitiesInfo>()?.Capabilities;
+			if (caps == null)
+				yield break;
+
+			foreach (var tag in caps)
+				if (Enum.TryParse<DefenseRole>(tag, true, out var role) && role != DefenseRole.Default)
+					yield return role;
+		}
+
+		/// <summary>True if this defense declares itself a high-value tower.</summary>
+		static bool IsHighValueDefense(ActorInfo actorInfo)
+		{
+			foreach (var role in ParseDeclaredDefenseRoles(actorInfo))
+				if (role == DefenseRole.SpecialDefense)
+					return true;
+
+			return false;
+		}
+
+		// Pick the base this building belongs to, then place it there. If that base has no room the next
+		// base in the preference order gets a try, so a full main base does not stall the whole queue.
 		(CPos? Location, CPos? BaseCenter, int Variant) ChooseBuildLocation(string actorType, bool distanceToBaseIsImportant, BuildingType type)
+		{
+			baseBuilder.Info.BuildingLayouts.TryGetValue(actorType, out var entry);
+			var orderedBases = baseBuilder.GetOrderedBasesForBuilding(actorType, type, entry?.NearBuilding);
+
+			// Only ordinary buildings are retried in another base. Defense and refinery placement is
+			// anchored on the threat / resource center rather than on the base, so a second pass would
+			// repeat the same expensive scan for the same result.
+			var attempts = type == BuildingType.Building
+				? Math.Min(orderedBases.Count, MaxBasePlacementAttempts)
+				: 1;
+			var lastResult = ((CPos?)null, (CPos?)null, 0);
+			for (var i = 0; i < attempts; i++)
+			{
+				var result = ChooseBuildLocationInBase(actorType, distanceToBaseIsImportant, type, orderedBases[i]);
+				if (result.Location.HasValue)
+					return result;
+
+				lastResult = result;
+			}
+
+			return lastResult;
+		}
+
+		(CPos? Location, CPos? BaseCenter, int Variant) ChooseBuildLocationInBase(string actorType, bool distanceToBaseIsImportant,
+			BuildingType type, CNBotBase targetBase)
 		{
 			var actorInfo = world.Map.Rules.Actors[actorType];
 			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
@@ -1476,14 +1645,44 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 			}
 
+			// One raster for the whole base. The step no longer depends on the building's own footprint:
+			// it is the base raster, or - for types that declare a tighter MinSpacing than GlobalMinSpacing -
+			// the finest exact subdivision of the raster their footprint still fits into. Anything bigger
+			// than one raster cell simply consumes the neighbouring cells; the gap between footprints is
+			// enforced by RespectsGeneralBuildingSpacing, not by the raster.
+			//
+			// The old formula (footprint + MinSpacing) gave every building type its own incommensurate
+			// pitch (3, 4, 5, ...), so buildings of different types never lined up, and for same-type
+			// buildings every second raster point produced a gap below GlobalMinSpacing and was rejected.
+			var baseGridPitch = Math.Max(1, baseBuilder.Info.BaseGridCellSize);
+
+			// Types with a BuildingLayouts entry are exempt from GlobalMinSpacing against their own kind
+			// (that is what keeps the power plant rows and helipad blocks tight), so they keep their
+			// declared padding here. Everything else must leave at least GlobalMinSpacing.
+			var gridPadding = baseBuilder.Info.BuildingLayouts.ContainsKey(actorType)
+				? Math.Max(0, minSpacing)
+				: Math.Max(minSpacing, baseBuilder.Info.GlobalMinSpacing);
+
+			int BaseGridStep(int dimension)
+			{
+				var span = Math.Max(1, dimension + gridPadding);
+				if (span >= baseGridPitch)
+					return baseGridPitch;
+
+				for (var divisor = 1; divisor < baseGridPitch; divisor++)
+					if (baseGridPitch % divisor == 0 && divisor >= span)
+						return divisor;
+
+				return baseGridPitch;
+			}
+
 			bool IsAlignedToBaseGrid(CPos cell, BuildingInfo candidateBuildingInfo, CPos gridAnchor)
 			{
 				if (layout != BaseBuildingLayout.BaseGrid || candidateBuildingInfo == null)
 					return false;
 
-				var gridPadding = Math.Max(0, minSpacing);
-				var gx = Math.Max(1, candidateBuildingInfo.Dimensions.X + gridPadding);
-				var gy = Math.Max(1, candidateBuildingInfo.Dimensions.Y + gridPadding);
+				var gx = BaseGridStep(candidateBuildingInfo.Dimensions.X);
+				var gy = BaseGridStep(candidateBuildingInfo.Dimensions.Y);
 				return ((cell.X - gridAnchor.X) % gx + gx) % gx == 0
 					&& ((cell.Y - gridAnchor.Y) % gy + gy) % gy == 0;
 			}
@@ -1589,12 +1788,14 @@ namespace OpenRA.Mods.Common.Traits
 							.ThenBy(c => (c - target).LengthSquared);
 					else if (activeLayout == BaseBuildingLayout.Grid || activeLayout == BaseBuildingLayout.BaseGrid)
 					{
-						var anchor = activeLayout == BaseBuildingLayout.Grid && sameTypeBuildings.Count > 0
+						var isBaseGrid = activeLayout == BaseBuildingLayout.BaseGrid;
+						var anchor = !isBaseGrid && sameTypeBuildings.Count > 0
 							? sameTypeBuildings[0]
 							: gridAnchor;
-						var gridPadding = Math.Max(0, minSpacing);
-						var gx = Math.Max(1, vbi.Dimensions.X + gridPadding);
-						var gy = Math.Max(1, vbi.Dimensions.Y + gridPadding);
+
+						// BaseGrid: the shared base raster. Grid: the legacy per-type raster.
+						var gx = isBaseGrid ? BaseGridStep(vbi.Dimensions.X) : Math.Max(1, vbi.Dimensions.X + Math.Max(0, minSpacing));
+						var gy = isBaseGrid ? BaseGridStep(vbi.Dimensions.Y) : Math.Max(1, vbi.Dimensions.Y + Math.Max(0, minSpacing));
 						cells = allCells
 							.Where(c => ((c.X - anchor.X) % gx + gx) % gx == 0
 								&& ((c.Y - anchor.Y) % gy + gy) % gy == 0)
@@ -1657,15 +1858,17 @@ namespace OpenRA.Mods.Common.Traits
 					: TryFindPos(BaseBuildingLayout.Compact);
 			}
 
-			var baseCenter = baseBuilder.GetRandomBaseCenter();
+			var baseCenter = targetBase.Center;
 			var planCenter = baseBuilder.GetBasePlanCenterForActor(
 				actorInfo,
+				targetBase,
 				baseCenter,
 				type == BuildingType.Defense,
 				type == BuildingType.Refinery);
 
-			// Cache once — GetEffectiveMaxBaseRadius() scans all world buildings otherwise.
-			var effectiveMaxRadius = baseBuilder.GetEffectiveMaxBaseRadius(playerBuildings.Length);
+			// The radius grows with the size of THIS base, not with the bot's total building count —
+			// otherwise a young expansion immediately claims the same radius as the fully built main base.
+			var effectiveMaxRadius = baseBuilder.GetEffectiveMaxBaseRadius(targetBase.Buildings.Count);
 
 			// If this building type has a NearBuilding override, shift the search center
 			// toward the average position of all existing buildings of that type.
@@ -1694,7 +1897,9 @@ namespace OpenRA.Mods.Common.Traits
 					};
 				}
 
-				var nearInstances = playerBuildings
+				// Only this base's instances count — otherwise a cluster in the main base drags
+				// the search center of an expansion back across the map.
+				var nearInstances = targetBase.Buildings
 					.Where(b => b.Info.Name == layoutEntry.NearBuilding)
 					.OrderBy(b => b.ActorID)
 					.ToList();
@@ -1756,9 +1961,13 @@ namespace OpenRA.Mods.Common.Traits
 						}
 					}
 
-					var defenseCenter = baseBuilder.DefenseCenter == default ? baseCenter : baseBuilder.DefenseCenter;
+					// The ring of defense candidates is centred on where the bot believes it is threatened.
+					// That used to be the raw position of whoever attacked last, so the whole ring jumped
+					// with every individual attacker; it is now the weighted danger hotspot, which merges
+					// nearby attacks and is scored by how often and how hard the bot was hit there.
+					var defenseCenter = baseBuilder.GetDefenseReference(baseCenter);
 					var rememberedHotspot = baseBuilder.GetBestDefenseHotspot(defenseCenter);
-					var targetCell = rememberedHotspot ?? (baseBuilder.DefenseCenter == default ? baseCenter : defenseCenter);
+					var targetCell = rememberedHotspot ?? defenseCenter;
 
 					// Reuse the outer-scope precomputed array (same data, avoids a second TraitInfoOrDefault pass).
 					var playerBuildingInfos = globalBuildingInfos;
@@ -1768,13 +1977,17 @@ namespace OpenRA.Mods.Common.Traits
 					var midRadius = innerRadius > 0 ? (innerRadius + outerRadius) / 2 : outerRadius;
 
 					// If defenseCenter (e.g. recorded attacker position) is farther than MaximumDefenseRadius
-					// from every ConYard, candidates generated around it will all fail IsCloseEnoughToBase.
+					// from the target base, candidates generated around it will all fail IsCloseEnoughToBase.
 					// Fall back to baseCenter so placements stay within base adjacency range.
+					//
+					// This checks the TARGET base's construction yards, not every yard the bot owns. With the
+					// latter, a threat recorded next to the main base kept every defense at the main base even
+					// when the distribution had picked the exposed expansion - the base choice never bound.
 					if (defenseCenter != baseCenter)
 					{
 						var outerRadiusSq = outerRadius * outerRadius;
 						var anyNear = false;
-						foreach (var cy in baseBuilder.ConstructionYardBuildings.Actors)
+						foreach (var cy in targetBase.ConstructionYards)
 						{
 							if (cy.IsDead || !cy.IsInWorld) continue;
 							if ((cy.Location - defenseCenter).LengthSquared <= outerRadiusSq) { anyNear = true; break; }
@@ -1839,7 +2052,16 @@ namespace OpenRA.Mods.Common.Traits
 						var seen = new HashSet<CPos>();
 						var dx = target.X - center.X;
 						var dy = target.Y - center.Y;
-						var denom = Math.Max(Math.Abs(dx), Math.Abs(dy));
+
+						// Euclidean normalisation, not Chebyshev (max(|dx|,|dy|)). TryAdd rejects any cell
+						// whose (Euclidean) distance from the centre exceeds maxRange, but the old divisor
+						// placed the main candidate at Chebyshev distance `radius` — up to 1.41x that in
+						// Euclidean terms for a diagonal target. The result was that for a diagonally
+						// placed enemy every main-direction candidate in the outer ~30% of the radius band
+						// was silently discarded, and since Radii() walks outer-to-inner and stops once
+						// maxCandidates is full, the cells actually aimed at the threat often never made
+						// the list at all — defenses fell back to the generic axis/diagonal ring.
+						var denom = (int)Exts.ISqrt((long)dx * dx + (long)dy * dy);
 						var px = dy == 0 ? 0 : -Math.Sign(dy);
 						var py = dx == 0 ? 0 : Math.Sign(dx);
 
@@ -2025,7 +2247,7 @@ namespace OpenRA.Mods.Common.Traits
 
 						case DefenseRole.GarrisonDefense:
 						{
-							// Same placement style as Special (Obelisk) - outermost radius on the main approach
+							// Same placement style as SpecialDefense (Obelisk) - outermost radius on the main approach
 							// vector, since a bunker's job is to be the first thing the enemy walks into.
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								outerRadius - 2 > baseBuilder.Info.MinimumDefenseRadius ? outerRadius - 2 : baseBuilder.Info.MinimumDefenseRadius,
@@ -2036,7 +2258,7 @@ namespace OpenRA.Mods.Common.Traits
 							break;
 						}
 
-						case DefenseRole.Special:
+						case DefenseRole.SpecialDefense:
 						{
 							// Outermost radius directly on the main approach vector.
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
@@ -2067,17 +2289,29 @@ namespace OpenRA.Mods.Common.Traits
 						}
 					}
 
-					foreach (var cell in sortedDefenseCells)
+					// A sealed flank is a veto, not a nudge. As a -80 score term it lost routinely against the
+					// high-ground bonus (up to 90 per height level), the chokepoint anchor (160) and the
+					// formation spacing terms, so defenses kept going up facing map edges and cliffs.
+					// Run as a first pass so it can never starve placement: if every candidate faces a sealed
+					// flank, the second pass drops the veto and takes the best-scoring cell anyway.
+					var orderedDefenseCells = sortedDefenseCells.ToList();
+					var vetoPasses = baseBuilder.Info.VetoSealedFlankDefenses ? 2 : 1;
+					for (var pass = 0; pass < vetoPasses; pass++)
 					{
-						if (!world.CanPlaceBuilding(cell, defVariantActorInfo, defVbi, null)) continue;
-						if (!defVbi.IsCloseEnoughToBase(world, player, defVariantActorInfo, cell)) continue;
-						if (IsTooCloseToValuableResources(cell, defVbi, baseBuilder.Info.DefenseResourceAvoidanceRadius)) continue;
+						var vetoSealedFlanks = vetoPasses == 2 && pass == 0;
+						foreach (var cell in orderedDefenseCells)
+						{
+							if (vetoSealedFlanks && baseBuilder.IsSealedFlankCell(cell, defenseCenter)) continue;
+							if (!world.CanPlaceBuilding(cell, defVariantActorInfo, defVbi, null)) continue;
+							if (!defVbi.IsCloseEnoughToBase(world, player, defVariantActorInfo, cell)) continue;
+							if (IsTooCloseToValuableResources(cell, defVbi, baseBuilder.Info.DefenseResourceAvoidanceRadius)) continue;
 
-						if (defMinSpacing > 0 && allDefenseBuildings.Count > 0
-							&& allDefenseBuildings.Any(loc => (cell - loc).LengthSquared < defMinSpacingSq))
-							continue;
+							if (defMinSpacing > 0 && allDefenseBuildings.Count > 0
+								&& allDefenseBuildings.Any(loc => (cell - loc).LengthSquared < defMinSpacingSq))
+								continue;
 
-						return (cell, defenseCenter, defVariant);
+							return (cell, defenseCenter, defVariant);
+						}
 					}
 
 					// Do not fall back to a full vanilla annulus scan here: defense placement
@@ -2270,7 +2504,7 @@ namespace OpenRA.Mods.Common.Traits
 								int? harvesterPathLength = null;
 
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledResourceCells, harvesterPathLength)
-									+ ScoreBaseGridAlignment(loc, bi, resourceBaseCenter);
+									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
 							}
@@ -2324,7 +2558,7 @@ namespace OpenRA.Mods.Common.Traits
 									continue;
 
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, null)
-									+ ScoreBaseGridAlignment(loc, bi, resourceBaseCenter);
+									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
 							}
@@ -2349,7 +2583,7 @@ namespace OpenRA.Mods.Common.Traits
 						var fallbackTarget = requestedResourceLoc
 							?? FindNearestReachableResource(resourceBaseCenter, resourceFallbackRadius)
 							?? baseCenter;
-						return FindPos(baseCenter, fallbackTarget, baseCenter, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
+						return FindPos(baseCenter, fallbackTarget, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
 					}
 
 					return (null, null, 0);
@@ -2418,7 +2652,7 @@ namespace OpenRA.Mods.Common.Traits
 						return (null, null, 0);
 					}
 
-					return FindPos(effectiveCenter, effectiveCenter, baseCenter, baseBuilder.Info.MinBaseRadius,
+					return FindPos(effectiveCenter, effectiveCenter, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius,
 						distanceToBaseIsImportant ? effectiveMaxRadius : world.Map.Grid.MaximumTileSearchRange);
 				}
 			}
@@ -2661,7 +2895,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (bi == null)
 				return (null, null, 0);
 
-			var baseCenter = baseBuilder.GetRandomBaseCenter();
+			var baseCenter = baseBuilder.PrimaryBase.Center;
 			foreach (var corridor in baseBuilder.TacticalMapModule.GetSealableCorridors(baseCenter))
 			{
 				var gateFootprint = ChokepointGateFootprint(corridor);
@@ -2698,7 +2932,10 @@ namespace OpenRA.Mods.Common.Traits
 				return (null, null, 0);
 
 			var horizontal = bi.Dimensions.X > bi.Dimensions.Y;
-			var baseCenter = baseBuilder.GetRandomBaseCenter();
+
+			// A stable center: with a random construction yard the bot switched which chokepoint it
+			// was sealing between calls and never finished a line.
+			var baseCenter = baseBuilder.PrimaryBase.Center;
 			foreach (var corridor in baseBuilder.TacticalMapModule.GetSealableCorridors(baseCenter))
 			{
 				// The gate orientation (3x1 vs 1x3) must match the wall line direction.

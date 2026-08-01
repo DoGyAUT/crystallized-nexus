@@ -242,7 +242,7 @@ NAAPWR:
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 70
-		Prerequisites: naweap, ~structures.nod, ~techlevel.medium
+		Prerequisites: naweap, naradr, ~structures.nod, ~techlevel.medium
 		Description: actor-naapwr.description
 	Valued:
 		Cost: 500

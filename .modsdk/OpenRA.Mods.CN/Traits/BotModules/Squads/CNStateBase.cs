@@ -33,6 +33,34 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		}
 
 		/// <summary>
+		/// True when a carrier's cargo hold is genuinely full: the weight actually aboard leaves no
+		/// room for another unit.
+		/// <para>
+		/// Two things this must NOT do. It must not use Cargo.HasSpace(), because that also counts
+		/// reservedWeight, which the engine reserves the moment a passenger *starts* its Enter
+		/// activity — a ground transport orders its infantry to board from across the base, so every
+		/// seat is reserved while they are still walking and the transport departs nearly empty.
+		/// </para>
+		/// <para>
+		/// And it must not count passengers, because CN infantry squads are MobSpawnerMasters whose
+		/// slaves carry Passenger.Weight 0 (see ^MobSquadMember). One gasol squad is a single unit of
+		/// weight but four bodies in the hold, so PassengerCount against MaxWeight declared an APC
+		/// full after two squads when it can carry five.
+		/// </para>
+		/// </summary>
+		protected static bool IsCarrierFull(Cargo cargo)
+		{
+			if (cargo == null)
+				return true;
+
+			var usedWeight = 0;
+			foreach (var passenger in cargo.Passengers)
+				usedWeight += passenger.Info.TraitInfoOrDefault<PassengerInfo>()?.Weight ?? 1;
+
+			return cargo.Info.MaxWeight - usedWeight < 1;
+		}
+
+		/// <summary>
 		/// Horizontal (X/Y only) squared distance. Aircraft carry their cruise
 		/// altitude in Z, so a 3-D distance check would never report a flying
 		/// transport as "arrived"; callers comparing an airborne actor against a
@@ -261,11 +289,46 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// --- Flee decision ---
 		protected virtual bool ShouldFlee(CNSquad squad)
 		{
-			return ShouldFlee(squad, enemies =>
-				!CNAttackOrFleeFuzzy.Default.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
+			return ShouldFlee(squad, (friendlies, enemies) =>
+				CannotAttackEvenTogether(CNAttackOrFleeFuzzy.Default, squad, friendlies, enemies));
 		}
 
-		protected static bool ShouldFlee(CNSquad squad, Func<IReadOnlyCollection<Actor>, bool> flee)
+		/// <summary>
+		/// The squad flees only when it wants to flee on its own AND the combined friendly force
+		/// present cannot carry the fight either. Counting the neighbours must only ever talk a squad
+		/// into standing its ground, never out of it.
+		/// <para>
+		/// That guarantee has to be enforced here rather than by handing the evaluator a bigger
+		/// collection, because CanAttack aggregates own health as sumCur/sumMax — a ratio, not a sum.
+		/// Battered neighbours pull it down, and a healthy squad sits on the one Normal-health rule
+		/// that attacks unconditionally; diluting it into Injured exposes Flee outcomes that the squad
+		/// alone never had. Adding allies would then make it flee in exactly the situation the whole
+		/// change exists to fix.
+		/// </para>
+		/// <para>
+		/// Fixing the aggregation inside the fuzzy system instead would hit every caller, including
+		/// the ones that behave correctly today. Evaluating twice is the smaller instrument: the
+		/// second, larger evaluation is short-circuited away unless the squad alone already wants out,
+		/// so the common case still costs one pass.
+		/// </para>
+		/// </summary>
+		protected static bool CannotAttackEvenTogether(
+			CNAttackOrFleeFuzzy fuzzy, CNSquad squad,
+			IReadOnlyCollection<Actor> friendlies, IReadOnlyCollection<Actor> enemies)
+		{
+			var boost = squad.SquadManager.GetAttackFuzzyBoost();
+			return !fuzzy.CanAttack(squad.Units, enemies, boost) &&
+				!fuzzy.CanAttack(friendlies, enemies, boost);
+		}
+
+		/// <summary>
+		/// Evaluates the flee decision, handing the callback the friendly force present for this fight
+		/// and the enemies threatening it. The callback used to receive only the enemies and weighed
+		/// squad.Units against them, so a squad fighting shoulder to shoulder with two others judged
+		/// the engagement as if it stood alone — all three concluded they were outnumbered and withdrew
+		/// from a fight the combined force was winning.
+		/// </summary>
+		protected static bool ShouldFlee(CNSquad squad, Func<IReadOnlyCollection<Actor>, IReadOnlyCollection<Actor>, bool> flee)
 		{
 			if (!squad.IsValid)
 				return false;
@@ -287,7 +350,45 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (enemies.Count == 0)
 				return false;
 
-			return flee(enemies);
+			return flee(FriendlyForce(squad, units), enemies);
+		}
+
+		/// <summary>
+		/// The friendly fighting force actually present: the squad's own units plus every other
+		/// friendly combat unit already found inside the danger radius, so this costs no extra scan.
+		/// <para>
+		/// Own units only count when they belong to a squad — loose stragglers, harvesters and
+		/// half-built forces are not a fighting force and must not talk the squad into standing its
+		/// ground. Allied players are counted too, but their squad membership is unknowable from here,
+		/// so mobile armed units stand in for it; that also keeps allied defensive structures out,
+		/// which would inflate the firepower of a force that cannot follow the fight.
+		/// </para>
+		/// </summary>
+		static IReadOnlyCollection<Actor> FriendlyForce(CNSquad squad, List<Actor> unitsInDangerRadius)
+		{
+			// Start from the whole squad so a strung-out squad is never rated weaker than before.
+			var force = new HashSet<Actor>();
+			foreach (var unit in squad.Units)
+				if (unit != null && !unit.IsDead && unit.IsInWorld)
+					force.Add(unit);
+
+			var player = squad.Bot.Player;
+			foreach (var unit in unitsInDangerRadius)
+			{
+				if (unit.IsDead || !unit.IsInWorld || !unit.Info.HasTraitInfo<AttackBaseInfo>())
+					continue;
+
+				if (unit.Owner == player)
+				{
+					if (squad.SquadManager.IsUnitAssignedToSquad(unit))
+						force.Add(unit);
+				}
+				else if (unit.Owner.RelationshipWith(player) == PlayerRelationship.Ally &&
+					unit.Info.HasTraitInfo<MobileInfo>())
+					force.Add(unit);
+			}
+
+			return force;
 		}
 
 		// --- Enemy finding (delegate to CNSquadHelper) ---

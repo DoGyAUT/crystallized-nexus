@@ -68,7 +68,10 @@ namespace OpenRA.Mods.Common.Traits
 			[DefenseRole.ArmorDefense] = 0f,
 			[DefenseRole.AADefense] = 0f,
 			[DefenseRole.ArtilleryDefense] = 0f,
-			[DefenseRole.Special] = 0f,
+
+			// No SpecialDefense entry: ClassifyAttacker only ever yields AADefense, InfantryDefense
+			// or ArmorDefense, so its weight could never leave zero and GetHighestThreatRole could
+			// never name it. It is a worth marker, not a threat something attacks with.
 		};
 
 		// Per-enemy-player nemesis score: higher = this player attacked us more
@@ -94,18 +97,48 @@ namespace OpenRA.Mods.Common.Traits
 		public bool HasActiveThreat() =>
 			weights.Values.Any(w => w >= Info.ReactThreshold);
 
-		/// <summary>Returns the role with the highest threat weight above ReactThreshold, or Default if none.</summary>
+		/// <summary>
+		/// How hard this role is currently being pressed, from 0 at ReactThreshold to 1 once the
+		/// weight has grown to <paramref name="saturationFactor"/> times the threshold. Returns 0
+		/// while the role is not an active threat at all.
+		/// <para>
+		/// A ramp rather than a switch, so a single raid and a sustained assault are told apart, and
+		/// callers scaling something by it fall back on their own as BotTick decays the weights.
+		/// </para>
+		/// </summary>
+		public float GetThreatIntensity(DefenseRole role, float saturationFactor)
+		{
+			var threshold = Info.ReactThreshold;
+			if (threshold <= 0f)
+				return 0f;
+
+			var weight = GetThreatWeight(role);
+			if (weight < threshold)
+				return 0f;
+
+			var saturation = threshold * Math.Max(1f, saturationFactor);
+			if (saturation <= threshold)
+				return 1f;
+
+			return Math.Clamp((weight - threshold) / (saturation - threshold), 0f, 1f);
+		}
+
+		/// <summary>Returns the role with the highest threat weight at or above ReactThreshold, or Default if none.</summary>
 		public DefenseRole GetHighestThreatRole()
 		{
+			// Seeded just below ReactThreshold, not at ReactThreshold - 1: the old seed let a role
+			// one point under the threshold win, so this reported an active role while HasActiveThreat()
+			// (which tests >= ReactThreshold) still said there was no threat. Callers like
+			// CNUnitBuilderBotModule.BuildPanicUnit gate on one and pick with the other.
 			var bestRole = DefenseRole.Default;
-			var bestWeight = Info.ReactThreshold - 1f;
+			var bestWeight = 0f;
 			foreach (var kv in weights)
 			{
-				if (kv.Value > bestWeight)
-				{
-					bestWeight = kv.Value;
-					bestRole = kv.Key;
-				}
+				if (kv.Value < Info.ReactThreshold || kv.Value <= bestWeight)
+					continue;
+
+				bestWeight = kv.Value;
+				bestRole = kv.Key;
 			}
 
 			return bestRole;

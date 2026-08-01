@@ -69,7 +69,7 @@ Player:
 		StructureProductionResumeDelay: 3000
 		WallTypes: gawall, nawall
 		GateTypes: gagate_a, gagate_b, nagate_a, nagate_b
-		ProtectedByWalls: gaarmory, gatech, napyra, garadr, naradr, gaplug, natmpl, namisl, naobel, napuls, gafort
+		ProtectedByWalls: gaarmory, gatech, napyra, garadr, naradr, gaplug, natmpl, namisl
 		EnableChokepointSealing: true
 		BasePerimeterWallMinimumStructures: 8
 		BasePerimeterWallPadding: 4
@@ -131,6 +131,12 @@ Player:
 		DefaultLayout: BaseGrid
 		SameTypeMinSpacing: 1
 		GlobalMinSpacing: 2
+		# One raster for the whole base. 2x2 buildings fill exactly one cell (footprint 2 + spacing 2),
+		# everything larger consumes the neighbouring cell. Types with their own MinSpacing (power plants,
+		# helipads, silos) snap to the 2-cell subdivision and keep their tight blocks.
+		BaseGridCellSize: 4
+		# Construction yards farther apart than this are separate bases with their own centers and raster anchor.
+		BaseClusterRadius: 14
 		BuildingLayouts:
 			gapowr:
 				Layout: BaseGrid
@@ -220,13 +226,15 @@ Player:
 			nawast: 2
 		
 		# Neutral defense caps. Profile DefenseBudget scales these at runtime.
+		# Only threat roles belong here. SpecialDefense is a worth marker, not a budget: a tower is
+		# capped by what it defends against, and its worth decides preference instead.
 		DefenseRoleLimits:
 			Total: 25
 			InfantryDefense: 10
 			ArmorDefense: 8
 			AADefense: 6
-			ArtilleryDefense: 5
-			Special: 5
+			ArtilleryDefense: 8
+			GarrisonDefense: 5
 		
 		# Neutral base building targets.
 		# Tech-stage overlays are applied first, then profile budgets scale Production/Tech/Defense behavior in code.

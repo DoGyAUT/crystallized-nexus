@@ -92,8 +92,7 @@ VulcanTower:
 	BurstDelays: 4
 	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c0
-		ContrailStartWidth: 20
-	Report: Bren_v1.wav, Bren_v2.wav, Bren_v3.wav #chaingn1.aud
+	Report: Bren_v1.ogg, Bren_v2.ogg, Bren_v3.ogg #chaingn1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 150
 	Warhead@2Eff: CreateEffect
@@ -116,8 +115,7 @@ VulcanTowerGattling:
 	BurstDelays: 2
 	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c512
-		ContrailStartWidth: 20
-	Report: Bren_v1.wav, Bren_v2.wav, Bren_v3.wav #chaingn1.aud
+	Report: Bren_v1.ogg, Bren_v2.ogg, Bren_v3.ogg #chaingn1.aud
 	Warhead@1Dam: SpreadDamage
 		Damage: 150
 	Warhead@2Eff: CreateEffect

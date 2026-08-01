@@ -340,6 +340,7 @@ World:
 	PathFinderOverlay:
 	HierarchicalPathFinderOverlay:
 	CNTacticalMapOverlay:
+	CNBaseOverlay:
 	ActorMapOverlay:
 	PlayerCommands:
 	HelpCommand:

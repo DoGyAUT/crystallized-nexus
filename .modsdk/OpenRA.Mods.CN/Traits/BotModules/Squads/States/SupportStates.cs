@@ -125,7 +125,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					.FindActorsInCircle(unit.CenterPosition, WDist.FromCells(6))
 					.Where(a => !a.IsDead && a.IsInWorld && a.Owner == unit.Owner && a != unit)
 					.Select(a => new { Actor = a, Health = a.TraitOrDefault<IHealth>() })
-					.Where(t => t.Health != null && t.Health.DamageState > DamageState.Undamaged);
+					.Where(t => t.Health != null && t.Health.DamageState > DamageState.Undamaged
+						&& !SupportStateHelpers.IsMissingSquadMembers(t.Actor));
 
 				var bestTarget = targets
 					.Where(t => SupportStateHelpers.CanHeal(unit, t.Actor))
@@ -188,7 +189,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					.FindActorsInCircle(unit.CenterPosition, WDist.FromCells(6))
 					.Where(a => !a.IsDead && a.IsInWorld && a.Owner == unit.Owner && a != unit)
 					.Select(a => new { Actor = a, Health = a.TraitOrDefault<IHealth>() })
-					.Where(t => t.Health != null && t.Health.DamageState > DamageState.Undamaged && SupportStateHelpers.CanHeal(unit, t.Actor))
+					.Where(t => t.Health != null && t.Health.DamageState > DamageState.Undamaged
+						&& !SupportStateHelpers.IsMissingSquadMembers(t.Actor)
+						&& SupportStateHelpers.CanHeal(unit, t.Actor))
 					.OrderBy(t => (float)t.Health.HP / t.Health.MaxHP)
 					.ThenByDescending(t => t.Actor.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0)
 					.Select(t => t.Actor)
@@ -232,6 +235,31 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	static class SupportStateHelpers
 	{
+		/// <summary>
+		/// True for a mob squad that has lost members. Such a squad is permanently "damaged" from a
+		/// medic's point of view and cannot be finished: MobSpawnerMaster ties aggregate health to the
+		/// member count ("slaves die at evenly-spaced HP thresholds"), and RefreshMasterHP keeps
+		/// rewriting the master's HP to match. Members only come back via RestoresInfantrySquads,
+		/// which requires reaching full health AT A HOST — never in the field. A medic therefore heals
+		/// such a squad forever without ever clearing its damage state.
+		/// These belong in a barracks, where CNRepairManagerBotModule already routes damaged
+		/// RepairableInBarracks infantry.
+		/// </summary>
+		public static bool IsMissingSquadMembers(Actor actor)
+		{
+			var mob = actor.TraitOrDefault<MobSpawnerMaster>();
+			if (mob == null)
+				return false;
+
+			var info = actor.Info.TraitInfoOrDefault<MobSpawnerMasterInfo>();
+			if (info == null)
+				return false;
+
+			// InitialActorCount defaults to -1, meaning "one of every entry in Actors".
+			var initial = info.InitialActorCount > 0 ? info.InitialActorCount : info.Actors.Length;
+			return mob.AliveSlavesInWorld.Count() < initial;
+		}
+
 		public static WPos? FindBaseCenter(CNSquad squad)
 		{
 			var center = squad.CenterUnit();

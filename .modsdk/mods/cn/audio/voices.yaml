@@ -418,6 +418,30 @@ Spotter:
 		Zapped: electro1
 		Explode: expnew10
 
+Trooper:
+	Voices:
+		Select: trooper_s1, trooper_s2, trooper_s3, trooper_s4, trooper_s5, trooper_s6, trooper_s7, trooper_s8, trooper_st1, trooper_st2, trooper_st3
+		Move: trooper_m1, trooper_m2, trooper_m3, trooper_m4, trooper_m5, trooper_m6, trooper_m7, trooper_m8, trooper_m9, trooper_m10, trooper_m11, trooper_mt1
+		Action: trooper_a1, trooper_a2, trooper_a3, trooper_a4, trooper_a5, trooper_a6, trooper_a7, trooper_a8, trooper_a9, trooper_a10, trooper_a11, trooper_a12, trooper_a13, trooper_a14, trooper_a15
+		Attack: trooper_a1, trooper_a2, trooper_a3, trooper_a4, trooper_a5, trooper_a6, trooper_a7, trooper_a8, trooper_a9, trooper_a10, trooper_a11, trooper_a12, trooper_a13, trooper_a14, trooper_a15
+		Feedback: trooper_f1, trooper_f2, trooper_f3
+		Die: trooper_d1, trooper_d2, trooper_d3, trooper_d4, trooper_d5, dedman1, dedman3, dedman4, dedman5, dedman6
+		Burned: trooper_d1, trooper_d2, trooper_d3, trooper_d4, trooper_d5
+		Zapped: electro1
+		Explode: expnew10
+
+Raider:
+	Voices:
+		Select: raider_s1, raider_s2, raider_s3, raider_s4, raider_s5, raider_s6, raider_st1, raider_st2, raider_st3, raider_st4
+		Move: raider_m1, raider_m2, raider_m3, raider_m4, raider_m5, raider_m6, raider_mt1
+		Action: raider_a1, raider_a2, raider_a3, raider_a4, raider_a5, raider_a6, raider_a7, raider_a8, raider_a9, raider_at1
+		Attack: raider_a1, raider_a2, raider_a3, raider_a4, raider_a5, raider_a6, raider_a7, raider_a8, raider_a9, raider_at1
+		Feedback: raider_f1, raider_f2, raider_f3, raider_f4, raider_f5, raider_f6
+		Die: raider_d1, raider_d2, raider_d3, raider_d4, raider_d5, raider_d6, raider_d7, raider_d8, raider_d9, raider_d10
+		Burned: raider_d1, raider_d2, raider_d3, raider_d4, raider_d5, raider_d6, raider_d7, raider_d8, raider_d9, raider_d10
+		Zapped: electro1
+		Explode: expnew10
+
 EliteCadre:
 	Voices:
 		Select: bhand_s1, bhand_s2, bhand_s3, bhand_s4, bhand_s5, bhand_s6, bhand_s7, bhand_s8, bhand_s9, bhand_t1, bhand_t2, bhand_t3

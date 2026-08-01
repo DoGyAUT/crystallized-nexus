@@ -14,6 +14,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -21,6 +22,36 @@ namespace OpenRA.Mods.Common.Traits
 	public enum BaseBuildingLayout { Random, Grid, BaseGrid, Clustered, Compact, Coverage }
 
 	public enum CNBasePlanCluster { Core, Expansion, Production, Tech, DefensePerimeter, Outpost }
+
+	/// <summary>
+	/// What a whole base is for. Derived from what is already there (start position, nearby tiberium,
+	/// distance to the front, chokepoint), never configured per map.
+	/// </summary>
+	public enum CNBaseRole
+	{
+		/// <summary>The starting base. Keeps the tech buildings; longest standing and best defended.</summary>
+		Core,
+
+		/// <summary>Sits on tiberium. Collects the refineries and silos.</summary>
+		Economy,
+
+		/// <summary>Closest to the front. Collects unit production above the per-base minimum.</summary>
+		Military,
+
+		/// <summary>Small base holding a chokepoint. Defense and support only, no full build-out.</summary>
+		Outpost,
+
+		/// <summary>No role. A base that is none of the above steers nothing - it takes its share of the
+		/// ordinary build order like any other base and gets no category preference.</summary>
+		Secondary,
+	}
+
+	/// <summary>
+	/// The capability a building contributes to its base. Used for the redundancy floor: every base that
+	/// is not an outpost keeps at least one of each of these, and only the surplus follows the base role.
+	/// Declared in the order the floor is filled when a base is missing several at once.
+	/// </summary>
+	public enum CNBaseCapability { None, Power, InfantryProduction, VehicleProduction, AirProduction }
 
 	public enum DefenseRole
 	{
@@ -39,11 +70,92 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Artillery: inner-to-mid radius behind other defenses, aimed toward enemy.</summary>
 		ArtilleryDefense,
 
-		/// <summary>Special (Obelisk, EMP): outermost radius on enemy approach vector.</summary>
-		Special,
+		/// <summary>
+		/// High-value tower (Obelisk, EMP): outermost radius on enemy approach vector.
+		/// <para>
+		/// Unlike the roles above this is a statement of WORTH, not of a threat answered, and it is
+		/// deliberately not a limit budget. Nothing attacks with "Special": ClassifyAttacker only ever
+		/// yields AADefense, InfantryDefense or ArmorDefense, so neither the combat analysis nor a
+		/// danger hotspot can ever name this role. As a budget it only ever subtracted - every
+		/// high-value tower of both factions shared one narrow cap, so the more threats a tower
+		/// answered the harder it was throttled. A tower is now capped by the threats it covers, and
+		/// this tag decides preference instead: under active threat the bot reaches for it first.
+		/// </para>
+		/// </summary>
+		SpecialDefense,
 
 		/// <summary>Garrison bunker: universal role (garrisoned infantry mix adapts to local need), placed like artillery.</summary>
 		GarrisonDefense,
+	}
+
+	/// <summary>
+	/// One physical base of the bot: a cluster of construction yards that are close enough to each
+	/// other to share a build site, plus every building that is closer to this cluster than to any other.
+	/// Placement decisions (plan centers, raster anchor, build radius) are made per base, so a bot with
+	/// several construction yards expands each of them separately instead of aiming at the point in between.
+	/// </summary>
+	public sealed class CNBotBase
+	{
+		/// <summary>Average location of this base's construction yards.</summary>
+		public CPos Center;
+
+		/// <summary>Center snapped to the global base raster. Anchor for the BaseGrid layout.</summary>
+		public CPos GridAnchor;
+
+		/// <summary>What this base is for. See <see cref="CNBaseRole"/>.</summary>
+		public CNBaseRole Role;
+
+		/// <summary>Lowest ActorID among this base's construction yards, or its buildings when it has none.
+		/// Stable key for the role cache.</summary>
+		public uint AnchorId;
+
+		/// <summary>False for a group of buildings left behind by a construction yard that packed up.
+		/// Such a group still holds ground and still counts, but nothing new is planned into it.</summary>
+		public bool IsBuildSite => ConstructionYards.Count > 0;
+
+		public readonly List<Actor> ConstructionYards = [];
+		public readonly List<Actor> Buildings = [];
+
+		public int CountOf(string actorType)
+		{
+			var count = 0;
+			foreach (var b in Buildings)
+				if (b.Info.Name == actorType)
+					count++;
+
+			return count;
+		}
+
+		public int CountOfAny(ISet<string> actorTypes)
+		{
+			var count = 0;
+			foreach (var b in Buildings)
+				if (actorTypes.Contains(b.Info.Name))
+					count++;
+
+			return count;
+		}
+
+		public CPos? AverageLocationOf(ISet<string> actorTypes)
+		{
+			var count = 0;
+			long x = 0;
+			long y = 0;
+			foreach (var b in Buildings)
+			{
+				if (!actorTypes.Contains(b.Info.Name))
+					continue;
+
+				x += b.Location.X;
+				y += b.Location.Y;
+				count++;
+			}
+
+			if (count == 0)
+				return null;
+
+			return new CPos((int)(x / count), (int)(y / count));
+		}
 	}
 
 	public class CNBuildingLayoutEntry
@@ -90,31 +202,31 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Tells the AI what building types are considered defenses.")]
 		public readonly FrozenSet<string> DefenseTypes = FrozenSet<string>.Empty;
 
-		[FieldLoader.LoadUsing(nameof(LoadDefenseRoles))]
-		[Desc("Maps tactical roles to lists of defense building types.",
-			"Valid roles: AntiInf, AntiVehicle, AA, Artillery, Special.",
-			"Example: AA: gasam, nasam")]
-		public readonly Dictionary<DefenseRole, FrozenSet<string>> DefenseRoles = [];
-
 		[Desc("Maximum percentage of total base buildings allowed per defense role.",
 			"Use key 'Total' to cap all defenses combined.",
-			"Example: Total: 25, AntiInf: 10 — max 25% of base can be defenses, of which max 10% are anti-infantry.")]
+			"Example: Total: 25, InfantryDefense: 10 — max 25% of base can be defenses, of which max 10% are anti-infantry.")]
 		public readonly FrozenDictionary<string, int> DefenseRoleLimits = null;
 
-		static object LoadDefenseRoles(MiniYaml yaml)
-		{
-			var result = new Dictionary<DefenseRole, FrozenSet<string>>();
-			var node = yaml.NodeWithKeyOrDefault("DefenseRoles");
-			if (node == null) return result;
-			foreach (var n in node.Value.Nodes)
-				if (Enum.TryParse<DefenseRole>(n.Key, out var role))
-					result[role] = n.Value.Value
-						.Split(',')
-						.Select(s => s.Trim())
-						.Where(s => s.Length > 0)
-						.ToFrozenSet();
-			return result;
-		}
+		[Desc("Percent added to a defense role's limit while the combat analysis reports an active threat in that role.",
+			"Scales with how hard the role is pressed and falls away on its own as the threat weights decay.")]
+		public readonly int ThreatDefenseRoleBoostPct = 50;
+
+		[Desc("Percent added to the Total defense limit while any role is under threat, driven by the strongest one.",
+			"Damped relative to the role boost: without it Total stays the binding cap and the amount of defense",
+			"could not grow at all, but matching the role boost would turn the whole budget into towers.")]
+		public readonly int ThreatDefenseTotalBoostPct = 25;
+
+		[Desc("Threat weight at which the boosts above reach their full value, as a multiple of the combat analysis",
+			"ReactThreshold. Lower means the bot reacts to a light raid almost as strongly as to a full assault.")]
+		public readonly float ThreatDefenseSaturationFactor = 3f;
+
+		[Desc("Percent added to every defense limit for each usable way into the bot's bases beyond the first,",
+			"applied with no attack under way. A base with several approaches needs more defense than one with a",
+			"single choke. 0 disables proactive scaling.")]
+		public readonly int ChokepointDefenseBoostPct = 10;
+
+		[Desc("Upper bound on the percent the chokepoint boost may add.")]
+		public readonly int ChokepointDefenseBoostMaxPct = 40;
 
 		internal static readonly FrozenSet<string> DefaultAirThreatTargetTypes = new HashSet<string> { "Air" }.ToFrozenSet();
 		internal static readonly FrozenSet<string> DefaultInfantryThreatTargetTypes = new HashSet<string> { "Infantry" }.ToFrozenSet();
@@ -204,6 +316,67 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Minimum spacing in cells between ANY two buildings regardless of type. 0 = disabled.")]
 		public readonly int GlobalMinSpacing = 0;
+
+		[Desc("Cell pitch of the shared base raster used by the " + nameof(BaseBuildingLayout.BaseGrid) + " layout.",
+			"One pitch for the whole base: every building origin snaps to this raster (or to an exact subdivision",
+			"of it for types that declare a tighter MinSpacing). Footprints that do not fit inside one raster cell",
+			"together with their padding simply consume the neighbouring cells - " + nameof(GlobalMinSpacing) + " enforces the gap.")]
+		public readonly int BaseGridCellSize = 4;
+
+		[Desc("Construction yards within this distance of each other are treated as one base.",
+			"Each base gets its own plan centers, raster anchor and build radius.")]
+		public readonly int BaseClusterRadius = 14;
+
+		[Desc("Give every base a role (see " + nameof(CNBaseRole) + ") and send the surplus of a category to the",
+			"base that role belongs to. The per-base minimum below is filled first, so no base loses a basic capability.")]
+		public readonly bool EnableBaseRoles = true;
+
+		[Desc("Ticks between base role reevaluations.")]
+		public readonly int BaseRoleUpdateInterval = 250;
+
+		[Desc("A base with at most this many buildings that also sits on a chokepoint becomes an Outpost:",
+			"defense and support only, and it is exempt from the per-base minimum.")]
+		public readonly int OutpostMaxStructures = 8;
+
+		[Desc("Distance from a base center to a known chokepoint at which the base counts as holding it.")]
+		public readonly int OutpostChokepointRadius = 12;
+
+		[Desc("How close a base has to be to a remembered attack to be given the Military role.",
+			"Beyond this the bot has no front near that base and the base keeps its economic role.")]
+		public readonly int MilitaryRoleThreatRadius = 32;
+
+		[Desc("Minimum ticks a base keeps a role before it may be given a different one. A role change",
+			"switches what gets built there but takes nothing back, so a role that follows the decaying",
+			"danger memory tick by tick leaves half-finished structure in both directions.")]
+		public readonly int BaseRoleMinimumHoldTicks = 3000;
+
+		[Desc("Percent of " + nameof(MilitaryRoleThreatRadius) + " a base that already holds the Military role",
+			"may be away from the threat before it loses it. Above 100 this is the hysteresis band that keeps",
+			"a front base from flipping back the moment the remembered attack decays a little.")]
+		public readonly int MilitaryRoleReleasePct = 150;
+
+		[Desc("How far the defense reference may drift before the cached access bearings, high-ground edges",
+			"and chokepoint anchors are rebuilt. Same idea as CNTacticalMapBotModule's BaseMoveThreshold.")]
+		public readonly int FlankCacheMoveThreshold = 6;
+
+		[Desc("Refineries a base needs before it counts as having economic substance and may take the",
+			"Economy role. A base that already works tiberium qualifies whatever the map says.")]
+		public readonly int EconomyRoleMinimumRefineries = 1;
+
+		[Desc("Valuable resource cells the nearest resource map indice needs, when the base has no refinery",
+			"yet, before the base counts as having economic substance. Matched to " + nameof(MinFiniteFieldCellsForRefinery) + ".")]
+		public readonly int EconomyRoleMinimumResourceCells = 12;
+
+		[Desc("Percent bonus on the base closest to the front when the global defense budget is distributed",
+			"across bases. 100 = that base may claim twice its size-proportional share. The global budget",
+			"itself (DefenseRoleLimits) is unaffected - this only decides which base the next defense goes to.")]
+		public readonly int FrontBaseDefenseShareBonusPct = 100;
+
+		[Desc("How many buildings per base may be built past the global BuildingFractions cap in order to fill",
+			"that base's capability floor. This is the only way the fraction cap can be exceeded; BuildingLimits",
+			"still apply unconditionally. 0 disables the exception (the floor then silently fails when a",
+			"fraction is globally saturated).")]
+		public readonly int MaxCapabilityFloorExceptionsPerBase = 3;
 
 		[FieldLoader.LoadUsing(nameof(LoadBuildingLayouts))]
 		[Desc("Per-building-type layout overrides.")]
@@ -345,8 +518,16 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int HighGroundEdgeWeight = 90;
 
 		[Desc("Penalty applied to a defense candidate whose direction from the defense center matches no access corridor",
-			"(e.g. facing a map edge / cliff / water with no enemy approach). 0 disables the sealed-flank penalty.")]
+			"(e.g. facing a map edge / cliff / water with no enemy approach). 0 disables the sealed-flank test entirely.")]
 		public readonly int SealedFlankPenaltyWeight = 80;
+
+		[Desc("Treat a sealed flank as a veto rather than only as a score penalty. The veto can never starve",
+			"placement: when every candidate faces a sealed flank the bot falls back to the scored ordering.")]
+		public readonly bool VetoSealedFlankDefenses = true;
+
+		[Desc("How far beyond a defense candidate the bot probes for reachable ground when the map has no known",
+			"access corridors at all. Nothing passable within this distance means the cell faces nowhere.")]
+		public readonly int SealedFlankProbeCells = 6;
 
 		[Desc("Bonus for defense candidates placed on the base side of a sealable chokepoint wall/gate line.")]
 		public readonly int ChokepointDefenseAnchorWeight = 160;
@@ -359,7 +540,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("How strongly tech-building placement prefers cells close to the chosen base/production core.")]
 		public readonly int TechPlacementCoreBiasWeight = 2;
-
 
 		[Desc("Try to build another production building if there is too much cash.")]
 		public readonly int NewProductionCashThreshold = 5000;
@@ -566,7 +746,29 @@ namespace OpenRA.Mods.Common.Traits
 			return Info.BasePerimeterWallMinimumStructures;
 		}
 
+		/// <summary>Raw position of the most recent attacker. Jumps with every hit - see <see cref="GetDefenseReference"/>.</summary>
 		public CPos DefenseCenter { get; private set; }
+
+		/// <summary>
+		/// Where the bot currently believes it is threatened. Prefers the weighted danger hotspot, which
+		/// merges attacks within DefenseDangerMemoryMergeRadius and is scored by how often and how hard the
+		/// bot was hit there, over the raw position of whoever shot last. The raw position moves with every
+		/// single attacker and made defense planning chase individual units around the base.
+		/// </summary>
+		public CPos GetDefenseReference(CPos fallback)
+		{
+			return GetRecordedDangerHotspot(fallback)
+				?? (DefenseCenter == default ? fallback : DefenseCenter);
+		}
+
+		// Staleness window for the cached active BuildingFractions / DefenseRoleLimits tables.
+		const int ActiveTableMaxAgeTicks = 25;
+
+		// DefenseRoleLimits key capping all defenses together rather than a single role.
+		public const string TotalDefenseLimitKey = "Total";
+
+		// Staleness window for the cached supported-refinery capacity sweep.
+		const int SupportedRefineryCapacityMaxAgeTicks = 50;
 
 		// Actor, ActorCount.
 		public Dictionary<string, int> BuildingsBeingProduced = [];
@@ -580,6 +782,7 @@ namespace OpenRA.Mods.Common.Traits
 		IResourceLayer resourceLayer;
 		IBotPositionsUpdated[] positionsUpdatedModules;
 		CPos initialBaseCenter;
+		CPos? baseGridOrigin;
 		public CPos? ResourceConyardCenter;
 		public IPathFinder PathFinder { get; private set; }
 		public Locomotor[] HarvesterLocomotorsList = Array.Empty<Locomotor>();
@@ -596,10 +799,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Per-defense-center cache for the topology terrain terms (recomputed only when the center moves).
 		CPos cachedFlankCenter = new(int.MinValue, int.MinValue);
-		List<CVec> cachedAccessBearings = [];
+		readonly List<WVec> cachedAccessBearings = [];
 		readonly Dictionary<CPos, CNHighGroundEdge> cachedHighGround = [];
 		List<CPos> cachedChokepointDefenseAnchors = [];
-
 
 		public readonly struct DefensePlacementThreat
 		{
@@ -676,9 +878,38 @@ namespace OpenRA.Mods.Common.Traits
 			return cachedPlayerBuildings;
 		}
 
+		// Both active-value tables are rebuilt from the same small set of inputs (profile, tech stage,
+		// threat flag) and then frozen. ToFrozenDictionary builds a read-optimised hash structure and is
+		// meant for build-once/read-many — but these were freshly merged and frozen on every call, and
+		// ChooseBuildingToBuild alone calls GetActiveDefenseRoleLimits three times per pass. Cached until
+		// one of the inputs actually changes; the panic path additionally depends on which production
+		// buildings exist, so it carries a short staleness window on top.
+		FrozenDictionary<string, int> cachedBuildingFractions;
+		FrozenDictionary<string, int> cachedDefenseRoleLimits;
+		(BotProfile Profile, TechStage Stage, bool UnderThreat) cachedFractionKey = (BotProfile.Adaptive, TechStage.Early, false);
+		(BotProfile Profile, TechStage Stage, bool UnderThreat) cachedDefenseKey = (BotProfile.Adaptive, TechStage.Early, false);
+		int cachedFractionTick = int.MinValue;
+		int cachedDefenseTick = int.MinValue;
+
+		public bool IsUnderActiveThreat() =>
+			combatAnalysis != null && !combatAnalysis.IsTraitDisabled && combatAnalysis.HasActiveThreat();
+
 		// --- Profile + tech-stage aware getters ---
 		// BuildingFractions: merge TechStage overlay first, then apply strategic budget scaling.
 		public FrozenDictionary<string, int> GetActiveBuildingFractions()
+		{
+			var key = (ActiveProfile, ActiveTechStage, IsUnderActiveThreat());
+			if (cachedBuildingFractions != null && cachedFractionKey == key
+				&& world.WorldTick - cachedFractionTick < ActiveTableMaxAgeTicks)
+				return cachedBuildingFractions;
+
+			cachedFractionKey = key;
+			cachedFractionTick = world.WorldTick;
+			cachedBuildingFractions = BuildActiveBuildingFractions();
+			return cachedBuildingFractions;
+		}
+
+		FrozenDictionary<string, int> BuildActiveBuildingFractions()
 		{
 			var stageOverride = ActiveTechStage switch
 			{
@@ -688,7 +919,7 @@ namespace OpenRA.Mods.Common.Traits
 				_ => null
 			};
 
-			var underThreat = combatAnalysis != null && !combatAnalysis.IsTraitDisabled && combatAnalysis.HasActiveThreat();
+			var underThreat = IsUnderActiveThreat();
 
 			if ((stageOverride == null || stageOverride.Count == 0) && profileModule == null && !underThreat)
 				return Info.BuildingFractions;
@@ -752,13 +983,116 @@ namespace OpenRA.Mods.Common.Traits
 			if (profileModule == null)
 				return Info.DefenseRoleLimits;
 
+			// The threat flag is part of the key so an attack starting or ending takes effect at once
+			// rather than up to ActiveTableMaxAgeTicks later. Its magnitude is not: the threat weights
+			// move continuously and would defeat the cache entirely, so the staleness window carries
+			// that, which bounds it to well under a second.
+			var key = (ActiveProfile, ActiveTechStage, IsUnderActiveThreat());
+			if (cachedDefenseRoleLimits != null && cachedDefenseKey == key
+				&& world.WorldTick - cachedDefenseTick < ActiveTableMaxAgeTicks)
+				return cachedDefenseRoleLimits;
+
+			cachedDefenseKey = key;
+			cachedDefenseTick = world.WorldTick;
+			cachedDefenseRoleLimits = BuildActiveDefenseRoleLimits();
+			return cachedDefenseRoleLimits;
+		}
+
+		FrozenDictionary<string, int> BuildActiveDefenseRoleLimits()
+		{
 			var merged = Info.DefenseRoleLimits != null
 				? new Dictionary<string, int>(Info.DefenseRoleLimits)
 				: [];
 
+			// The profile stays multiplicative: it is a posture, a statement about how this bot plays
+			// at all, so it belongs in the baseline everything else is measured against.
 			ApplyProfileDefenseBudget(merged);
 
+			// The other two are surcharges ON that baseline and are added, never multiplied onto each
+			// other. They answer different questions: the chokepoint share is static and describes the
+			// shape of the map, the threat share is dynamic and describes what is happening right now.
+			// Multiplying them would let map geometry amplify the reaction to an attack - the same
+			// assault drawing a bigger answer on a choke-heavy map than on an open one, which means
+			// nothing. Additive keeps them legible: "this much because of the map" plus "this much
+			// more because of this attack".
+			var baseline = new Dictionary<string, int>(merged);
+			ApplyThreatDefenseBudget(merged, baseline);
+			ApplyChokepointDefenseBudget(merged, baseline);
+
 			return merged.ToFrozenDictionary();
+		}
+
+		/// <summary>
+		/// Reactive scaling: how much defense the bot is allowed to build depends on what is actually
+		/// happening to it. The limits are otherwise threat-blind - the same 25% Total applied whether
+		/// nothing had happened all game or three enemies were attacking at once, and only the profile
+		/// scaled them. A role being pressed gets more room, and Total grows with it so the amount can
+		/// rise rather than merely shift between roles.
+		/// <para>
+		/// Nothing here has to be undone: the boost is derived from the combat analysis weights every
+		/// time the table is rebuilt, so it fades out by itself as those weights decay.
+		/// </para>
+		/// </summary>
+		void ApplyThreatDefenseBudget(Dictionary<string, int> values, IReadOnlyDictionary<string, int> baseline)
+		{
+			if (combatAnalysis == null || combatAnalysis.IsTraitDisabled)
+				return;
+
+			if (Info.ThreatDefenseRoleBoostPct <= 0 && Info.ThreatDefenseTotalBoostPct <= 0)
+				return;
+
+			var strongest = 0f;
+			foreach (var key in baseline.Keys)
+			{
+				if (key == TotalDefenseLimitKey)
+					continue;
+
+				if (!Enum.TryParse<DefenseRole>(key, true, out var role) || role == DefenseRole.Default)
+					continue;
+
+				var intensity = combatAnalysis.GetThreatIntensity(role, Info.ThreatDefenseSaturationFactor);
+				if (intensity <= 0f)
+					continue;
+
+				strongest = Math.Max(strongest, intensity);
+				values[key] += Surcharge(baseline[key], Info.ThreatDefenseRoleBoostPct, intensity);
+			}
+
+			if (strongest > 0f && baseline.TryGetValue(TotalDefenseLimitKey, out var total))
+				values[TotalDefenseLimitKey] += Surcharge(total, Info.ThreatDefenseTotalBoostPct, strongest);
+		}
+
+		/// <summary>
+		/// Proactive scaling: a base the enemy can walk into from four directions needs more defense
+		/// than one behind a single choke, and that is knowable before the first attack. Uses the same
+		/// chokepoint set the placement logic already works from, so this adds no new scan.
+		/// </summary>
+		void ApplyChokepointDefenseBudget(Dictionary<string, int> values, IReadOnlyDictionary<string, int> baseline)
+		{
+			if (Info.ChokepointDefenseBoostPct <= 0 || TacticalMapModule == null || !TacticalMapModule.TopologyReady)
+				return;
+
+			// One way in is the baseline the neutral limits already assume, so only the extra
+			// approaches count.
+			var extraApproaches = TacticalMapModule.GetUsefulChokepointsForOwnBase().Count - 1;
+			if (extraApproaches <= 0)
+				return;
+
+			var boostPct = Math.Min(Info.ChokepointDefenseBoostMaxPct, extraApproaches * Info.ChokepointDefenseBoostPct);
+			if (boostPct <= 0)
+				return;
+
+			foreach (var key in baseline.Keys)
+				values[key] += Surcharge(baseline[key], boostPct, 1f);
+		}
+
+		/// <summary>How much to add on top of a baseline limit, as a percentage of that baseline.</summary>
+		static int Surcharge(int baseValue, int percent, float scale)
+		{
+			if (percent <= 0 || scale <= 0f)
+				return 0;
+
+			return (int)Math.Round(baseValue * (percent / 100f) * scale, MidpointRounding.AwayFromZero);
 		}
 
 		void ApplyProfileBuildingBudget(Dictionary<string, int> values)
@@ -796,8 +1130,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var key in values.Keys.ToArray())
 			{
+				// SpecialDefense used to be scaled here too. It is no longer a limit budget, so the
+				// key never appears in this table; high-value towers are now gated by the threat roles
+				// they cover and preferred through selection instead.
 				var scale = defenseScale;
-				if (key == "ArtilleryDefense" || key == "Special")
+				if (key == "ArtilleryDefense")
 					scale *= techScale;
 
 				values[key] = Math.Max(1, (int)Math.Round(values[key] * scale, MidpointRounding.AwayFromZero));
@@ -913,37 +1250,691 @@ namespace OpenRA.Mods.Common.Traits
 			return CNBasePlanCluster.Core;
 		}
 
-		public CPos GetBasePlanCenterForActor(ActorInfo actorInfo, CPos fallbackCenter, bool isDefense, bool isRefinery)
+		public CPos GetBasePlanCenterForActor(ActorInfo actorInfo, CNBotBase targetBase, CPos fallbackCenter, bool isDefense, bool isRefinery)
 		{
-			return GetBasePlanCenter(GetBasePlanClusterForActor(actorInfo, isDefense, isRefinery), fallbackCenter);
+			return GetBasePlanCenter(GetBasePlanClusterForActor(actorInfo, isDefense, isRefinery), targetBase, fallbackCenter);
 		}
 
-		public CPos GetBasePlanCenter(CNBasePlanCluster cluster, CPos fallbackCenter)
+		// Plan centers are computed from the buildings of ONE base only. Averaging over all bases put the
+		// target between them, so from the second construction yard on the bot dropped single buildings
+		// into the no man's land in between.
+		public CPos GetBasePlanCenter(CNBasePlanCluster cluster, CNBotBase targetBase, CPos fallbackCenter)
 		{
 			return cluster switch
 			{
-				CNBasePlanCluster.Expansion => AverageBuildingLocation(Info.RefineryTypes) ?? ResourceConyardCenter ?? fallbackCenter,
-				CNBasePlanCluster.Production => AverageBuildingLocation(Info.ProductionTypes) ?? fallbackCenter,
-				CNBasePlanCluster.Tech => AverageBuildingLocation(Info.TechTypes) ?? AverageBuildingLocation(Info.ProductionTypes) ?? fallbackCenter,
-				CNBasePlanCluster.DefensePerimeter => DefenseCenter == default ? fallbackCenter : DefenseCenter,
+				CNBasePlanCluster.Expansion => targetBase.AverageLocationOf(Info.RefineryTypes) ?? ResourceConyardCenter ?? fallbackCenter,
+				CNBasePlanCluster.Production => targetBase.AverageLocationOf(Info.ProductionTypes) ?? fallbackCenter,
+				CNBasePlanCluster.Tech => targetBase.AverageLocationOf(Info.TechTypes) ?? targetBase.AverageLocationOf(Info.ProductionTypes) ?? fallbackCenter,
+				CNBasePlanCluster.DefensePerimeter => GetDefenseReference(fallbackCenter),
 				CNBasePlanCluster.Outpost => ResourceConyardCenter ?? fallbackCenter,
-				_ => AverageBuildingLocation(Info.ConstructionYardTypes) ?? fallbackCenter
+				_ => targetBase.AverageLocationOf(Info.ConstructionYardTypes) ?? fallbackCenter
 			};
 		}
 
-		CPos? AverageBuildingLocation(IEnumerable<string> typeNames)
+		// --- Base clustering ---
+		// Assigned as a whole, never filled in place: the debug overlay reads this from the render thread
+		// and must never observe a half-built list.
+		List<CNBotBase> cachedBotBases = [];
+		int cachedBotBasesTick = -1;
+
+		/// <summary>
+		/// The bot's bases, rebuilt at most once per tick. Construction yards within BaseClusterRadius of
+		/// each other form one base (single linkage); a building joins the closest base that is near enough
+		/// to have built it. Buildings left over - typically a base whose construction yard packed up and
+		/// drove off - form their own yard-less groups instead of being handed to a base across the map.
+		/// </summary>
+		public IReadOnlyList<CNBotBase> GetBases()
 		{
-			var typeSet = typeNames as ISet<string> ?? typeNames.ToHashSet();
-			var buildings = GetCachedPlayerBuildings()
-				.Where(b => typeSet.Contains(b.Info.Name))
-				.ToArray();
+			if (world.WorldTick == cachedBotBasesTick && cachedBotBases.Count > 0)
+				return cachedBotBases;
 
-			if (buildings.Length == 0)
-				return null;
+			cachedBotBasesTick = world.WorldTick;
+			var bases = new List<CNBotBase>();
 
-			return new CPos(
-				(int)buildings.Average(b => b.Location.X),
-				(int)buildings.Average(b => b.Location.Y));
+			var conyards = new List<Actor>();
+			foreach (var a in ConstructionYardBuildings.Actors)
+				if (!a.IsDead && a.IsInWorld)
+					conyards.Add(a);
+
+			if (conyards.Count == 0)
+			{
+				// No construction yard left at all: keep one synthetic base so placement still has an anchor.
+				var orphan = new CNBotBase { Center = BaseOrigin };
+				orphan.Buildings.AddRange(GetCachedPlayerBuildings());
+				if (orphan.Buildings.Count > 0)
+					orphan.Center = AverageLocation(orphan.Buildings);
+
+				orphan.GridAnchor = SnapToBaseGrid(orphan.Center);
+				bases.Add(orphan);
+				ApplyBaseRoles(bases);
+				cachedBotBases = bases;
+				return cachedBotBases;
+			}
+
+			foreach (var group in ClusterByDistance(conyards, Info.BaseClusterRadius))
+			{
+				var b = new CNBotBase();
+				b.ConstructionYards.AddRange(group);
+				b.Center = AverageLocation(group);
+				b.GridAnchor = SnapToBaseGrid(b.Center);
+				b.AnchorId = LowestActorId(group);
+				bases.Add(b);
+			}
+
+			// A building belongs to the closest base that could plausibly have built it, i.e. one whose build
+			// radius reaches it. Without that bound a construction yard packing up (UnDeployConyard runs on
+			// MoveConyardTick) dropped its entire base onto whichever base was left, however far away: plan
+			// centers, NearBuilding clusters, the raster anchor and the defense share were then all computed
+			// over a base scattered across half the map, and jumped again when the yard redeployed.
+			var membershipRadius = GetBaseMembershipRadius();
+			var membershipRadiusSq = (long)membershipRadius * membershipRadius;
+			List<Actor> unclaimed = null;
+
+			foreach (var building in GetCachedPlayerBuildings())
+			{
+				CNBotBase best = null;
+				var bestDistance = long.MaxValue;
+				foreach (var b in bases)
+				{
+					var distance = (building.Location - b.Center).LengthSquared;
+					if (distance >= bestDistance)
+						continue;
+
+					bestDistance = distance;
+					best = b;
+				}
+
+				if (best != null && bestDistance <= membershipRadiusSq)
+					best.Buildings.Add(building);
+				else
+					(unclaimed ??= []).Add(building);
+			}
+
+			// What is left over keeps its own identity: a yard-less base that still holds ground and is worth
+			// counting, but is not a build site - see GetOrderedBasesForBuilding.
+			if (unclaimed != null)
+			{
+				foreach (var group in ClusterByDistance(unclaimed, Info.BaseClusterRadius))
+				{
+					var b = new CNBotBase();
+					b.Buildings.AddRange(group);
+					b.Center = AverageLocation(group);
+					b.GridAnchor = SnapToBaseGrid(b.Center);
+					b.AnchorId = LowestActorId(group);
+					bases.Add(b);
+				}
+			}
+
+			ApplyBaseRoles(bases);
+			cachedBotBases = bases;
+			return cachedBotBases;
+		}
+
+		/// <summary>
+		/// How far from its center a base still counts a building as its own. Uses the largest radius the
+		/// base could ever reach rather than its current one, so the membership test does not depend on the
+		/// building count it is about to produce.
+		/// </summary>
+		int GetBaseMembershipRadius()
+		{
+			return Info.DynamicBaseRadius ? GetActiveMaxDynamicBaseRadius() : Info.MaxBaseRadius;
+		}
+
+		static uint LowestActorId(List<Actor> actors)
+		{
+			var lowest = uint.MaxValue;
+			foreach (var a in actors)
+				if (a.ActorID < lowest)
+					lowest = a.ActorID;
+
+			return lowest;
+		}
+
+		// Single-linkage clustering: two actors within radius of each other belong to the same group.
+		// Used for construction yards and, with the same rule, for buildings no base reaches any more.
+		static List<List<Actor>> ClusterByDistance(List<Actor> actors, int radius)
+		{
+			var parent = new int[actors.Count];
+			for (var i = 0; i < parent.Length; i++)
+				parent[i] = i;
+
+			int Find(int x)
+			{
+				while (parent[x] != x)
+				{
+					parent[x] = parent[parent[x]];
+					x = parent[x];
+				}
+
+				return x;
+			}
+
+			var clusterRadius = Math.Max(1, radius);
+			var clusterRadiusSq = clusterRadius * clusterRadius;
+			for (var i = 0; i < actors.Count; i++)
+			{
+				for (var j = i + 1; j < actors.Count; j++)
+				{
+					if ((actors[i].Location - actors[j].Location).LengthSquared > clusterRadiusSq)
+						continue;
+
+					var ri = Find(i);
+					var rj = Find(j);
+					if (ri != rj)
+						parent[ri] = rj;
+				}
+			}
+
+			var byRoot = new Dictionary<int, List<Actor>>();
+			for (var i = 0; i < actors.Count; i++)
+			{
+				var root = Find(i);
+				if (!byRoot.TryGetValue(root, out var group))
+					byRoot[root] = group = [];
+
+				group.Add(actors[i]);
+			}
+
+			return byRoot.Values.ToList();
+		}
+
+		/// <summary>
+		/// Pure read for the debug overlay (render thread): hands back whatever the sim thread last
+		/// published, and never rebuilds or recomputes anything.
+		/// </summary>
+		public IReadOnlyList<CNBotBase> BasesForOverlay() => cachedBotBases;
+
+		/// <summary>Build radius the overlay draws for a base. Same value the placement search uses.</summary>
+		public int GetBaseRadiusForOverlay(CNBotBase targetBase) => GetEffectiveMaxBaseRadius(targetBase.Buildings.Count);
+
+		// --- Base roles ---
+		readonly Dictionary<uint, (CNBaseRole Role, int SinceTick)> baseRoleByAnchor = [];
+		int nextBaseRoleTick;
+
+		// The role decision needs the chokepoint list, so it runs on its own slow timer; in between, the
+		// per-tick rebuild just reads back what was decided for the same construction yard.
+		void ApplyBaseRoles(List<CNBotBase> bases)
+		{
+			if (!Info.EnableBaseRoles)
+				return;
+
+			if (world.WorldTick >= nextBaseRoleTick)
+			{
+				nextBaseRoleTick = world.WorldTick + Math.Max(1, Info.BaseRoleUpdateInterval);
+				EvaluateBaseRoles(bases);
+				return;
+			}
+
+			foreach (var b in bases)
+				b.Role = baseRoleByAnchor.TryGetValue(b.AnchorId, out var held) ? held.Role : CNBaseRole.Secondary;
+
+			// A single base is always the core, whatever a stale entry says.
+			if (bases.Count == 1)
+				bases[0].Role = CNBaseRole.Core;
+		}
+
+		void EvaluateBaseRoles(List<CNBotBase> bases)
+		{
+			// A role change switches what gets built in a base but takes nothing back, so a role that
+			// follows the decaying danger memory tick by tick leaves half-finished structure in both
+			// directions. A base that has held a role for less than BaseRoleMinimumHoldTicks keeps it, and
+			// the roles that are exclusive are not handed out again while somebody still holds them.
+			var holdTicks = Math.Max(0, Info.BaseRoleMinimumHoldTicks);
+			var locked = new bool[bases.Count];
+			var coreHeld = false;
+			var militaryHeld = false;
+
+			for (var i = 0; i < bases.Count; i++)
+			{
+				if (!baseRoleByAnchor.TryGetValue(bases[i].AnchorId, out var held))
+					continue;
+
+				// A group that lost its construction yard cannot keep a steering role - every one of them
+				// describes what gets built somewhere, and nothing gets built there any more.
+				if (!bases[i].IsBuildSite && held.Role != CNBaseRole.Secondary)
+					continue;
+
+				if (world.WorldTick - held.SinceTick >= holdTicks)
+					continue;
+
+				locked[i] = true;
+				bases[i].Role = held.Role;
+				coreHeld |= held.Role == CNBaseRole.Core;
+				militaryHeld |= held.Role == CNBaseRole.Military;
+			}
+
+			// Everything unlocked starts with no role. Economy is earned further down by actually having
+			// tiberium to work; it used to be the blanket default, which made a base at the far end of the
+			// map with not a grain of resource just as much an "Economy" base as one sitting in a field.
+			for (var i = 0; i < bases.Count; i++)
+				if (!locked[i])
+					bases[i].Role = CNBaseRole.Secondary;
+
+			// Core and Military describe what a base is FOR, so they only go to bases that can still build.
+			var freeBuildSites = new List<CNBotBase>();
+			for (var i = 0; i < bases.Count; i++)
+				if (!locked[i] && bases[i].IsBuildSite)
+					freeBuildSites.Add(bases[i]);
+
+			if (!coreHeld && freeBuildSites.Count > 0)
+				GetBaseNearestIn(freeBuildSites, BaseOrigin).Role = CNBaseRole.Core;
+			else if (!coreHeld && bases.Count > 0)
+				GetBaseNearestIn(bases, BaseOrigin).Role = CNBaseRole.Core;
+
+			if (bases.Count > 1)
+			{
+				var chokepoints = TacticalMapModule != null && TacticalMapModule.TopologyReady
+					? TacticalMapModule.GetUsefulChokepointsForOwnBase()
+					: null;
+
+				if (chokepoints != null && chokepoints.Count > 0)
+				{
+					var outpostRadius = Math.Max(1, Info.OutpostChokepointRadius);
+					var outpostRadiusSq = outpostRadius * outpostRadius;
+					for (var i = 0; i < bases.Count; i++)
+					{
+						var b = bases[i];
+						if (locked[i] || !b.IsBuildSite || b.Role == CNBaseRole.Core
+							|| b.Buildings.Count > Info.OutpostMaxStructures)
+							continue;
+
+						foreach (var chokepoint in chokepoints)
+						{
+							if ((chokepoint.Cell - b.Center).LengthSquared > outpostRadiusSq)
+								continue;
+
+							b.Role = CNBaseRole.Outpost;
+							break;
+						}
+					}
+				}
+
+				// The front has to be an attack that actually happened. GetBestDefenseHotspot falls back to
+				// the nearest map chokepoint when nothing has been attacked yet - fine for aiming the first
+				// turrets, but as a role trigger it meant every map handed out a front from tick 0, so the
+				// second base was always claimed as Military and Economy could not occur below three bases.
+				var front = GetRecordedDangerHotspot(BaseOrigin) ?? (DefenseCenter == default ? null : DefenseCenter);
+				if (front != null && !militaryHeld)
+				{
+					// And the base has to be at that front, not merely the closest one the bot happens to
+					// own: an attack on the main base used to relabel an expansion on the far side of the map.
+					var threatRadius = Math.Max(1, Info.MilitaryRoleThreatRadius);
+					var threatRadiusSq = (long)threatRadius * threatRadius;
+
+					CNBotBase military = null;
+					var bestDistance = long.MaxValue;
+					foreach (var b in freeBuildSites)
+					{
+						if (b.Role != CNBaseRole.Secondary)
+							continue;
+
+						var distance = (b.Center - front.Value).LengthSquared;
+						if (distance > threatRadiusSq || distance >= bestDistance)
+							continue;
+
+						bestDistance = distance;
+						military = b;
+					}
+
+					if (military != null)
+						military.Role = CNBaseRole.Military;
+				}
+				else if (front != null && militaryHeld)
+				{
+					// Releasing the Military role needs clearly weaker evidence than gaining it, otherwise the
+					// base flips back as soon as the remembered attack decays a little past the radius.
+					var releaseRadius = Math.Max(1, Info.MilitaryRoleThreatRadius) * Math.Max(100, Info.MilitaryRoleReleasePct) / 100;
+					var releaseRadiusSq = (long)releaseRadius * releaseRadius;
+					foreach (var b in bases)
+						if (b.Role == CNBaseRole.Military && (b.Center - front.Value).LengthSquared > releaseRadiusSq)
+							b.Role = CNBaseRole.Secondary;
+				}
+				else if (militaryHeld)
+				{
+					// Nothing remembered anywhere any more: the front is gone, not merely further away.
+					foreach (var b in bases)
+						if (b.Role == CNBaseRole.Military)
+							b.Role = CNBaseRole.Secondary;
+				}
+			}
+
+			// Economy last and on evidence: whatever carries no role by now and actually has tiberium to work.
+			// Build sites only, like every other steering role - a group without a construction yard is
+			// skipped by GetOrderedBasesForBuilding, so a role pointing at it steers nothing at all.
+			for (var i = 0; i < bases.Count; i++)
+				if (!locked[i] && bases[i].IsBuildSite && bases[i].Role == CNBaseRole.Secondary
+					&& HasEconomicSubstance(bases[i]))
+					bases[i].Role = CNBaseRole.Economy;
+
+			// Stamp the tick only where the role actually changed, so the hold measures how long a base has
+			// really been what it is. Entries of bases that no longer exist are dropped.
+			var refreshed = new Dictionary<uint, (CNBaseRole Role, int SinceTick)>(bases.Count);
+			foreach (var b in bases)
+			{
+				var sinceTick = baseRoleByAnchor.TryGetValue(b.AnchorId, out var previous) && previous.Role == b.Role
+					? previous.SinceTick
+					: world.WorldTick;
+
+				refreshed[b.AnchorId] = (b.Role, sinceTick);
+			}
+
+			baseRoleByAnchor.Clear();
+			foreach (var kv in refreshed)
+				baseRoleByAnchor[kv.Key] = kv.Value;
+		}
+
+		/// <summary>
+		/// Whether this base has anything to run an economy on: refineries already standing in it, or a
+		/// resource map indice with enough valuable cells within its reach. Same data the MCV expansion
+		/// scores its sites from, so "Economy" now means the same thing in both places.
+		/// </summary>
+		bool HasEconomicSubstance(CNBotBase targetBase)
+		{
+			if (targetBase.CountOfAny(Info.RefineryTypes) >= Math.Max(1, Info.EconomyRoleMinimumRefineries))
+				return true;
+
+			if (ResourceMapModule == null)
+				return false;
+
+			var indice = ResourceMapModule.FindClosestIndiceFromCPos(targetBase.Center);
+			if (indice == null || indice.ResourceCellsCount < Math.Max(1, Info.EconomyRoleMinimumResourceCells))
+				return false;
+
+			// FindClosestIndiceFromCPos always answers, however far away that indice is - so the reach
+			// still has to be checked, or every base on the map would inherit the nearest field.
+			var reach = GetBaseMembershipRadius();
+			return (indice.ResourceCellsCenter - targetBase.Center).LengthSquared <= (long)reach * reach;
+		}
+
+		// How much of the global defense budget a base may claim: what it has to protect, doubled (by
+		// default) for the base at the front. Never zero, so a brand new expansion is not weighted out.
+		static long DefenseShareWeight(CNBotBase targetBase, CNBotBase frontBase, int frontBonus)
+		{
+			var weight = Math.Max(1, targetBase.Buildings.Count);
+			return targetBase == frontBase ? weight * frontBonus / 100 : weight;
+		}
+
+		static CNBotBase GetBaseNearestIn(IReadOnlyList<CNBotBase> bases, CPos cell)
+		{
+			var best = bases[0];
+			var bestDistance = (cell - best.Center).LengthSquared;
+			for (var i = 1; i < bases.Count; i++)
+			{
+				var distance = (cell - bases[i].Center).LengthSquared;
+				if (distance >= bestDistance)
+					continue;
+
+				bestDistance = distance;
+				best = bases[i];
+			}
+
+			return best;
+		}
+
+		// --- Per-base capability floor ---
+		readonly Dictionary<string, CNBaseCapability> capabilityByActorType = [];
+
+		public CNBaseCapability GetBaseCapability(string actorType)
+		{
+			if (capabilityByActorType.TryGetValue(actorType, out var cached))
+				return cached;
+
+			var capability = CNBaseCapability.None;
+			if (Info.PowerTypes.Contains(actorType))
+				capability = CNBaseCapability.Power;
+			else
+			{
+				var actorInfo = world.Map.Rules.Actors.GetValueOrDefault(actorType);
+				var produces = actorInfo?.TraitInfos<ProductionInfo>();
+				if (produces != null)
+				{
+					foreach (var production in produces)
+					{
+						if (production.Produces.Contains("Infantry"))
+							capability = CNBaseCapability.InfantryProduction;
+						else if (production.Produces.Contains("Vehicle"))
+							capability = CNBaseCapability.VehicleProduction;
+						else if (production.Produces.Contains("Air"))
+							capability = CNBaseCapability.AirProduction;
+
+						if (capability != CNBaseCapability.None)
+							break;
+					}
+				}
+			}
+
+			capabilityByActorType[actorType] = capability;
+			return capability;
+		}
+
+		// True while this base is still missing its one guaranteed building of that capability. Outposts are
+		// exempt - they are meant to stay small. Air production is in the floor like everything else: it may
+		// spread across bases, so losing one base no longer costs the bot its entire air force.
+		bool LacksCapabilityFloor(CNBotBase targetBase, CNBaseCapability capability)
+		{
+			if (capability == CNBaseCapability.None)
+				return false;
+
+			if (targetBase.Role == CNBaseRole.Outpost || !targetBase.IsBuildSite)
+				return false;
+
+			foreach (var building in targetBase.Buildings)
+				if (GetBaseCapability(building.Info.Name) == capability)
+					return false;
+
+			return true;
+		}
+
+		// Capabilities in the order a base fills them when it is missing several at once. Only the first
+		// MaxCapabilityFloorExceptionsPerBase of them may bypass the global fraction cap at any one time;
+		// as soon as one is satisfied the next moves up, so nothing is permanently excluded.
+		static readonly CNBaseCapability[] FloorCapabilities =
+		[
+			CNBaseCapability.Power,
+			CNBaseCapability.InfantryProduction,
+			CNBaseCapability.VehicleProduction,
+			CNBaseCapability.AirProduction,
+		];
+
+		/// <summary>
+		/// True when this building type is needed to fill some base's capability floor and may therefore be
+		/// built even though its BuildingFractions share is globally used up. Without this the floor fails
+		/// silently: the main base holds the whole quota and an expansion never gets its first barracks.
+		/// </summary>
+		public bool AllowsCapabilityFloorException(string actorType)
+		{
+			if (!Info.EnableBaseRoles || Info.MaxCapabilityFloorExceptionsPerBase <= 0)
+				return false;
+
+			var capability = GetBaseCapability(actorType);
+			if (capability == CNBaseCapability.None)
+				return false;
+
+			foreach (var targetBase in GetBases())
+			{
+				if (!LacksCapabilityFloor(targetBase, capability))
+					continue;
+
+				// Hard bound: a base may only ever have this many buildings in flight past the cap.
+				var rank = 0;
+				foreach (var candidate in FloorCapabilities)
+				{
+					if (candidate == capability)
+						break;
+
+					if (LacksCapabilityFloor(targetBase, candidate))
+						rank++;
+				}
+
+				if (rank < Info.MaxCapabilityFloorExceptionsPerBase)
+					return true;
+			}
+
+			return false;
+		}
+
+		// Which base a category belongs in once the floor is covered.
+		CNBaseRole? GetPreferredRoleFor(string actorType)
+		{
+			if (Info.RefineryTypes.Contains(actorType) || Info.SiloTypes.Contains(actorType))
+				return CNBaseRole.Economy;
+
+			if (Info.ProductionTypes.Contains(actorType) || Info.NavalProductionTypes.Contains(actorType))
+				return CNBaseRole.Military;
+
+			if (Info.TechTypes.Contains(actorType))
+				return CNBaseRole.Core;
+
+			return null;
+		}
+
+		static CPos AverageLocation(List<Actor> actors)
+		{
+			long x = 0;
+			long y = 0;
+			foreach (var a in actors)
+			{
+				x += a.Location.X;
+				y += a.Location.Y;
+			}
+
+			return new CPos((int)(x / actors.Count), (int)(y / actors.Count));
+		}
+
+		/// <summary>
+		/// Snaps a cell onto the global base raster. All bases share one lattice (anchored at the bot's
+		/// original base location), so raster anchors stay commensurate between bases and never shift
+		/// under buildings that are already placed.
+		/// </summary>
+		public CPos SnapToBaseGrid(CPos cell)
+		{
+			var grid = Math.Max(1, Info.BaseGridCellSize);
+			var origin = BaseOrigin;
+
+			int Snap(int value, int originValue)
+			{
+				var delta = value - originValue;
+				var offset = (delta % grid + grid) % grid;
+				return value - offset + (offset * 2 >= grid ? grid : 0);
+			}
+
+			return new CPos(Snap(cell.X, origin.X), Snap(cell.Y, origin.Y));
+		}
+
+		/// <summary>The bot's original base location. Fixed on first use, unlike initialBaseCenter.</summary>
+		public CPos BaseOrigin
+		{
+			get
+			{
+				baseGridOrigin ??= initialBaseCenter;
+				return baseGridOrigin.Value;
+			}
+		}
+
+		/// <summary>The base around the bot's starting position. Stable anchor for base-wide decisions.</summary>
+		public CNBotBase PrimaryBase => GetBaseNearest(BaseOrigin);
+
+		public CNBotBase GetBaseNearest(CPos cell)
+		{
+			var bases = GetBases();
+			var best = bases[0];
+			var bestDistance = (cell - best.Center).LengthSquared;
+			for (var i = 1; i < bases.Count; i++)
+			{
+				var distance = (cell - bases[i].Center).LengthSquared;
+				if (distance >= bestDistance)
+					continue;
+
+				bestDistance = distance;
+				best = bases[i];
+			}
+
+			return best;
+		}
+
+		/// <summary>
+		/// Bases in the order they should be tried for one build order. Defenses and refineries follow the
+		/// threat / resource anchor, everything else goes to the base that has the fewest of that type.
+		/// </summary>
+		public IReadOnlyList<CNBotBase> GetOrderedBasesForBuilding(string actorType, BuildingType type, string nearBuilding)
+		{
+			var bases = GetBases();
+
+			// Groups without a construction yard are not build sites. They are skipped entirely unless the
+			// bot has nothing else left, in which case placement falls back to whatever it still holds.
+			if (bases.Any(b => b.IsBuildSite))
+				bases = bases.Where(b => b.IsBuildSite).ToList();
+
+			if (bases.Count <= 1)
+				return bases;
+
+			if (type == BuildingType.Refinery)
+			{
+				var resourceAnchor = ResourceConyardCenter ?? BaseOrigin;
+				return bases.OrderBy(b => (b.Center - resourceAnchor).LengthSquared).ToList();
+			}
+
+			if (type == BuildingType.Defense)
+			{
+				var threatAnchor = GetDefenseReference(BaseOrigin);
+
+				// The defense budget itself stays global - DefenseRoleLimits are checked against the bot's
+				// total building count, so the bot never walls itself in just because it owns more bases.
+				// What is distributed here is WHERE the next defense goes. Each base gets a share of the
+				// defenses that exist, weighted by how much it has to protect, and the base closest to the
+				// front gets a bonus on top of that share. Ordering by the largest shortfall means an exposed
+				// expansion catches up first instead of waiting for the main base to stop consuming the pot.
+				var frontBase = GetBaseNearestIn(bases, threatAnchor);
+				var frontBonus = 100 + Math.Max(0, Info.FrontBaseDefenseShareBonusPct);
+
+				var totalWeight = 0L;
+				var totalDefenses = 0;
+				foreach (var b in bases)
+				{
+					totalWeight += DefenseShareWeight(b, frontBase, frontBonus);
+					totalDefenses += b.CountOfAny(Info.DefenseTypes);
+				}
+
+				if (totalWeight <= 0)
+					return bases.OrderBy(b => (b.Center - threatAnchor).LengthSquared).ToList();
+
+				var defenses = totalDefenses;
+				var weightSum = totalWeight;
+				return bases
+					.OrderByDescending(b => defenses * DefenseShareWeight(b, frontBase, frontBonus) * 100 / weightSum
+						- b.CountOfAny(Info.DefenseTypes) * 100L)
+					.ThenBy(b => (b.Center - threatAnchor).LengthSquared)
+					.ToList();
+			}
+
+			// A NearBuilding entry only makes sense in a base that actually has that building.
+			var wantsNearBuilding = !string.IsNullOrEmpty(nearBuilding) && nearBuilding != actorType;
+
+			// Need is measured against the base's own share, not against the raw count: a fresh expansion
+			// has none of anything, so a plain "fewest wins" would redirect the whole build order there.
+			// A base wants the type once it holds fewer than BuildingFractions says for its current size;
+			// the expansion grows into its own deficits as refineries and defenses arrive.
+			var fractions = GetActiveBuildingFractions();
+			var fraction = fractions != null && fractions.TryGetValue(actorType, out var f) ? f : 0;
+
+			// Redundancy floor before specialisation: a base that is still missing its one guaranteed power
+			// plant / infantry / vehicle production gets this building first, whatever its role says. Only
+			// the surplus follows the role, so losing the specialised base never removes a capability outright.
+			var capability = Info.EnableBaseRoles ? GetBaseCapability(actorType) : CNBaseCapability.None;
+			var preferredRole = Info.EnableBaseRoles ? GetPreferredRoleFor(actorType) : null;
+
+			return bases
+				.OrderByDescending(b => LacksCapabilityFloor(b, capability))
+				.ThenByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
+
+				// An outpost holds a chokepoint with defense and support; it is the last choice for anything
+				// that belongs to a role, but still a choice if no other base can take it.
+				.ThenBy(b => preferredRole != null && b.Role == CNBaseRole.Outpost)
+				.ThenByDescending(b => preferredRole != null && b.Role == preferredRole.Value)
+				.ThenBy(b => b.CountOf(actorType) * 100 - fraction * b.Buildings.Count)
+				.ThenBy(b => b.Buildings.Count)
+				.ThenBy(b => (b.Center - BaseOrigin).LengthSquared)
+				.ToList();
 		}
 
 		readonly CNBaseBuilderQueueManager[] builders;
@@ -1002,6 +1993,10 @@ namespace OpenRA.Mods.Common.Traits
 		void IBotPositionsUpdated.UpdatedBaseCenter(CPos newLocation)
 		{
 			initialBaseCenter = newLocation;
+
+			// initialBaseCenter follows every MCV expansion. The raster origin must not: it is fixed to
+			// the first reported base location so the lattice never shifts under buildings already placed.
+			baseGridOrigin ??= newLocation;
 		}
 
 		void IBotPositionsUpdated.UpdatedDefenseCenter(CPos newLocation)
@@ -1084,11 +2079,19 @@ namespace OpenRA.Mods.Common.Traits
 						: resourceLayer.GetResource(c).Type != null))
 						continue;
 
-					var refs = world.FindActorsInCircle(conyard.CenterPosition, WDist.FromCells(Info.MaxBaseRadius))
-							.Count(a => a.Owner == player && Info.RefineryTypes.Contains(a.Info.Name));
+					// One circle query, two tallies: this used to run FindActorsInCircle twice over the
+					// identical circle, once per conyard, inside the periodic resource-location scan.
+					var refs = 0;
+					var enemies = 0;
+					foreach (var actor in world.FindActorsInCircle(conyard.CenterPosition, WDist.FromCells(Info.MaxBaseRadius)))
+					{
+						if (actor.Owner == player && Info.RefineryTypes.Contains(actor.Info.Name))
+							refs++;
+						else if (actor.Owner.RelationshipWith(player) == PlayerRelationship.Enemy)
+							enemies++;
+					}
 
-					var suitable = -world.FindActorsInCircle(conyard.CenterPosition, WDist.FromCells(Info.MaxBaseRadius))
-							.Count(a => a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy) - refs;
+					var suitable = -enemies - refs;
 
 					if (suitable > best)
 					{
@@ -1276,30 +2279,41 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// The strongest remembered attack near the reference, or null when nothing has actually been
+		/// attacked. Unlike <see cref="GetBestDefenseHotspot"/> this does NOT fall back to map topology, so
+		/// callers that need evidence of a real threat do not get handed the nearest chokepoint instead.
+		/// </summary>
+		public CPos? GetRecordedDangerHotspot(CPos reference, DefenseRole role = DefenseRole.Default)
+		{
+			if (!Info.EnableDefenseDangerMemory || defenseDangerMemory.Count == 0)
+				return null;
+
+			CPos? bestHotspot = null;
+			var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
+			var bestScore = int.MinValue;
+
+			foreach (var kv in defenseDangerMemory)
+			{
+				var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
+				if (weight < minimumWeight)
+					continue;
+
+				// Prefer serious repeated attacks, but keep nearby pressure responsive.
+				var score = weight - (kv.Key - reference).LengthSquared / 8;
+				if (score <= bestScore)
+					continue;
+
+				bestScore = score;
+				bestHotspot = kv.Key;
+			}
+
+			return bestHotspot;
+		}
+
 		public CPos? GetBestDefenseHotspot(CPos reference, DefenseRole role = DefenseRole.Default)
 		{
-			CPos? bestHotspot = null;
-
-			if (Info.EnableDefenseDangerMemory && defenseDangerMemory.Count > 0)
-			{
-				var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
-				var bestScore = int.MinValue;
-
-				foreach (var kv in defenseDangerMemory)
-				{
-					var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
-					if (weight < minimumWeight)
-						continue;
-
-					// Prefer serious repeated attacks, but keep nearby pressure responsive.
-					var score = weight - (kv.Key - reference).LengthSquared / 8;
-					if (score <= bestScore)
-						continue;
-
-					bestScore = score;
-					bestHotspot = kv.Key;
-				}
-			}
+			var bestHotspot = GetRecordedDangerHotspot(reference, role);
 
 			// Early game: no attack recorded yet -> aim the first defenses at the nearest map chokepoint.
 			if (bestHotspot == null && TacticalMapModule != null && Info.TopologyHotspotWeight > 0)
@@ -1374,14 +2388,22 @@ namespace OpenRA.Mods.Common.Traits
 				.ToArray();
 		}
 
-		static long ScoreCellToward(CPos cell, CPos center, CPos target, int weight)
+		// World-space vector between two cells. Direction maths on raw CPos deltas is skewed on the
+		// RectangularIsometric grid, where a step in X and a step in Y are not the same physical
+		// distance — "toward the enemy" then means something different depending on the bearing.
+		WVec WorldVec(CPos from, CPos to) => world.Map.CenterOfCell(to) - world.Map.CenterOfCell(from);
+
+		// Both terms are ratios over targetLenSq (projection along the axis, and perpendicular offset
+		// relative to the axis length), so they are scale-invariant: moving the maths to world space
+		// corrects the geometry WITHOUT changing the magnitude the configured weights are tuned against.
+		long ScoreCellToward(CPos cell, CPos center, CPos target, int weight)
 		{
 			if (weight <= 0 || center == target)
 				return 0;
 
-			var toTarget = target - center;
-			var toCell = cell - center;
-			var targetLenSq = Math.Max(1, toTarget.LengthSquared);
+			var toTarget = WorldVec(center, target);
+			var toCell = WorldVec(center, cell);
+			var targetLenSq = Math.Max(1, toTarget.HorizontalLengthSquared);
 			var dot = (long)toCell.X * toTarget.X + (long)toCell.Y * toTarget.Y;
 			if (dot <= 0)
 				return 0;
@@ -1419,11 +2441,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		void EnsureFlankCache(CPos defenseCenter)
 		{
-			if (cachedFlankCenter == defenseCenter)
+			// Tolerance rather than exact equality. The reference used to be DefenseCenter, which changed at
+			// most every DefenseCenterUpdateInterval; since it comes from the decaying danger memory the
+			// argmax can flip between a handful of remembered hotspots, and each flip rebuilt the bearings,
+			// the high-ground set and the chokepoint anchors. A few cells of drift changes none of them
+			// meaningfully - the cone test is 45 degrees wide.
+			var threshold = Math.Max(0, Info.FlankCacheMoveThreshold);
+			if (cachedFlankCenter != new CPos(int.MinValue, int.MinValue)
+				&& (cachedFlankCenter - defenseCenter).LengthSquared <= threshold * threshold)
 				return;
 
 			cachedFlankCenter = defenseCenter;
-			cachedAccessBearings = TacticalMapModule.GetAccessBearings(defenseCenter).ToList();
+
+			// Bearings are stored in world space so the cone tests below compare like with like.
+			// GetAccessBearings hands back cell deltas (chokepoint cell minus reference).
+			cachedAccessBearings.Clear();
+			foreach (var bearing in TacticalMapModule.GetAccessBearings(defenseCenter))
+				cachedAccessBearings.Add(WorldVec(defenseCenter, defenseCenter + bearing));
+
 			cachedHighGround.Clear();
 			foreach (var edge in TacticalMapModule.GetHighGroundEdges(defenseCenter))
 				if (HighGroundEdgeFacesAccess(edge, defenseCenter))
@@ -1457,31 +2492,65 @@ namespace OpenRA.Mods.Common.Traits
 			// Penalize cells facing a sealed flank (no access corridor: map edge / cliff / water).
 			if (Info.SealedFlankPenaltyWeight > 0 && cachedAccessBearings.Count > 0)
 			{
-				var v = cell - defenseCenter;
-				if (v.LengthSquared >= 9)
-				{
-					var aligned = false;
-					foreach (var b in cachedAccessBearings)
-					{
-						var dot = (long)v.X * b.X + (long)v.Y * b.Y;
-						if (dot <= 0)
-							continue;
-
-						// Within ~45 degrees of this corridor bearing counts as "facing an access".
-						var cross = (long)v.X * b.Y - (long)v.Y * b.X;
-						if (cross * cross <= dot * dot)
-						{
-							aligned = true;
-							break;
-						}
-					}
-
-					if (!aligned)
-						adjust -= Info.SealedFlankPenaltyWeight;
-				}
+				// Distance gate stays in cells (it only asks "is this far enough from the centre to
+				// have a meaningful bearing"); the cone test itself runs in world space, see VectorFacesAccess.
+				if ((cell - defenseCenter).LengthSquared >= 9 && !VectorFacesAccess(WorldVec(defenseCenter, cell)))
+					adjust -= Info.SealedFlankPenaltyWeight;
 			}
 
 			return adjust;
+		}
+
+		/// <summary>
+		/// True when nothing an attacker could arrive from lies beyond this cell, so a defense there would
+		/// cover a map edge, a cliff or open water. Used as a veto by defense placement.
+		/// </summary>
+		public bool IsSealedFlankCell(CPos cell, CPos defenseCenter)
+		{
+			if (TacticalMapModule == null || Info.SealedFlankPenaltyWeight <= 0)
+				return false;
+
+			EnsureFlankCache(defenseCenter);
+
+			// Too close to the centre to have a meaningful bearing - same gate the score penalty uses.
+			if ((cell - defenseCenter).LengthSquared < 9)
+				return false;
+
+			if (cachedAccessBearings.Count > 0)
+				return !VectorFacesAccess(WorldVec(defenseCenter, cell));
+
+			// No known corridors on this map: the score penalty used to silently do nothing here, which is
+			// how turrets ended up lining the map edge. Fall back to asking the terrain directly whether
+			// there is any ground out there at all.
+			return !HasReachableGroundBeyond(cell, defenseCenter);
+		}
+
+		// Coarse outward probe: step away from the base along the candidate's bearing and look for ground an
+		// attacker could stand on. Uses the harvester locomotors the module already holds - not exactly an
+		// attacker's movement class, but enough to tell solid ground from map edge, cliff and water.
+		bool HasReachableGroundBeyond(CPos cell, CPos defenseCenter)
+		{
+			if (HarvesterLocomotorsList.Length == 0)
+				return true;
+
+			var delta = cell - defenseCenter;
+			var step = new CVec(Math.Sign(delta.X), Math.Sign(delta.Y));
+			if (step == CVec.Zero)
+				return true;
+
+			var probe = Math.Max(1, Info.SealedFlankProbeCells);
+			for (var i = 1; i <= probe; i++)
+			{
+				var next = cell + step * i;
+				if (!world.Map.Contains(next))
+					return false;
+
+				foreach (var locomotor in HarvesterLocomotorsList)
+					if (locomotor.MovementCostForCell(next) != PathGraph.MovementCostForUnreachableCell)
+						return true;
+			}
+
+			return false;
 		}
 
 		bool HighGroundEdgeFacesAccess(CNHighGroundEdge edge, CPos defenseCenter)
@@ -1489,12 +2558,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (cachedAccessBearings.Count == 0)
 				return false;
 
-			return VectorFacesAccess(edge.Cell - defenseCenter) && VectorFacesAccess(edge.Outward);
+			return VectorFacesAccess(WorldVec(defenseCenter, edge.Cell))
+				&& VectorFacesAccess(WorldVec(edge.Cell, edge.Cell + edge.Outward));
 		}
 
-		bool VectorFacesAccess(CVec v)
+		// True if v points within ~45 degrees of any access-corridor bearing. World space throughout:
+		// the same angular test on cell deltas accepts a visibly different cone depending on the
+		// bearing, because the isometric grid stretches one axis relative to the other.
+		bool VectorFacesAccess(WVec v)
 		{
-			if (v.LengthSquared == 0)
+			if (v.HorizontalLengthSquared == 0)
 				return true;
 
 			foreach (var b in cachedAccessBearings)
@@ -1504,7 +2577,10 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var cross = (long)v.X * b.Y - (long)v.Y * b.X;
-				if (cross * cross <= dot * dot)
+
+				// |cross| <= dot is the 45-degree cone. Compared without squaring: at world scale
+				// both sides reach ~1e11 and squaring them would overflow a long.
+				if (Math.Abs(cross) <= dot)
 					return true;
 			}
 
@@ -1525,9 +2601,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (threat.Weight <= 0)
 					continue;
 
-				var toThreat = threat.Location - coreCenter;
-				var toCell = cell - coreCenter;
-				var threatLenSq = Math.Max(1, toThreat.LengthSquared);
+				// World space, as in ScoreCellToward: approachDot is normalised by threatLenSq, so the
+				// magnitude the configured weight is tuned against is unchanged — only the geometry.
+				var toThreat = WorldVec(coreCenter, threat.Location);
+				var toCell = WorldVec(coreCenter, cell);
+				var threatLenSq = Math.Max(1, toThreat.HorizontalLengthSquared);
 				var approachDot = (long)toCell.X * toThreat.X + (long)toCell.Y * toThreat.Y;
 				if (approachDot > 0)
 				{
@@ -1642,9 +2720,12 @@ namespace OpenRA.Mods.Common.Traits
 			// Per-actor production
 			var productions = producer.TraitsImplementing<Production>();
 
-			// Player-wide production
+			// Player-wide production.
+			// FORK PATCH: upstream OpenRA has `!=` here (BaseBuilderBotModule.cs), which collects the
+			// production traits of every OTHER player — so the fallback derived rally-point locomotors
+			// from enemy factories instead of our own. `==` is what the comment above it describes.
 			if (!productions.Any())
-				productions = producer.World.ActorsWithTrait<Production>().Where(x => x.Actor.Owner != producer.Owner).Select(x => x.Trait);
+				productions = producer.World.ActorsWithTrait<Production>().Where(x => x.Actor.Owner == producer.Owner).Select(x => x.Trait);
 
 			var produces = productions.SelectMany(p => p.Info.Produces).ToHashSet();
 			var locomotors = Array.Empty<Locomotor>();
@@ -1904,16 +2985,28 @@ namespace OpenRA.Mods.Common.Traits
 			return !HasAdequateRefineryCount();
 		}
 
+		// Walks every resource indice. Reached via GetTargetRefineryCount -> HasAdequateRefineryCount,
+		// which ShouldExpandEconomy, ShouldAddProduction, the profile module and the queue manager all
+		// call — so this ran the full sweep many times per tick. The underlying indices are refreshed
+		// one per UpdateResourceMapInverval ticks, so a short cache cannot go meaningfully stale.
+		int cachedSupportedRefineryCapacity;
+		int cachedSupportedRefineryCapacityTick = int.MinValue;
+
 		int GetSupportedRefineryCapacity()
 		{
 			if (ResourceMapModule == null)
 				return int.MaxValue;
 
+			if (world.WorldTick - cachedSupportedRefineryCapacityTick < SupportedRefineryCapacityMaxAgeTicks)
+				return cachedSupportedRefineryCapacity;
+
 			var supportedCapacity = 0;
 			for (var i = 0; i < ResourceMapModule.GetIndicesLength(); i++)
 				supportedCapacity += GetSupportedRefineryCapacity(ResourceMapModule.GetIndice(i));
 
-			return Math.Max(Info.InititalMinimumRefineryCount, supportedCapacity);
+			cachedSupportedRefineryCapacityTick = world.WorldTick;
+			cachedSupportedRefineryCapacity = Math.Max(Info.InititalMinimumRefineryCount, supportedCapacity);
+			return cachedSupportedRefineryCapacity;
 		}
 
 		int GetSupportedRefineryCapacity(CNResourceIndice indice)

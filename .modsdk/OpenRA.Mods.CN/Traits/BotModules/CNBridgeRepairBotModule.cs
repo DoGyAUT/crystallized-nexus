@@ -43,7 +43,7 @@ namespace OpenRA.Mods.CN.Traits
 		public override object Create(ActorInitializer init) { return new CNBridgeRepairBotModule(init.Self, this); }
 	}
 
-	public class CNBridgeRepairBotModule : ConditionalTrait<CNBridgeRepairBotModuleInfo>, IBotTick, INotifyActorDisposing
+	public class CNBridgeRepairBotModule : ConditionalTrait<CNBridgeRepairBotModuleInfo>, IBotTick
 	{
 		readonly World world;
 		readonly Player player;
@@ -197,17 +197,10 @@ namespace OpenRA.Mods.CN.Traits
 
 		int RepairScanInterval => Info.RepairScanInterval > 0 ? Info.RepairScanInterval : 1;
 
-		void INotifyActorDisposing.Disposing(Actor self)
-		{
-			activeAssignments.Remove(self);
-
-			var stale = activeAssignments
-				.Where(kv => kv.Value == self)
-				.Select(kv => kv.Key)
-				.ToArray();
-
-			foreach (var repairer in stale)
-				activeAssignments.Remove(repairer);
-		}
+		// NOTE: there is deliberately no INotifyActorDisposing here. This trait lives on the player
+		// actor, so Disposing would only ever fire for the player actor itself — never for a repairer
+		// or a bridge hut. The old handler matched `self` against the assignment dictionary and could
+		// therefore never remove anything. PruneAssignments already drops dead repairers and repaired
+		// or destroyed huts at the start of every scan, which is where that cleanup belongs.
 	}
 }

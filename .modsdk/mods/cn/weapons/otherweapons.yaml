@@ -3,7 +3,7 @@ FireballLauncher:
 	Inherits@FLASH: ^FlashSmallY
 	ValidTargets: Ground, Trees
 	ReloadDelay: 50
-	Range: 5c256
+	Range: 6c256
 	Report: flamtnk1.aud
 	Projectile: Bullet
 		Speed: 128

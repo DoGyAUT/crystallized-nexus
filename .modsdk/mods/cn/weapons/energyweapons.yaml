@@ -1,7 +1,17 @@
 LtRail:
 	Inherits: ^Railgun
-	Inherits@FLASH: ^FlashSmallW
+	Inherits@FLASH: ^FlashTinyW
+	Projectile: Railgun
+		Inaccuracy: 0c512
 	Warhead@1Dam: SpreadDamage
+		Range: 0, 32
+		Damage: 50
+	Warhead@FLASH: CreateEffect
+		ValidRelationships: Neutral, Enemy
+	Warhead@5Eff: CreateEffect
+		Explosions: plasmaexpl1
+		ExplosionPalette: effect
+		ValidTargets: Vehicle, Cyborg, Building, Infantry
 		ValidRelationships: Neutral, Enemy
 
 MechRailgun:
@@ -13,6 +23,8 @@ MechRailgun:
 	BurstDelays: 40
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
+	Warhead@FLASH: CreateEffect
+		ValidRelationships: Neutral, Enemy
 
 CyclopsLauncher:
 	Inherits: ^RailgunCannon
@@ -76,7 +88,7 @@ SonicZap:
 	Report: sonic4.aud
 	ValidTargets: Ground, Trees
 	Projectile: AreaBeam
-		Speed: 0c128
+		Speed: 0c512
 		Duration: 50
 		DamageInterval: 5
 		Width: 768
@@ -115,7 +127,7 @@ SonicZap:
 			Superheavy: 30
 			Shield: 400
 			Stability: 500
-		DamageTypes: SmallExplosionDeath, TriggerProne, Prone100Percent, PierceArmor, BypassArmorLight
+		DamageTypes: BulletDeath, TriggerProne, Prone100Percent, PierceArmor, BypassArmorLight
 	Warhead@2Dam: SpreadDamage
 		Range: 0, 32
 		Falloff: 50, 50

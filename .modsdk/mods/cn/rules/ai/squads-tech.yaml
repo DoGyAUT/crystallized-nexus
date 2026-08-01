@@ -18,8 +18,9 @@ Player:
 		AttackWaveFallbackMinSquads: 3
 		AttackWaveSizeGrowthInterval: 6500
 		AttackWaveSizeGrowthAmount: 1
-		AttackWaveStagingOffsetCells: 14
-		AttackWaveStagingTimeoutTicks: 800
+		AttackWaveStagingProgressPercent: 62
+		AttackWaveStagingOffsetCells: 20
+		AttackWaveStagingTimeoutTicks: 1000
 		AttackWaveStagingArrivalCells: 5
 		WaveHoldScatterCells: 4
 		WaveParticipantRoles: Assault, ArtilleryAssault, SubterraneanAssault, Raider, Stealth, AircraftAttack, AircraftRaider
@@ -43,7 +44,9 @@ Player:
 			Transport: 4
 			Infantry: 3
 			Vehicle: 8
-			Aircraft: 6
+			Aircraft: 8
+			Siege: 5
+			Harass: 5
 		NeedRules:
 			AntiInfantry:
 				EnemyCapabilities: Infantry
@@ -287,7 +290,7 @@ Player:
 						AllowedTypes: jugg
 			GDI_Cyclops_Breaker:
 				Role: Assault
-				Tags: AntiArmor, Siege, Frontline, Vehicle
+				Tags: AntiArmor, Harass, Frontline, Vehicle
 				MaxInstances: 4
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
@@ -314,6 +317,7 @@ Player:
 				Role: Assault
 				Tags: AntiArmor, AntiAir, Siege, Frontline, Vehicle
 				Bias: 20
+				IgnoresCashReserve: true
 				MaxInstances: 2
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 1
@@ -327,6 +331,20 @@ Player:
 						Count: 2
 						AllowedTypes: mmch, 4tnk
 						Optional: True
+			GDI_ZoneTrooper_Tech:
+				Role: Assault
+				Tags: AntiInfantry, AntiArmor, Frontline, Infantry
+				Bias: 8
+				IgnoresCashReserve: true
+				MaxInstances: 4
+				PriorityTargetCapabilities: Tech, Infantry, Vehicle, Production
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: ztrooper
 			GDI_Orca_Bomber:
 				Role: AircraftAttack
 				Tags: Siege, Harass, Aircraft
@@ -497,6 +515,7 @@ Player:
 				Role: Assault
 				Tags: AntiArmor, Siege, Frontline, Vehicle
 				Bias: 24
+				IgnoresCashReserve: true
 				MaxInstances: 2
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1

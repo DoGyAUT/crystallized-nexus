@@ -46,6 +46,22 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Per-profile cash thresholds to trigger additional MCV building. Overrides BuildAdditionalMCVCashAmount for the active profile.")]
 		public readonly FrozenDictionary<string, int> BuildAdditionalMCVCashAmounts = null;
 
+		[Desc("Also expand when a genuinely good free spot exists, instead of only when the bot is rich.",
+			"The construction yard counts above stay in force as the ceiling.")]
+		public readonly bool EnableOpportunityExpansion = true;
+
+		[Desc("Cash required for an expansion triggered by a good spot rather than by " + nameof(BuildAdditionalMCVCashAmount) + ".",
+			"Should cover the MCV itself plus a little headroom.")]
+		public readonly int OpportunityExpansionCashAmount = 3500;
+
+		[Desc("How attractive a free spot has to be to trigger an expansion, in per-mille of one resource map",
+			"indice's area. Map-portable: 0 means the spot has to score net positive (resources there, no own",
+			"construction yard or refinery in range, no enemy nearby, path not absurd), higher demands more.")]
+		public readonly int ExpansionAttractionThresholdPermille = 0;
+
+		[Desc("Per-profile override of " + nameof(ExpansionAttractionThresholdPermille) + ".")]
+		public readonly FrozenDictionary<string, int> ExpansionAttractionThresholdsPermille = null;
+
 		[Desc("Delay (in ticks) for giving orders to idle MCVs.")]
 		public readonly int ScanForNewMcvInterval = 20;
 
@@ -57,6 +73,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Should moving the oldest or newest conyard be preferred? Random ordering if unset.")]
 		public readonly bool? MoveOldConyardFirst = null;
+
+		[Desc("A construction yard may only pack up and drive off while the base it is the sole build source",
+			"of has at most this many buildings. Beyond that, relocating it abandons an established base:",
+			"the stock stays behind as dead weight the bot can no longer build around, and it continues from",
+			"the new, tiny site instead. -1 disables the check.")]
+		public readonly int RelocateConyardMaxBaseSize = 12;
 
 		[Desc("When economy is already covered, prefer CheckBase expansions as forward outposts instead of only resource expansions.")]
 		public readonly bool EnableStrategicOutposts = true;
@@ -394,15 +416,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.EnableStrategicOutposts || Info.CBmodeFrontlineOutpostBonus <= 0)
 				return 0;
 
-			var vx = enemyBaseCenter.X - friendlyBaseCenter.X;
-			var vy = enemyBaseCenter.Y - friendlyBaseCenter.Y;
-			var lenSq = (long)vx * vx + (long)vy * vy;
+			// Projection/rejection are computed in WORLD space, not cell space. On the RectangularIsometric
+			// grid a CVec's X and Y are not the same physical length, so doing the dot/cross product on raw
+			// cell coordinates skewed the corridor: CBmodeOutpostCorridorWidth meant something different
+			// along the north-south axis than along east-west, and "58% of the way to the enemy" landed
+			// somewhere else entirely depending on which way the two bases happened to lie.
+			var map = world.Map;
+			var friendlyPos = map.CenterOfCell(friendlyBaseCenter);
+			var enemyPos = map.CenterOfCell(enemyBaseCenter);
+			var candidatePos = map.CenterOfCell(candidate);
+
+			var axis = enemyPos - friendlyPos;
+			var lenSq = (long)axis.X * axis.X + (long)axis.Y * axis.Y;
 			if (lenSq <= 0)
 				return 0;
 
-			var cx = candidate.X - friendlyBaseCenter.X;
-			var cy = candidate.Y - friendlyBaseCenter.Y;
-			var dot = (long)cx * vx + (long)cy * vy;
+			var toCandidate = candidatePos - friendlyPos;
+			var dot = (long)toCandidate.X * axis.X + (long)toCandidate.Y * axis.Y;
 			if (dot <= 0 || dot >= lenSq)
 				return 0;
 
@@ -413,22 +443,29 @@ namespace OpenRA.Mods.Common.Traits
 			if (progressDelta > progressTolerance)
 				return 0;
 
-			var corridorWidth = Math.Max(1, Info.CBmodeOutpostCorridorWidth);
-			var cross = (long)cx * vy - (long)cy * vx;
-			var perpendicularDistSq = cross * cross / lenSq;
-			if (perpendicularDistSq > corridorWidth * corridorWidth)
+			// Corridor width converted to world units so the comparison stays in one metric. The
+			// perpendicular offset is |cross| / |axis| — divided before squaring, because at world
+			// scale cross itself already reaches ~4e10 and cross * cross would overflow a long.
+			var corridorWidth = WDist.FromCells(Math.Max(1, Info.CBmodeOutpostCorridorWidth)).Length;
+			var corridorWidthSq = (long)corridorWidth * corridorWidth;
+			var cross = (long)toCandidate.X * axis.Y - (long)toCandidate.Y * axis.X;
+			var perpendicularDist = Math.Abs(cross) / Math.Max(1, axis.HorizontalLength);
+			var perpendicularDistSq = perpendicularDist * perpendicularDist;
+			if (perpendicularDistSq > corridorWidthSq)
 				return 0;
 
-			var enemyMinRange = Math.Max(0, Info.CBmodeOutpostEnemyMinRange);
-			if (enemyMinRange > 0 && (candidate - enemyBaseCenter).LengthSquared < enemyMinRange * enemyMinRange)
+			var enemyMinRange = WDist.FromCells(Math.Max(0, Info.CBmodeOutpostEnemyMinRange));
+			if (enemyMinRange.Length > 0 &&
+				(candidatePos - enemyPos).HorizontalLengthSquared < (long)enemyMinRange.Length * enemyMinRange.Length)
 				return 0;
 
-			var friendlyMinRange = Math.Max(0, Info.CBmodeOutpostFriendlyMinRange);
-			if (friendlyMinRange > 0 && (candidate - friendlyBaseCenter).LengthSquared < friendlyMinRange * friendlyMinRange)
+			var friendlyMinRange = WDist.FromCells(Math.Max(0, Info.CBmodeOutpostFriendlyMinRange));
+			if (friendlyMinRange.Length > 0 &&
+				(candidatePos - friendlyPos).HorizontalLengthSquared < (long)friendlyMinRange.Length * friendlyMinRange.Length)
 				return 0;
 
 			var progressScore = (progressTolerance - progressDelta) * Info.CBmodeFrontlineOutpostBonus / progressTolerance;
-			var corridorScore = (int)((corridorWidth * corridorWidth - perpendicularDistSq) * Info.CBmodeFrontlineOutpostBonus / (corridorWidth * corridorWidth));
+			var corridorScore = (int)((corridorWidthSq - perpendicularDistSq) * Info.CBmodeFrontlineOutpostBonus / corridorWidthSq);
 
 			return (progressScore + corridorScore) / 2;
 		}
@@ -580,7 +617,8 @@ namespace OpenRA.Mods.Common.Traits
 			return penalty;
 		}
 
-		public (CPos? ExpandLocation, int Attraction, CPos? CheckSpot) GetExpansionCenter(Actor mcv, Mobile mobile, bool allowfallback)
+		public (CPos? ExpandLocation, int Attraction, CPos? CheckSpot) GetExpansionCenter(Actor mcv, Mobile mobile, bool allowfallback,
+			BotMcvExpansionMode? modeOverride = null)
 		{
 			/*
 			 * indiceSideLengthSquare (which is equal to indiceSideLength * indiceSideLength) is used as the basic unit to calculate the attraction of a candidate,
@@ -624,7 +662,7 @@ namespace OpenRA.Mods.Common.Traits
 			 *     and apply some additional method to filter the indice for acceptable resource (not too low).
 			 */
 			var indiceSideLengthSquare = resourceMapModule.GetIndiceSideLength() * resourceMapModule.GetIndiceSideLength();
-			switch (mcvExpansionMode)
+			switch (modeOverride ?? mcvExpansionMode)
 			{
 				/*
 				 * CheckBase mode only considers the distance to current MCV, ally construction yard within range and enemy buildings within range.
@@ -851,6 +889,13 @@ namespace OpenRA.Mods.Common.Traits
 				currentExpansionGoal = Info.InitialExpansionMode == BotMcvExpansionMode.CheckResource
 					? ExpansionGoal.Economy : ExpansionGoal.BaseExtension;
 
+				// Requires<CNResourceMapBotModuleInfo> only guarantees the trait exists, not that it is
+				// enabled — a RequiresCondition on the resource map used to take this straight into a
+				// NullReferenceException on the very first bot tick. Stay dormant until it comes up
+				// instead: every expansion decision below is derived from the resource map.
+				if (resourceMapModule == null)
+					return;
+
 				pathDistanceSquareFactor = resourceMapModule.GetIndiceRowCount() * resourceMapModule.GetIndiceRowCount()
 					+ resourceMapModule.GetIndiceColumnCount() * resourceMapModule.GetIndiceColumnCount();
 
@@ -895,6 +940,31 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// Is there a free spot worth sending an MCV to? Scored with the very same function the MCV itself
+		// uses to pick its target, just anchored on an existing construction yard and without a Mobile, so
+		// it costs one pass over the resource indices and no pathfinding.
+		bool HasAttractiveExpansionSpot(string profileKey)
+		{
+			if (resourceMapModule == null || resourceMapModule.GetIndicesLength() <= 0)
+				return false;
+
+			var reference = constructionYards.Actors.FirstOrDefault(a => !a.IsDead && a.IsInWorld);
+			if (reference == null)
+				return false;
+
+			var (_, attraction, _) = GetExpansionCenter(reference, null, false, BotMcvExpansionMode.CheckResource);
+			if (attraction == int.MinValue)
+				return false;
+
+			var permille = profileKey != null
+				&& Info.ExpansionAttractionThresholdsPermille != null
+				&& Info.ExpansionAttractionThresholdsPermille.TryGetValue(profileKey, out var profilePermille)
+				? profilePermille : Info.ExpansionAttractionThresholdPermille;
+
+			var indiceSideLength = resourceMapModule.GetIndiceSideLength();
+			return attraction >= permille * indiceSideLength * indiceSideLength / 1000;
+		}
+
 		void BuildMCV(IBot bot)
 		{
 			if (Info.McvTypes.Count <= 0)
@@ -913,16 +983,31 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.BuildAdditionalMCVCashAmounts != null
 				&& Info.BuildAdditionalMCVCashAmounts.TryGetValue(profileKey, out var profileCash)
 				? profileCash : Info.BuildAdditionalMCVCashAmount;
-			var mcvShouldHave = playerResources.GetCashAndResources() >= buildCashAmount
-				? Info.MinimumConstructionYardCount + additionalCYCount : Info.MinimumConstructionYardCount;
 
 			// If we only have 1 MCV and no conyard, we should be allowed to build another MCV.
 			// Otherwise, when an mcv is on the move and we should wait.
 			if ((conyardNum <= 0 && mcvNum > 1) || (conyardNum > 0 && mcvNum > 0))
 				return;
 
-			if (conyardNum + mcvNum >= mcvShouldHave)
+			// The construction yard count is now purely a ceiling, not the trigger. Before, it only rose
+			// above the minimum once the bot was sitting on BuildAdditionalMCVCashAmount, so profiles with
+			// no additional yards configured never expanded however good a free spot was, and the rest only
+			// expanded when rich enough to have hoarded five figures.
+			if (conyardNum + mcvNum >= Info.MinimumConstructionYardCount + additionalCYCount)
 				return;
+
+			// Replacing a lost base is unconditional; expanding beyond the minimum needs a reason.
+			if (conyardNum + mcvNum >= Info.MinimumConstructionYardCount)
+			{
+				var cash = playerResources.GetCashAndResources();
+				var richEnough = cash >= buildCashAmount;
+				var opportunity = Info.EnableOpportunityExpansion
+					&& cash >= Info.OpportunityExpansionCashAmount
+					&& HasAttractiveExpansionSpot(profileKey);
+
+				if (!richEnough && !opportunity)
+					return;
+			}
 
 			// We have MCV in production queue, let's wait.
 			if (mcvFactories.Actors
@@ -959,11 +1044,35 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// True while this construction yard is the sole build source of a base that has outgrown
+		// RelocateConyardMaxBaseSize. Moving it then leaves the whole base behind: without a yard the group
+		// is no longer a build site (see CNBotBase.IsBuildSite), so the bot carries on around the handful of
+		// buildings at the new spot while the old stock sits there as dead weight.
+		bool WouldAbandonEstablishedBase(Actor conyard)
+		{
+			if (cnBaseBuilder == null || Info.RelocateConyardMaxBaseSize < 0)
+				return false;
+
+			foreach (var b in cnBaseBuilder.GetBases())
+			{
+				if (!b.ConstructionYards.Contains(conyard))
+					continue;
+
+				// Another yard in the same base keeps building there after this one leaves.
+				return b.ConstructionYards.Count <= 1 && b.Buildings.Count > Info.RelocateConyardMaxBaseSize;
+			}
+
+			return false;
+		}
+
 		void UnDeployConyard(IBot bot)
 		{
 			if (mustUndeployCoyard != null && mustUndeployCoyard.IsInWorld && !mustUndeployCoyard.IsDead && mustUndeployCoyard.Owner == player)
 			{
-				if (IsExpansionGoalLocked(mustUndeployCoyard))
+				// The stuck-base recovery in CNBaseBuilderQueueManager nominates a yard whenever placement
+				// keeps failing around it - which is exactly what a FULL base looks like. Relocating out of
+				// one would abandon the very base that ran out of room, so it is refused here too.
+				if (IsExpansionGoalLocked(mustUndeployCoyard) || WouldAbandonEstablishedBase(mustUndeployCoyard))
 				{
 					mustUndeployCoyard = null;
 					return;
@@ -993,8 +1102,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (conyardslist.Count > 1 || undeployEvenNoBase)
 			{
 				// We don't want to interrupt refinery production, otherwise it may cause a dead loop of deploy/undeploy.
+				// And a yard that is the only build source of an established base does not leave it at all.
 				var movableMCV = conyardslist.FirstOrDefault(a => !a.TraitsImplementing<ProductionQueue>()
-				.Any(t => t.Enabled && t.AllQueued().Any(q => resourceMapModule.Info.RefineryTypes.Contains(q.Item))));
+				.Any(t => t.Enabled && t.AllQueued().Any(q => resourceMapModule.Info.RefineryTypes.Contains(q.Item)))
+				&& !WouldAbandonEstablishedBase(a));
 
 				if (movableMCV != null)
 					bot.QueueOrder(new Order("DeployTransform", movableMCV, true));

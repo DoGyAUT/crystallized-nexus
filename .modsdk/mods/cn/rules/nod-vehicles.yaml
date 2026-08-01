@@ -1155,7 +1155,6 @@ STING:
 		Queue: Vehicle
 		BuildPaletteOrder: 170
 		Prerequisites: ~naweap, nastlh, napyra, ~techlevel.superweapons
-		BuildLimit: 1
 		Description: actor-sting.description
 	Voiced:
 		VoiceSet: Sting

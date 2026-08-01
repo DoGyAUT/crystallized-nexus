@@ -128,6 +128,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"Used only when ScaleWithBuilding is set. Formula: scaledMax = buildingCount * SquadsPerBuilding.")]
 		public readonly int SquadsPerBuilding = 1;
 
+		[Desc("If true, this template's units skip the production queue's normal DesiredCashReserve/" +
+			"AdditionalCashReservePerQueue buffer when checking affordability - only the flat " +
+			"ProductionMinCashRequirement applies. For rare, expensive, high-priority units (heavy Bias, " +
+			"Count:1 slots) that would otherwise almost never clear the cash-reserve bar against cheaper, " +
+			"more frequent demand from other squads.")]
+		public readonly bool IgnoresCashReserve = false;
+
 		[Desc("Slot definitions keyed by slot name.")]
 		[FieldLoader.LoadUsing(nameof(LoadSlots))]
 		public readonly Dictionary<string, CNSlotInfo> Slots = [];
@@ -277,7 +284,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Amount added to AttackWaveMinReadySquads each growth interval. Capped by AttackWaveMaxMinReadySquads.")]
 		public readonly int AttackWaveSizeGrowthAmount = 1;
 
-		[Desc("Cells of safe distance from the enemy base when staging a wave's rally point.")]
+		[Desc("How far along the line from our own base to the target the wave stages, in percent. " +
+			"0 is at home, 100 is on top of the target. Scales with the distance actually involved, so the " +
+			"same value means the same thing on a small map and a large one.")]
+		public readonly int AttackWaveStagingProgressPercent = 65;
+
+		[Desc("Cells of safe distance from the target that the staging point must keep, overriding " +
+			"AttackWaveStagingProgressPercent when the two disagree. Only a floor for short distances: " +
+			"at any real separation the percentage already keeps the wave further out than this.")]
 		public readonly int AttackWaveStagingOffsetCells = 12;
 
 		[Desc("Max ticks a wave waits at the rally point for stragglers before transitioning to attack.")]
@@ -298,6 +312,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		[Desc("Cells of arrival tolerance at the rally point.")]
 		public readonly int AttackWaveStagingArrivalCells = 5;
+
+		[Desc("Percent of the wave's participating squads that must have reached the rally point before any of them " +
+			"moves on to the attack. Below 100 the wave tolerates stragglers; the staging timeout releases it either way.")]
+		public readonly int AttackWaveStagingMinArrivedPercent = 66;
 
 		[Desc("Cells of random scatter around the hold position so wave-holding squads don't stack on top of each other.")]
 		public readonly int WaveHoldScatterCells = 4;
@@ -877,6 +895,29 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			return cap;
+		}
+
+		HashSet<string> typesIgnoringCashReserve;
+
+		// Unit types that appear in any slot of an IgnoresCashReserve template - cached since the
+		// template roster is static config, and this is looked up per candidate unit during production.
+		public IReadOnlySet<string> GetTypesIgnoringCashReserve()
+		{
+			if (typesIgnoringCashReserve != null)
+				return typesIgnoringCashReserve;
+
+			typesIgnoringCashReserve = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (var (_, template) in OrderedTemplates())
+			{
+				if (!template.IgnoresCashReserve || !TemplateAppliesToFaction(template))
+					continue;
+
+				foreach (var (_, slot) in template.Slots)
+					foreach (var allowedType in slot.AllowedTypes)
+						typesIgnoringCashReserve.Add(allowedType);
+			}
+
+			return typesIgnoringCashReserve;
 		}
 
 		static void AddPreferredDemand(
@@ -1916,20 +1957,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (deltaLen < 1024)
 				return World.Map.CellContaining(enemyPos);
 
-			var offsetWDist = WDist.FromCells(Math.Max(1, Info.AttackWaveStagingOffsetCells)).Length;
+			// How far short of the target the wave gathers. Taking a share of the run rather than a
+			// fixed number of cells is what makes this map-independent: a flat offset meant "half the
+			// way there" on a small map and "just outside their defences" on a large one, which is why
+			// raising it twice only moved the problem to the next map.
+			var progress = Math.Clamp(Info.AttackWaveStagingProgressPercent, 0, 100);
+			var backoff = (int)((long)deltaLen * (100 - progress) / 100);
 
-			// rally = enemy + offset * (own - enemy) / |own - enemy|
-			var rallyX = enemyPos.X + (int)((long)delta.X * offsetWDist / deltaLen);
-			var rallyY = enemyPos.Y + (int)((long)delta.Y * offsetWDist / deltaLen);
-			var rallyZ = enemyPos.Z + (int)((long)delta.Z * offsetWDist / deltaLen);
+			// The floor only bites on short runs, where the percentage alone would put the wave inside
+			// the enemy's defences. Capped at the full distance: keeping more distance from the target
+			// than we have to give would push the rally point past our own base.
+			backoff = Math.Max(backoff, WDist.FromCells(Math.Max(0, Info.AttackWaveStagingOffsetCells)).Length);
+			backoff = Math.Min(backoff, deltaLen);
+
+			// rally = enemy + backoff * (own - enemy) / |own - enemy|
+			var rallyX = enemyPos.X + (int)((long)delta.X * backoff / deltaLen);
+			var rallyY = enemyPos.Y + (int)((long)delta.Y * backoff / deltaLen);
+			var rallyZ = enemyPos.Z + (int)((long)delta.Z * backoff / deltaLen);
 			var rallyPos = new WPos(rallyX, rallyY, rallyZ);
-
-			// Clamp: never stage further from the enemy than from our own base.
-			// If the staging offset overshoots past midpoint toward us, fall back to midpoint.
-			var fromOwn = (rallyPos - ownPos).LengthSquared;
-			var enemyToOwn = (enemyPos - ownPos).LengthSquared;
-			if (fromOwn > enemyToOwn)
-				rallyPos = new WPos((ownPos.X + enemyPos.X) / 2, (ownPos.Y + enemyPos.Y) / 2, (ownPos.Z + enemyPos.Z) / 2);
 
 			var cell = World.Map.CellContaining(rallyPos);
 

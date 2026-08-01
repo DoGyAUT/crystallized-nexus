@@ -168,8 +168,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (bestRepairer == null)
 				return false;
 
+			var distanceSq = (bestRepairer.Location - actor.Location).LengthSquared;
 			var maxRangeSq = Info.MobileRepairSearchRadius * Info.MobileRepairSearchRadius;
-			if ((bestRepairer.Location - actor.Location).LengthSquared > maxRangeSq)
+			if (distanceSq > maxRangeSq)
+				return false;
+
+			// Already standing at the repairer: the unit is being serviced (or the repairer can't help
+			// it), so there is nothing to order. Returning true here would burn one of the scan's
+			// MaxAssignmentsPerScan slots on a no-op every single scan, starving units that do need
+			// a repair order.
+			if (distanceSq <= 2)
 				return false;
 
 			bot.QueueOrder(new Order("Move", actor, Target.FromCell(actor.World, bestRepairer.Location), false));

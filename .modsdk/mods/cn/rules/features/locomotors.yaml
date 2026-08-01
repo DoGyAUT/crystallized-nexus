@@ -23,6 +23,27 @@
 				PathingCost: 280
 			Veins: 72
 				PathingCost: 500
+	Locomotor@HEAVYFOOT:
+		Name: heavyfoot
+		Crushes: crate
+		SharesCell: true
+		PassableFootprints: f
+		SlopeUphillCostModifier: 155
+		SlopeDownhillCostModifier: 78
+		TerrainSpeeds:
+			Clear: 95
+			Road: 100
+			Bridge: 100
+			Rail: 95
+			DirtRoad: 98
+			Rough: 88
+			Tree: 70
+				PathingCost: 300
+			Tiberium: 88
+			BlueTiberium: 88
+			RedTiberium: 84
+			Veins: 72
+				PathingCost: 500
 	Locomotor@FLAMEGUY:
 		Name: flameguy
 		SharesCell: true
@@ -115,7 +136,7 @@
 			Veins: 66
 	Locomotor@HEAVYTRACKED:
 		Name: heavytracked
-		Crushes: wall, crate, infantry, lightvehicle, heavyinfantry, vehiclehusk
+		Crushes: wall, crate, infantry, lightvehicle, heavyinfantry, vehiclehusk, heavyfoot
 		SlopeUphillCostModifier: 320
 		SlopeDownhillCostModifier: 63
 		TerrainSpeeds:
@@ -131,7 +152,7 @@
 			Veins: 62
 	Locomotor@WALKER:
 		Name: walker
-		Crushes: wall, crate, infantry, lightvehicle, vehiclehusk
+		Crushes: wall, crate, infantry, lightvehicle, vehiclehusk, heavyfoot
 		SlopeUphillCostModifier: 185
 		SlopeDownhillCostModifier: 70
 		TerrainSpeeds:
@@ -163,7 +184,7 @@
 			Veins: 80
 	Locomotor@HEAVYWALKER:
 		Name: heavywalker
-		Crushes: wall, crate, infantry, lightvehicle, heavyinfantry, vehiclehusk
+		Crushes: wall, crate, infantry, lightvehicle, heavyinfantry, vehiclehusk, heavyfoot
 		SlopeUphillCostModifier: 200
 		SlopeDownhillCostModifier: 68
 		TerrainSpeeds:

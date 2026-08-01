@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -155,17 +156,52 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		protected override bool ShouldFlee(CNSquad squad)
 		{
-			return ShouldFlee(squad, enemies =>
-				!CNAttackOrFleeFuzzy.Raider.CanAttack(squad.Units, enemies, squad.SquadManager.GetAttackFuzzyBoost()));
+			return ShouldFlee(squad, (friendlies, enemies) =>
+				CannotAttackEvenTogether(CNAttackOrFleeFuzzy.Raider, squad, friendlies, enemies));
 		}
 
+		// Kiting only pays off when backing away actually buys something: the threat must be able
+		// to shoot us, and we must outrange it, so the retreat ends with us still firing and the
+		// threat unable to answer.
+		//
+		// The previous version kited on mere proximity — any armed enemy within KiteThreatRadiusCells,
+		// no matter its range or ours. Since RaiderFleeState re-engages once the threat is
+		// ReengageThreatDistanceCells away, short-ranged raiders drove into their target, kited out,
+		// drove back in, and never got a shot off. Same failure mode as the old STNK flee trigger.
 		static bool ShouldKite(CNSquad squad)
 		{
 			var center = squad.CenterUnit();
 			if (center == null || !squad.IsTargetValid)
 				return false;
 
-			return FindClosestThreat(squad, center, KiteThreatRadiusCells) != null;
+			var threat = FindClosestThreat(squad, center, KiteThreatRadiusCells);
+			if (threat == null)
+				return false;
+
+			// A threat we can't be hit by is no reason to disengage.
+			if (!squad.OrderableUnits.Any(u => CanAttackTarget(threat, u)))
+				return false;
+
+			return MaxWeaponRange(squad.OrderableUnits) > MaxWeaponRange([threat]);
+		}
+
+		static WDist MaxWeaponRange(IEnumerable<Actor> actors)
+		{
+			var best = WDist.Zero;
+			foreach (var actor in actors)
+			{
+				foreach (var armament in actor.TraitsImplementing<Armament>())
+				{
+					if (armament.IsTraitDisabled || armament.IsTraitPaused)
+						continue;
+
+					var range = armament.MaxRange();
+					if (range > best)
+						best = range;
+				}
+			}
+
+			return best;
 		}
 
 		internal static Actor FindClosestThreat(CNSquad squad, Actor source, int radiusCells)
