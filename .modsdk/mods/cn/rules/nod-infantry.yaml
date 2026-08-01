@@ -25,6 +25,7 @@ NASOL:
 		Speed: 71
 	Armament@PRIMARY:
 		Weapon: NMinigun
+		LocalOffset: 0,0,785
 	Armament@garrisoned:
 		Name: garrisoned
 		Weapon: NMinigun_Garrisoned
@@ -176,6 +177,7 @@ NACAD:
 		Speed: 71
 	Armament@primary:
 		Weapon: EliteCadreGun
+		LocalOffset: 0,0,785
 	Armament@secondary:
 		Weapon: EliteCadreGrenade
 		LocalOffset: 260,0,680
@@ -225,6 +227,7 @@ SHADOW:
 		Speed: 71
 	Armament@primary:
 		Weapon: Sniper
+		LocalOffset: 0,0,785
 	Armament@garrisoned:
 		Name: garrisoned
 		Weapon: Sniper_Garrisoned

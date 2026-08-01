@@ -267,12 +267,16 @@ LaserFence:
 AcolyteGun:
 	Inherits: ^MG
 	Inherits@wh: ^TiberiumWarhead
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 100
 	Range: 6c497
 	Report: tibrifle01.aud, tibrifle02.aud, tibrifle03.aud
 	Burst: 4
-	Projectile: InstantHit
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c0
+		ContrailStartColor: AAFF00
+		ContrailEndColor: 00FF00
+		ContrailStartWidth: 23
 	Warhead@1Dam: SpreadDamage
 		Damage: 60
 	Warhead@2Eff: CreateEffect
