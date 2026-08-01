@@ -463,6 +463,7 @@ stnk:
 		Filename: stnkicon.shp
 
 scorpion:
+	Inherits: ^VehicleOverlays
 	Defaults:
 		Filename: scorpion.shp
 		Offset: 0, 0, 18
@@ -470,17 +471,19 @@ scorpion:
 		Start: 160
 		Facings: -8
 		ShadowStart: 688
+		Offset: 0, 0, 18
 	walk:
 		Length: 20
 		Facings: -8
 		ShadowStart: 528
+		Offset: 0, 0, 18
 	shoot:
 		Start: 168
 		Length: 40
 		Facings: -8
 		ShadowStart: 696
 		Tick: 60
-	Inherits: ^VehicleOverlays
+		Offset: 0, 0, 18
 	icon:
 		Filename: scorpioncon.shp
 
