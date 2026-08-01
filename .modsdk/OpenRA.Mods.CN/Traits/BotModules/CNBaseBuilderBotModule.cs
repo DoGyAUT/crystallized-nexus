@@ -1004,9 +1004,20 @@ namespace OpenRA.Mods.Common.Traits
 				? new Dictionary<string, int>(Info.DefenseRoleLimits)
 				: [];
 
+			// The profile stays multiplicative: it is a posture, a statement about how this bot plays
+			// at all, so it belongs in the baseline everything else is measured against.
 			ApplyProfileDefenseBudget(merged);
-			ApplyThreatDefenseBudget(merged);
-			ApplyChokepointDefenseBudget(merged);
+
+			// The other two are surcharges ON that baseline and are added, never multiplied onto each
+			// other. They answer different questions: the chokepoint share is static and describes the
+			// shape of the map, the threat share is dynamic and describes what is happening right now.
+			// Multiplying them would let map geometry amplify the reaction to an attack - the same
+			// assault drawing a bigger answer on a choke-heavy map than on an open one, which means
+			// nothing. Additive keeps them legible: "this much because of the map" plus "this much
+			// more because of this attack".
+			var baseline = new Dictionary<string, int>(merged);
+			ApplyThreatDefenseBudget(merged, baseline);
+			ApplyChokepointDefenseBudget(merged, baseline);
 
 			return merged.ToFrozenDictionary();
 		}
@@ -1022,7 +1033,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// time the table is rebuilt, so it fades out by itself as those weights decay.
 		/// </para>
 		/// </summary>
-		void ApplyThreatDefenseBudget(Dictionary<string, int> values)
+		void ApplyThreatDefenseBudget(Dictionary<string, int> values, IReadOnlyDictionary<string, int> baseline)
 		{
 			if (combatAnalysis == null || combatAnalysis.IsTraitDisabled)
 				return;
@@ -1031,7 +1042,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var strongest = 0f;
-			foreach (var key in values.Keys.ToArray())
+			foreach (var key in baseline.Keys)
 			{
 				if (key == TotalDefenseLimitKey)
 					continue;
@@ -1044,11 +1055,11 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				strongest = Math.Max(strongest, intensity);
-				values[key] = BoostLimit(values[key], Info.ThreatDefenseRoleBoostPct, intensity);
+				values[key] += Surcharge(baseline[key], Info.ThreatDefenseRoleBoostPct, intensity);
 			}
 
-			if (strongest > 0f && values.TryGetValue(TotalDefenseLimitKey, out var total))
-				values[TotalDefenseLimitKey] = BoostLimit(total, Info.ThreatDefenseTotalBoostPct, strongest);
+			if (strongest > 0f && baseline.TryGetValue(TotalDefenseLimitKey, out var total))
+				values[TotalDefenseLimitKey] += Surcharge(total, Info.ThreatDefenseTotalBoostPct, strongest);
 		}
 
 		/// <summary>
@@ -1056,7 +1067,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// than one behind a single choke, and that is knowable before the first attack. Uses the same
 		/// chokepoint set the placement logic already works from, so this adds no new scan.
 		/// </summary>
-		void ApplyChokepointDefenseBudget(Dictionary<string, int> values)
+		void ApplyChokepointDefenseBudget(Dictionary<string, int> values, IReadOnlyDictionary<string, int> baseline)
 		{
 			if (Info.ChokepointDefenseBoostPct <= 0 || TacticalMapModule == null || !TacticalMapModule.TopologyReady)
 				return;
@@ -1071,17 +1082,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (boostPct <= 0)
 				return;
 
-			foreach (var key in values.Keys.ToArray())
-				values[key] = BoostLimit(values[key], boostPct, 1f);
+			foreach (var key in baseline.Keys)
+				values[key] += Surcharge(baseline[key], boostPct, 1f);
 		}
 
-		static int BoostLimit(int value, int boostPct, float scale)
+		/// <summary>How much to add on top of a baseline limit, as a percentage of that baseline.</summary>
+		static int Surcharge(int baseValue, int percent, float scale)
 		{
-			if (boostPct <= 0 || scale <= 0f)
-				return value;
+			if (percent <= 0 || scale <= 0f)
+				return 0;
 
-			var boosted = value * (1f + boostPct / 100f * scale);
-			return Math.Max(1, (int)Math.Round(boosted, MidpointRounding.AwayFromZero));
+			return (int)Math.Round(baseValue * (percent / 100f) * scale, MidpointRounding.AwayFromZero);
 		}
 
 		void ApplyProfileBuildingBudget(Dictionary<string, int> values)
