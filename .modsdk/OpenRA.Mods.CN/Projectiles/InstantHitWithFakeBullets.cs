@@ -29,7 +29,9 @@ namespace OpenRA.Mods.CN.Projectiles
 		[Desc("The maximum/constant/incremental inaccuracy used in conjunction with the InaccuracyType property.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
 
-		[Desc("Controls the way inaccuracy is calculated. Possible values are 'Maximum' - scale from 0 to max with range, 'PerCellIncrement' - scale from 0 with range and 'Absolute' - use set value regardless of range.")]
+		[Desc("Controls the way inaccuracy is calculated. Possible values are 'Maximum' - scale from 0 to max",
+			"with range, 'PerCellIncrement' - scale from 0 with range and 'Absolute' - use set value",
+			"regardless of range.")]
 		public readonly InaccuracyType InaccuracyType = InaccuracyType.Maximum;
 
 		[Desc("Projectile can be blocked.")]
@@ -210,7 +212,8 @@ namespace OpenRA.Mods.CN.Projectiles
 					target = Target.FromPos(args.PassiveTarget);
 
 				// Check for blocking actors
-				if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, args.SourceActor.Owner, args.Source, target.CenterPosition, info.Width, out var blockedPos))
+				if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(
+					world, args.SourceActor.Owner, args.Source, target.CenterPosition, info.Width, out var blockedPos))
 					target = Target.FromPos(blockedPos);
 
 				fakeBulletEndBasePos = target.CenterPosition;
