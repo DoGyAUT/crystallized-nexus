@@ -1080,11 +1080,12 @@ namespace OpenRA.Mods.Common.Traits
 						foreach (var tag in caps)
 							tagDefenseCounts[tag] = (tagDefenseCounts.TryGetValue(tag, out var tc) ? tc : 0) + 1;
 
-					// A defense counts towards every role it covers, not just its primary one. The
-					// candidate lookups match on any capability tag, so counting only one of them would
-					// let a multi-role building answer a role it never fills up (an Obelisk tagged
-					// InfantryDefense/ArmorDefense/Special used to raise the Special count alone and
-					// stayed eligible for the other two forever).
+					// A defense counts towards every threat role it covers, not just its primary one.
+					// The candidate lookups match on any capability tag, so counting only one of them
+					// would let a multi-role building answer a role it never fills up (an Obelisk
+					// tagged InfantryDefense/ArmorDefense used to raise one count alone and stayed
+					// eligible for the other forever). SpecialDefense is not among them - see
+					// GetDefenseRolesFromActor.
 					foreach (var dr in GetDefenseRolesFromActor(a.Info))
 						roleDefenseCounts[dr] = (roleDefenseCounts.TryGetValue(dr, out var rc) ? rc : 0) + 1;
 				}
@@ -1289,6 +1290,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (candidates.Count == 0)
 				return null;
 
+			// Under active threat, spend the role's remaining budget on the strongest tower that fills
+			// it. This is what the SpecialDefense tag buys now that it no longer blocks a budget.
+			if (baseBuilder.IsUnderActiveThreat())
+				candidates = candidates
+					.OrderByDescending(IsHighValueDefense)
+					.ToList();
+
 			var reactiveDefLimits = baseBuilder.GetActiveDefenseRoleLimits();
 
 			// Check total defense limit first
@@ -1357,6 +1365,12 @@ namespace OpenRA.Mods.Common.Traits
 			ActorInfo bestActor = null;
 			var bestDeficit = int.MinValue;
 			var bestTypeCount = int.MaxValue;
+			var bestHighValue = false;
+
+			// Worth only breaks ties while something is actually attacking. Outside a threat the bot
+			// keeps spreading its defenses by deficit and rarity, so it does not sink its whole
+			// defense budget into the most expensive tower during a quiet build-up.
+			var preferHighValue = baseBuilder.IsUnderActiveThreat();
 
 			foreach (var actorInfo in buildableThings.Where(a => baseBuilder.Info.DefenseTypes.Contains(a.Name)))
 			{
@@ -1383,60 +1397,109 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var typeCount = CountExistingAndQueuedBuilding(actorInfo.Name);
+				var highValue = preferHighValue && IsHighValueDefense(actorInfo);
+
 				if (deficit < bestDeficit)
 					continue;
 
-				if (deficit == bestDeficit && typeCount >= bestTypeCount)
-					continue;
+				if (deficit == bestDeficit)
+				{
+					if (highValue != bestHighValue)
+					{
+						if (!highValue)
+							continue;
+					}
+					else if (typeCount >= bestTypeCount)
+						continue;
+				}
 
 				bestActor = actorInfo;
 				bestDeficit = deficit;
 				bestTypeCount = typeCount;
+				bestHighValue = highValue;
 			}
 
 			return bestActor;
 		}
 
 		/// <summary>
-		/// Every defense role this actor covers. Placement needs a single role (see
-		/// <see cref="GetDefenseRoleFromActor"/>), but the role limits are budgets: a building occupies
-		/// a slot in each role it can answer.
+		/// Every defense role this actor is BUDGETED against: the role limits are budgets, and a
+		/// building occupies a slot in each threat it can answer. Placement needs a single role
+		/// instead (see <see cref="GetDefenseRoleFromActor"/>).
+		/// <para>
+		/// SpecialDefense is deliberately absent. It marks a high-value tower rather than a threat
+		/// answered, so as a budget it could only ever subtract: every high-value tower of both
+		/// factions shared one narrow cap, and the more threats a tower covered the harder it was
+		/// throttled. A tower is capped by what it defends against; its worth steers selection.
+		/// </para>
 		/// </summary>
 		List<DefenseRole> GetDefenseRolesFromActor(ActorInfo actorInfo)
 		{
 			var roles = new List<DefenseRole>();
-			var caps = actorInfo.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
-			if (caps != null)
-				foreach (var tag in caps)
-					if (Enum.TryParse<DefenseRole>(tag, true, out var r) && r != DefenseRole.Default)
-						roles.Add(r);
+			foreach (var role in ParseDeclaredDefenseRoles(actorInfo))
+				if (role != DefenseRole.SpecialDefense && !roles.Contains(role))
+					roles.Add(role);
 
 			if (roles.Count > 0)
 				return roles;
 
 			var fallback = baseBuilder.Info.DefenseRoles
 				.FirstOrDefault(kv => kv.Value.Contains(actorInfo.Name)).Key;
-			if (fallback != DefenseRole.Default)
+			if (fallback != DefenseRole.Default && fallback != DefenseRole.SpecialDefense)
 				roles.Add(fallback);
 
 			return roles;
 		}
 
+		/// <summary>
+		/// The single role that decides how this defense is PLACED. SpecialDefense wins when present:
+		/// it is the most specific statement a building makes about itself and carries its own
+		/// placement style (outermost radius on the enemy approach vector). Otherwise the first
+		/// declared role wins.
+		/// </summary>
 		DefenseRole GetDefenseRoleFromActor(ActorInfo actorInfo)
 		{
-			var caps = actorInfo.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
-			if (caps != null)
+			var first = DefenseRole.Default;
+			foreach (var role in ParseDeclaredDefenseRoles(actorInfo))
 			{
-				var result = DefenseRole.Default;
-				foreach (var tag in caps)
-					if (Enum.TryParse<DefenseRole>(tag, true, out var r) && r != DefenseRole.Default)
-						result = r;
-				if (result != DefenseRole.Default)
-					return result;
+				if (role == DefenseRole.SpecialDefense)
+					return role;
+
+				if (first == DefenseRole.Default)
+					first = role;
 			}
+
+			if (first != DefenseRole.Default)
+				return first;
 
 			return baseBuilder.Info.DefenseRoles
 				.FirstOrDefault(kv => kv.Value.Contains(actorInfo.Name)).Key;
+		}
+
+		/// <summary>
+		/// Defense roles in the order the actor declares them. Reads the Capabilities array rather
+		/// than CapabilitySet: the set is a HashSet whose enumeration order is not guaranteed, and
+		/// the placement role used to be whichever parseable tag it happened to see last.
+		/// </summary>
+		static IEnumerable<DefenseRole> ParseDeclaredDefenseRoles(ActorInfo actorInfo)
+		{
+			var caps = actorInfo.TraitInfoOrDefault<BotCapabilitiesInfo>()?.Capabilities;
+			if (caps == null)
+				yield break;
+
+			foreach (var tag in caps)
+				if (Enum.TryParse<DefenseRole>(tag, true, out var role) && role != DefenseRole.Default)
+					yield return role;
+		}
+
+		/// <summary>True if this defense declares itself a high-value tower.</summary>
+		static bool IsHighValueDefense(ActorInfo actorInfo)
+		{
+			foreach (var role in ParseDeclaredDefenseRoles(actorInfo))
+				if (role == DefenseRole.SpecialDefense)
+					return true;
+
+			return false;
 		}
 
 		// Pick the base this building belongs to, then place it there. If that base has no room the next
@@ -2191,7 +2254,7 @@ namespace OpenRA.Mods.Common.Traits
 
 						case DefenseRole.GarrisonDefense:
 						{
-							// Same placement style as Special (Obelisk) - outermost radius on the main approach
+							// Same placement style as SpecialDefense (Obelisk) - outermost radius on the main approach
 							// vector, since a bunker's job is to be the first thing the enemy walks into.
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								outerRadius - 2 > baseBuilder.Info.MinimumDefenseRadius ? outerRadius - 2 : baseBuilder.Info.MinimumDefenseRadius,
@@ -2202,7 +2265,7 @@ namespace OpenRA.Mods.Common.Traits
 							break;
 						}
 
-						case DefenseRole.Special:
+						case DefenseRole.SpecialDefense:
 						{
 							// Outermost radius directly on the main approach vector.
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,

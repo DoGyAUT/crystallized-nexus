@@ -68,7 +68,10 @@ namespace OpenRA.Mods.Common.Traits
 			[DefenseRole.ArmorDefense] = 0f,
 			[DefenseRole.AADefense] = 0f,
 			[DefenseRole.ArtilleryDefense] = 0f,
-			[DefenseRole.Special] = 0f,
+
+			// No SpecialDefense entry: ClassifyAttacker only ever yields AADefense, InfantryDefense
+			// or ArmorDefense, so its weight could never leave zero and GetHighestThreatRole could
+			// never name it. It is a worth marker, not a threat something attacks with.
 		};
 
 		// Per-enemy-player nemesis score: higher = this player attacked us more

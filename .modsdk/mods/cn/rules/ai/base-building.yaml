@@ -226,13 +226,14 @@ Player:
 			nawast: 2
 		
 		# Neutral defense caps. Profile DefenseBudget scales these at runtime.
+		# Only threat roles belong here. SpecialDefense is a worth marker, not a budget: a tower is
+		# capped by what it defends against, and its worth decides preference instead.
 		DefenseRoleLimits:
 			Total: 25
 			InfantryDefense: 10
 			ArmorDefense: 8
 			AADefense: 6
 			ArtilleryDefense: 5
-			Special: 5
 			GarrisonDefense: 5
 		
 		# Neutral base building targets.

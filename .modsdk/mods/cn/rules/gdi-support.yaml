@@ -318,7 +318,7 @@ GAGAT:
 		Types: turret
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
-		Capabilities: Defense, InfantryDefense, Special
+		Capabilities: Defense, InfantryDefense, SpecialDefense
 
 GASEN:
 	Inherits: ^Support
@@ -391,7 +391,7 @@ GASEN:
 		Types: turret
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
-		Capabilities: Defense, InfantryDefense, ArmorDefense, Special
+		Capabilities: Defense, InfantryDefense, ArmorDefense, SpecialDefense
 
 GAMORTAR:
 	Inherits: ^Support

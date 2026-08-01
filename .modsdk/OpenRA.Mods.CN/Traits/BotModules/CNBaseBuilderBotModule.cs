@@ -70,8 +70,19 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Artillery: inner-to-mid radius behind other defenses, aimed toward enemy.</summary>
 		ArtilleryDefense,
 
-		/// <summary>Special (Obelisk, EMP): outermost radius on enemy approach vector.</summary>
-		Special,
+		/// <summary>
+		/// High-value tower (Obelisk, EMP): outermost radius on enemy approach vector.
+		/// <para>
+		/// Unlike the roles above this is a statement of WORTH, not of a threat answered, and it is
+		/// deliberately not a limit budget. Nothing attacks with "Special": ClassifyAttacker only ever
+		/// yields AADefense, InfantryDefense or ArmorDefense, so neither the combat analysis nor a
+		/// danger hotspot can ever name this role. As a budget it only ever subtracted - every
+		/// high-value tower of both factions shared one narrow cap, so the more threats a tower
+		/// answered the harder it was throttled. A tower is now capped by the threats it covers, and
+		/// this tag decides preference instead: under active threat the bot reaches for it first.
+		/// </para>
+		/// </summary>
+		SpecialDefense,
 
 		/// <summary>Garrison bunker: universal role (garrisoned infantry mix adapts to local need), placed like artillery.</summary>
 		GarrisonDefense,
@@ -193,8 +204,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		[FieldLoader.LoadUsing(nameof(LoadDefenseRoles))]
 		[Desc("Maps tactical roles to lists of defense building types.",
-			"Valid roles: AntiInf, AntiVehicle, AA, Artillery, Special.",
-			"Example: AA: gasam, nasam")]
+			"Valid roles: InfantryDefense, ArmorDefense, AADefense, ArtilleryDefense, SpecialDefense, GarrisonDefense.",
+			"Example: AADefense: gasam, nasam")]
 		public readonly Dictionary<DefenseRole, FrozenSet<string>> DefenseRoles = [];
 
 		[Desc("Maximum percentage of total base buildings allowed per defense role.",
@@ -877,7 +888,7 @@ namespace OpenRA.Mods.Common.Traits
 		int cachedFractionTick = int.MinValue;
 		int cachedDefenseTick = int.MinValue;
 
-		bool IsUnderActiveThreat() =>
+		public bool IsUnderActiveThreat() =>
 			combatAnalysis != null && !combatAnalysis.IsTraitDisabled && combatAnalysis.HasActiveThreat();
 
 		// --- Profile + tech-stage aware getters ---
@@ -1026,8 +1037,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var key in values.Keys.ToArray())
 			{
+				// SpecialDefense used to be scaled here too. It is no longer a limit budget, so the
+				// key never appears in this table; high-value towers are now gated by the threat roles
+				// they cover and preferred through selection instead.
 				var scale = defenseScale;
-				if (key == "ArtilleryDefense" || key == "Special")
+				if (key == "ArtilleryDefense")
 					scale *= techScale;
 
 				values[key] = Math.Max(1, (int)Math.Round(values[key] * scale, MidpointRounding.AwayFromZero));
