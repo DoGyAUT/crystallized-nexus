@@ -1726,14 +1726,7 @@ Actors:
 		Location: 134,73
 		Owner: Neutral
 
-Rules:
-	^BaseWorld:
-		TerrainLighting:
-			RedTint: 0.5
-			GreenTint: 0.7
-			BlueTint: 0.7
-			Intensity: 0.78
-			HeightStep: 0.018
+Rules:  cn|rules/TilesetPalettePresets/sno-scrinify-pink.yaml
 	INGRNLMP:
 		TerrainLightSource:
 			RedTint: 0.01
