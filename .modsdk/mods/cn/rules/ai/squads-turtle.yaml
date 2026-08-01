@@ -18,6 +18,7 @@ Player:
 		AttackWaveFallbackMinSquads: 2
 		AttackWaveSizeGrowthInterval: 7500
 		AttackWaveSizeGrowthAmount: 1
+		AttackWaveStagingProgressPercent: 58
 		AttackWaveStagingOffsetCells: 22
 		AttackWaveStagingTimeoutTicks: 1100
 		AttackWaveStagingArrivalCells: 5
