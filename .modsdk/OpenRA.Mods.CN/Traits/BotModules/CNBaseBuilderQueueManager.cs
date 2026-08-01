@@ -1276,12 +1276,20 @@ namespace OpenRA.Mods.Common.Traits
 			if (candidates.Count == 0)
 				return null;
 
-			// Under active threat, spend the role's remaining budget on the strongest tower that fills
-			// it. This is what the SpecialDefense tag buys now that it no longer blocks a budget.
-			if (baseBuilder.IsUnderActiveThreat())
-				candidates = candidates
-					.OrderByDescending(IsHighValueDefense)
-					.ToList();
+			// The loop below returns the first candidate that passes, so the order IS the decision.
+			// Unordered, that was whichever the production queue happened to list first, forever: for
+			// any role several towers can fill, the first one answered every reactive build and the
+			// rest never got a turn - gamg took every InfantryDefense call with gagat sitting behind
+			// it, gacan every ArmorDefense call ahead of gasen and gamortar.
+			//
+			// Rarity is the same preference ChoosePlannedDefense already applies on a tie, so the two
+			// paths no longer disagree about what to build. Worth leads it while under threat, which
+			// is what the SpecialDefense tag buys now that it no longer blocks a budget.
+			var preferHighValue = baseBuilder.IsUnderActiveThreat();
+			candidates = candidates
+				.OrderByDescending(a => preferHighValue && IsHighValueDefense(a))
+				.ThenBy(a => CountExistingAndQueuedBuilding(a.Name))
+				.ToList();
 
 			var reactiveDefLimits = baseBuilder.GetActiveDefenseRoleLimits();
 
