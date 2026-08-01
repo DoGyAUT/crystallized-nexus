@@ -1491,7 +1491,7 @@ Actors:
 		Location: 148,37
 		Owner: Neutral
 
-Rules:
+Rules: cn|rules/TilesetPalettePresets/tem-scrinify-pink.yaml
 	^BaseWorld:
 		TerrainLighting:
 			RedTint: 0.71

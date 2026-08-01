@@ -1426,7 +1426,7 @@ Actors:
 		Location: 254,39
 		Owner: Neutral
 
-Rules:
+Rules: cn|rules/TilesetPalettePresets/tem-scrinify-purp.yaml
 	^BaseWorld:
 		TerrainLighting:
 			Intensity: 0.85
