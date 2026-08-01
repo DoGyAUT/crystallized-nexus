@@ -936,7 +936,7 @@ Actors:
 		Location: 142,43
 		Owner: Neutral
 
-Rules:
+Rules: cn|rules/TilesetPalettePresets/sno-sandsnow.yaml
 	^BaseWorld:
 		TerrainLighting:
 			Intensity: 0.6
