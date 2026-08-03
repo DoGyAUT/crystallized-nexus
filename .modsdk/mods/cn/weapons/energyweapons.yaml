@@ -14,6 +14,11 @@ LtRail:
 		ValidTargets: Vehicle, Cyborg, Building, Infantry
 		ValidRelationships: Neutral, Enemy
 
+// Garrison variant - +50% range for units firing from bunker fire ports.
+LtRail_Garrisoned:
+	Inherits: LtRail
+	Range: 12c0
+
 MechRailgun:
 	Inherits: ^RailgunCannon
 	Inherits@FLASH: ^FlashMediumW

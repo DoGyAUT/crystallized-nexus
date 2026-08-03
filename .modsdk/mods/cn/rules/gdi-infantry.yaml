@@ -358,6 +358,10 @@ JUMPJET:
 	Armament:
 		Weapon: JumpCannon
 		LocalOffset: 0,0,785
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: JumpCannon_Garrisoned
+		LocalOffset: 0,0,785
 	-Crushable:
 	AttackFrontal:
 		Voice: Attack
@@ -506,6 +510,10 @@ ZTROOPER:
 		Range: 9c921
 	Armament@primary:
 		Weapon: LtRail
+		LocalOffset: 724,91,1131
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: LtRail_Garrisoned
 		LocalOffset: 724,91,1131
 	MobSpawnerMaster:
 		Actors: ZTROOPER.Member, ZTROOPER.Member, ZTROOPER.Member

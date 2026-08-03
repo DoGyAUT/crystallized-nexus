@@ -92,7 +92,7 @@ VulcanTower:
 	BurstDelays: 4
 	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c0
-	Report: Bren_v1.ogg, Bren_v2.ogg, Bren_v3.ogg #chaingn1.aud
+	Report: Bren_v1.ogg, Bren_v2.ogg, Bren_v3.ogg
 	Warhead@1Dam: SpreadDamage
 		Damage: 150
 	Warhead@2Eff: CreateEffect
@@ -115,7 +115,7 @@ VulcanTowerGattling:
 	BurstDelays: 2
 	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c512
-	Report: Bren_v1.ogg, Bren_v2.ogg, Bren_v3.ogg #chaingn1.aud
+	Report: Bren_v1.ogg, Bren_v2.ogg, Bren_v3.ogg
 	Warhead@1Dam: SpreadDamage
 		Damage: 150
 	Warhead@2Eff: CreateEffect
@@ -143,21 +143,22 @@ JumpCannon:
 		Damage: 100
 		ValidTargets: Ground, Air
 
+// Garrison variant - +50% range for units firing from bunker fire ports.
+JumpCannon_Garrisoned:
+	Inherits: JumpCannon
+	Range: 10c0
+
 OrcaCannon:
-	Inherits: ^MGBullet
+	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 20
 	Range: 7c768
 	Burst: 10
 	BurstDelays: 4
 	Report: tsgun4.aud
 	ValidTargets: Ground, Air
-	Projectile: Bullet
-		Image: 
-		Palette: effect
+	Projectile: InstantHitWithFakeBullets
 		Inaccuracy: 1c0
-		ContrailLength: 3
-		ContrailStartWidth: 32
-		ContrailEndWidth: 0c16
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
 	Warhead@2Eff: CreateEffect
@@ -267,20 +268,16 @@ GattlingCannon:
 		InvalidTargets: Infantry, Building
 
 HydraCannon:
-	Inherits: ^MGBullet
+	Inherits: ^MG
+	Inherits: ^WithDecorationBullets
 	ReloadDelay: 20
 	Range: 7c768
 	Burst: 30
 	BurstDelays: 2
 	Report: gattling01.aud, gattling02.aud, gattling03.aud
 	ValidTargets: Ground, Air
-	Projectile: Bullet
-		Image: 
-		Palette: effect
-		Inaccuracy: 2c0
-		ContrailLength: 3
-		ContrailStartWidth: 32
-		ContrailEndWidth: 0c16
+	Projectile: InstantHitWithFakeBullets
+		Inaccuracy: 1c0
 	Warhead@1Dam: SpreadDamage
 		Damage: 100
 	Warhead@2Eff: CreateEffect
@@ -331,6 +328,11 @@ Marksmanrifle:
 		ImpactSounds: tank_hit_bounce_1.ogg, tank_hit_bounce_2.ogg, tank_hit_bounce_3.ogg, tank_hit_bounce_4.ogg, tank_hit_bounce_5.ogg
 		ValidTargets: Vehicle, Cyborg
 		InvalidTargets: Infantry, Building
+
+// Garrison variant - +50% range for units firing from bunker fire ports.
+Marksmanrifle_Garrisoned:
+	Inherits: Marksmanrifle
+	Range: 14c0
 
 Sniper:
 	Inherits: ^Sniper

@@ -73,6 +73,11 @@ GASPOTTER.Member:
 		Range: 10c0
 	Armament@PRIMARY:
 		Weapon: Marksmanrifle
+		LocalOffset: 260,0,680
+	Armament@garrisoned:
+		Name: garrisoned
+		Weapon: Marksmanrifle_Garrisoned
+		LocalOffset: 260,0,680
 	AttackFrontal:
 		FacingTolerance: 0
 	WithSplitAttackPaletteInfantryBody:

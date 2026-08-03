@@ -462,6 +462,7 @@ SMECH:
 		FacingTolerance: 0
 	Armament@primary:
 		Weapon: AssaultCannon
+		LocalOffset: 550,256,870, 550,-256,870
 	RenderSprites:
 		FullBrightPaletteIndexRanges: 176, 191, 192, 199
 	WithInfantryBody:
