@@ -3077,19 +3077,34 @@ namespace OpenRA.Mods.Common.Traits
 				world.WorldTick - cachedSupportedRefineryCapacityTick < SupportedRefineryCapacityMaxAgeTicks)
 				return cachedSupportedRefineryCapacity;
 
+			// Only fields the bot can actually work count. Summing every indice on the map answers
+			// "how much tiberium exists", but the number wanted here is "how much can we haul", and a
+			// field on the far side of the map contributes nothing to that — it just inflates the cap
+			// until the target formula's own terms (production buildings, extra construction yards,
+			// economy overflow) run unchecked and the bot rings a single field with refineries.
+			//
+			// A field counts once the bot has a refinery in it or a base within building range of it.
+			// Expanding to a new field therefore raises the ceiling, which is the intended order:
+			// first reach the tiberium, then build the refineries for it.
 			var supportedCapacity = 0;
 			var scored = 0;
 			var largestField = 0;
 			for (var i = 0; i < ResourceMapModule.GetIndicesLength(); i++)
 			{
 				var indice = ResourceMapModule.GetIndice(i);
+				if (indice == null)
+					continue;
+
+				if (indice.ResourceCellsCount > largestField)
+					largestField = indice.ResourceCellsCount;
+
+				if (!IsIndiceWithinReach(indice))
+					continue;
+
 				var capacity = GetSupportedRefineryCapacity(indice);
 				supportedCapacity += capacity;
 				if (capacity > 0)
 					scored++;
-
-				if (indice != null && indice.ResourceCellsCount > largestField)
-					largestField = indice.ResourceCellsCount;
 			}
 
 			// This caps GetTargetRefineryCount, so when it comes out low the bot stops wanting
@@ -3102,6 +3117,31 @@ namespace OpenRA.Mods.Common.Traits
 			cachedSupportedRefineryCapacityTick = world.WorldTick;
 			cachedSupportedRefineryCapacity = Math.Max(Info.InititalMinimumRefineryCount, supportedCapacity);
 			return cachedSupportedRefineryCapacity;
+		}
+
+		/// <summary>
+		/// True if the bot already works this field or has a base close enough to build at it. Anything
+		/// further out is tiberium it does not have access to yet, and counting it toward refinery
+		/// capacity would licence refineries it has nowhere to put.
+		/// </summary>
+		bool IsIndiceWithinReach(CNResourceIndice indice)
+		{
+			if (indice.PlayerRefineryCount > 0)
+				return true;
+
+			var reach = GetEffectiveMaxBaseRadius();
+			var reachSq = (long)reach * reach;
+
+			foreach (var b in GetBases())
+			{
+				if (!b.IsBuildSite)
+					continue;
+
+				if ((b.Center - indice.IndiceCenter).LengthSquared <= reachSq)
+					return true;
+			}
+
+			return false;
 		}
 
 		int GetSupportedRefineryCapacity(CNResourceIndice indice)
