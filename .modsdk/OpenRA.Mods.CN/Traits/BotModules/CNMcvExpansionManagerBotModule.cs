@@ -84,9 +84,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool EnableStrategicOutposts = true;
 
 		[Desc("Cells around the starting MCV searched for tiberium before deciding whether to deploy on",
-			"the spot or walk to a field first. Roughly the range harvesters can serve without the haul",
-			"dominating their cycle.")]
-		public readonly int StartDeployResourceSearchRadius = 20;
+			"the spot or walk to a field first. This is a build-reach figure, not a harvester-range one:",
+			"what matters is whether a refinery can later be placed beside the field, and placement is",
+			"bounded by building adjacency (IsCloseEnoughToBase), which reaches only a few cells past the",
+			"outermost building. Set too wide, the MCV settles for a field it can see but never build at.")]
+		public readonly int StartDeployResourceSearchRadius = 12;
 
 		[Desc("Valuable resource cells that must lie within " + nameof(StartDeployResourceSearchRadius),
 			"for the starting MCV to deploy where it stands. Below this it looks for a field instead —",
