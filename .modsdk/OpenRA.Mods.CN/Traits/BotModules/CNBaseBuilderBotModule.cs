@@ -3064,7 +3064,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (ResourceMapModule == null)
 				return int.MaxValue;
 
-			if (world.WorldTick - cachedSupportedRefineryCapacityTick < SupportedRefineryCapacityMaxAgeTicks)
+			// The int.MinValue "never computed" sentinel underflows this subtraction: WorldTick minus
+			// int.MinValue wraps to a large negative number, the age test passes on the very first
+			// call, and the method returns the zero-initialised cache — forever, because the line that
+			// records the tick sits below and is never reached. The scan never ran once.
+			//
+			// GetTargetRefineryCount clamps its target to this value, so the target collapsed to
+			// Math.Max(activeMinRefinery, 0), i.e. exactly the minimum. That is why bots never built
+			// more than two refineries no matter how much tiberium the map held, and why no placement
+			// or field-viability message ever appeared: the economy check was satisfied at two.
+			if (cachedSupportedRefineryCapacityTick != int.MinValue &&
+				world.WorldTick - cachedSupportedRefineryCapacityTick < SupportedRefineryCapacityMaxAgeTicks)
 				return cachedSupportedRefineryCapacity;
 
 			var supportedCapacity = 0;
