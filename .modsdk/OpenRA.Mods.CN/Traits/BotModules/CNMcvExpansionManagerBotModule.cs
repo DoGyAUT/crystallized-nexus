@@ -95,6 +95,12 @@ namespace OpenRA.Mods.Common.Traits
 			"the one relocation decision the bot can never revisit later.")]
 		public readonly int StartDeployMinResourceCells = 12;
 
+		[Desc("Cells of clearance kept between a deploying construction yard and valuable resource cells.",
+			"CRmodeTryMaintainRange measures to the centre of a field, which on a large one still lands",
+			"inside it — the yard then sits in the tiberium, taking harvestable ground out of use and",
+			"standing in the way of the refinery that wants that spot. 0 disables the clearance.")]
+		public readonly int McvResourceClearance = 3;
+
 		[Desc("How many MCVs may be travelling at the same time. One means expansions are founded strictly",
 			"one after another — build, drive, deploy, only then the next — which is what a land-grab",
 			"profile cannot afford. Ignored while the bot has no construction yard: rebuilding a base",
@@ -1171,6 +1177,25 @@ namespace OpenRA.Mods.Common.Traits
 		/// ledge wedged between a cliff and a tiberium field passes while leaving nowhere for the
 		/// refinery, the power plants or the factories that have to follow.
 		/// </summary>
+		/// <summary>
+		/// True if a construction yard placed here would sit on or right against tiberium. The yard is
+		/// the one building guaranteed to be surrounded by others later, so planting it in a field
+		/// costs that ground twice: once for the yard's own footprint and again for everything the base
+		/// grid then packs around it — including the refinery, which wants exactly those cells.
+		/// </summary>
+		bool IsTooCloseToResources(CPos cell, BuildingInfo bi)
+		{
+			if (Info.McvResourceClearance <= 0 || resourceMapModule == null)
+				return false;
+
+			// Footprint half-extent plus the clearance: CountValuableResourceCellsNear measures from a
+			// single cell, so the yard's own size has to be folded into the radius.
+			var dims = bi?.Dimensions ?? new CVec(1, 1);
+			var footprintReach = (Math.Max(dims.X, dims.Y) + 1) / 2;
+
+			return resourceMapModule.CountValuableResourceCellsNear(cell, footprintReach + Info.McvResourceClearance) > 0;
+		}
+
 		int CountBuildableCellsAround(CPos center, BuildingInfo bi)
 		{
 			var radius = Math.Max(1, Info.DeploySiteCheckRadius);
@@ -1352,10 +1377,12 @@ namespace OpenRA.Mods.Common.Traits
 					if (!world.CanPlaceBuilding(cell + offset, transformIntoInfo, transformIntoBuildingInfo, mcv))
 						continue;
 
-					// The yard fitting says nothing about whether a base fits. Prefer a cell with room
-					// around it, but remember the first cramped one: refusing to deploy at all is worse
-					// than deploying somewhere tight, and on a cramped map every candidate may be tight.
-					if (CountBuildableCellsAround(cell, transformIntoBuildingInfo) < Info.DeploySiteMinBuildableCells)
+					// The yard fitting says nothing about whether a base fits, nor about whether it is
+					// standing in the tiberium it came for. Prefer a cell that clears both, but remember
+					// the first merely-valid one: refusing to deploy at all is worse than deploying
+					// somewhere awkward, and on a tight map every candidate may be awkward.
+					if (CountBuildableCellsAround(cell, transformIntoBuildingInfo) < Info.DeploySiteMinBuildableCells
+						|| IsTooCloseToResources(cell, transformIntoBuildingInfo))
 					{
 						crampedFallback ??= cell;
 						continue;
