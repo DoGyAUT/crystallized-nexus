@@ -535,6 +535,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How strongly the nearest known enemy base/building influences defense placement when no stronger danger hotspot exists.")]
 		public readonly int DefensePlacementEnemyDirectionWeight = 70;
 
+		[Desc("Score per still-uncovered protectable building an anti-air candidate would bring into range.",
+			"Comparable in size to DefensePlacementEnemyDirectionWeight and the topology weights on purpose:",
+			"coverage should be able to break a tie between two cells facing the threat, but never place AA",
+			"away from where air attacks actually come from. 0 ignores coverage entirely.")]
+		public readonly int AACoverageWeight = 40;
+
+		[Desc("BotCapabilities tags that make a building worth covering with anti-air. Counting every building",
+			"equally let walls and power plants outvote the refinery. Falls back to counting all buildings",
+			"while the bot owns nothing tagged with any of these.")]
+		public readonly FrozenSet<string> AAProtectedCapabilities =
+			new HashSet<string> { "Production", "Tech", "Superweapon", "Economy" }.ToFrozenSet();
+
 		[Desc("How strongly remembered danger hotspots make tech-building placement avoid exposed cells.")]
 		public readonly int TechPlacementDangerAvoidanceWeight = 120;
 

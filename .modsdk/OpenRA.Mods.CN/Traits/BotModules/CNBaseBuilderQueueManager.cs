@@ -2192,8 +2192,14 @@ namespace OpenRA.Mods.Common.Traits
 
 						case DefenseRole.AADefense:
 						{
-							// Coverage-based: pick cell that covers the most uncovered base buildings.
-							// Use the actor's weapon range to determine coverage radius.
+							// Coverage of the base is one term in the score, not the sort key. It used to be
+							// the primary key with FormationScore only breaking ties — and since two cells
+							// almost never cover exactly the same number of buildings, the tie-break never
+							// bound. AA therefore ignored the AADefense danger hotspot that was already
+							// computed for it above and spread evenly around the base, including across the
+							// side no aircraft had ever come from. Every other defense role sorts by
+							// FormationScore, i.e. toward the threat; this one now does too, with coverage
+							// able to decide between cells that face it equally well.
 							var weaponRange = actorInfo.TraitInfos<ArmamentInfo>()
 								.Select(a =>
 								{
@@ -2206,31 +2212,52 @@ namespace OpenRA.Mods.Common.Traits
 							var coverageRadiusCells = Math.Max(3, weaponRange.Length / 1024);
 							var coverageRadiusCellsSq = coverageRadiusCells * coverageRadiusCells;
 
-							// Buildings that need AA coverage
-							var baseBuildingPositions = playerBuildings
+							// Only buildings worth an air strike count. Weighting every structure equally let
+							// a cluster of walls and power plants outvote the refinery or the war factory.
+							var protectedCaps = baseBuilder.Info.AAProtectedCapabilities;
+							var protectable = playerBuildings
+								.Where(b => protectedCaps.Count == 0 ||
+									(b.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet
+										.Overlaps(protectedCaps) ?? false))
 								.Select(b => b.Location)
 								.ToList();
 
-							// Track which base buildings are already covered by existing AA
+							// Nothing tagged yet (very early game, or a mod that doesn't tag): fall back to
+							// all buildings rather than scoring every candidate identically at zero.
+							if (protectable.Count == 0)
+								protectable = playerBuildings.Select(b => b.Location).ToList();
+
+							// Track which of those are already covered by existing AA of this type.
 							var coveredByExisting = new HashSet<CPos>();
 							foreach (var existingAA in playerBuildings.Where(b => b.Info.Name == actorType))
-								foreach (var bPos in baseBuildingPositions)
+								foreach (var bPos in protectable)
 									if ((bPos - existingAA.Location).LengthSquared <= coverageRadiusCellsSq)
 										coveredByExisting.Add(bPos);
 
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								baseBuilder.Info.MinimumDefenseRadius, outerRadius);
 
-							// First limit by tactical direction, then run the heavier coverage check
-							// only on the small candidate set.
-							// Materialize uncoveredPositions once to avoid re-evaluating LINQ per candidate in OrderByDescending.
-							var uncoveredPositions = baseBuildingPositions
+							// Materialized once to avoid re-evaluating the LINQ per candidate below.
+							var uncoveredPositions = protectable
 								.Where(bPos => !coveredByExisting.Contains(bPos))
 								.ToArray();
+
+							var coverageWeight = (long)Math.Max(0, baseBuilder.Info.AACoverageWeight);
+							long AACoverageScore(CPos cell)
+							{
+								if (coverageWeight == 0 || uncoveredPositions.Length == 0)
+									return FormationScore(cell, outerRadius);
+
+								var covered = 0;
+								foreach (var bPos in uncoveredPositions)
+									if ((bPos - cell).LengthSquared <= coverageRadiusCellsSq)
+										covered++;
+
+								return FormationScore(cell, outerRadius) + covered * coverageWeight;
+							}
+
 							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
-								.OrderByDescending(c =>
-									uncoveredPositions.Count(bPos => (bPos - c).LengthSquared <= coverageRadiusCellsSq))
-								.ThenByDescending(c => FormationScore(c, outerRadius));
+								.OrderByDescending(AACoverageScore);
 							break;
 						}
 
