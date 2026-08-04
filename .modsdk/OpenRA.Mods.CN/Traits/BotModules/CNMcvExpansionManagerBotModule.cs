@@ -83,6 +83,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("When economy is already covered, prefer CheckBase expansions as forward outposts instead of only resource expansions.")]
 		public readonly bool EnableStrategicOutposts = true;
 
+		[Desc("Cells around the starting MCV searched for tiberium before deciding whether to deploy on",
+			"the spot or walk to a field first. Roughly the range harvesters can serve without the haul",
+			"dominating their cycle.")]
+		public readonly int StartDeployResourceSearchRadius = 20;
+
+		[Desc("Valuable resource cells that must lie within " + nameof(StartDeployResourceSearchRadius),
+			"for the starting MCV to deploy where it stands. Below this it looks for a field instead —",
+			"the one relocation decision the bot can never revisit later.")]
+		public readonly int StartDeployMinResourceCells = 12;
+
 		[Desc("Initial expansion mode chosen by AI.")]
 		public readonly BotMcvExpansionMode InitialExpansionMode = BotMcvExpansionMode.CheckResource;
 
@@ -896,10 +906,22 @@ namespace OpenRA.Mods.Common.Traits
 				if (resourceMapModule == null)
 					return;
 
+				// Wait for the resource map's initial sweep to finish before deciding what to do with the
+				// starting MCV. That sweep is amortised over a few ticks, so on the very first one the
+				// bot knows almost nothing about where the tiberium is — and this is the one decision
+				// it can never revisit: UnDeployConyard needs either a second construction yard or an
+				// established economy, so a yard planted out of harvester reach stays there.
+				if (!resourceMapModule.InitialScanComplete)
+					return;
+
 				pathDistanceSquareFactor = resourceMapModule.GetIndiceRowCount() * resourceMapModule.GetIndiceRowCount()
 					+ resourceMapModule.GetIndiceColumnCount() * resourceMapModule.GetIndiceColumnCount();
 
-				DeployMcvs(bot, false);
+				// Normally the starting MCV deploys where it stands: the opening is worth more than a
+				// better spot. Only when the spawn has no worthwhile tiberium within reach is it worth
+				// walking first, because everything downstream — refinery placement, harvester range,
+				// the refinery target itself — is built on having a field near the base.
+				DeployMcvs(bot, !HasWorthwhileResourcesAtStart());
 				firstTick = false;
 			}
 
@@ -1112,6 +1134,34 @@ namespace OpenRA.Mods.Common.Traits
 
 				undeployEvenNoBase = false;
 			}
+		}
+
+		/// <summary>
+		/// True if any starting MCV stands within reach of enough tiberium to be worth deploying on the
+		/// spot. With none, deploying in place strands the base: harvesters haul across the map, the
+		/// refinery placement fallback has no field to aim at, and no later mechanism moves the yard.
+		/// </summary>
+		bool HasWorthwhileResourcesAtStart()
+		{
+			if (resourceMapModule == null)
+				return true;
+
+			var radius = Math.Max(1, Info.StartDeployResourceSearchRadius);
+			var required = Math.Max(1, Info.StartDeployMinResourceCells);
+
+			var anyMcv = false;
+			foreach (var mcv in mcvs.Actors)
+			{
+				if (mcv.IsDead || !mcv.IsInWorld || mcv.Owner != player)
+					continue;
+
+				anyMcv = true;
+				if (resourceMapModule.CountValuableResourceCellsNear(mcv.Location, radius) >= required)
+					return true;
+			}
+
+			// No MCV to judge: leave the existing behaviour alone rather than sending anything walking.
+			return !anyMcv;
 		}
 
 		// Find any MCV and deploy them at a sensible location.
