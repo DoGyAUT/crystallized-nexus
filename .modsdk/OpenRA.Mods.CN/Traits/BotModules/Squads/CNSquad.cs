@@ -83,6 +83,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		/// </summary>
 		public int TicksSinceLastUpdate { get; private set; } = 1;
 
+		/// <summary>
+		/// World tick at which the squad manager should next update this squad. Set by the manager
+		/// from the engaged/idle cadence; staggering it per squad also spreads the update cost
+		/// across ticks instead of putting the whole army on one.
+		/// </summary>
+		public int NextUpdateTick { get; set; }
+
 		int lastUpdatedTick;
 
 		// --- Slot assignments (from template) ---

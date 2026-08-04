@@ -287,6 +287,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Minimum ready squads required for a fallback wave (when the normal threshold has been skipped too often).")]
 		public readonly int AttackWaveFallbackMinSquads = 1;
 
+		[Desc("Ticks between updates of a squad that is currently engaged — it holds a live target. Kept",
+			"well below AttackForceInterval: this is how long a squad in combat needs to notice that its",
+			"target died, that it is being beaten, or that something better is in reach. Squads without a",
+			"target keep the slower AttackForceInterval cadence, which is what bounds the cost: idle squads",
+			"are the many, engaged squads the few.")]
+		public readonly int EngagedSquadInterval = 15;
+
 		[Desc("Ticks between AttackWaveMinReadySquads growth steps. 0 = disabled.")]
 		public readonly int AttackWaveSizeGrowthInterval = 0;
 
@@ -432,7 +439,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		// Ticking counters
 		int assignRolesTicks;
-		int attackForceTicks;
 		int minAttackForceDelayTicks;
 		int cleanupTicks;
 		int threatScanTicks;
@@ -548,7 +554,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var random = World.LocalRandom;
 			assignRolesTicks = random.Next(0, Info.AssignRolesInterval);
-			attackForceTicks = random.Next(0, Info.AttackForceInterval);
 			minAttackForceDelayTicks = random.Next(0, Info.MinimumAttackForceDelay + 1);
 			cleanupTicks = random.Next(0, CleanupInterval);
 
@@ -604,14 +609,25 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			TrackIdleTime();
 
-			if (--attackForceTicks <= 0)
+			// Per-squad schedule rather than one global timer. A squad holding a live target is updated
+			// on the much shorter EngagedSquadInterval, because AttackForceInterval — 55 to 95 ticks,
+			// so two to four seconds — is how long a squad in combat used to stand around after its
+			// target died before anything re-evaluated it. That delay, not the decision quality, is
+			// most of what reads as the bots being slow-witted.
+			//
+			// Squads without a target stay on the old cadence, which keeps the cost bounded: target
+			// searching is the expensive part and idle squads are the majority. Staggering by squad
+			// also spreads the work across ticks instead of updating the whole army on one of them.
+			foreach (var squad in Squads.ToList())
 			{
-				attackForceTicks = Info.AttackForceInterval;
-				foreach (var squad in Squads.ToList())
-				{
-					squad.Update();
-					ReleaseStaleNoTargetSquad(squad);
-				}
+				if (World.WorldTick < squad.NextUpdateTick)
+					continue;
+
+				squad.Update();
+				ReleaseStaleNoTargetSquad(squad);
+
+				var interval = squad.IsTargetValid ? Info.EngagedSquadInterval : Info.AttackForceInterval;
+				squad.NextUpdateTick = World.WorldTick + Math.Max(1, interval);
 			}
 
 			if (Info.AttackWaveEnabled)
@@ -2087,7 +2103,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			var squad = new CNSquad(bot, this, type, templateName, templateInfo)
 			{
-				ArtilleryHangBackRange = WDist.FromCells(Info.ArtilleryHangBackCells)
+				ArtilleryHangBackRange = WDist.FromCells(Info.ArtilleryHangBackCells),
+
+				// Stagger the first update so a batch of squads formed on the same tick does not
+				// then update in lockstep for the rest of their lives.
+				NextUpdateTick = World.WorldTick + World.LocalRandom.Next(0, Math.Max(1, Info.AttackForceInterval))
 			};
 
 			Squads.Add(squad);
@@ -2126,7 +2146,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return;
 			}
 
-			squad.NoTargetIdleTicks += Math.Max(1, Info.AttackForceInterval);
+			// Actual elapsed time rather than the assumed interval — with a per-squad cadence the
+			// gap between updates is no longer always AttackForceInterval.
+			squad.NoTargetIdleTicks += squad.TicksSinceLastUpdate;
 			if (squad.NoTargetIdleTicks >= Math.Max(1, Info.NoTargetIdleReleaseTicks))
 				UnregisterSquad(squad);
 		}
