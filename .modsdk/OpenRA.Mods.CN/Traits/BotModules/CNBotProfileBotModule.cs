@@ -483,8 +483,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool HasMinimalProductionBase()
 		{
+			// "Minimal" means the production floor, not the budget-weighted refinery target — a bot
+			// with one refinery and a barracks has a minimal production base by any reading, and
+			// gating the mid-tech step on the expansion goal delays it for no gain.
 			return baseBuilder != null &&
-				baseBuilder.HasMinimalRefineryCount() &&
+				baseBuilder.HasProductionFloorRefineries() &&
 				baseBuilder.GetCachedPlayerBuildings().Any(a => baseBuilder.Info.ProductionTypes.Contains(a.Info.Name));
 		}
 

@@ -415,6 +415,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Number of refineries to build additionally after building any production building.")]
 		public readonly int AdditionalMinimumRefineryCount = 1;
 
+		[Desc("Refineries the bot must own before unit production is allowed to resume. A hard floor on",
+			"the economy, deliberately independent of the budget-weighted refinery target: that target",
+			"is an expansion goal, and holding every unit — including the MCVs an expansion needs —",
+			"hostage to it stalls the bot outright whenever the next refinery is slow to arrive.")]
+		public readonly int ProductionPauseRefineryCount = 1;
+
 		[Desc("Additional delay (in ticks) between structure production checks when there is no active production.",
 			"StructureProductionRandomBonusDelay is added to this.")]
 		public readonly int StructureProductionInactiveDelay = 90;
@@ -2048,7 +2054,11 @@ namespace OpenRA.Mods.Common.Traits
 			DefenseCenter = newLocation;
 		}
 
-		bool IBotRequestPauseUnitProduction.PauseUnitProduction => !IsTraitDisabled && !HasMinimalRefineryCount() &&
+		// Gated on the hard production floor, not on the refinery *target*. Those were the same number
+		// until the target became budget-weighted, at which point raising it for production-heavy
+		// profiles silently stopped them building any units at all while they were short of it —
+		// MCVs included, so they could not expand their way out either.
+		bool IBotRequestPauseUnitProduction.PauseUnitProduction => !IsTraitDisabled && !HasProductionFloorRefineries() &&
 			HasEconomyRecoveryPath() && !RefineryExpansionBlocked;
 
 		void IBotTick.BotTick(IBot bot)
@@ -2821,6 +2831,13 @@ namespace OpenRA.Mods.Common.Traits
 			GetTargetRefineryCount();
 		public bool HasMinimalRefineryCount() =>
 			AIUtils.CountActorByCommonName(RefineryBuildings) >= GetActiveInititalMinimumRefineryCount();
+
+		/// <summary>
+		/// The bot has the bare minimum economy needed to justify building units at all. Separate from
+		/// HasMinimalRefineryCount, which measures against the budget-weighted expansion target.
+		/// </summary>
+		public bool HasProductionFloorRefineries() =>
+			AIUtils.CountActorByCommonName(RefineryBuildings) >= Math.Max(1, Info.ProductionPauseRefineryCount);
 
 		public bool HasEconomyRecoveryPath()
 		{
