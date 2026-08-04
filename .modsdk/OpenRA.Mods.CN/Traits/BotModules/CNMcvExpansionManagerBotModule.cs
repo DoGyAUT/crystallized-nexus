@@ -562,18 +562,27 @@ namespace OpenRA.Mods.Common.Traits
 			return path;
 		}
 
-		CPos ChooseSafeMoveWaypoint(List<CPos> path, CPos finalCell)
+		/// <summary>
+		/// The safe route as a list of move waypoints, source-first, ending on the deploy cell.
+		/// <para>
+		/// Waypoints exist so a plain Move order cannot re-route the MCV across a whole enemy base:
+		/// each leg is short enough that the engine's own pathing stays on the corridor that
+		/// FindSafeMcvPath approved. They are all handed over at once — issuing one per scan left the
+		/// MCV standing at every leg's end until the next scan came round, which is the stop-start
+		/// crawl seen in testing.
+		/// </para>
+		/// </summary>
+		IEnumerable<CPos> BuildSafeWaypoints(List<CPos> path, CPos finalCell)
 		{
-			if (path == null || path.Count == 0)
-				return finalCell;
+			if (path != null && path.Count > 0)
+			{
+				// Paths are returned reversed, target -> source, so walk backwards to travel outward.
+				var maxStep = Math.Max(1, Info.McvSafeMoveWaypointPathCells);
+				for (var i = path.Count - 1 - maxStep; i > 0; i -= maxStep)
+					yield return path[i];
+			}
 
-			var maxStep = Math.Max(1, Info.McvSafeMoveWaypointPathCells);
-			if (path.Count <= maxStep + 1)
-				return finalCell;
-
-			// Paths are returned reversed, target -> source. Pick a waypoint near the source
-			// so the normal Move order can't re-route across a whole enemy base in one go.
-			return path[Math.Max(0, path.Count - 1 - maxStep)];
+			yield return finalCell;
 		}
 
 		void TrackExpansionGoal(CPos deployCell)
@@ -1349,30 +1358,25 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 				}
 
-				var moveLocation = ChooseSafeMoveWaypoint(safePath, desiredLocation.Value);
-				var movingToFinalDeployCell = moveLocation == desiredLocation.Value;
-
 				activeMCVs[mcv] = checkloc;
 				mcvRetryCooldown.Remove(mcv);
-				if (movingToFinalDeployCell && resLoc != null)
+				if (resLoc != null)
 				{
 					foreach (var srp in suggestRefineryProduction)
 						srp.RequestLocation(resLoc.Value, desiredLocation.Value, mcv);
 				}
 
-				// Only hand out a waypoint when the MCV has nothing to do. This runs every
-				// ScanForNewMcvInterval (20 ticks), in which an MCV covers a few cells of a
-				// McvSafeMoveWaypointPathCells-long leg, and the order is queued rather than
-				// replacing — so re-issuing stacked up waypoints that were stale by the time they were
-				// reached, and the MCV worked through them one short hop at a time. Reaching the
-				// previous waypoint is precisely when it goes idle, so this still advances every leg.
+				// Nothing to do while it is already driving its route. This runs every
+				// ScanForNewMcvInterval (20 ticks) and the orders queue rather than replace, so
+				// re-issuing would pile up waypoints computed from stale positions.
 				if (!mcv.IsIdle)
 					return;
 
-				bot.QueueOrder(new Order("Move", mcv, Target.FromCell(world, moveLocation), true));
-
-				if (!movingToFinalDeployCell)
-					return;
+				// Whole route and the deploy in one order block: the MCV sets off once and unpacks on
+				// arrival. Handing out a single leg per scan made it stop at the end of each one and
+				// wait for the next scan before moving again.
+				foreach (var waypoint in BuildSafeWaypoints(safePath, desiredLocation.Value))
+					bot.QueueOrder(new Order("Move", mcv, Target.FromCell(world, waypoint), true));
 			}
 			else
 			{
