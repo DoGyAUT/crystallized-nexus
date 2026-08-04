@@ -2637,11 +2637,28 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (layout == BaseBuildingLayout.Coverage)
 					{
-						// Read coverage radius from ProximityExternalCondition on the actor, fall back to 8.
+						// Coverage radius: the aura range for aura buildings, otherwise the range that
+						// actually makes the building worth spreading out — detection first, then plain
+						// vision. Without the latter two a radar (DetectCloaked and RevealsShroud at 15
+						// cells, no ProximityExternalCondition) would have been spaced as if it covered 8,
+						// and the bot would have clustered them into overlapping circles.
 						var proximityInfo = actorInfo.TraitInfoOrDefault<ProximityExternalConditionInfo>();
+						var detectionRange = actorInfo.TraitInfos<DetectCloakedInfo>()
+							.Select(d => d.Range)
+							.DefaultIfEmpty(WDist.Zero)
+							.Max();
+						var visionRange = actorInfo.TraitInfos<RevealsShroudInfo>()
+							.Select(r => r.Range)
+							.DefaultIfEmpty(WDist.Zero)
+							.Max();
+
 						var coverageRadius = proximityInfo != null
 							? Math.Max(1, proximityInfo.Range.Length / 1024)
-							: 8;
+							: detectionRange > WDist.Zero
+								? Math.Max(1, detectionRange.Length / 1024)
+								: visionRange > WDist.Zero
+									? Math.Max(1, visionRange.Length / 1024)
+									: 8;
 						var coverageRadiusSq = coverageRadius * coverageRadius;
 
 						var baseBuildingPositions = playerBuildings

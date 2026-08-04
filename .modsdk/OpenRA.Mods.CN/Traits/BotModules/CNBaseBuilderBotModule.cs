@@ -499,6 +499,12 @@ namespace OpenRA.Mods.Common.Traits
 			"the previous one failed.")]
 		public readonly int DefensePlacementCandidateLimit = 48;
 
+		[Desc("Tech buildings that are spread across bases instead of being concentrated at the spawn base.",
+			"For structures whose value is the ground they cover — radar and other detection or vision",
+			"buildings — one at home leaves every other base blind. Everything else in TechTypes is",
+			"expensive, fragile and built once, and belongs in the safest base the bot has.")]
+		public readonly FrozenSet<string> DistributedTechTypes = FrozenSet<string>.Empty;
+
 		[Desc("Ticks to wait before ordering another defense after one could not be placed anywhere.",
 			"Short on purpose: the base grows and the threat hotspot moves, so a blocked spot often frees",
 			"up again quickly. This delays only defenses, never the rest of the build queue.")]
@@ -1928,6 +1934,25 @@ namespace OpenRA.Mods.Common.Traits
 
 			// A NearBuilding entry only makes sense in a base that actually has that building.
 			var wantsNearBuilding = !string.IsNullOrEmpty(nearBuilding) && nearBuilding != actorType;
+
+			// Tech buildings go to the base nearest the spawn. They are expensive, fragile, usually
+			// built once, and losing one costs a whole branch of the tech tree — the safest base the
+			// bot owns is the one it started at. Under the generic ordering below they tended to end
+			// up in the newest forward expansion instead, because that base has none of them and the
+			// fewest buildings overall, and spawn distance only ever broke a tie. An MCV pushed toward
+			// the front also lands in broken terrain often enough that the placement then fails
+			// outright and the item is cancelled and re-queued in a loop.
+			//
+			// A NearBuilding constraint still wins: gadept next to a war factory is worth more than
+			// gadept at home.
+			// DistributedTechTypes are the exception: radar and similar structures earn their keep by
+			// covering ground, so concentrating them at the spawn wastes them. They keep the generic
+			// ordering below, which spreads a type across the bases that have none.
+			if (Info.TechTypes.Contains(actorType) && !Info.DistributedTechTypes.Contains(actorType))
+				return bases
+					.OrderByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
+					.ThenBy(b => (b.Center - BaseOrigin).LengthSquared)
+					.ToList();
 
 			// Need is measured against the base's own share, not against the raw count: a fresh expansion
 			// has none of anything, so a plain "fewest wins" would redirect the whole build order there.
