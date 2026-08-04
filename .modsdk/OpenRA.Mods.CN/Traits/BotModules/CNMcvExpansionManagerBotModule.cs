@@ -1372,19 +1372,29 @@ namespace OpenRA.Mods.Common.Traits
 
 				CPos? bestcell = null;
 				CPos? crampedFallback = null;
+				var crampedFallbackRoom = -1;
 				foreach (var cell in cells)
 				{
 					if (!world.CanPlaceBuilding(cell + offset, transformIntoInfo, transformIntoBuildingInfo, mcv))
 						continue;
 
 					// The yard fitting says nothing about whether a base fits, nor about whether it is
-					// standing in the tiberium it came for. Prefer a cell that clears both, but remember
-					// the first merely-valid one: refusing to deploy at all is worse than deploying
-					// somewhere awkward, and on a tight map every candidate may be awkward.
-					if (CountBuildableCellsAround(cell, transformIntoBuildingInfo) < Info.DeploySiteMinBuildableCells
-						|| IsTooCloseToResources(cell, transformIntoBuildingInfo))
+					// standing in the tiberium it came for. Both are preferences with a fallback, because
+					// refusing to deploy is worse than deploying somewhere awkward and on a tight map
+					// every candidate may be awkward.
+					var room = CountBuildableCellsAround(cell, transformIntoBuildingInfo);
+					if (room < Info.DeploySiteMinBuildableCells || IsTooCloseToResources(cell, transformIntoBuildingInfo))
 					{
-						crampedFallback ??= cell;
+						// Keep the roomiest reject, not the first. The candidates are ordered by
+						// closeness to the target, so taking the first one settled for whatever sat
+						// nearest the field — a strip between the tiberium and the map edge included.
+						// If we are going to compromise, compromise on the least cramped spot.
+						if (room > crampedFallbackRoom)
+						{
+							crampedFallbackRoom = room;
+							crampedFallback = cell;
+						}
+
 						continue;
 					}
 
