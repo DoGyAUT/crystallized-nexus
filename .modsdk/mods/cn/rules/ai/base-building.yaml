@@ -35,11 +35,16 @@ Player:
 			Tech: 120
 			Defense: 130
 			Production: 35
+		# Weighted by the profile's budget split, so the production-heavy profiles used to land here.
+		# Production was 1, which inverted the logic: a profile spending 64-70% on production needs
+		# more income than the others, not less. It also cost Steamroller and Rush the fallback that
+		# allows queueing a refinery when no tiberium-adjacent spot is free — that only applies while
+		# the minimum is unmet, so at 1 it lapsed after the very first refinery.
 		BudgetInitialMinimumRefineryCounts:
 			Expansion: 2
 			Tech: 2
 			Defense: 2
-			Production: 1
+			Production: 2
 		
 		DefenseQueues: Support
 		MinimumExcessPower: 30
