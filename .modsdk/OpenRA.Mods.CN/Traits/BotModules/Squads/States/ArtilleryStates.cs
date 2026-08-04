@@ -224,7 +224,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class ArtilleryBombardState : CNStateBase, ICNState
 	{
-		const int MaxStaleTicks = 5;
+		// Game ticks, not update cycles: how long the battery tolerates having no valid target
+		// before it goes looking for a new one.
+		const int MaxStaleTicks = 375;
 		int staleTicks;
 
 		public void Activate(CNSquad squad) { staleTicks = 0; }
@@ -237,7 +239,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Revalidate target
 			if (!squad.IsTargetValid)
 			{
-				staleTicks++;
+				staleTicks += squad.TicksSinceLastUpdate;
 				if (staleTicks > MaxStaleTicks)
 				{
 					// Try to find a new target in range

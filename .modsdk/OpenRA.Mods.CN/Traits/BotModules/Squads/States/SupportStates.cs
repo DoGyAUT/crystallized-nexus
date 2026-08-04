@@ -21,7 +21,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SupportIdleState : CNStateBase, ICNState
 	{
-		const int ScanInterval = 3;
+		// Game ticks, not update cycles.
+		const int ScanInterval = 225;
 		int scanTicks;
 		int idleTicks;
 
@@ -42,14 +43,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			idleTicks++;
+			idleTicks += squad.TicksSinceLastUpdate;
 			if (idleTicks >= squad.SquadManager.Info.MaxIdleScanTicks)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new SupportGuardState());
 				return;
 			}
 
-			if (--scanTicks > 0)
+			scanTicks -= squad.TicksSinceLastUpdate;
+			if (scanTicks > 0)
 				return;
 
 			scanTicks = ScanInterval;
@@ -212,7 +214,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class SupportFleeState : CNStateBase, ICNState
 	{
-		const int FleeDuration = 90;
+		// Game ticks, not update cycles.
+		const int FleeDuration = 6750;
 		int fleeTicks;
 
 		public void Activate(CNSquad squad)
@@ -226,7 +229,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsOperational)
 				return;
 
-			if (--fleeTicks <= 0 || !SupportStateHelpers.IsUnderThreat(squad))
+			fleeTicks -= squad.TicksSinceLastUpdate;
+			if (fleeTicks <= 0 || !SupportStateHelpers.IsUnderThreat(squad))
 				squad.FuzzyStateMachine.ChangeState(squad, new SupportGuardState());
 		}
 

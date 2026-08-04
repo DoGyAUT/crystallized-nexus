@@ -306,8 +306,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubAssaultAttackState : CNStateBase, ICNState
 	{
-		const int MaxStuckTicks = 25;
-		const int MaxSurfaceWaitTicks = 50;
+		// Game ticks, not update cycles: how long the squad searches without a target before going
+		// back to idle, and how long it waits for its units to surface before reburrowing.
+		const int MaxStuckTicks = 1875;
+		const int MaxSurfaceWaitTicks = 3750;
 
 		int stuckTicks;
 		int surfaceWaitTicks;
@@ -353,7 +355,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					}
 				}
 
-				stuckTicks++;
+				stuckTicks += squad.TicksSinceLastUpdate;
 				if (stuckTicks > MaxStuckTicks)
 					squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultIdleState());
 				return;
@@ -364,7 +366,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Wait for units to surface, with a guard against being stuck burrowed
 			if (SubterraneanHelpers.AnySubmerged(squad))
 			{
-				surfaceWaitTicks++;
+				surfaceWaitTicks += squad.TicksSinceLastUpdate;
 				if (surfaceWaitTicks > MaxSurfaceWaitTicks)
 					squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultReburrowState());
 				return;
@@ -745,7 +747,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SubTransportSurfaceState : CNStateBase, ICNState
 	{
-		const int SurfaceWaitTicks = 2;
+		// Game ticks, not update cycles: long enough for the surface animation to play out.
+		const int SurfaceWaitTicks = 150;
 
 		int waitTicks;
 
@@ -763,7 +766,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			waitTicks++;
+			waitTicks += squad.TicksSinceLastUpdate;
 
 			// Wait for surface animation
 			if (waitTicks < SurfaceWaitTicks)

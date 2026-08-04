@@ -586,13 +586,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// Never lingers — each run ends as soon as the target dies or ammo drops.
 	sealed class AircraftRaiderRunState : AircraftStateBase, ICNState
 	{
-		const int MaxStuckTicks = 150;
+		// Game ticks, not update cycles. Both of these used to be incremented once per update, which
+		// made their real length depend on AttackForceInterval — and left the stuck detector so long
+		// (150 cycles is over seven minutes) that it never fired at all.
+		const int MaxStuckTicks = 375;
 		const int MinPositionChangeForMovement = 128; // sub-pixels (~2 cells)
-		const int MaxNoAmmoSpentTicks = 75;
+		const int MaxNoAmmoSpentTicks = 500;
 
-		// Counts ticks where the lead aircraft hasn't moved, regardless of attack status.
-		// This fires even when BusyAttack is true, catching the case where an attack
-		// activity is active but the aircraft is truly hovering in place.
+		// Time since the lead aircraft last moved, regardless of attack status. This fires even when
+		// BusyAttack is true, catching the case where an attack activity is active but the aircraft
+		// is truly hovering in place. lastPosition only advances on real movement, so the threshold
+		// measures distance covered over time rather than distance covered per update.
 		int noMoveTicks;
 		int noAmmoSpentTicks;
 		int lastAmmoCount;
@@ -626,10 +630,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Resets on any meaningful movement; aborts the run if stuck too long.
 			var moved = (leadAircraft.CenterPosition - lastPosition).LengthSquared >
 				MinPositionChangeForMovement * MinPositionChangeForMovement;
-			lastPosition = leadAircraft.CenterPosition;
 			if (moved)
+			{
+				lastPosition = leadAircraft.CenterPosition;
 				noMoveTicks = 0;
-			else if (++noMoveTicks >= MaxStuckTicks)
+			}
+			else if ((noMoveTicks += squad.TicksSinceLastUpdate) >= MaxStuckTicks)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new AircraftReturnState(new AircraftRaiderIdleState()));
 				return;
@@ -710,7 +716,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				lastAmmoCount = ammoCount;
 			}
 			else
-				noAmmoSpentTicks++;
+				noAmmoSpentTicks += squad.TicksSinceLastUpdate;
 
 			var forceReissueAttack = noAmmoSpentTicks >= MaxNoAmmoSpentTicks;
 			var issuedAttack = false;
@@ -759,15 +765,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class AircraftReturnState : AircraftStateBase, ICNState
 	{
-		const int MaxReturnWaitTicks = 300;
+		// Game ticks, not update cycles.
+		const int MaxReturnWaitTicks = 1500;
 
-		// Re-issue the return/rearm orders periodically rather than every tick.
-		// Spamming them each tick re-queued ReturnToBase/Retreat and could
-		// interrupt the resupply cycle so AllAircraftReady never became true
-		// until the timeout.
-		const int ReissueInterval = 25;
+		// Re-issue the return/rearm orders periodically rather than on every update.
+		// Spamming them re-queued ReturnToBase/Retreat and could interrupt the
+		// resupply cycle so AllAircraftReady never became true until the timeout.
+		const int ReissueInterval = 250;
 		readonly ICNState nextState;
 		int waitTicks;
+		int lastReissueTicks;
 
 		public AircraftReturnState(ICNState nextState)
 		{
@@ -777,6 +784,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Activate(CNSquad squad)
 		{
 			waitTicks = 0;
+			lastReissueTicks = 0;
 			QueueReturnToBase(squad);
 		}
 
@@ -785,10 +793,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			waitTicks++;
+			waitTicks += squad.TicksSinceLastUpdate;
 
-			if (waitTicks % ReissueInterval == 0)
+			// Elapsed-time comparison rather than a modulo on the counter: with a variable update
+			// cadence the counter no longer lands on exact multiples of the interval.
+			if (waitTicks - lastReissueTicks >= ReissueInterval)
+			{
+				lastReissueTicks = waitTicks;
 				QueueReturnToBase(squad);
+			}
 
 			if (AllAircraftReady(squad) || waitTicks > MaxReturnWaitTicks)
 				squad.FuzzyStateMachine.ChangeState(squad, nextState);

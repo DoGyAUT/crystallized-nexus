@@ -75,6 +75,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		internal Actor TargetActor { get; private set; }
 		internal int NoTargetIdleTicks;
 
+		/// <summary>
+		/// Game ticks that passed since this squad was last updated. States count their timeouts in
+		/// game ticks by adding this rather than incrementing per update, so a squad that is updated
+		/// more often — see CNSquadManagerBotModule's engaged/idle cadence — does not silently run
+		/// every stuck detector, wait window and reissue interval down faster.
+		/// </summary>
+		public int TicksSinceLastUpdate { get; private set; } = 1;
+
+		int lastUpdatedTick;
+
 		// --- Slot assignments (from template) ---
 		public readonly List<CNSlotAssignment> SlotAssignments = [];
 
@@ -181,6 +191,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public void Update()
 		{
+			// First update of a squad's life has no previous tick to measure against; one tick keeps
+			// any elapsed-time test from firing on the very first pass.
+			TicksSinceLastUpdate = lastUpdatedTick == 0
+				? 1
+				: System.Math.Max(1, World.WorldTick - lastUpdatedTick);
+			lastUpdatedTick = World.WorldTick;
+
 			if (IsValid)
 				FuzzyStateMachine.Update(this);
 		}

@@ -1050,7 +1050,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		// Loiter fail-safe: if the lead carrier hasn't made horizontal progress for
 		// this many ticks while still carrying cargo, it is hovering over/near the
 		// LZ — force the unload rather than circling forever.
-		const int MaxLoiterTicks = 60;
+		// Game ticks, not update cycles.
+		const int MaxLoiterTicks = 4500;
 		const int MinProgressDistance = 512; // sub-cell; movement below this counts as "not moving"
 
 		// Threat relaxation: when already at/near the LZ, reduce threat score so a nearly-finished
@@ -1147,7 +1148,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (moved)
 				loiterTicks = 0;
-			else if (++loiterTicks >= MaxLoiterTicks)
+			else if ((loiterTicks += squad.TicksSinceLastUpdate) >= MaxLoiterTicks)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new AirTransportUnloadState(dropCell.Value));
 				return;
@@ -1500,7 +1501,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// ---------------------------------------------------------------------------
 	sealed class TransportDropAssaultState : CNStateBase, ICNState
 	{
-		const int MaxMissionTicks = 1500; // ~100 seconds at 15 ticks/sec
+		const int MaxMissionTicks = 1500; // game ticks, ~60 seconds
 		const int CarrierReturnReissueTicks = 150;
 		const int PassengerOrderReissueTicks = 75;
 		const int CarrierHomeRangeCells = 10;
@@ -1727,7 +1728,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	{
 		// Cleanup timeout: if carriers are stuck in a return loop but cannot reach base
 		// (e.g., pathfinding blocked) for more than this many ticks, force release units.
-		const int MaxReturnWaitTicks = 1200; // ~80 seconds at 15 ticks/sec
+		const int MaxReturnWaitTicks = 1200; // game ticks, ~48 seconds
+
+		// Grace before a non-idle carrier is told to unload anyway, in game ticks.
+		const int UnloadGraceTicks = 375;
 		bool returnIssued;
 		int unloadAttemptTicks;
 		int returnStartTick;
@@ -1797,15 +1801,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (carriersWithCargo.Count > 0)
 			{
-				unloadAttemptTicks++;
+				unloadAttemptTicks += squad.TicksSinceLastUpdate;
 
 				// Idle carriers get the Unload order immediately.
 				// Non-idle carriers (landing animation, rearm-pad state) get it after a
 				// short grace period so we don't interrupt an ongoing unload sequence.
-				foreach (var carrier in carriersWithCargo.Where(u => u.IsIdle || unloadAttemptTicks >= 5))
+				var graceElapsed = unloadAttemptTicks >= UnloadGraceTicks;
+				foreach (var carrier in carriersWithCargo.Where(u => u.IsIdle || graceElapsed))
 					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
 
-				if (unloadAttemptTicks >= 5)
+				if (graceElapsed)
 					unloadAttemptTicks = 0;
 
 				return;
@@ -1827,8 +1832,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// ---------------------------------------------------------------------------
 	sealed class EngineerCaptureState : CNStateBase, ICNState
 	{
-		const int MaxMissionTicks = 1500;        // ~100 s hard cap
-		const int GraceAfterEngineersTicks = 50; // let the final capture+sell resolve before dissolving
+		const int MaxMissionTicks = 1500; // game ticks, ~60 s hard cap
+
+		// Game ticks, not update cycles: lets the final capture+sell resolve before dissolving. As
+		// 50 cycles this was 3750 ticks, well past MaxMissionTicks — the mission always timed out
+		// first, so the grace period never applied at all.
+		const int GraceAfterEngineersTicks = 375;
 
 		int startTick;
 		int engineerlessTicks;
@@ -1896,7 +1905,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			// Dissolve once engineers are spent and pending captures have resolved, or on timeout.
 			if (engineers.Count == 0)
-				engineerlessTicks++;
+				engineerlessTicks += squad.TicksSinceLastUpdate;
 			else
 				engineerlessTicks = 0;
 

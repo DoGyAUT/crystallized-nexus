@@ -23,6 +23,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// ---------------------------------------------------------------------------
 	sealed class CNWaveHoldState : CNStateBase, ICNState
 	{
+		// Throttle between drift-correction move orders, in game ticks. This used to count down once
+		// per update while being set to AttackForceInterval — a tick value used as a cycle count, so
+		// a squad that wandered off stayed away for roughly two minutes before being called back.
+		const int DriftReissueTicks = 300;
+
 		CPos holdCell;
 		WPos holdPos;
 		bool holdInitialized;
@@ -60,11 +65,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// (e.g. units chased a target out of range), re-issue the move order. Throttled
 			// so we don't spam Move orders every tick.
 			if (reissueCooldown > 0)
-				reissueCooldown--;
+				reissueCooldown -= squad.TicksSinceLastUpdate;
 			else if (HasDrifted(squad))
 			{
 				IssueHoldMove(squad);
-				reissueCooldown = squad.SquadManager.Info.AttackForceInterval;
+				reissueCooldown = DriftReissueTicks;
 			}
 		}
 
@@ -92,7 +97,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			holdInitialized = true;
 
 			IssueHoldMove(squad);
-			reissueCooldown = mgr.Info.AttackForceInterval;
+			reissueCooldown = DriftReissueTicks;
 		}
 
 		void IssueHoldMove(CNSquad squad)

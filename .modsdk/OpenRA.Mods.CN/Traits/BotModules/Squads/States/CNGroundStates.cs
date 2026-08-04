@@ -531,7 +531,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class ProtectionAttackState : CNGroundStateBase, ICNState
 	{
-		const int BackoffTicks = 4;
+		// Game ticks, not update cycles: how long the squad keeps chasing a target it can no longer
+		// see before giving up on it.
+		const int BackoffTicks = 300;
 		int backoff = BackoffTicks;
 
 		public void Activate(CNSquad squad) { }
@@ -586,7 +588,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					return;
 				}
 
-				backoff--;
+				backoff -= squad.TicksSinceLastUpdate;
 			}
 			else
 			{
@@ -599,8 +601,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class ProtectionFleeState : CNGroundStateBase, ICNState
 	{
-		// 15 update-cycles × 75 game ticks = ~37 seconds — enough for units to walk home.
-		const int MaxWaitTicks = 15;
+		// Game ticks, not update cycles: ~45 seconds, enough for units to walk home.
+		const int MaxWaitTicks = 1125;
 		const int ArrivalRadiusCells = 6;
 		int waitTicks;
 		WPos returnPos;
@@ -631,7 +633,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			waitTicks++;
+			waitTicks += squad.TicksSinceLastUpdate;
 
 			var arrivalDist = WDist.FromCells(ArrivalRadiusCells);
 			var units = squad.Units.Where(u => !u.IsDead).ToList();
