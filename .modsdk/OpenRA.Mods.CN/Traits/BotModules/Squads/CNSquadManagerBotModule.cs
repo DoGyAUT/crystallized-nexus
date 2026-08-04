@@ -259,7 +259,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Master switch for the coordinated attack wave system. If false, squads attack independently as soon as they form.")]
 		public readonly bool AttackWaveEnabled = true;
 
-		[Desc("Ticks before the first wave can fire after this module enables.")]
+		[Desc("Ticks before the first wave can fire, measured from the start of the game rather than " +
+			"from this module enabling — an adaptive profile switch swaps one profile's squad manager " +
+			"for another mid-game and must not re-arm the delay.")]
 		public readonly int AttackWaveInitialDelay = 3000;
 
 		[Desc("Ticks between wave-trigger evaluations.")]
@@ -319,6 +321,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		[Desc("Cells of random scatter around the hold position so wave-holding squads don't stack on top of each other.")]
 		public readonly int WaveHoldScatterCells = 4;
+
+		[Desc("Radius in cells around an own building within which a forming squad counts as being at home. " +
+			"Squads formed outside it skip the wave hold and go straight to their role state, so units " +
+			"already in the field are not recalled.")]
+		public readonly int WaveHoldHomeRadiusCells = 20;
 
 		[Desc("Squad roles that participate in coordinated waves. Protection is always excluded regardless of this list. " +
 			"Roles not listed attack independently as soon as they are formed.")]
@@ -541,8 +548,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			waveEligibleRoleSet = [.. Info.WaveParticipantRoles ?? []];
 			waveEligibleRoleSet.Remove(CNSquadType.Protection);
 
+			// The initial delay counts from the start of the game, not from this module enabling. The
+			// adaptive bot swaps one profile's squad manager for another mid-game, and re-arming the
+			// full delay on every switch meant a profile whose delay exceeds the adaptive hold time
+			// (Tech 5000, Turtle 6000 against AdaptiveMinimumIntentHoldTicks 3000) never reached its
+			// first wave evaluation at all. The stagger — which exists to keep several bots from
+			// attacking on the same tick — only applies while that initial delay is still running;
+			// a mid-game switch has no reason to re-stagger against anyone.
 			var staggerWindow = Math.Max(1, Info.AttackWaveInterval / 4);
-			waveCooldownTicks = Info.AttackWaveInitialDelay + random.Next(0, staggerWindow);
+			var remainingInitialDelay = Math.Max(0, Info.AttackWaveInitialDelay - World.WorldTick);
+			waveCooldownTicks = remainingInitialDelay > 0
+				? remainingInitialDelay + random.Next(0, staggerWindow)
+				: 0;
 			waveCurrentMinReady = Math.Max(1, Info.AttackWaveMinReadySquads);
 			waveGrowthTicks = Info.AttackWaveSizeGrowthInterval;
 			waveSkipCount = 0;
@@ -1680,13 +1697,42 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			// Wave-eligible squads park in a hold state near the base until the
 			// wave manager launches them as part of a coordinated attack.
-			if (Info.AttackWaveEnabled && waveEligibleRoleSet.Contains(squad.Type))
+			//
+			// Squads that form out in the field are exempt. An adaptive profile switch dissolves every
+			// squad and re-forms it through here, so without this check units that were mid-attack were
+			// handed a hold cell back home and turned around two seconds after the profile changed.
+			// The same applies to any squad rebuilt from survivors far from base.
+			if (Info.AttackWaveEnabled && waveEligibleRoleSet.Contains(squad.Type) && IsAtHome(squad))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new CNWaveHoldState());
 				return;
 			}
 
 			InitializeSquadStateForRole(squad);
+		}
+
+		/// <summary>
+		/// True if the squad's centre sits within WaveHoldHomeRadiusCells of one of our buildings.
+		/// A bot with no buildings left is never "at home" — it has nowhere to hold.
+		/// </summary>
+		bool IsAtHome(CNSquad squad)
+		{
+			var buildings = GetCachedOwnBuildings();
+			if (buildings.Count == 0)
+				return false;
+
+			var center = squad.CenterPosition();
+			if (center == WPos.Zero)
+				return false;
+
+			var radius = WDist.FromCells(Math.Max(1, Info.WaveHoldHomeRadiusCells)).Length;
+			var radiusSq = (long)radius * radius;
+
+			foreach (var building in buildings)
+				if ((center - building.CenterPosition).LengthSquared <= radiusSq)
+					return true;
+
+			return false;
 		}
 
 		public void InitializeSquadStateForRole(CNSquad squad)
