@@ -3236,10 +3236,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		void SellUselessRefinery(IBot bot)
 		{
-			// Sell one refinery each time. Preserve at least one refinery.
-			var refineries = world.ActorsHavingTrait<Refinery>().Where(a => a.Owner == player).ToArray();
+			// Sell one refinery each time, and only ever an actual refinery type.
+			//
+			// This used to select on the Refinery trait, which in CN also sits on nawast. Waste
+			// facilities are not refineries to any other part of the bot — RefineryTypes is gproc and
+			// nproc — so they inflated the count this threshold is checked against while the sale
+			// itself took a real refinery. A Nod bot on an exhausted field could sell its way down
+			// past the intended floor because two nawast were padding the total.
+			var refineries = world.ActorsHavingTrait<Refinery>()
+				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld && Info.RefineryTypes.Contains(a.Info.Name))
+				.ToArray();
 
 			if (refineries.Length <= GetActiveInititalMinimumRefineryCount() + Info.AdditionalMinimumRefineryCount)
+				return;
+
+			// Hard floor independent of the budget-weighted target above: whatever the strategy says,
+			// a bot that sells its last refinery has no way back. The target is an expansion goal and
+			// can legitimately be low; this is survival.
+			if (refineries.Length <= Math.Max(1, Info.ProductionPauseRefineryCount))
 				return;
 
 			// A refinery is active if a harvester is currently docked/reserved at its dock,
@@ -3277,6 +3291,14 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (ResourceMapModule == null)
+				return;
+
+			// Selling an idle refinery only makes sense while another one is still working. When the
+			// field runs dry every refinery goes idle at once, and then this loop would sell them one
+			// after another for as long as the count threshold allowed — the bot dismantling its own
+			// economy precisely when it has none. Keeping them costs power; not having one when the
+			// expansion finally reaches tiberium costs the game.
+			if (!refineries.Any(IsRefineryActive))
 				return;
 
 			Actor bestCandidate = null;
