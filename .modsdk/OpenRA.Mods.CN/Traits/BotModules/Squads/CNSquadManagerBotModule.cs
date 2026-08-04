@@ -626,7 +626,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				squad.Update();
 				ReleaseStaleNoTargetSquad(squad);
 
-				var interval = squad.IsTargetValid ? Info.EngagedSquadInterval : Info.AttackForceInterval;
+				var interval = squad.IsTargetValid || squad.FuzzyStateMachine.IsInTimeCriticalState
+					? Info.EngagedSquadInterval
+					: Info.AttackForceInterval;
 				squad.NextUpdateTick = World.WorldTick + Math.Max(1, interval);
 			}
 

@@ -306,8 +306,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class TransportLoadState : CNStateBase, ICNState
 	{
 		// Abort threshold: if no new passenger has boarded within this time, transition to safe
-		// state. 3000 ticks ≈ ~200 seconds at 15 ticks/sec - raised from 1500 (~100s) since APC
-		// squads were frequently timing out and departing half-empty while production caught up.
+		// state. 3000 game ticks ≈ 120 seconds - raised from 1500 since APC squads were frequently
+		// timing out and departing half-empty while production caught up.
 		const int MaxLoadTicks = 3000;
 		const int RallySearchRadius = 6;
 		const int CongestionCheckCells = 2;
@@ -634,7 +634,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Deactivate(CNSquad squad) { }
 	}
 
-	sealed class TransportAttackMoveState : CNStateBase, ICNState
+	sealed class TransportAttackMoveState : CNStateBase, ICNTimeCriticalState
 	{
 		const int DropSearchMinCells = 4;
 		const int DropSearchMaxCells = 10;
@@ -1040,7 +1040,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 	}
 
-	sealed class AirTransportAttackMoveState : CNStateBase, ICNState
+	sealed class AirTransportAttackMoveState : CNStateBase, ICNTimeCriticalState
 	{
 		const int DropSearchMinCells = 5;
 		const int DropSearchMaxCells = 13;
@@ -1338,9 +1338,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// forever. Here we explicitly Land at the drop cell first; a landed aircraft becomes idle
 	// and CanUnload, so the Unload order goes through and the cargo is actually dropped.
 	// ---------------------------------------------------------------------------
-	sealed class AirTransportUnloadState : CNStateBase, ICNState
+	sealed class AirTransportUnloadState : CNStateBase, ICNTimeCriticalState
 	{
-		// Timeout: 600 ticks ≈ ~40 seconds at 15 ticks/sec — force-drop and bail if stuck.
+		// Timeout: 600 game ticks ≈ 24 seconds — force-drop and bail if stuck.
 		const int MaxUnloadWaitTicks = 600;
 
 		readonly CPos dropCell;
@@ -1416,9 +1416,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Deactivate(CNSquad squad) { }
 	}
 
-	sealed class TransportUnloadState : CNStateBase, ICNState
+	sealed class TransportUnloadState : CNStateBase, ICNTimeCriticalState
 	{
-		// Timeout: 600 ticks ≈ ~40 seconds at 15 ticks/sec — abort if stuck.
+		// Timeout: 600 game ticks ≈ 24 seconds — abort if stuck.
 		const int MaxUnloadWaitTicks = 600;
 
 		// Periodic nudge interval: re-issue Unload order every N ticks to "nudge" the engine's activity queue.
@@ -1431,6 +1431,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			unloadStartTick = squad.World.WorldTick;
 			lastNudgeTick = squad.World.WorldTick;
+
+			// Order the unload here rather than waiting for the first Tick. Entering this state is
+			// itself the decision that the carriers have arrived, so deferring the order cost a full
+			// update interval — that, on top of the interval the arrival check itself ran on, is why
+			// a loaded APC visibly sat at the drop point before anything happened.
+			foreach (var carrier in squad.CarrierUnits.Where(c => !c.IsDead && c.IsInWorld))
+				if (carrier.TraitOrDefault<Cargo>()?.IsEmpty() == false)
+					squad.Bot.QueueOrder(new Order("Unload", carrier, false));
 		}
 
 		public void Tick(CNSquad squad)
