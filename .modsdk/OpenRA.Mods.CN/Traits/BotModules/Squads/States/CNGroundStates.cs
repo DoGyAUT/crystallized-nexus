@@ -211,7 +211,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					if (allHome)
 						return;
 
-					squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
+					// Having no target is not a retreat. Walk home but stay in this state: the flee
+					// state now regroups and returns instead of dissolving, so routing "nothing to
+					// attack" through it would bounce the squad between idle and flee forever, and
+					// each pass through flee would reset the manager's no-target release timer.
+					// Staying idle lets ReleaseStaleNoTargetSquad free the units if this persists.
+					Retreat(squad, flee: true, rearm: true, repair: true);
 					return;
 				}
 
@@ -281,7 +286,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					: FindTarget(squad);
 				if (enemy == null)
 				{
-					squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
+					// Out of targets, not beaten — hand back to idle, which walks the squad home and
+					// lets the manager's no-target release decide its fate. Routing this through the
+					// flee state would bounce between the two now that fleeing regroups.
+					squad.FuzzyStateMachine.ChangeState(squad, new CNGroundIdleState());
 					return;
 				}
 
@@ -500,27 +508,91 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// ---------------------------------------------------------------------------
 	// Flee: return to base, dissolve squad
 	// ---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
+	// Flee: pull back, let the wounded repair, then either return to the fight or
+	// dissolve if too little of the squad is left to be worth reforming.
+	// ---------------------------------------------------------------------------
 	sealed class CNGroundFleeState : CNGroundStateBase, ICNState
 	{
-		public void Activate(CNSquad squad) { }
+		// Game ticks. Long enough to actually disengage and start repairs, capped so a squad that
+		// retreated into a quiet corner does not sit there for the rest of the match.
+		const int MaxRegroupTicks = 750;
+
+		int fleeStartTick;
+		bool dissolving;
+
+		public void Activate(CNSquad squad)
+		{
+			fleeStartTick = squad.World.WorldTick;
+
+			// Decided once, on entry: a squad this far below strength is not worth walking back out,
+			// so its survivors are better off in the pool feeding a fresh full-strength squad. This
+			// is the case the old unconditional dissolve was written for — it just applied it to
+			// every retreat, including the ones a squad could have come back from.
+			//
+			// IsOperational is part of the bar because losing a whole template slot is permanent for
+			// an attack squad: it is never topped up mid-mission (see AllowsOperationalReinforcement).
+			// A squad that came back still non-operational would be sent straight back here by the
+			// very check that dispatched it. So regrouping is for the squad that is intact but
+			// outgunned, and dissolving for the one that has actually been broken up.
+			dissolving = !CanRegroup(squad) || !squad.IsOperational;
+
+			Retreat(squad, flee: true, rearm: true, repair: true);
+		}
 
 		public void Tick(CNSquad squad)
 		{
-			if (!squad.IsValid)
+			if (!squad.IsValid || dissolving)
+			{
+				squad.SquadManager.UnregisterSquad(squad);
+				return;
+			}
+
+			// Hold the retreat until nothing is chasing us any more, or the clock runs out. Returning
+			// while the threat is still in range would just trip the flee check again and leave the
+			// squad shuffling back and forth in front of it.
+			var center = squad.CenterUnit();
+			var pursuer = center != null
+				? squad.SquadManager.FindClosestEnemy(center,
+					WDist.FromCells(squad.SquadManager.Info.DangerScanRadius))
+				: null;
+
+			if (pursuer != null && squad.World.WorldTick - fleeStartTick < MaxRegroupTicks)
 				return;
 
-			// Issue the retreat, then dissolve so the units return to the manager's pool and get
-			// reformed into a full-strength squad rather than limping on understrength.
-			//
-			// This used to be spelled as a transition to CNGroundIdleState with the dissolve hidden
-			// in Deactivate. Behaviourally identical (Idle was the only exit), but it read as if the
-			// squad regrouped and carried on, and it booby-trapped the state: *any* future
-			// transition out of Flee would have silently destroyed the squad.
-			Retreat(squad, flee: true, rearm: true, repair: true);
-			squad.SquadManager.UnregisterSquad(squad);
+			// Losses during the retreat can still take it below the bar.
+			if (!CanRegroup(squad) || !squad.IsOperational)
+			{
+				squad.SquadManager.UnregisterSquad(squad);
+				return;
+			}
+
+			squad.SquadManager.InitializeSquadStateForRole(squad);
 		}
 
 		public void Deactivate(CNSquad squad) { }
+
+		/// <summary>
+		/// True if enough of the squad's template strength survives to be worth sending back out.
+		/// Squads without a template have no nominal strength to measure against, so any that still
+		/// has units regroups.
+		/// </summary>
+		static bool CanRegroup(CNSquad squad)
+		{
+			var live = squad.Units.Count(u => u != null && !u.IsDead && u.IsInWorld);
+			if (live == 0)
+				return false;
+
+			var nominal = squad.SlotAssignments
+				.Where(a => a != null && !a.SlotInfo.Optional)
+				.Sum(a => a.SlotInfo.Count);
+
+			if (nominal <= 0)
+				return true;
+
+			var percent = System.Math.Clamp(squad.SquadManager.Info.SquadRegroupStrengthPercent, 0, 100);
+			return live * 100 >= nominal * percent;
+		}
 	}
 
 	// ---------------------------------------------------------------------------
