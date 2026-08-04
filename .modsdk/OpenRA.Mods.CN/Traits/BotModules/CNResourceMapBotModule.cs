@@ -256,16 +256,28 @@ namespace OpenRA.Mods.Common.Traits
 		public bool InitialScanComplete =>
 			resourceMapIndices != null && resourceMapIndices.Length > 0 && initialScanIndex >= resourceMapIndices.Length;
 
-		/// <summary>Cells of valuable resource within <paramref name="radius"/> of a position.</summary>
-		public int CountValuableResourceCellsNear(CPos center, int radius)
+		/// <summary>
+		/// Cells of valuable resource within <paramref name="radius"/> of a position. The radius is
+		/// straight-line, so callers that care whether the resource can actually be worked must pass
+		/// <paramref name="isReachable"/> — tiberium on a plateau or across a chasm sits a few cells
+		/// away on the map and an unreachable distance away in practice.
+		/// </summary>
+		public int CountValuableResourceCellsNear(CPos center, int radius, Func<CPos, bool> isReachable = null)
 		{
 			if (resourceLayer == null)
 				return 0;
 
 			var count = 0;
 			foreach (var cell in world.Map.FindTilesInAnnulus(center, 0, Math.Max(1, radius)))
-				if (Info.ValuableResourceTypes.Contains(resourceLayer.GetResource(cell).Type))
-					count++;
+			{
+				if (!Info.ValuableResourceTypes.Contains(resourceLayer.GetResource(cell).Type))
+					continue;
+
+				if (isReachable != null && !isReachable(cell))
+					continue;
+
+				count++;
+			}
 
 			return count;
 		}

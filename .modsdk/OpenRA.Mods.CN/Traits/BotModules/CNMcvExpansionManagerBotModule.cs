@@ -95,6 +95,26 @@ namespace OpenRA.Mods.Common.Traits
 			"the one relocation decision the bot can never revisit later.")]
 		public readonly int StartDeployMinResourceCells = 12;
 
+		[Desc("How many MCVs may be travelling at the same time. One means expansions are founded strictly",
+			"one after another — build, drive, deploy, only then the next — which is what a land-grab",
+			"profile cannot afford. Ignored while the bot has no construction yard: rebuilding a base",
+			"never needs more than one spare.")]
+		public readonly int MaxConcurrentMcvs = 1;
+
+		[Desc("Per-profile override for " + nameof(MaxConcurrentMcvs) + ".")]
+		public readonly FrozenDictionary<string, int> MaxConcurrentMcvCounts = null;
+
+		[Desc("Cells around a candidate deploy cell examined for usable building ground. The deploy check",
+			"itself only asks whether the construction yard fits, which a ledge between a cliff and a",
+			"tiberium field satisfies while offering nowhere to put the rest of the base.")]
+		public readonly int DeploySiteCheckRadius = 8;
+
+		[Desc("Flat, buildable cells that must lie within " + nameof(DeploySiteCheckRadius) + " for a",
+			"deploy cell to count as a viable base site. A candidate below this is skipped in favour of",
+			"the next one; if no candidate clears it, the best available cell is used anyway rather than",
+			"leaving the MCV wandering.")]
+		public readonly int DeploySiteMinBuildableCells = 60;
+
 		[Desc("Initial expansion mode chosen by AI.")]
 		public readonly BotMcvExpansionMode InitialExpansionMode = BotMcvExpansionMode.CheckResource;
 
@@ -1008,9 +1028,16 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.BuildAdditionalMCVCashAmounts.TryGetValue(profileKey, out var profileCash)
 				? profileCash : Info.BuildAdditionalMCVCashAmount;
 
-			// If we only have 1 MCV and no conyard, we should be allowed to build another MCV.
-			// Otherwise, when an mcv is on the move and we should wait.
-			if ((conyardNum <= 0 && mcvNum > 1) || (conyardNum > 0 && mcvNum > 0))
+			var maxConcurrentMcvs = profileKey != null
+				&& Info.MaxConcurrentMcvCounts != null
+				&& Info.MaxConcurrentMcvCounts.TryGetValue(profileKey, out var profileConcurrent)
+				? profileConcurrent : Info.MaxConcurrentMcvs;
+
+			// With no construction yard the bot is rebuilding its base and one spare MCV is all that
+			// helps. With one, the cap is how many expansions may be under way at once — at 1 (the
+			// default, and the old hardcoded behaviour) every expansion waits for the previous MCV to
+			// finish driving and deploying, which is what kept a land-grab profile crawling.
+			if (conyardNum <= 0 ? mcvNum > 1 : mcvNum >= Math.Max(1, maxConcurrentMcvs))
 				return;
 
 			// The construction yard count is now purely a ceiling, not the trigger. Before, it only rose
@@ -1139,6 +1166,36 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Flat, buildable ground around a candidate deploy cell — a proxy for "is there room for a base
+		/// here at all". The deploy check only asks whether the construction yard itself fits, which a
+		/// ledge wedged between a cliff and a tiberium field passes while leaving nowhere for the
+		/// refinery, the power plants or the factories that have to follow.
+		/// </summary>
+		int CountBuildableCellsAround(CPos center, BuildingInfo bi)
+		{
+			var radius = Math.Max(1, Info.DeploySiteCheckRadius);
+			var count = 0;
+
+			foreach (var cell in world.Map.FindTilesInAnnulus(center, 0, radius))
+			{
+				if (!world.Map.Contains(cell))
+					continue;
+
+				// Ramps are the important exclusion: they read as ordinary terrain but nothing can be
+				// built on them, so a slope-heavy pocket looks far better than it plays.
+				if (world.Map.Ramp[cell] != 0)
+					continue;
+
+				if (bi != null && !bi.TerrainTypes.Contains(world.Map.GetTerrainInfo(cell).Type))
+					continue;
+
+				count++;
+			}
+
+			return count;
+		}
+
+		/// <summary>
 		/// True if any starting MCV stands within reach of enough tiberium to be worth deploying on the
 		/// spot. With none, deploying in place strands the base: harvesters haul across the map, the
 		/// refinery placement fallback has no field to aim at, and no later mechanism moves the yard.
@@ -1158,7 +1215,19 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				anyMcv = true;
-				if (resourceMapModule.CountValuableResourceCellsNear(mcv.Location, radius) >= required)
+
+				// Straight-line proximity is not enough: tiberium on a plateau or across a chasm can sit
+				// a handful of cells away and still be unreachable, and deploying next to it strands the
+				// bot exactly as a spawn with no tiberium at all would. A field that is further in a
+				// straight line but on the same level is the better spawn, and rejecting the unreachable
+				// one here sends the MCV to look for it — ChooseMcvDeployLocation then scores candidates
+				// by real path length.
+				var mobile = mcv.TraitOrDefault<Mobile>();
+				var reachable = mobile == null
+					? (Func<CPos, bool>)null
+					: cell => pathfinder.PathMightExistForLocomotorBlockedByImmovable(mobile.Locomotor, mcv.Location, cell);
+
+				if (resourceMapModule.CountValuableResourceCellsNear(mcv.Location, radius, reachable) >= required)
 					return true;
 			}
 
@@ -1277,14 +1346,26 @@ namespace OpenRA.Mods.Common.Traits
 					cells = cells.Shuffle(world.LocalRandom);
 
 				CPos? bestcell = null;
+				CPos? crampedFallback = null;
 				foreach (var cell in cells)
 				{
-					if (world.CanPlaceBuilding(cell + offset, transformIntoInfo, transformIntoBuildingInfo, mcv))
+					if (!world.CanPlaceBuilding(cell + offset, transformIntoInfo, transformIntoBuildingInfo, mcv))
+						continue;
+
+					// The yard fitting says nothing about whether a base fits. Prefer a cell with room
+					// around it, but remember the first cramped one: refusing to deploy at all is worse
+					// than deploying somewhere tight, and on a cramped map every candidate may be tight.
+					if (CountBuildableCellsAround(cell, transformIntoBuildingInfo) < Info.DeploySiteMinBuildableCells)
 					{
-						bestcell = cell;
-						break;
+						crampedFallback ??= cell;
+						continue;
 					}
+
+					bestcell = cell;
+					break;
 				}
+
+				bestcell ??= crampedFallback;
 
 				// If no deployble cell found, return null
 				if (bestcell == null)

@@ -164,8 +164,17 @@ Player:
 			Rush: 1
 			Turtle: 1
 			Tech: 2
-			Expansion: 5
+			# Expansion's whole idea is to sit on the map's resources before anyone else does, so its
+			# ceiling is set by how many fields a map has rather than by what a base needs.
+			Expansion: 8
 			Steamroller: 3
+		# One MCV at a time means every expansion waits out the previous drive and deploy. Expansion
+		# founds three at once; Steamroller two, since it expands to feed production rather than to
+		# claim ground. The rest keep the old serial behaviour.
+		MaxConcurrentMcvs: 1
+		MaxConcurrentMcvCounts:
+			Expansion: 3
+			Steamroller: 2
 		BuildAdditionalMCVCashAmount: 9000
 		BuildAdditionalMCVCashAmounts:
 			Turtle: 12000
