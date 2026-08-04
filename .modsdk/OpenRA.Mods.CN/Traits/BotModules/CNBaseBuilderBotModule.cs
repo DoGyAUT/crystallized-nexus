@@ -3068,8 +3068,26 @@ namespace OpenRA.Mods.Common.Traits
 				return cachedSupportedRefineryCapacity;
 
 			var supportedCapacity = 0;
+			var scored = 0;
+			var largestField = 0;
 			for (var i = 0; i < ResourceMapModule.GetIndicesLength(); i++)
-				supportedCapacity += GetSupportedRefineryCapacity(ResourceMapModule.GetIndice(i));
+			{
+				var indice = ResourceMapModule.GetIndice(i);
+				var capacity = GetSupportedRefineryCapacity(indice);
+				supportedCapacity += capacity;
+				if (capacity > 0)
+					scored++;
+
+				if (indice != null && indice.ResourceCellsCount > largestField)
+					largestField = indice.ResourceCellsCount;
+			}
+
+			// This caps GetTargetRefineryCount, so when it comes out low the bot stops wanting
+			// refineries entirely — no placement is ever attempted and nothing else reports why.
+			AIUtils.BotDebug(
+				"{0} refinery capacity: {1} from {2}/{3} indices (largest field {4} cells, thresholds {5}/{6})",
+				player, supportedCapacity, scored, ResourceMapModule.GetIndicesLength(),
+				largestField, Info.MinFiniteFieldCellsForRefinery, Info.MinFiniteFieldCellsForExtraRefinery);
 
 			cachedSupportedRefineryCapacityTick = world.WorldTick;
 			cachedSupportedRefineryCapacity = Math.Max(Info.InititalMinimumRefineryCount, supportedCapacity);
