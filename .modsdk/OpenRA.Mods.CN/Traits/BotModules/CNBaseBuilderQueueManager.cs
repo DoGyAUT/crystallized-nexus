@@ -648,6 +648,10 @@ namespace OpenRA.Mods.Common.Traits
 						// A refinery with no accessible tiberium spot should not jam the entire build
 						// queue — the bot should still build power, barracks, defenses, etc.
 						// Cancel it and start a cooldown before the economy check tries again.
+						AIUtils.BotDebug("{0} refinery: placement found no cell, cancelling (have {1}, target {2})",
+							player, AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings),
+							baseBuilder.GetTargetRefineryCount());
+
 						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
 						refineryPlacementCooldownTicks = baseBuilder.Info.RefineryPlacementRetryDelay;
 						return false;
@@ -934,10 +938,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (baseBuilder.HasViableRefineryExpansionOpportunity())
 				return true;
 
-			// If the bot still needs its minimum refineries, allow queueing even when
-			// the field is too far for a perfect tiberium-adjacent placement. Placement
-			// will use a BaseGrid fallback toward the field instead of cancelling.
-			return existingRefineryLocs.Count < baseBuilder.GetActiveInititalMinimumRefineryCount();
+			// With no refinery at all, queue one regardless: placement then falls back to the base grid
+			// pointing at a field, which is a poor spot but better than no income. Matched to the same
+			// condition in the placement fallback — from the second refinery onward a spot beside the
+			// tiberium is the whole point, and one parked in the middle of the base is not worth its
+			// plot or its power.
+			return existingRefineryLocs.Count < 1;
 		}
 
 		ActorInfo ChooseBuildingToBuild(ProductionQueue queue)
@@ -959,9 +965,21 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Next is to build up a strong economy
-			if (baseBuilder.ShouldExpandEconomy() && refineryPlacementCooldownTicks <= 0)
+			var wantsEconomy = baseBuilder.ShouldExpandEconomy();
+			if (!wantsEconomy || refineryPlacementCooldownTicks > 0)
+				AIUtils.BotDebug("{0} refinery: skipped (wantsEconomy {1}, have {2}/{3}, cooldown {4})",
+					player, wantsEconomy,
+					AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings),
+					baseBuilder.GetTargetRefineryCount(), refineryPlacementCooldownTicks);
+
+			if (wantsEconomy && refineryPlacementCooldownTicks <= 0)
 			{
 				var refinery = GetProducibleBuilding(baseBuilder.Info.RefineryTypes, buildableThings);
+				if (refinery == null)
+					AIUtils.BotDebug("{0} refinery: none buildable in this queue", player);
+				else if (!HasSufficientPowerForActor(refinery))
+					AIUtils.BotDebug("{0} refinery: {1} blocked on power", player, refinery.Name);
+
 				if (refinery != null && HasSufficientPowerForActor(refinery))
 				{
 					// Pre-flight: skip queuing if no buildable spot exists near a reachable resource field.
@@ -978,6 +996,11 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						// No viable spot for a second refinery — signal that expansion is blocked so
 						// PauseUnitProduction doesn't hold units hostage waiting for an impossible refinery.
+						AIUtils.BotDebug("{0} refinery: no viable field near {1} (have {2}, opportunity {3})",
+							player, baseBuilder.ResourceConyardCenter ?? baseBuilder.GetRandomBaseCenter(),
+							AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings),
+							baseBuilder.HasViableRefineryExpansionOpportunity());
+
 						baseBuilder.RefineryExpansionBlocked = true;
 					}
 				}
@@ -2632,9 +2655,18 @@ namespace OpenRA.Mods.Common.Traits
 					if (baseBuilder.RequestedRefineries.Count > 0)
 						baseBuilder.RequestedRefineries.Remove(requestRef);
 
+					// Fallback placement puts the refinery on the base grid pointing at a field rather
+					// than beside one, so the harvesters get a long haul and the building occupies plot
+					// space for little return. That trade is only worth it for the very first refinery,
+					// where having no income at all is the alternative.
+					//
+					// This used to run while below GetActiveInititalMinimumRefineryCount. That was the
+					// same as "we have none" only while the minimum was 1; raising it to 2 for
+					// production-heavy profiles quietly extended base-grid placement to the second
+					// refinery, which is how bots ended up with two refineries sitting in the middle of
+					// the base and none next to the tiberium.
 					var existingRefineryCount = AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings);
-					var requiredRefineryCount = Math.Max(1, baseBuilder.GetActiveInititalMinimumRefineryCount());
-					if (existingRefineryCount < requiredRefineryCount)
+					if (existingRefineryCount < 1)
 					{
 						var resourceFallbackRadius = Math.Max(effectiveMaxRadius, baseBuilder.Info.SellRefineryNoResourceDistance * 2);
 						var fallbackTarget = requestedResourceLoc
