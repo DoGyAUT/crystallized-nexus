@@ -649,7 +649,7 @@ namespace OpenRA.Mods.Common.Traits
 						// queue — the bot should still build power, barracks, defenses, etc.
 						// Cancel it and start a cooldown before the economy check tries again.
 						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
-						refineryPlacementCooldownTicks = baseBuilder.Info.StructureProductionResumeDelay;
+						refineryPlacementCooldownTicks = baseBuilder.Info.RefineryPlacementRetryDelay;
 						return false;
 					}
 				}
@@ -921,6 +921,18 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 			}
+
+			// The scan above is a fast reject, not proof. It samples a few fields, probes four anchors
+			// per field and demands flat, ramp-free ground within four cells of them — on broken
+			// terrain, which is exactly where an expansion tends to land, it reports "nowhere" while
+			// the full placement search would still find a spot. Taken as final it stopped bots from
+			// ever building a refinery at an expansion that had tiberium right next to it.
+			//
+			// So when the resource map says a field genuinely still supports another refinery, let the
+			// placement attempt be the judge. A real miss is already handled: the refinery is
+			// cancelled and refineryPlacementCooldownTicks throttles the retry.
+			if (baseBuilder.HasViableRefineryExpansionOpportunity())
+				return true;
 
 			// If the bot still needs its minimum refineries, allow queueing even when
 			// the field is too far for a perfect tiberium-adjacent placement. Placement

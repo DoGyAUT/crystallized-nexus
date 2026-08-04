@@ -511,6 +511,12 @@ namespace OpenRA.Mods.Common.Traits
 			"expensive, fragile and built once, and belongs in the safest base the bot has.")]
 		public readonly FrozenSet<string> DistributedTechTypes = FrozenSet<string>.Empty;
 
+		[Desc("Ticks to wait before ordering another refinery after one could not be placed. Separate from",
+			"StructureProductionResumeDelay, which is the recovery delay for a base that cannot place",
+			"anything at all: a refinery that missed its spot is a routine miss on awkward terrain and",
+			"should be retried well before that.")]
+		public readonly int RefineryPlacementRetryDelay = 600;
+
 		[Desc("Ticks to wait before ordering another defense after one could not be placed anywhere.",
 			"Short on purpose: the base grows and the threat hotspot moves, so a blocked spot often frees",
 			"up again quickly. This delays only defenses, never the rest of the build queue.")]
