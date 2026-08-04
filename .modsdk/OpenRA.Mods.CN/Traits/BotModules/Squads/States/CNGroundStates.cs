@@ -480,6 +480,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			// Send the badly hurt home before deciding whether the squad as a whole should leave: a
+			// squad that keeps a nearly dead unit in the firing line loses it, and losing it is what
+			// pushes the squad under strength and triggers the full retreat in the first place.
+			WithdrawDamagedUnits(squad);
+
 			// Per-unit orders — only issue if not already attacking (avoids interrupting shots)
 			foreach (var unit in squad.OrderableUnits)
 				if (!BusyAttack(unit))

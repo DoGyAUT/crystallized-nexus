@@ -287,6 +287,21 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Minimum ready squads required for a fallback wave (when the normal threshold has been skipped too often).")]
 		public readonly int AttackWaveFallbackMinSquads = 1;
 
+		[Desc("Damage state at which a unit is pulled out of a fighting squad and released for repair.",
+			"Undamaged disables withdrawal entirely. Deliberately not set to Light: a squad that sheds",
+			"a member on the first scratch bleeds itself out before it reaches anything.")]
+		public readonly DamageState WithdrawDamageState = DamageState.Critical;
+
+		[Desc("Percent of its living units a squad must retain when withdrawing damaged members.",
+			"Withdrawal stops once the squad is down to this share, so it never dismantles itself",
+			"one casualty at a time — at that point the whole squad retreating is the right answer.")]
+		public readonly int MinStrengthPercentAfterWithdraw = 60;
+
+		[Desc("Percent of its original size a retreating squad must still have to regroup and return.",
+			"Below this it dissolves instead, so its survivors are folded into a fresh full-strength",
+			"squad rather than limping back out understrength.")]
+		public readonly int SquadRegroupStrengthPercent = 50;
+
 		[Desc("Ticks between updates of a squad that is currently engaged — it holds a live target. Kept",
 			"well below AttackForceInterval: this is how long a squad in combat needs to notice that its",
 			"target died, that it is being beaten, or that something better is in reach. Squads without a",
@@ -2359,6 +2374,21 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				assignment.Units.Remove(actor);
 				assignment.Passengers.Remove(actor);
 			}
+		}
+
+		/// <summary>
+		/// Releases one unit from its squad back into the manager's free pool. Clearing activeUnits is
+		/// what makes it eligible again: while a unit counts as active it is invisible to
+		/// IBotNotifyIdleBaseUnits, so CNRepairManagerBotModule never sees a damaged squad member and
+		/// cannot send it to a repair bay.
+		/// </summary>
+		public void ReleaseUnitFromSquad(CNSquad squad, Actor actor)
+		{
+			if (squad == null || actor == null)
+				return;
+
+			RemoveActorFromSquad(squad, actor);
+			activeUnits.Remove(actor);
 		}
 
 		public IReadOnlyList<Actor> GetCachedOwnBuildings()
