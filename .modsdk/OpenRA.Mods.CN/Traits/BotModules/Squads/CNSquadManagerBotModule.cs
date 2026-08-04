@@ -264,8 +264,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"for another mid-game and must not re-arm the delay.")]
 		public readonly int AttackWaveInitialDelay = 3000;
 
-		[Desc("Ticks between wave-trigger evaluations.")]
+		[Desc("Minimum ticks between the launch of one wave and the next. This is the spacing between " +
+			"waves, not the rate at which readiness is evaluated — see AttackWaveCheckInterval.")]
 		public readonly int AttackWaveInterval = 4500;
+
+		[Desc("Ticks between readiness evaluations once the wave cooldown has expired. Keep well below " +
+			"AttackWaveInterval: this is what decides how quickly a wave goes out after the last " +
+			"required squad is ready.")]
+		public readonly int AttackWaveCheckInterval = 250;
 
 		[Desc("Minimum ready (Operational) wave-eligible squads required to launch a wave. " +
 			"Grows over time up to AttackWaveMaxMinReadySquads when AttackWaveSizeGrowthInterval > 0.")]
@@ -274,7 +280,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Hard cap on AttackWaveMinReadySquads after growth.")]
 		public readonly int AttackWaveMaxMinReadySquads = 6;
 
-		[Desc("After this many consecutive skipped wave evaluations, launch a fallback wave with whatever is available (>= AttackWaveFallbackMinSquads).")]
+		[Desc("After waiting this many times AttackWaveInterval without reaching the normal threshold, " +
+			"launch a fallback wave with whatever is available (>= AttackWaveFallbackMinSquads).")]
 		public readonly int AttackWaveMaxSkipsBeforeFallback = 2;
 
 		[Desc("Minimum ready squads required for a fallback wave (when the normal threshold has been skipped too often).")]
@@ -473,8 +480,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		// Wave manager state
 		int waveCooldownTicks;
+		int waveCheckTicks;
 		int waveGrowthTicks;
-		int waveSkipCount;
+		int waveWaitingSinceTick;
 		int waveCurrentMinReady;
 		int waveStartedTick;
 		HashSet<CNSquadType> waveEligibleRoleSet = [];
@@ -560,9 +568,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			waveCooldownTicks = remainingInitialDelay > 0
 				? remainingInitialDelay + random.Next(0, staggerWindow)
 				: 0;
+			waveCheckTicks = 0;
 			waveCurrentMinReady = Math.Max(1, Info.AttackWaveMinReadySquads);
 			waveGrowthTicks = Info.AttackWaveSizeGrowthInterval;
-			waveSkipCount = 0;
+			waveWaitingSinceTick = 0;
 			waveStartedTick = 0;
 			IsWaveLaunched = false;
 			WaveTarget = null;
@@ -1810,8 +1819,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return;
 			}
 
-			EvaluateWaveTrigger();
-			waveCooldownTicks = Math.Max(1, GetScaledAttackWaveInterval());
+			// AttackWaveInterval used to be both the spacing between waves and the rate at which
+			// readiness was evaluated, because the cooldown was re-armed after every evaluation
+			// whether or not a wave went out. A single evaluation that missed the threshold — by one
+			// squad, a second too early — therefore cost a full interval: up to 4800 ticks on Turtle
+			// and Expansion. That got worse the higher the threshold grew, which is exactly backwards.
+			//
+			// Now the evaluation runs on its own short cadence and only a launched wave re-arms the
+			// interval, so the spacing between waves is unchanged but "ready but not yet asked"
+			// waiting is gone.
+			if (--waveCheckTicks > 0)
+				return;
+
+			waveCheckTicks = Math.Max(1, Info.AttackWaveCheckInterval);
+
+			if (EvaluateWaveTrigger())
+				waveCooldownTicks = Math.Max(1, GetScaledAttackWaveInterval());
 		}
 
 		int GetScaledAttackWaveInterval()
@@ -1845,7 +1868,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return Info.EconomyOverflowFuzzyAttackBoost * (milli / 1000.0);
 		}
 
-		void EvaluateWaveTrigger()
+		/// <summary>Evaluates wave readiness. Returns true if a wave was actually launched.</summary>
+		bool EvaluateWaveTrigger()
 		{
 			var ready = new List<CNSquad>();
 			foreach (var squad in Squads)
@@ -1863,30 +1887,45 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			var threshold = GetScaledWaveMinReadyThreshold();
-			var canLaunchNormally = ready.Count >= threshold;
-			var fallbackTriggered =
-				!canLaunchNormally &&
-				waveSkipCount >= Math.Max(1, Info.AttackWaveMaxSkipsBeforeFallback) &&
-				ready.Count >= Math.Max(1, Info.AttackWaveFallbackMinSquads);
-
-			if (!canLaunchNormally && !fallbackTriggered)
+			if (ready.Count < threshold)
 			{
-				waveSkipCount++;
-				return;
+				// The fallback is measured in elapsed time, not in evaluations. It used to count
+				// skipped evaluations, which was the same thing only while an evaluation happened
+				// exactly once per interval; with the faster cadence a plain counter would fire the
+				// fallback almost immediately and no bot would ever assemble a full-size wave.
+				if (waveWaitingSinceTick == 0)
+					waveWaitingSinceTick = World.WorldTick;
+
+				var fallbackDelay = (long)Math.Max(1, Info.AttackWaveMaxSkipsBeforeFallback) *
+					Math.Max(1, GetScaledAttackWaveInterval());
+
+				var fallbackReady =
+					World.WorldTick - waveWaitingSinceTick >= fallbackDelay &&
+					ready.Count >= Math.Max(1, Info.AttackWaveFallbackMinSquads);
+
+				if (!fallbackReady)
+					return false;
 			}
 
-			waveSkipCount = 0;
-			LaunchWave(ready);
+			// LaunchWave can still decline (no enemy building to aim at). Only a wave that actually
+			// went out clears the wait clock, otherwise a bot that cannot see a target would keep
+			// pushing its own fallback deadline back.
+			if (!LaunchWave(ready))
+				return false;
+
+			waveWaitingSinceTick = 0;
+			return true;
 		}
 
-		void LaunchWave(IList<CNSquad> participants)
+		/// <summary>Launches a wave. Returns false if there was nothing to launch or nothing to aim at.</summary>
+		bool LaunchWave(IList<CNSquad> participants)
 		{
 			if (participants == null || participants.Count == 0)
-				return;
+				return false;
 
 			var target = PickWaveTarget();
 			if (target == null)
-				return;
+				return false;
 
 			var rally = ComputeRallyCell(target);
 
@@ -1898,6 +1937,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			waveStartedTick = World.WorldTick;
 			IsWaveLaunched = true;
+			return true;
 		}
 
 		void MonitorActiveWave()
