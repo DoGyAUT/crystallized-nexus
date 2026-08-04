@@ -1360,6 +1360,15 @@ namespace OpenRA.Mods.Common.Traits
 						srp.RequestLocation(resLoc.Value, desiredLocation.Value, mcv);
 				}
 
+				// Only hand out a waypoint when the MCV has nothing to do. This runs every
+				// ScanForNewMcvInterval (20 ticks), in which an MCV covers a few cells of a
+				// McvSafeMoveWaypointPathCells-long leg, and the order is queued rather than
+				// replacing — so re-issuing stacked up waypoints that were stale by the time they were
+				// reached, and the MCV worked through them one short hop at a time. Reaching the
+				// previous waypoint is precisely when it goes idle, so this still advances every leg.
+				if (!mcv.IsIdle)
+					return;
+
 				bot.QueueOrder(new Order("Move", mcv, Target.FromCell(world, moveLocation), true));
 
 				if (!movingToFinalDeployCell)
