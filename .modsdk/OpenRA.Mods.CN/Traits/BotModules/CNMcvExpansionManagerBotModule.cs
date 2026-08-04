@@ -95,6 +95,12 @@ namespace OpenRA.Mods.Common.Traits
 			"the one relocation decision the bot can never revisit later.")]
 		public readonly int StartDeployMinResourceCells = 12;
 
+		[Desc("How long a travelling MCV keeps the deploy cell it picked. Expansion scoring is relative to",
+			"the MCV's own position, so the ranking of candidate fields shifts as it drives; re-picking",
+			"every scan makes it change its mind mid-journey and arc across the map. The expiry only",
+			"exists so an MCV that cannot reach its choice eventually reconsiders.")]
+		public readonly int McvDeployGoalHoldTicks = 1500;
+
 		[Desc("Cells of clearance kept between a deploying construction yard and valuable resource cells.",
 			"CRmodeTryMaintainRange measures to the centre of a field, which on a large one still lands",
 			"inside it — the yard then sits in the tiberium, taking harvestable ground out of use and",
@@ -237,6 +243,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly Dictionary<Actor, CPos?> activeMCVs = [];
 		readonly Dictionary<Actor, int> mcvRetryCooldown = [];
+
+		// Deploy cell a travelling MCV has committed to, with an expiry as a safety net.
+		readonly Dictionary<Actor, (CPos Cell, int UntilTick)> mcvDeployGoals = [];
 		readonly Dictionary<CPos, (ExpansionGoal Goal, int UntilTick)> pendingExpansionGoalLocks = [];
 		readonly Dictionary<Actor, (ExpansionGoal Goal, int UntilTick, CPos DeployCell)> conyardExpansionGoalLocks = [];
 
@@ -967,6 +976,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (amcv.IsDead || !amcv.IsInWorld)
 						mcvRetryCooldown.Remove(amcv);
 
+				// A deployed MCV leaves the world, which is also how a commitment is retired.
+				foreach (var amcv in mcvDeployGoals.Keys.ToList())
+					if (amcv.IsDead || !amcv.IsInWorld)
+						mcvDeployGoals.Remove(amcv);
+
 				scanInterval = Info.ScanForNewMcvInterval;
 				DeployMcvs(bot, true);
 			}
@@ -1178,6 +1192,24 @@ namespace OpenRA.Mods.Common.Traits
 		/// refinery, the power plants or the factories that have to follow.
 		/// </summary>
 		/// <summary>
+		/// True if the cell an MCV committed to is still worth driving to: on the map, still free for
+		/// the yard, and still reachable. Deliberately the cheap reachability test — the expensive,
+		/// threat-aware routing runs once per scan anyway and drops the commitment itself if it fails.
+		/// </summary>
+		bool CanStillDeployAt(Actor mcv, ActorInfo actorInfo, BuildingInfo bi, CVec offset, CPos cell)
+		{
+			if (!world.Map.Contains(cell))
+				return false;
+
+			if (!world.CanPlaceBuilding(cell + offset, actorInfo, bi, mcv))
+				return false;
+
+			var mobile = mcv.TraitOrDefault<Mobile>();
+			return mobile == null
+				|| pathfinder.PathMightExistForLocomotorBlockedByImmovable(mobile.Locomotor, mcv.Location, cell);
+		}
+
+		/// <summary>
 		/// True if a construction yard placed here would sit on or right against tiberium. The yard is
 		/// the one building guaranteed to be surrounded by others later, so planting it in a field
 		/// costs that ground twice: once for the yard's own footprint and again for everything the base
@@ -1273,19 +1305,46 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (move)
 			{
-				var (deployLocation, resLoc, checkloc) = ChooseMcvDeployLocation(mcv, actorInfo, bi, transformsInfo.Offset, allowfallback);
-				allowfallback = true;
-				desiredLocation = deployLocation;
-				if (desiredLocation == null)
+				CPos? resLoc = null;
+				CPos? checkloc;
+
+				// Stay with the cell already chosen. Candidate fields are scored relative to the MCV's
+				// own position, so their ranking shifts with every metre it drives — re-deciding on each
+				// scan had MCVs swing out across the map and come back. The commitment is dropped only
+				// when the cell stops being usable, or when the hold expires as a safety net.
+				if (mcvDeployGoals.TryGetValue(mcv, out var held)
+					&& world.WorldTick < held.UntilTick
+					&& CanStillDeployAt(mcv, actorInfo, bi, transformsInfo.Offset, held.Cell))
 				{
-					mcvRetryCooldown[mcv] = world.WorldTick + 150;
-					return;
+					desiredLocation = held.Cell;
+					checkloc = held.Cell;
+				}
+				else
+				{
+					var (deployLocation, chosenResLoc, chosenCheckloc) = ChooseMcvDeployLocation(mcv, actorInfo, bi, transformsInfo.Offset, allowfallback);
+					allowfallback = true;
+					desiredLocation = deployLocation;
+					resLoc = chosenResLoc;
+					checkloc = chosenCheckloc;
+
+					if (desiredLocation == null)
+					{
+						mcvDeployGoals.Remove(mcv);
+						mcvRetryCooldown[mcv] = world.WorldTick + 150;
+						return;
+					}
+
+					mcvDeployGoals[mcv] = (desiredLocation.Value, world.WorldTick + Math.Max(1, Info.McvDeployGoalHoldTicks));
 				}
 
 				var safePath = FindSafeMcvPath(mcv, mcv.Location, desiredLocation.Value);
 				if (safePath == null)
 				{
+					// No safe route: give up on this cell rather than holding it until the expiry.
+					// FindSafeMcvPath weighs threats, so this is a stronger test than the plain
+					// reachability check that keeps the commitment alive.
 					FindBadDeploySpot(checkloc);
+					mcvDeployGoals.Remove(mcv);
 					mcvRetryCooldown[mcv] = world.WorldTick + 150;
 					return;
 				}
