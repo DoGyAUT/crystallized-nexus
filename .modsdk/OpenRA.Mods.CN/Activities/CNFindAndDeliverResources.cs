@@ -75,8 +75,18 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (harv.IsFull || (!harv.IsEmpty && LastSearchFailed))
 			{
-				if (harv.DockClientManager.ReservedHost != null)
+				// Holding position for a reserved dock is only right while that dock still exists.
+				// DockHost clears its reservations when the refinery dies, but this branch returns
+				// unconditionally on a non-null host, so anything that leaves a stale reference here
+				// parks a loaded harvester forever — it never goes idle, so the bot's idle handling
+				// never sees it either.
+				var reservedHost = harv.DockClientManager.ReservedHost;
+				var reservedActor = harv.DockClientManager.ReservedHostActor;
+				if (reservedHost != null && reservedActor != null && !reservedActor.IsDead && reservedActor.IsInWorld)
 					return false;
+
+				if (reservedHost != null)
+					AIUtils.BotDebug($"CN AI: Harvester {self} held a reservation on a refinery that is gone — choosing another dock.");
 
 				QueueChild(CreateMoveToBestDock(self));
 				hasDeliveredLoad = true;

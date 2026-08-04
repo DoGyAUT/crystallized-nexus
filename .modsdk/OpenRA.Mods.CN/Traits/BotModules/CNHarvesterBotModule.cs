@@ -116,6 +116,12 @@ namespace OpenRA.Mods.Common.Traits
 		const int StuckHarvesterThreshold = 200;
 		const int StuckNearRefineryRadius = 3;
 
+		// Backstop for the near-refinery exemption below. That exemption exists because a full
+		// harvester waiting its turn at a busy dock is doing the right thing — but no queue takes this
+		// long, so past this point the harvester is stuck on something else and gets re-ordered anyway.
+		// Without it a harvester that lost its refinery mid-delivery can hold position indefinitely.
+		const int StuckHarvesterHardThreshold = 900;
+
 		readonly World world;
 		readonly Player player;
 		readonly Func<Actor, bool> unitCannotBeOrdered;
@@ -456,7 +462,7 @@ namespace OpenRA.Mods.Common.Traits
 				// for this long (it should be docking-and-leaving or already searching for resources), so
 				// it stays flagged even near a refinery. This is what actually deadlocks a busy dock: an
 				// empty harvester wedged in the approach blocks everyone still queueing to deliver.
-				if (!h.Harvester.IsEmpty)
+				if (!h.Harvester.IsEmpty && h.StationaryTicks < StuckHarvesterHardThreshold)
 				{
 					foreach (var refinery in refineries.Actors)
 					{
