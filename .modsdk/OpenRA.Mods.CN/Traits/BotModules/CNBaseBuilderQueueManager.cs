@@ -2655,25 +2655,25 @@ namespace OpenRA.Mods.Common.Traits
 					if (baseBuilder.RequestedRefineries.Count > 0)
 						baseBuilder.RequestedRefineries.Remove(requestRef);
 
-					// Fallback placement puts the refinery on the base grid pointing at a field rather
-					// than beside one, so the harvesters get a long haul and the building occupies plot
-					// space for little return. That trade is only worth it for the very first refinery,
-					// where having no income at all is the alternative.
+					// Fallback placement puts the refinery on the base grid aimed at a field rather than
+					// beside one. Aimed at a real field that is still worth doing at any refinery count:
+					// the grid position closest to the tiberium shortens every haul, and a field being
+					// far away is a reason to build toward it, not a reason to build nothing.
 					//
-					// This used to run while below GetActiveInititalMinimumRefineryCount. That was the
-					// same as "we have none" only while the minimum was 1; raising it to 2 for
-					// production-heavy profiles quietly extended base-grid placement to the second
-					// refinery, which is how bots ended up with two refineries sitting in the middle of
-					// the base and none next to the tiberium.
+					// What is not worth doing is the degenerate case below, where no field can be found
+					// at all and the target collapses to the base centre. That is what produced
+					// refineries parked in the middle of the base with tiberium nowhere near them. It
+					// only pays off for the very first refinery, where the alternative is no income.
 					var existingRefineryCount = AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings);
+					var resourceFallbackRadius = Math.Max(effectiveMaxRadius, baseBuilder.Info.SellRefineryNoResourceDistance * 2);
+					var fallbackTarget = requestedResourceLoc
+						?? FindNearestReachableResource(resourceBaseCenter, resourceFallbackRadius);
+
+					if (fallbackTarget.HasValue)
+						return FindPos(baseCenter, fallbackTarget.Value, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
+
 					if (existingRefineryCount < 1)
-					{
-						var resourceFallbackRadius = Math.Max(effectiveMaxRadius, baseBuilder.Info.SellRefineryNoResourceDistance * 2);
-						var fallbackTarget = requestedResourceLoc
-							?? FindNearestReachableResource(resourceBaseCenter, resourceFallbackRadius)
-							?? baseCenter;
-						return FindPos(baseCenter, fallbackTarget, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
-					}
+						return FindPos(baseCenter, baseCenter, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
 
 					return (null, null, 0);
 
