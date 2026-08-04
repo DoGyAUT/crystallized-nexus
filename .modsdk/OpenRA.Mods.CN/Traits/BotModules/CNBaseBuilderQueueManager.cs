@@ -624,16 +624,24 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (type == BuildingType.Defense)
 					{
-						// Defense placement uses a bounded sampled search. A miss can simply
-						// mean this phase did not include a valid cell, not that the base is
-						// truly stuck. Retry later with a different phase, then allow the
-						// normal failure path to cancel instead of dropping defenses inside
-						// the structured base grid.
+						// Defense placement uses a bounded sampled search. A miss can simply mean this
+						// attempt's candidate set held no valid cell, not that the base is truly stuck,
+						// so retry with a progressively wider search (see placementRelaxation above).
 						defensePlacementAttempt++;
 						if (defensePlacementAttempt < baseBuilder.Info.MaximumFailedPlacementAttempts)
 							return true;
 
+						// Out of attempts: cancel and cool down, exactly as an unplaceable refinery does,
+						// instead of falling through to the shared failure path. That path raises failCount
+						// by only one per exhausted run, so reaching its own cancel threshold took
+						// MaximumFailedPlacementAttempts squared — 36 attempts at the configured 6, around
+						// half a minute of a finished defense waiting on a placement that was never going
+						// to succeed. It also let defenses trip the builder-wide production stall, which is
+						// meant for a genuinely walled-in base, not for one crowded corner.
 						defensePlacementAttempt = 0;
+						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
+						defensePlacementCooldownTicks = baseBuilder.Info.DefensePlacementRetryDelay;
+						return false;
 					}
 					else if (type == BuildingType.Refinery && AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings) > 0)
 					{
@@ -2017,10 +2025,21 @@ namespace OpenRA.Mods.Common.Traits
 					IEnumerable<CPos> sortedDefenseCells;
 					var placementThreats = baseBuilder.GetDefensePlacementThreats(defenseCenter, role);
 					long DefenseScore(CPos cell) => baseBuilder.ScoreDefensePlacement(cell, defenseCenter, targetCell, placementThreats);
-					var defMinSpacing = role == DefenseRole.AADefense || role == DefenseRole.InfantryDefense
-						? baseBuilder.Info.DefenseOuterMinSpacing
-						: baseBuilder.Info.DefenseInnerMinSpacing;
+					// Widen the search on every retry. The candidate list is truncated by score, so all
+					// surviving cells face the same threat hotspot and sit close together; once one
+					// defense stands there, the hard spacing filter rules out that whole cluster, and the
+					// cells further out never made the list. Retrying with identical parameters therefore
+					// reproduced the same miss — only the random building variant differed. Each attempt
+					// now drops the spacing requirement by a cell and weighs proportionally more
+					// candidates, so a retry actually explores somewhere new.
+					var placementRelaxation = Math.Max(0, defensePlacementAttempt);
+					var defMinSpacing = Math.Max(0,
+						(role == DefenseRole.AADefense || role == DefenseRole.InfantryDefense
+							? baseBuilder.Info.DefenseOuterMinSpacing
+							: baseBuilder.Info.DefenseInnerMinSpacing) - placementRelaxation);
 					var defMinSpacingSq = defMinSpacing * defMinSpacing;
+					var defCandidateLimit = Math.Max(1,
+						baseBuilder.Info.DefensePlacementCandidateLimit * (1 + placementRelaxation));
 					long FormationScore(CPos cell, int preferredRadius)
 					{
 						var score = DefenseScore(cell);
@@ -2046,8 +2065,7 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						minRange = Math.Max(0, minRange);
 						maxRange = Math.Max(minRange, maxRange);
-						var limit = Math.Max(1, baseBuilder.Info.DefensePlacementCandidateLimit);
-						var maxCandidates = Math.Max(64, limit * 8);
+						var maxCandidates = Math.Max(64, defCandidateLimit * 8);
 						var result = new List<CPos>(maxCandidates);
 						var seen = new HashSet<CPos>();
 						var dx = target.X - center.X;
@@ -2129,7 +2147,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					IEnumerable<CPos> LimitDefenseCandidates(IEnumerable<CPos> cells, Func<CPos, long> score, bool descending = true)
 					{
-						var limit = Math.Max(1, baseBuilder.Info.DefensePlacementCandidateLimit);
+						var limit = defCandidateLimit;
 						var selected = new List<(CPos Cell, long Score)>(limit);
 
 						foreach (var cell in cells)

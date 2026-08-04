@@ -494,8 +494,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum number of danger hotspots considered when scoring one defense placement.")]
 		public readonly int DefensePlacementMaxHotspots = 4;
 
-		[Desc("Maximum number of defense placement cells that receive expensive scoring and placement checks.")]
+		[Desc("Maximum number of defense placement cells that receive expensive scoring and placement checks.",
+			"Multiplied on each retry, since a retry that reconsiders the same cells cannot succeed where",
+			"the previous one failed.")]
 		public readonly int DefensePlacementCandidateLimit = 48;
+
+		[Desc("Ticks to wait before ordering another defense after one could not be placed anywhere.",
+			"Short on purpose: the base grows and the threat hotspot moves, so a blocked spot often frees",
+			"up again quickly. This delays only defenses, never the rest of the build queue.")]
+		public readonly int DefensePlacementRetryDelay = 600;
 
 		[Desc("Danger hotspots below this score are ignored for defense placement.")]
 		public readonly int DefenseDangerMemoryMinimumWeight = 80;
