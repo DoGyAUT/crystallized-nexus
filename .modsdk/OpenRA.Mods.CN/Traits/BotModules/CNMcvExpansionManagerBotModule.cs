@@ -103,9 +103,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Cells of clearance kept between a deploying construction yard and valuable resource cells.",
 			"CRmodeTryMaintainRange measures to the centre of a field, which on a large one still lands",
-			"inside it — the yard then sits in the tiberium, taking harvestable ground out of use and",
-			"standing in the way of the refinery that wants that spot. 0 disables the clearance.")]
-		public readonly int McvResourceClearance = 3;
+			"inside it, so this is what actually keeps the yard out of the tiberium.",
+			"Sized to leave a lane free between yard and field rather than to merely clear the edge:",
+			"the refinery belongs in that lane, and a yard parked against the field takes the cells it",
+			"needs. 0 disables the clearance.")]
+		public readonly int McvResourceClearance = 6;
 
 		[Desc("How many MCVs may be travelling at the same time. One means expansions are founded strictly",
 			"one after another — build, drive, deploy, only then the next — which is what a land-grab",
