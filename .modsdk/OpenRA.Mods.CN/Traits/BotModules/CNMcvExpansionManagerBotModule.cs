@@ -1438,39 +1438,65 @@ namespace OpenRA.Mods.Common.Traits
 				else
 					cells = cells.Shuffle(world.LocalRandom);
 
+				// The yard fitting says nothing about whether a base fits around it, nor about whether it
+				// is standing in the tiberium it came for. Both are preferences rather than vetoes,
+				// because refusing to deploy is worse than deploying awkwardly and on a tight map every
+				// candidate is awkward — but they are not equally important, so the compromises are
+				// ranked instead of lumped together.
+				//
+				// Clear of the tiberium but cramped beats roomy but sitting in the field: a yard in the
+				// tiberium permanently costs harvestable ground, blocks the refinery from the cells it
+				// wants and gets overgrown, while a tight plot still grows outward as the base expands.
 				CPos? bestcell = null;
-				CPos? crampedFallback = null;
-				var crampedFallbackRoom = -1;
+				CPos? clearButCramped = null;
+				CPos? roomyButNearResources = null;
+				CPos? lastResort = null;
+				var clearButCrampedRoom = -1;
+				var roomyButNearResourcesRoom = -1;
+				var lastResortRoom = -1;
+
 				foreach (var cell in cells)
 				{
 					if (!world.CanPlaceBuilding(cell + offset, transformIntoInfo, transformIntoBuildingInfo, mcv))
 						continue;
 
-					// The yard fitting says nothing about whether a base fits, nor about whether it is
-					// standing in the tiberium it came for. Both are preferences with a fallback, because
-					// refusing to deploy is worse than deploying somewhere awkward and on a tight map
-					// every candidate may be awkward.
+					// Roomiest of each class, not the first. Candidates are ordered by closeness to the
+					// target, so taking the first settled for whatever sat nearest the field — the strip
+					// between tiberium and map edge included.
 					var room = CountBuildableCellsAround(cell, transformIntoBuildingInfo);
-					if (room < Info.DeploySiteMinBuildableCells || IsTooCloseToResources(cell, transformIntoBuildingInfo))
-					{
-						// Keep the roomiest reject, not the first. The candidates are ordered by
-						// closeness to the target, so taking the first one settled for whatever sat
-						// nearest the field — a strip between the tiberium and the map edge included.
-						// If we are going to compromise, compromise on the least cramped spot.
-						if (room > crampedFallbackRoom)
-						{
-							crampedFallbackRoom = room;
-							crampedFallback = cell;
-						}
+					var hasRoom = room >= Info.DeploySiteMinBuildableCells;
+					var clearOfResources = !IsTooCloseToResources(cell, transformIntoBuildingInfo);
 
-						continue;
+					if (hasRoom && clearOfResources)
+					{
+						bestcell = cell;
+						break;
 					}
 
-					bestcell = cell;
-					break;
+					if (clearOfResources)
+					{
+						if (room > clearButCrampedRoom)
+						{
+							clearButCrampedRoom = room;
+							clearButCramped = cell;
+						}
+					}
+					else if (hasRoom)
+					{
+						if (room > roomyButNearResourcesRoom)
+						{
+							roomyButNearResourcesRoom = room;
+							roomyButNearResources = cell;
+						}
+					}
+					else if (room > lastResortRoom)
+					{
+						lastResortRoom = room;
+						lastResort = cell;
+					}
 				}
 
-				bestcell ??= crampedFallback;
+				bestcell ??= clearButCramped ?? roomyButNearResources ?? lastResort;
 
 				// If no deployble cell found, return null
 				if (bestcell == null)
