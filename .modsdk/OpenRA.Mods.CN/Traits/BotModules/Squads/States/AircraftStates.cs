@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -22,6 +23,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		protected const int AircraftStagingRadiusCells = 4;
 		const int ApproachAnnulusMin = 4;
 		const int ApproachAnnulusMax = 9;
+
+		// Percent of the flight that must be armed and not rearming before a sortie starts.
+		const int SortieMinArmedPercent = 50;
+
+		// How close to a launched wave's target a candidate has to be to count as supporting it,
+		// and how much that is worth. Deliberately below the 1000-per-rank the template's own
+		// PriorityTargetCapabilities are worth: the wave steers the flight within its role, it
+		// does not override what the template was built to hunt.
+		const int WaveSupportRadiusCells = 12;
+		const int WaveSupportBonus = 500;
 
 		protected static bool HasCombatAircraft(CNSquad squad)
 		{
@@ -178,6 +189,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				score -= 120;
 
 			score += ScoreTemplateTargetPreference(squad, target);
+			score += ScoreWaveSupport(squad, target);
 			score += ScoreAircraftThreatAtTarget(squad, aircraft, target);
 
 			// Prefer targets the squad's actual composition can hit well (e.g. a mixed squad with
@@ -186,6 +198,85 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			score -= (int)(CNSquadHelper.SquadEngageFraction(squad, target) * 150);
 
 			return score;
+		}
+
+		/// <summary>
+		/// Pulls the flight toward whatever a launched ground wave is currently hitting, without ever
+		/// making it wait for one. Aircraft used to be wave participants themselves, which parked them
+		/// in the base between waves and then had them hover at the ground rally point inside enemy AA
+		/// while the tanks caught up. They now fly their own sortie cycle and simply prefer targets near
+		/// the wave when there is a wave; with none active this contributes nothing.
+		/// </summary>
+		static int ScoreWaveSupport(CNSquad squad, Actor target)
+		{
+			var manager = squad.SquadManager;
+			if (!manager.IsWaveLaunched)
+				return 0;
+
+			var waveTarget = manager.WaveTarget;
+			if (waveTarget == null || waveTarget.IsDead || !waveTarget.IsInWorld)
+				return 0;
+
+			var radius = WDist.FromCells(WaveSupportRadiusCells).Length;
+			if ((target.CenterPosition - waveTarget.CenterPosition).LengthSquared > (long)radius * radius)
+				return 0;
+
+			return -WaveSupportBonus;
+		}
+
+		/// <summary>
+		/// True once enough of the flight is armed and out of the rearm cycle to be worth sending.
+		/// Target selection only needs one aircraft with ammo, so without this gate a squad launched
+		/// again the moment its first aircraft finished rearming and trickled into intact AA one at a
+		/// time instead of striking together.
+		/// </summary>
+		protected static bool EnoughAircraftArmedForSortie(CNSquad squad)
+		{
+			var total = 0;
+			var armed = 0;
+
+			foreach (var unit in squad.OrderableUnits)
+			{
+				if (!unit.Info.HasTraitInfo<AircraftInfo>() || unit.IsDead || !unit.IsInWorld)
+					continue;
+
+				total++;
+				if (!IsRearming(unit) && HasCombatAmmo(unit))
+					armed++;
+			}
+
+			return total > 0 && armed * 100 >= total * SortieMinArmedPercent;
+		}
+
+		/// <summary>
+		/// A stable place for an idle flight to sit, preferring somewhere it can actually rearm.
+		/// GetRandomBaseCenter picks a fresh building on every call, so using it directly had idle
+		/// aircraft drifting from one corner of the base to the next instead of holding station.
+		/// </summary>
+		protected static CPos LoiterCell(CNSquad squad)
+		{
+			var buildings = squad.SquadManager.GetCachedOwnBuildings();
+			if (buildings.Count == 0)
+				return squad.SquadManager.GetRandomBaseCenter();
+
+			IReadOnlyList<Actor> candidates = buildings;
+			foreach (var unit in squad.OrderableUnits)
+			{
+				var rearmActors = unit.Info.TraitInfoOrDefault<RearmableInfo>()?.RearmActors;
+				if (rearmActors == null || rearmActors.Count == 0)
+					continue;
+
+				var pads = buildings.Where(b => rearmActors.Contains(b.Info.Name)).ToList();
+				if (pads.Count > 0)
+					candidates = pads;
+
+				break;
+			}
+
+			// Same stable per-squad seed the wave hold uses, so two flights of the same template
+			// don't stack on one pad.
+			var seed = ((squad.TemplateName ?? "").GetHashCode() ^ squad.CreatedTick) & int.MaxValue;
+			return candidates[seed % candidates.Count].Location;
 		}
 
 		static int ScoreTemplateTargetPreference(CNSquad squad, Actor target)
@@ -345,9 +436,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			if (!squad.IsValid)
 				return;
-			if (!squad.IsOperational || !HasCombatAircraft(squad))
+			if (!squad.IsOperational || !HasCombatAircraft(squad) || !EnoughAircraftArmedForSortie(squad))
 			{
-				QueueAircraftMoveOrRearm(squad, squad.SquadManager.GetRandomBaseCenter(), null);
+				QueueAircraftMoveOrRearm(squad, LoiterCell(squad), null);
 				return;
 			}
 
@@ -359,10 +450,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			// No enemy visible — return idle aircraft to base rather than sitting
+			// No enemy visible — hold station at the loiter point rather than sitting
 			// at wherever they last landed.
-			var baseCell = squad.SquadManager.GetRandomBaseCenter();
-			QueueAircraftMoveOrRearm(squad, baseCell, null);
+			QueueAircraftMoveOrRearm(squad, LoiterCell(squad), null);
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -472,9 +562,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		{
 			if (!squad.IsValid)
 				return;
-			if (!squad.IsOperational || !HasCombatAircraft(squad))
+			if (!squad.IsOperational || !HasCombatAircraft(squad) || !EnoughAircraftArmedForSortie(squad))
 			{
-				QueueAircraftMoveOrRearm(squad, squad.SquadManager.GetRandomBaseCenter(), null);
+				QueueAircraftMoveOrRearm(squad, LoiterCell(squad), null);
 				return;
 			}
 
@@ -486,8 +576,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			var baseCell = squad.SquadManager.GetRandomBaseCenter();
-			QueueAircraftMoveOrRearm(squad, baseCell, null);
+			QueueAircraftMoveOrRearm(squad, LoiterCell(squad), null);
 		}
 
 		public void Deactivate(CNSquad squad) { }
