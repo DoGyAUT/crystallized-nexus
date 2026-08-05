@@ -862,9 +862,13 @@ namespace OpenRA.Mods.Common.Traits
 
 						var resCenter = resourceCreatorLocs.Length == 0 || world.LocalRandom.Next(2) > 0 ? resourceCellsCenter : resourceCreatorLocs.Random(world.LocalRandom);
 
-						attraction -= CalculateThreats(indiceSideLengthSquare, i);
+						var threatPenalty = CalculateThreats(indiceSideLengthSquare, i);
+						attraction -= threatPenalty;
 
-						attraction -= CalculateExpansionCoordinationPenalty(resCenter, mcv, indiceSideLengthSquare);
+						var coordinationPenalty = CalculateExpansionCoordinationPenalty(resCenter, mcv, indiceSideLengthSquare);
+						attraction -= coordinationPenalty;
+
+						var occupancyBefore = attraction;
 
 						foreach (var (location, isAlly) in cr_refinarylocs)
 						{
@@ -897,6 +901,15 @@ namespace OpenRA.Mods.Common.Traits
 								attraction -= indiceSideLengthSquare << 1;
 						}
 
+						// Why one field beats another is impossible to read from the outside: the terms are
+						// path length, threat, coordination with other MCVs and how crowded the field
+						// already is. Logged per candidate so a surprising choice can be traced to the
+						// term that caused it.
+						AIUtils.BotDebug(
+							"{0} mcv field {1}: attraction {2} (cells {3}, threat -{4}, coordination -{5}, occupancy -{6})",
+							player, indiceCenter, attraction, resourceCellsCount,
+							threatPenalty, coordinationPenalty, occupancyBefore - attraction);
+
 						if (attraction > cr_best)
 						{
 							cr_best = attraction;
@@ -907,6 +920,8 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (cr_suitablespot == null)
 						return (null, int.MinValue, null);
+
+					AIUtils.BotDebug("{0} mcv chose field {1} with attraction {2}", player, cr_checkspot, cr_best);
 
 					return (cr_suitablespot, cr_best, cr_checkspot);
 
