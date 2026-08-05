@@ -157,9 +157,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (target.Info.HasTraitInfo<AttackBaseInfo>())
 				score += 90;
 
-			if (target.Info.Name.Contains("harv", StringComparison.OrdinalIgnoreCase) ||
-				target.Info.Name.Contains("proc", StringComparison.OrdinalIgnoreCase) ||
-				target.Info.Name.Contains("ref", StringComparison.OrdinalIgnoreCase))
+			// Economy targets, read from the capability system rather than from actor-name fragments.
+			// The substring match missed Nod's WEED (it carries Harvester, but its name contains none
+			// of "harv"/"proc"/"ref") and the tiberium silo, while matching harvester husks, an
+			// editor-only placeholder and a colour-picker actor — none of them battlefield targets.
+			var caps = target.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			if (caps != null && (caps.Contains("Harvester") || caps.Contains("Economy")))
 				score -= 220;
 
 			// Prefer targets the squad's actual composition can hit well, so a squad heavy on
