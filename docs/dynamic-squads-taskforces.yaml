@@ -1,0 +1,519 @@
+# ============================================================================
+# Taskforce-Bibliothek — Entwurf
+#
+# Ersetzt alle 208 Templates aus squads-{rush,turtle,tech,expansion,
+# steamroller}.yaml (2981 Zeilen) durch 18 gemeinsame Trupp-Formen.
+# Fraktionsunabhängig: der Unterschied GDI/Nod entsteht allein daraus,
+# welche Einheiten existieren.
+#
+# NICHT AKTIV. Entwurf zur Freigabe.
+# ============================================================================
+
+Player:
+
+	# ------------------------------------------------------------------------
+	# Die Bibliothek. Einmal, ohne RequiresCondition — alle Profile lesen sie.
+	# ------------------------------------------------------------------------
+	CNTaskforceLibrary:
+
+		# Reservierte Capabilities werden NIE beiläufig aufgesammelt. Eine
+		# Taskforce bekommt so eine Einheit nur, wenn sie die Capability
+		# ausdrücklich in Wants nennt.
+		#
+		# Damit landet der Juggernaut nicht in der Panzerlinie (Artillery),
+		# der Stealth Tank nicht im Sturmtrupp (Cloaked) und der Mammut Mk II
+		# nirgends außer in seiner eigenen Taskforce (Unique) — ohne dass
+		# irgendein Slot eine Ausschlussliste tragen müsste.
+		ReservedCapabilities: Artillery, Cloaked, Subterranean, Transporter, VehicleTransport, Medic, Repair, Harvester, Expansion, Unique
+
+		Taskforces:
+
+			# ================== Linie (ersetzt 90x Assault) ==================
+
+			Infantry_Line:
+				Role: Assault
+				Tags: AntiInfantry, Frontline, Infantry
+				MaxInstances: 6
+				ScaleWithProducer: True
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Infantry
+				Slots:
+					1:
+						Wants: Infantry, AntiInfantry
+						Prefers: Heavy
+						MinCount: 3
+						MaxCount: 6
+						MaxSlotCost: 2400
+				# GDI: gasol, ztrooper · Nod: nasol, nacad, acolyte
+
+			Infantry_AntiArmor:
+				Role: Assault
+				Tags: AntiArmor, AntiAir, Infantry
+				MaxInstances: 6
+				ScaleWithProducer: True
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
+				Slots:
+					1:
+						Wants: Infantry, AntiArmor
+						Prefers: AntiAir
+						MinCount: 3
+						MaxCount: 6
+						MaxSlotCost: 3000
+				# GDI: e2, gmisinf, ztrooper · Nod: e3, nacad, acolyte
+
+			Armor_Line:
+				Role: Assault
+				Tags: AntiArmor, Frontline, Vehicle
+				MaxInstances: 5
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 2
+				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle
+				MaxSquadCost: 6500
+				Slots:
+					# Die Spitze: ein bis zwei schwere Einheiten, wenn es welche gibt.
+					1:
+						Wants: Vehicle, AntiArmor
+						Prefers: Heavy
+						MaxCount: 2
+						MaxSlotCost: 3000
+						Optional: True
+					# Die Linie.
+					2:
+						Wants: Vehicle, AntiArmor
+						MinCount: 3
+						MaxCount: 5
+						MaxSlotCost: 4000
+					# Begleitschutz gegen Infanterie.
+					3:
+						Wants: Vehicle, AntiInfantry
+						MaxCount: 2
+						MaxSlotCost: 1600
+						Optional: True
+				# GDI: gtmtnk, mmch, warden, cyclops, sonic, 4tnk, smech
+				# Nod: bike, ltnk, ttnk, bggy
+
+			Armor_AntiAir:
+				Role: Assault
+				Tags: AntiAir, AntiArmor, Frontline, Vehicle
+				Bias: 10
+				MaxInstances: 2
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Aircraft, Harvester, Vehicle
+				Slots:
+					1:
+						Wants: Vehicle, AntiAir
+						MinCount: 2
+						MaxCount: 4
+						MaxSlotCost: 3600
+				# GDI: warden, hvr, 4tnk · Nod: bike
+
+			Siege_Push:
+				Role: Assault
+				Tags: Siege, Frontline, Vehicle
+				Bias: 8
+				MaxInstances: 2
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Defense, Production, Tech, Superweapon
+				MaxSquadCost: 5000
+				Slots:
+					1:
+						Wants: Siege
+						MinCount: 2
+						MaxCount: 3
+						MaxSlotCost: 3000
+					# Gebäudeknacker sind weich — sie bekommen Deckung mit.
+					2:
+						Wants: Vehicle, AntiArmor
+						MaxCount: 2
+						MaxSlotCost: 2000
+						Optional: True
+				# GDI: sonic · Nod: sting (via Unique-Taskforce), scrin
+
+			Unique_Superheavy:
+				Role: Assault
+				Tags: AntiArmor, Siege, Frontline, Vehicle
+				Bias: 20
+				IgnoresCashReserve: True
+				MaxInstances: 1
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Vehicle, Defense, Tech, Superweapon
+				Slots:
+					1:
+						Wants: Unique
+						Count: 1
+				# Eine Taskforce für hmec UND sting. Vorher zwei Templates
+				# pro Profil, also zehn.
+
+			# ================== Raid (ersetzt 25x Raider) ==================
+
+			Raid_Ground:
+				Role: Raider
+				Tags: Harass, Vehicle
+				MaxInstances: 4
+				ScaleWithProducer: True
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Infantry
+				Slots:
+					1:
+						# Absichtlich NUR Vehicle als Pflicht: welches Fahrzeug
+						# hier landet, entscheidet PreferMatchWeight des Profils.
+						# Niedrig = auch Linienpanzer raiden mit.
+						Wants: Vehicle
+						Prefers: Skirmisher
+						MinCount: 3
+						MaxCount: 5
+						MaxSlotCost: 2500
+				# GDI: hvr, smech, gtmtnk … · Nod: bggy, bike, ltnk …
+
+			Raid_Infantry:
+				Role: Raider
+				Tags: Harass, Infantry
+				MaxInstances: 2
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Infantry, Power
+				Slots:
+					1:
+						Wants: Infantry
+						Prefers: Skirmisher
+						MinCount: 3
+						MaxCount: 5
+						MaxSlotCost: 3000
+				# GDI: jumpjet, gasol · Nod: nasol, nacad
+
+			# ================== Spezialisten ==================
+
+			Stealth_Strike:
+				Role: Stealth
+				Tags: Stealth, Harass
+				Bias: 8
+				MaxInstances: 2
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Tech, Power
+				Slots:
+					1:
+						Wants: Cloaked
+						MinCount: 2
+						MaxCount: 3
+						MaxSlotCost: 3300
+				# GDI: gasniper · Nod: shadow, stnk
+
+			Artillery_Group:
+				Role: ArtilleryAssault
+				Tags: Siege, Vehicle
+				Bias: 12
+				MaxInstances: 2
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				AttachToRole: Assault
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Defense, Production, Tech
+				Slots:
+					1:
+						Wants: Artillery
+						MinCount: 2
+						MaxCount: 3
+						MaxSlotCost: 3000
+				# GDI: jugg · Nod: nhwtz
+
+			Subterranean_Raid:
+				Role: SubterraneanAssault
+				Tags: Harass, Siege, Vehicle
+				Bias: 8
+				MaxInstances: 2
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Production
+				Slots:
+					1:
+						Wants: Subterranean
+						MinCount: 2
+						MaxCount: 3
+						MaxSlotCost: 2500
+				# Nod: subtank
+
+			Support_Field:
+				Role: Support
+				Tags: Support
+				MaxInstances: 3
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				AttachToRole: Assault
+				MinSlotsToActivate: 1
+				Slots:
+					1:
+						Wants: Medic
+						MaxCount: 3
+						Optional: True
+					2:
+						Wants: Repair
+						MaxCount: 2
+						Optional: True
+				# GDI: medic · Nod: repair
+				# Ein Trupp für beide — welcher Slot füllt, hängt an der Fraktion.
+
+			# ================== Luft (ersetzt 25x Aircraft) ==================
+
+			Air_Strike:
+				Role: AircraftAttack
+				Tags: Siege, Aircraft
+				Bias: 8
+				MaxInstances: 2
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Production, Tech, Superweapon, Defense
+				Slots:
+					1:
+						Wants: Aircraft
+						Prefers: Siege, Bomber
+						MinCount: 2
+						MaxCount: 3
+						MaxSlotCost: 4800
+				# GDI: orca_b, hornet, orca_f1 · Nod: scrin, hydra
+
+			Air_Raid:
+				Role: AircraftRaider
+				Tags: Harass, Aircraft
+				MaxInstances: 4
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power
+				Slots:
+					1:
+						Wants: Aircraft
+						Prefers: Skirmisher
+						MinCount: 2
+						MaxCount: 3
+						MaxSlotCost: 3000
+				# Dieselben Maschinen wie Air_Strike. Welche wohin geht,
+				# entscheiden Prefers und Kosten — nicht mehr eine
+				# Handvergabe, die hornet zum Raider und scrin zum
+				# Strike-Flugzeug erklärt, obwohl beide identisch sind.
+
+			# ================== Transport (Struktur, nicht Menge) ==================
+
+			Transport_Assault:
+				Role: Transport
+				Tags: Transport, Harass, Infantry
+				MaxInstances: 2
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power
+				Slots:
+					1:
+						Wants: Vehicle, Transporter
+						Count: 1
+						IsCarrier: True
+					2:
+						Wants: Infantry
+						Count: 5
+						IsPassenger: True
+				# GDI: apc + Infanterie · Nod: sapc fällt hier raus
+				# (Subterranean ist reserviert und wird nicht verlangt)
+
+			Transport_Air:
+				Role: AirTransport
+				Tags: Transport, Harass, Infantry, Aircraft
+				MaxInstances: 3
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power
+				Slots:
+					1:
+						Wants: Aircraft, Transporter
+						Count: 1
+						IsAircraftCarrier: True
+					2:
+						Wants: Infantry
+						Count: 5
+						IsPassenger: True
+				# GDI: orca_tran
+
+			Transport_Subterranean:
+				Role: SubterraneanTransport
+				Tags: Transport, Siege, Infantry
+				MaxInstances: 1
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				Slots:
+					1:
+						Wants: Vehicle, Transporter, Subterranean
+						Count: 1
+						IsCarrier: True
+					2:
+						Wants: Infantry, AntiInfantry
+						Count: 5
+						IsPassenger: True
+				# Nod: sapc
+
+			Engineer_Drop:
+				Role: Transport
+				Tags: Transport, Siege
+				Bias: 10
+				CaptureAndSell: True
+				MaxInstances: 1
+				ScaleWithProducer: True
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 2
+				Slots:
+					1:
+						Wants: Vehicle, Transporter
+						Count: 1
+						IsCarrier: True
+					2:
+						Wants: Engineer
+						Count: 2
+						IsPassenger: True
+				# Braucht eine neue Capability "Engineer" an engineer/nengineer —
+				# die tragen heute nur "Infantry" und sind sonst nicht auffindbar.
+
+	# ------------------------------------------------------------------------
+	# Ein Profil. Nur noch Regler — nennt keine einzige Einheit und keine
+	# einzige Taskforce-Definition.
+	# ------------------------------------------------------------------------
+	CNSquadManagerBotModule@rush:
+		RequiresCondition: enable-cn-rush || cn-profile-rush
+
+		# Welche Art Trupp? Der Charakter des Profils.
+		RoleWeights:
+			Assault: 8
+			Raider: 12
+			Stealth: 6
+			ArtilleryAssault: 5
+			SubterraneanAssault: 7
+			AircraftAttack: 6
+			AircraftRaider: 8
+			Transport: 4
+			AirTransport: 4
+			SubterraneanTransport: 3
+			Support: 3
+
+		# Wogegen? Der Grundmix.
+		TagWeights:
+			Frontline: 12
+			Harass: 8
+			Support: 8
+			Stealth: 5
+			Transport: 4
+			Siege: 5
+			Infantry: 8
+			Vehicle: 5
+			Aircraft: 5
+
+		# Die Reaktion auf den Gegner.
+		NeedRules:
+			AntiInfantry:
+				EnemyCapabilities: Infantry
+				VisibleWeight: 8
+				GlobalWeight: 1
+			AntiArmor:
+				EnemyCapabilities: Vehicle, Tank
+				VisibleWeight: 10
+				GlobalWeight: 2
+			AntiAir:
+				EnemyCapabilities: Aircraft
+				VisibleWeight: 14
+				GlobalWeight: 4
+			Siege:
+				EnemyCapabilities: Defense, Production, Tech, Superweapon, Artillery
+				VisibleWeight: 8
+				GlobalWeight: 2
+			Harass:
+				EnemyCapabilities: Harvester, Economy, Power
+				VisibleWeight: 8
+				GlobalWeight: 2
+
+		# Wie streng wird besetzt? 10 = locker, Linienpanzer raiden mit.
+		PreferMatchWeight: 10
+		MaxNeedScorePerTag: 100
+
+		# Was dieses Profil gar nicht spielt.
+		DisabledTaskforces: Engineer_Drop, Transport_Subterranean
+
+		# Timing bleibt wie gehabt.
+		AttackWaveInitialDelay: 600
+		AttackWaveInterval: 1500
+		AttackWaveMinReadySquads: 2
+
+	# ------------------------------------------------------------------------
+	# Zum Vergleich: derselbe Bot als Steamroller. Nur die Regler ändern sich.
+	# ------------------------------------------------------------------------
+	CNSquadManagerBotModule@steamroller:
+		RequiresCondition: enable-cn-steamroller || cn-profile-steamroller
+
+		RoleWeights:
+			Assault: 14
+			Raider: 3
+			Stealth: 4
+			ArtilleryAssault: 10
+			SubterraneanAssault: 5
+			AircraftAttack: 8
+			AircraftRaider: 4
+			Transport: 4
+			AirTransport: 4
+			SubterraneanTransport: 4
+			Support: 6
+
+		TagWeights:
+			Frontline: 14
+			Harass: 3
+			Support: 8
+			Stealth: 3
+			Transport: 4
+			Siege: 8
+			Infantry: 3
+			Vehicle: 10
+			Aircraft: 10
+
+		NeedRules:
+			AntiInfantry:
+				EnemyCapabilities: Infantry
+				VisibleWeight: 8
+				GlobalWeight: 1
+			AntiArmor:
+				EnemyCapabilities: Vehicle, Tank
+				VisibleWeight: 10
+				GlobalWeight: 2
+			AntiAir:
+				EnemyCapabilities: Aircraft
+				VisibleWeight: 14
+				GlobalWeight: 4
+			Siege:
+				EnemyCapabilities: Defense, Production, Tech, Superweapon, Artillery
+				VisibleWeight: 8
+				GlobalWeight: 2
+			Harass:
+				EnemyCapabilities: Harvester, Economy, Power
+				VisibleWeight: 8
+				GlobalWeight: 2
+
+		# 25 = streng, Panzer bleiben in der Linie.
+		PreferMatchWeight: 25
+		# Reagiert träger und walzt seinen Plan durch.
+		MaxNeedScorePerTag: 60
+
+		DisabledTaskforces: Raid_Infantry
+
+		AttackWaveInitialDelay: 3000
+		AttackWaveInterval: 4500
+		AttackWaveMinReadySquads: 4

@@ -1,0 +1,261 @@
+# Pilot-YAML zum Konzept "Capability-basierte Squad-Zusammenstellung" (Stufe 3).
+# Ersetzt die 18 Assault-Templates aus mods/cn/rules/ai/squads-rush.yaml durch
+# 7 dynamische + 2 bewusst statisch gehaltene.
+#
+# NICHT AKTIV. Entwurf zur Freigabe, keine eingebundene Regeldatei.
+# Die Felder Wants / Prefers / MinCount / MaxCount / MaxSlotCost / MaxSquadCost
+# und ReservedCapabilities existieren noch nicht im Code.
+
+Player:
+	CNSquadManagerBotModule@rush:
+
+		# ------------------------------------------------------------------
+		# Rollenabgrenzung: einmal hier statt in jedem Slot.
+		# Eine reservierte Capability nehmen dynamische Slots nur in Templates
+		# der zugeordneten Rolle an - ohne Rolle (leer) nie.
+		# ------------------------------------------------------------------
+		ReservedCapabilities:
+			Artillery: ArtilleryAssault
+			Cloaked: Stealth
+			Subterranean: SubterraneanAssault
+			Harvester:
+			Expansion:
+			Transporter:
+			Medic:
+			Jumpjet: Raider
+			Unique:
+
+		# ------------------------------------------------------------------
+		# Scoring. Gerechnet wird in Wertpunkten, 1 Punkt = 100 Credits.
+		# ------------------------------------------------------------------
+		PreferMatchWeight: 25          # ein Prefers-Treffer ~ 2500 Credits Gerät
+		CostPerValuePoint: 100
+		CandidateScoreOffset: 20       # Zufallssockel, hält alle Typen in Benutzung
+		DemandCandidateCount: 3        # so viele Typen meldet ein Slot der Produktion
+
+		PerformanceWeight: 0           # Stufe 2, zunächst nur Debug-Ausgabe
+		MaxPerformanceScore: 30
+		MinPerformanceSamples: 20
+
+		Teams:
+
+			# ==============================================================
+			# GDI
+			# ==============================================================
+
+			# Ersetzt: GDI_BasicInfantry_AntiInfantry
+			GDI_Infantry_AntiInfantry:
+				Role: Assault
+				Tags: AntiInfantry, Frontline, Infantry
+				MaxInstances: 6
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Infantry
+				Slots:
+					1:
+						Wants: Infantry, AntiInfantry
+						MinCount: 3
+						MaxCount: 6
+						MaxSlotCost: 2400
+						# Kandidaten: gasol 120, ztrooper 1200
+						# (gasniper Cloaked, medic Medic, jumpjet Jumpjet -> reserviert)
+
+			# Ersetzt: GDI_BasicInfantry_AntiArmor, GDI_MissileInfantry_AntiAir,
+			#          GDI_ZoneTrooper_Tech
+			GDI_Infantry_AntiArmor:
+				Role: Assault
+				Tags: AntiArmor, AntiAir, Infantry
+				MaxInstances: 6
+				ScaleWithBuilding: gapile
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
+				Slots:
+					1:
+						Wants: Infantry, AntiArmor
+						Prefers: AntiAir
+						MinCount: 3
+						MaxCount: 6
+						MaxSlotCost: 3000
+						# Kandidaten: e2 200 (12%), ztrooper 1200 (27%), gmisinf 250 (61%)
+
+			# Ersetzt: GDI_Wolverine_Attack, GDI_Archon_Attack, GDI_Titan_Attack,
+			#          GDI_Cyclops_Breaker, GDI_Sonic_Breaker
+			GDI_Armor_Frontline:
+				Role: Assault
+				Tags: AntiArmor, Frontline, Vehicle
+				MaxInstances: 5
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle
+				MaxSquadCost: 6000
+				Slots:
+					# Die Panzerlinie.
+					1:
+						Wants: Vehicle, AntiArmor
+						MinCount: 3
+						MaxCount: 5
+						MaxSlotCost: 4500
+						# Kandidaten: gtmtnk 700, mmch 800, warden 800,
+						#             cyclops 900, sonic 1300, 4tnk 1400
+						# (jugg Artillery, stnk Cloaked, hmec Unique -> reserviert)
+					# Begleitschutz gegen Infanterie. Der Trupp läuft auch ohne.
+					2:
+						Wants: Vehicle, AntiInfantry
+						MaxCount: 2
+						MaxSlotCost: 1600
+						Optional: True
+						# Kandidaten: smech 500, sonic 1300
+
+			# Ersetzt: GDI_Mammoth_Attack
+			GDI_Armor_AntiAir:
+				Role: Assault
+				Tags: AntiAir, AntiArmor, Frontline, Vehicle
+				Bias: 10
+				MaxInstances: 2
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
+				Slots:
+					1:
+						Wants: Vehicle, AntiAir
+						MinCount: 2
+						MaxCount: 4
+						MaxSlotCost: 3600
+						# Kandidaten: warden 800, hvr 900, 4tnk 1400
+
+			# BLEIBT STATISCH. hmec trägt die Capability Unique und ist damit für
+			# dynamische Slots gesperrt - hier IST die Typliste die Absicht.
+			GDI_MammothMkII_Tech:
+				Role: Assault
+				Tags: AntiArmor, AntiAir, Siege, Frontline, Vehicle
+				Bias: 20
+				IgnoresCashReserve: true
+				MaxInstances: 1
+				ScaleWithBuilding: gaweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Vehicle, Defense, Tech, Superweapon
+				Slots:
+					1:
+						Count: 1
+						AllowedTypes: hmec
+
+			# ==============================================================
+			# Nod
+			# ==============================================================
+
+			# Ersetzt: Nod_BasicInfantry_AntiInfantry
+			Nod_Infantry_AntiInfantry:
+				Role: Assault
+				Tags: AntiInfantry, Frontline, Infantry
+				MaxInstances: 6
+				ScaleWithBuilding: nahand
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Infantry
+				Slots:
+					1:
+						Wants: Infantry, AntiInfantry
+						MinCount: 3
+						MaxCount: 6
+						MaxSlotCost: 2400
+						# Kandidaten: nasol 120, nacad 600, acolyte 1000
+
+			# Ersetzt: Nod_BasicInfantry_AntiArmor, Nod_AdvancedInfantry,
+			#          Nod_Acolyte_Tech
+			Nod_Infantry_AntiArmor:
+				Role: Assault
+				Tags: AntiArmor, AntiAir, Frontline, Infantry
+				MaxInstances: 6
+				ScaleWithBuilding: nahand
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
+				Slots:
+					1:
+						Wants: Infantry, AntiArmor
+						Prefers: AntiAir
+						MinCount: 3
+						MaxCount: 6
+						MaxSlotCost: 3000
+						# Kandidaten: e3 250, nacad 600, acolyte 1000
+					# Der Schatten-Späher aus Nod_AdvancedInfantry. Statischer
+					# Einzelslot, weil er genau einer sein soll - und weil Cloaked
+					# für Stealth reserviert ist, muss er hier beim Namen stehen.
+					2:
+						Count: 1
+						AllowedTypes: shadow
+						Optional: True
+
+			# Ersetzt: Nod_Scorpion_Attack, Nod_TickTank_Attack
+			Nod_Armor_Frontline:
+				Role: Assault
+				Tags: AntiArmor, Siege, Frontline, Vehicle
+				MaxInstances: 6
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle
+				MaxSquadCost: 5000
+				Slots:
+					1:
+						Wants: Vehicle, AntiArmor
+						MinCount: 3
+						MaxCount: 5
+						MaxSlotCost: 4000
+						# Kandidaten: bike 600, ltnk 700, ttnk 800
+						# (nhwtz Artillery, stnk Cloaked, subtank Subterranean,
+						#  sting Unique -> reserviert)
+					2:
+						Wants: Vehicle, AntiInfantry
+						MaxCount: 2
+						MaxSlotCost: 1000
+						Optional: True
+						# Kandidaten: bggy 500
+
+			# BLEIBT STATISCH, gleiche Begründung wie GDI_MammothMkII_Tech.
+			# sting trägt ebenfalls Unique.
+			Nod_Sting_Epic:
+				Role: Assault
+				Tags: AntiArmor, Siege, Frontline, Vehicle
+				Bias: 14
+				IgnoresCashReserve: true
+				MaxInstances: 2
+				ScaleWithBuilding: naweap
+				SquadsPerBuilding: 1
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Superweapon, Tech, Vehicle, Production
+				Slots:
+					1:
+						Count: 1
+						AllowedTypes: sting
+
+			# ==============================================================
+			# Unverändert übernommen (keine Assault-Rolle oder Struktur statt Menge):
+			#
+			#   GDI_JumpjetInfantry, GDI_SniperInfantry, GDI_Medics,
+			#   GDI_HoverMLRS_Raid, GDI_Warden_AA, GDI_Juggernaut_Siege,
+			#   GDI_Orca_Bomber, GDI_Hornet_Strike, GDI_Orca_Raid,
+			#   GDI_APC_Attack, GDI_Orca_TransportAttack,
+			#   Nod_SniperInfantry, Nod_Buggy_Raid, Nod_Bike_Raid, Nod_Repair,
+			#   Nod_Artillery_Siege, Nod_Subtank_Raid, Nod_StealthTank_Strike,
+			#   Nod_Scrin_Strike, Nod_Hydra_Raid
+			# ==============================================================
+
+# ----------------------------------------------------------------------
+# Ergänzung in rules/gdi-vehicles.yaml bzw. nod-vehicles.yaml:
+# ein Wort schützt das Einzelstück, statt es in jedem Panzer-Template
+# über alle fünf Profile per Name auszuschließen.
+# ----------------------------------------------------------------------
+#
+# HMEC:
+# 	BotCapabilities:
+# 		Capabilities: Vehicle, AntiArmor, AntiAir, AntiInfantry, Unique
+#
+# STING:
+# 	BotCapabilities:
+# 		Capabilities: Vehicle, AntiArmor, AntiInfantry, Siege, Unique
