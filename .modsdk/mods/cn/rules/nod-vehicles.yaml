@@ -165,6 +165,9 @@ BGGY:
 	Mobile:
 		TurnSpeed: 32
 		Speed: 142
+		SpeedRelatedWithFacing: true
+		TurnsWhileMoving: true
+		InitSpeedPercentageWithFacing: -70
 	CNHealth:
 		HP: 100
 	Armor:
@@ -237,6 +240,9 @@ BIKE:
 	Mobile:
 		TurnSpeed: 50
 		Speed: 170
+		SpeedRelatedWithFacing: true
+		TurnsWhileMoving: true
+		InitSpeedPercentageWithFacing: -100
 	CNHealth:
 		HP: 100
 	Armor:
