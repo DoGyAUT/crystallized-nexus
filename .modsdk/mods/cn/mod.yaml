@@ -65,6 +65,7 @@ FileSystem: ContentInstallerFileSystem
 		cn|bits/palletes
 		cn|bits/terrain/desert: desert
 		cn|bits/terrain
+		cn|bits/terrainset_anim
 		cn|audio/data
 		cn|audio/data/eva
 		cn|audio/data/explosions

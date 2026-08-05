@@ -1800,7 +1800,7 @@ Actors:
 		Owner: Neutral
 		Location: 103,50
 
-Rules:
+Rules:  cn|rules/TilesetPalettePresets/sno-scrinify-purp.yaml
 	World:
 		ElevatedBridgeLayer:
 		ElevatedBridgePlaceholder@a:
