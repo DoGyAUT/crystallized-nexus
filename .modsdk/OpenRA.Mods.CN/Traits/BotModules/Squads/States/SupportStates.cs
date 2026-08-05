@@ -17,10 +17,15 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	/// <summary>
-	/// Idle: scan for an active Assault, Rush, or Protection squad to attach to.
+	/// Idle: scan for an active squad to attach to — those named by the template's AttachToRole,
+	/// or Assault/Rush/Protection when the template does not configure it.
 	/// </summary>
 	sealed class SupportIdleState : CNStateBase, ICNState
 	{
+		// Used only when the template does not configure AttachToRole.
+		static readonly CNSquadType[] DefaultAttachRoles =
+			[CNSquadType.Assault, CNSquadType.Rush, CNSquadType.Protection];
+
 		// Game ticks, not update cycles.
 		const int ScanInterval = 225;
 		int scanTicks;
@@ -61,10 +66,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 
 			var attachTarget = squad.SquadManager.Squads
-				.Where(s => s != squad && s.IsOperational &&
-							(s.Type == CNSquadType.Assault ||
-							 s.Type == CNSquadType.Rush ||
-							 s.Type == CNSquadType.Protection))
+				.Where(s => s.IsOperational && CNSquadHelper.IsAttachCandidate(squad, s, DefaultAttachRoles))
 				.OrderBy(s =>
 				{
 					var sCenter = s.CenterUnit();

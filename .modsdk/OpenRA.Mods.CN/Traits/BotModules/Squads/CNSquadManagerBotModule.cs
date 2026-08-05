@@ -1169,11 +1169,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			if (template.AttachToRole.Length > 0)
 			{
-				var attachTarget = Squads.FirstOrDefault(s =>
-					s != squad &&
-					s.IsValid &&
-					template.AttachToRole.Contains(s.Type));
-				squad.AttachedTo = attachTarget;
+				// Nearest, not first in the list. The artillery idle state only re-picks once its host
+				// becomes invalid, so a poor seed here is carried for the rest of the squad's life —
+				// an artillery group could end up towed behind a squad on the far side of the map.
+				var origin = squad.CenterPosition();
+				squad.AttachedTo = Squads
+					.Where(s => s != squad && s.IsValid && template.AttachToRole.Contains(s.Type))
+					.MinByOrDefault(s => (s.CenterPosition() - origin).LengthSquared);
 			}
 
 			foreach (var unit in squad.Units)

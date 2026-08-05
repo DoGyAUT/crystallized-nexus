@@ -46,6 +46,30 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 		}
 
+		// --- Attachment ---
+
+		/// <summary>
+		/// True if <paramref name="candidate"/> is a squad <paramref name="squad"/> may attach to.
+		/// <para>
+		/// Honours the template's AttachToRole when it is set. The idle states used to hardcode their
+		/// candidate roles, which made the configured AttachToRole dead config: it was read only by the
+		/// squad manager's initial seeding and then overwritten by whatever the state picked.
+		/// </para>
+		/// <paramref name="fallbackRoles"/> preserves each state's previous default for squads whose
+		/// template leaves AttachToRole empty. Pass a cached array — this runs per candidate squad.
+		/// </summary>
+		public static bool IsAttachCandidate(CNSquad squad, CNSquad candidate, CNSquadType[] fallbackRoles)
+		{
+			if (candidate == null || candidate == squad)
+				return false;
+
+			var roles = squad.TemplateInfo?.AttachToRole;
+			if (roles != null && roles.Length > 0)
+				return roles.Contains(candidate.Type);
+
+			return fallbackRoles.Contains(candidate.Type);
+		}
+
 		public static void GoToRandomOwnBuilding(CNSquad squad)
 		{
 			var loc = RandomBuildingLocation(squad);

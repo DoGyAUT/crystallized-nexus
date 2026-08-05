@@ -18,10 +18,14 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	/// <summary>
-	/// Idle: wait for an Assault/Rush squad to attach to.
+	/// Idle: wait for a squad to attach to — those named by the template's AttachToRole,
+	/// or Assault/Rush when the template does not configure it.
 	/// </summary>
 	sealed class ArtilleryIdleState : CNStateBase, ICNState
 	{
+		// Used only when the template does not configure AttachToRole.
+		static readonly CNSquadType[] DefaultAttachRoles = [CNSquadType.Assault, CNSquadType.Rush];
+
 		public void Activate(CNSquad squad) { }
 
 		public void Tick(CNSquad squad)
@@ -41,8 +45,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					.ToHashSet();
 
 				var attachable = squad.SquadManager.Squads
-					.Where(s => s.IsValid &&
-						(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush))
+					.Where(s => s.IsValid && CNSquadHelper.IsAttachCandidate(squad, s, DefaultAttachRoles))
 					.ToList();
 
 				squad.AttachedTo =
