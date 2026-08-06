@@ -218,7 +218,16 @@ Das gemeinsame Ziel wird beim Start korrekt durchgereicht
 | ~~3a~~ | ~~Schadensschätzung + Zielregister mit zugesagtem Schaden → Overkill-Schutz.~~ **erledigt** (`07b8e4e`) | mittel |
 | ~~3b~~ | ~~Fokusfeuer: explizite `Attack`-Befehle mit Verfolgungsleine.~~ **erledigt** (`4ab4f3a`) | mittel |
 | ~~4~~ | ~~Wellen-Zusammenhalt: Teilnahme überlebt die Freigabe, Ziel rückt nach, Kohäsion gegen den Wellenschwerpunkt.~~ **erledigt** (`4dbf983`) | mittel |
-| 5 | Counter-**Zuweisung**: der AntiInf-Trupp bekommt die Infanterie zugeteilt, statt dass jeder Trupp nur für sich bewertet. | Kür, offen |
+| ~~5~~ | ~~Counter-Zuweisung: ein Trupp lässt ein Ziel liegen, wenn ein deutlich besser geeigneter es bereits beansprucht hat.~~ **erledigt** (`811a7a4`) | mittel |
+
+Der Weg dahin ist bewusst dezentral: es gibt **keinen** zentralen Zuteilungsdurchlauf, der
+Trupps Ziele vorschreibt. Die Zuteilung entsteht daraus, dass jeder Trupp sieht, wer schon
+was beansprucht hat und wie gut. Das fügt sich in die bestehende Architektur ein, in der
+jeder Trupp in seinem eigenen Tick entscheidet.
+
+Beim Twin-Check zu Stufe 5 fiel auf, dass die **Flugzeuge einen eigenen Zielbewerter**
+haben (`ScoreAircraftTarget`), den die Stufen 3a und 5 zunächst nicht erreicht hatten —
+ausgerechnet der Fall, der diese Arbeit ausgelöst hat. Mit `811a7a4` behoben.
 
 Was von Stufe 4 **nicht** umgesetzt ist: der gemeinsame Rückzug einer geschlagenen Welle,
 und dass Artillerie/Support sich an die Welle hängen statt an einen Einzeltrupp.
@@ -247,6 +256,7 @@ das gehört nach der ersten Partie eingestellt:
 			TargetClaimingEnabled: True  # Hauptschalter für das Zielregister
 			OverkillFactorBuilding: 115  # Prozent des Restlebens, ab dem ein Ziel "gedeckt" ist
 			OverkillFactorMobile: 140    # höher: bewegliche Ziele weichen aus und werden repariert
+			CounterDeferenceMargin: 34   # Eignungsvorsprung, ab dem einem anderen Trupp der Vortritt gelassen wird
 			FocusFireStrictness: 100     # Prozent der freien Einheiten, die direkt angreifen
 			PursuitLeashCells: 8         # darüber hinaus wird nicht verfolgt
 			WaveCohesionCells: 12        # Vorsprung, ab dem ein Trupp auf die Welle wartet
