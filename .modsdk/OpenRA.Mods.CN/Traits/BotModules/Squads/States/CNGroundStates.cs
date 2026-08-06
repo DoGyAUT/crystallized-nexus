@@ -140,6 +140,45 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			return (target.CenterPosition - unit.CenterPosition).LengthSquared <= (long)leash.Length * leash.Length;
 		}
 
+		/// <summary>
+		/// True once enough enemy gun platforms are in contact that both sides are committed — the
+		/// point at which trading to the finish beats bleeding units out of the line one at a time.
+		/// </summary>
+		protected static bool IsStandUpFight(CNSquad squad)
+		{
+			var minEnemies = squad.SquadManager.Info.StandUpFightMinEnemies;
+			if (minEnemies <= 0)
+				return false;
+
+			var radius = WDist.FromCells(squad.SquadManager.Info.AttackScanRadius);
+			var count = 0;
+			foreach (var actor in squad.World.FindActorsInCircle(squad.CenterPosition(), radius))
+			{
+				if (!squad.SquadManager.IsPreferredEnemyUnit(actor) || !actor.Info.HasTraitInfo<AttackBaseInfo>())
+					continue;
+
+				if (++count >= minEnemies)
+					return true;
+			}
+
+			return false;
+		}
+
+		/// <summary>
+		/// True if this unit has wandered so far from the rest of the squad that it should be called
+		/// back. Measured against the squad's centre rather than the target, because the case being
+		/// caught is a unit pursuing something the squad as a whole is no longer fighting.
+		/// </summary>
+		protected static bool HasStrayedFromSquad(CNSquad squad, Actor unit)
+		{
+			var recall = squad.SquadManager.Info.PursuitRecallCells;
+			if (recall <= 0 || unit == null || unit.IsDead || !unit.IsInWorld)
+				return false;
+
+			var limit = WDist.FromCells(recall);
+			return (unit.CenterPosition - squad.CenterPosition()).LengthSquared > (long)limit.Length * limit.Length;
+		}
+
 		protected static Actor FindRushTarget(CNSquad squad, Actor defaultTarget)
 		{
 			var leader = squad.CenterUnit();
@@ -452,6 +491,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class CNGroundAttackState : CNGroundStateBase, ICNState
 	{
 		const int StuckTimeoutTicks = 200;
+
+		// Game ticks between re-issuing orders that have not otherwise changed.
+		const int OrderReissueTicks = 75;
+
+		Actor lastOrderedTarget;
+		int reissueCooldown;
 		int lastUpdatedTick;
 		CPos? lastLeaderLocation;
 		Actor lastTarget;
@@ -547,19 +592,59 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			// Evaluated once and used twice: it decides both whether the squad leaves as a body and
+			// whether individual units are allowed to trickle out below.
+			var fleeing = ShouldFlee(squad);
+
 			// Send the badly hurt home before deciding whether the squad as a whole should leave: a
 			// squad that keeps a nearly dead unit in the firing line loses it, and losing it is what
 			// pushes the squad under strength and triggers the full retreat in the first place.
-			WithdrawDamagedUnits(squad);
+			//
+			// Not in a stand-up fight, though. With both sides fully committed, pulling damaged units
+			// out costs more than it saves: their guns leave the line at the decisive moment, and a
+			// unit that turns its back is usually killed on the way out anyway. There the squad trades
+			// to the end and whoever runs out of units first loses. The exception is a matchup it
+			// cannot win — and that is exactly what ShouldFlee already judges, so a bad fight pulls
+			// the whole squad instead of bleeding it away one unit at a time.
+			if (fleeing || !IsStandUpFight(squad))
+				WithdrawDamagedUnits(squad);
 
-			// Per-unit orders — only issue if not already attacking (avoids interrupting shots).
+			// Orders are re-issued only when something changed. Previously every unit that was not
+			// already shooting got a fresh AttackMove on every update — one every 15 ticks — and each
+			// one restarted the activity and recomputed the formation offset, so units visibly jittered
+			// between being pushed into formation and being re-ordered.
+			var targetChanged = squad.TargetActor != lastOrderedTarget;
+			reissueCooldown -= squad.TicksSinceLastUpdate;
+			var reissue = targetChanged || reissueCooldown <= 0;
+			if (reissue)
+			{
+				lastOrderedTarget = squad.TargetActor;
+				reissueCooldown = OrderReissueTicks;
+			}
+
 			// Free units are told to attack the squad target outright rather than attack-move at it,
 			// so the squad kills one enemy at a time instead of each unit picking whatever its own
 			// auto-target likes best and the damage spreading across everything in range.
 			var focusBudget = FocusFireUnitCount(squad);
 			foreach (var unit in squad.OrderableUnits)
 			{
+				// Call back anything that has chased its target out of the squad's reach. CanFocusFire
+				// only checks the leash when the order goes out, and an Attack activity then pursues
+				// indefinitely, while BusyAttack kept this loop from ever correcting it — so one unit
+				// would follow a fleeing buggy across the map while nearer enemies went unshot.
+				// Attack-moving back to the squad means it engages whatever it passes on the way.
+				if (HasStrayedFromSquad(squad, unit))
+				{
+					squad.Bot.QueueOrder(new Order("AttackMove", unit,
+						Target.FromCell(squad.World, squad.World.Map.CellContaining(squad.CenterPosition())), false));
+					continue;
+				}
+
 				if (BusyAttack(unit))
+					continue;
+
+				// Already on its way with nothing changed: leave it alone rather than restarting it.
+				if (!reissue && !unit.IsIdle)
 					continue;
 
 				if (focusBudget > 0 && CanFocusFire(squad, unit))
@@ -572,7 +657,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.Bot.QueueOrder(new Order("AttackMove", unit, squad.Target, false));
 			}
 
-			if (ShouldFlee(squad))
+			if (fleeing)
 				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
 		}
 

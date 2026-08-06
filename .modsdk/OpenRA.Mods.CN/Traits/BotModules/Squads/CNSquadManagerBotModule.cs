@@ -286,6 +286,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"fleeing target.")]
 		public readonly int PursuitLeashCells = 8;
 
+		[Desc("Cells from the squad's centre at which a unit is called back. PursuitLeashCells only " +
+			"governs whether a pursuit is started; an attack activity then follows its target for as long " +
+			"as it lives, so this is what actually ends the chase. 0 disables the recall.")]
+		public readonly int PursuitRecallCells = 16;
+
+		[Desc("Enemy gun platforms in contact from which the squad treats the engagement as a stand-up " +
+			"fight and stops withdrawing damaged units, trading to the finish instead. A matchup it " +
+			"cannot win still pulls the whole squad through the normal flee check. 0 always withdraws.")]
+		public readonly int StandUpFightMinEnemies = 5;
+
 		[Desc("Percent of a building's remaining health that squads may commit damage to before it counts " +
 			"as covered and stops attracting more of them. Above 100 to leave room for shots that miss or " +
 			"land after it dies.")]
