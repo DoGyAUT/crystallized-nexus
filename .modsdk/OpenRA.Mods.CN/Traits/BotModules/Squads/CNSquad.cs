@@ -260,6 +260,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			TargetActor = null;
 			Target = Target.FromPos(pos);
+
+			// The second funnel. Dropping the actor without releasing the claim left a squad reserving
+			// damage against a target it had walked away from — a subterranean squad moving to its
+			// ambush position kept other squads off its former target for as long as that actor lived.
+			SquadManager.ClearTargetClaim(this);
 		}
 
 		/// <summary>

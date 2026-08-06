@@ -2006,6 +2006,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (target == null)
 				return false;
 
+			// One wave at a time. This clear was harmless while participation ended at release - the set
+			// was empty by then - but now that a wave outlives its launch, starting a second one would
+			// silently drop the first wave's squads out of the registry mid-attack: no target advancing,
+			// no cohesion, no shared expiry. Reachable wherever AttackWaveInterval is shorter than
+			// AttackWaveMaxActiveTicks, which is every rush game once the economy bonus shortens it.
+			if (IsWaveLaunched)
+				return false;
+
 			var rally = ComputeRallyCell(target);
 
 			WaveTarget = target;
@@ -2088,6 +2096,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				if (squad == null || !squad.IsValid)
 					continue;
 
+				// Squads that fell under strength are sent home but stay registered, and averaging them
+				// in drags the centre back across the map: three squads at the enemy base plus one
+				// retreating straggler put the "centre" behind the trio, so all three read as having
+				// outrun the wave and turned around to follow a squad that was never coming.
+				if (!squad.IsOperational)
+					continue;
+
 				var pos = squad.CenterPosition();
 				x += pos.X;
 				y += pos.Y;
@@ -2095,7 +2110,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				count++;
 			}
 
-			return count == 0 ? null : new WPos((int)(x / count), (int)(y / count), (int)(z / count));
+			// A single squad cannot outrun itself, and with one contributor the centre is that squad's own
+			// position - every cohesion test against it would compare a squad to itself.
+			return count < 2 ? null : new WPos((int)(x / count), (int)(y / count), (int)(z / count));
 		}
 
 		/// <summary>
