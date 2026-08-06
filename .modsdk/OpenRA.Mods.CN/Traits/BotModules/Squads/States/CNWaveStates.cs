@@ -81,7 +81,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var baseCell = mgr.GetRandomBaseCenter();
 
 			// Stable per-squad scatter so squads of the same template don't pile up.
-			var seed = (squad.TemplateName ?? "").GetHashCode() ^ squad.CreatedTick;
+			var seed = CNSquadHelper.StableHash(squad.TemplateName) ^ squad.CreatedTick;
 			var scatter = mgr.Info.WaveHoldScatterCells;
 			if (scatter > 0)
 			{

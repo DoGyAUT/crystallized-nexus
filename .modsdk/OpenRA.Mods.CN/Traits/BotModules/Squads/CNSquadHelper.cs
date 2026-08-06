@@ -64,6 +64,38 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 		}
 
+		// --- Deterministic hashing ---
+
+		/// <summary>
+		/// Hash of a string that is identical on every machine and in every process.
+		/// <para>
+		/// string.GetHashCode is randomised per process in .NET Core, and the switch that used to
+		/// disable that (UseRandomizedStringHashAlgorithm) was a .NET Framework option which no longer
+		/// exists. Anything derived from it therefore differs between clients. That is fatal here:
+		/// these seeds place squads, positions become movement orders, and every client simulates the
+		/// bot itself - so two clients would issue different orders and the game desyncs.
+		/// </para>
+		/// FNV-1a, 32 bit. Chosen for being short and fully specified, not for hash quality; the seeds
+		/// only need to spread squads apart, not resist collisions.
+		/// </summary>
+		public static int StableHash(string value)
+		{
+			if (string.IsNullOrEmpty(value))
+				return 0;
+
+			unchecked
+			{
+				var hash = 2166136261u;
+				foreach (var c in value)
+				{
+					hash ^= c;
+					hash *= 16777619u;
+				}
+
+				return (int)hash;
+			}
+		}
+
 		// --- Attachment ---
 
 		/// <summary>

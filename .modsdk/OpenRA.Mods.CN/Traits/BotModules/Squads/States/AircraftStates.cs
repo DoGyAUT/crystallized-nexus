@@ -287,7 +287,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			// Same stable per-squad seed the wave hold uses, so two flights of the same template
 			// don't stack on one pad.
-			var seed = ((squad.TemplateName ?? "").GetHashCode() ^ squad.CreatedTick) & int.MaxValue;
+			var seed = (CNSquadHelper.StableHash(squad.TemplateName) ^ squad.CreatedTick) & int.MaxValue;
 			return candidates[seed % candidates.Count].Location;
 		}
 
