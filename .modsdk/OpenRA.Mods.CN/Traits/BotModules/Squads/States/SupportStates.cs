@@ -253,6 +253,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		/// </summary>
 		public static bool IsMissingSquadMembers(Actor actor)
 		{
+			// Ask the master when handed a member. A member carries no MobSpawnerMaster trait of its
+			// own — the squad rules strip it explicitly — so it used to sail straight through this
+			// filter, and medics went on healing the individual soldiers of a depleted squad instead
+			// of the master. That is just as futile: AggregateHealth is on by default and recomputes
+			// the group's health from the member count every AggregateHealthUpdateDelay ticks,
+			// overwriting whatever the medic just restored.
+			var slave = actor.TraitOrDefault<MobSpawnerSlave>();
+			var master = slave?.Master;
+			if (master != null && master != actor && !master.IsDead && master.IsInWorld)
+				return IsMissingSquadMembers(master);
+
 			var mob = actor.TraitOrDefault<MobSpawnerMaster>();
 			if (mob == null)
 				return false;
