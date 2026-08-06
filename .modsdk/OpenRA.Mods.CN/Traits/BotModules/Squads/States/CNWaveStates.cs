@@ -286,9 +286,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		/// enough of this one squad. Judging only its own units made the rally cell a shared waypoint
 		/// rather than a meeting point, so squads filed into the enemy base one after another.
 		/// <para>
-		/// Every participant evaluates this against the same unpruned participant set within a single
-		/// manager tick (squads are updated before MonitorActiveWave prunes), so the wave releases as
-		/// a body instead of cascading one squad at a time.
+		/// Only participants that are still staging count. Participation used to end when a squad left
+		/// the staging states, so the set pruned itself and the denominator shrank as squads peeled off.
+		/// Now that a wave outlives its launch, squads pulled out of staging early — by an ambush on the
+		/// way, or by getting stuck — would otherwise stay in the count forever as "not arrived" and put
+		/// the threshold out of reach for everyone still waiting.
 		/// </para>
 		/// </summary>
 		static bool EnoughWaveParticipantsArrived(CNSquad squad, WPos rallyPos, long arrivalSq)
@@ -305,6 +307,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			foreach (var participant in mgr.WaveParticipants)
 			{
 				if (participant == null || !participant.IsValid)
+					continue;
+
+				// Squads that have already left staging are on their way and are not being waited for.
+				if (!participant.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>())
 					continue;
 
 				participants++;
