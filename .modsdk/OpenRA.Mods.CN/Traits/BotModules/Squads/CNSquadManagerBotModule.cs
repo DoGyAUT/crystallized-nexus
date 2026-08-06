@@ -263,6 +263,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"other squads have already committed to - the behaviour before the claim registry existed.")]
 		public readonly bool TargetClaimingEnabled = true;
 
+		[Desc("Percent of a squad's free units that are ordered to attack its target directly instead of " +
+			"attack-moving toward it. Direct orders concentrate fire, killing one enemy at a time rather " +
+			"than spreading damage across everything in range - the clearest difference between a bot and " +
+			"a player leading units by hand. 0 restores attack-move for everyone.")]
+		public readonly int FocusFireStrictness = 100;
+
+		[Desc("Cells beyond which a squad stops issuing direct attack orders. An attack order makes units " +
+			"pursue and an attack-move does not, so without a leash a squad strings itself out chasing a " +
+			"fleeing target.")]
+		public readonly int PursuitLeashCells = 8;
+
 		[Desc("Percent of a building's remaining health that squads may commit damage to before it counts " +
 			"as covered and stops attracting more of them. Above 100 to leave room for shots that miss or " +
 			"land after it dies.")]

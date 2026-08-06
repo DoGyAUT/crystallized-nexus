@@ -107,6 +107,39 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				.MinByOrDefault(a => (a.CenterPosition - center).LengthSquared);
 		}
 
+		/// <summary>
+		/// How many of the squad's units are ordered to attack the target directly rather than
+		/// attack-move toward it. FocusFireStrictness 0 keeps the previous behaviour for every unit;
+		/// anything above 0 always focuses at least one, so a small squad still concentrates.
+		/// </summary>
+		protected static int FocusFireUnitCount(CNSquad squad)
+		{
+			var strictness = squad.SquadManager.Info.FocusFireStrictness;
+			if (strictness <= 0)
+				return 0;
+
+			var count = squad.OrderableUnits.Count();
+			if (count == 0)
+				return 0;
+
+			return Math.Max(1, count * Math.Min(100, strictness) / 100);
+		}
+
+		/// <summary>
+		/// An attack order makes a unit pursue, an attack-move does not. Focusing on a target beyond the
+		/// leash would string the squad out behind a fleeing buggy, so it only focuses on what is close
+		/// and what it can actually hit.
+		/// </summary>
+		protected static bool CanFocusFire(CNSquad squad, Actor unit)
+		{
+			var target = squad.TargetActor;
+			if (!CNSquadHelper.UnitCanHit(unit, target))
+				return false;
+
+			var leash = WDist.FromCells(Math.Max(1, squad.SquadManager.Info.PursuitLeashCells));
+			return (target.CenterPosition - unit.CenterPosition).LengthSquared <= (long)leash.Length * leash.Length;
+		}
+
 		protected static Actor FindRushTarget(CNSquad squad, Actor defaultTarget)
 		{
 			var leader = squad.CenterUnit();
@@ -502,10 +535,25 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// pushes the squad under strength and triggers the full retreat in the first place.
 			WithdrawDamagedUnits(squad);
 
-			// Per-unit orders — only issue if not already attacking (avoids interrupting shots)
+			// Per-unit orders — only issue if not already attacking (avoids interrupting shots).
+			// Free units are told to attack the squad target outright rather than attack-move at it,
+			// so the squad kills one enemy at a time instead of each unit picking whatever its own
+			// auto-target likes best and the damage spreading across everything in range.
+			var focusBudget = FocusFireUnitCount(squad);
 			foreach (var unit in squad.OrderableUnits)
-				if (!BusyAttack(unit))
-					squad.Bot.QueueOrder(new Order("AttackMove", unit, squad.Target, false));
+			{
+				if (BusyAttack(unit))
+					continue;
+
+				if (focusBudget > 0 && CanFocusFire(squad, unit))
+				{
+					squad.Bot.QueueOrder(new Order("Attack", unit, squad.Target, false));
+					focusBudget--;
+					continue;
+				}
+
+				squad.Bot.QueueOrder(new Order("AttackMove", unit, squad.Target, false));
+			}
 
 			if (ShouldFlee(squad))
 				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());

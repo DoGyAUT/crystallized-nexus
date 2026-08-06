@@ -123,6 +123,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return false;
 		}
 
+		/// <summary>True if this single unit has a weapon valid against the target's enabled target types.</summary>
+		public static bool UnitCanHit(Actor unit, Actor target)
+		{
+			if (unit == null || unit.IsDead || !unit.IsInWorld || target == null || target.IsDead || !target.IsInWorld)
+				return false;
+
+			var targetTypes = target.GetEnabledTargetTypes();
+			return !targetTypes.IsEmpty && UnitHasWeaponFor(unit, targetTypes);
+		}
+
 		static bool UnitHasWeaponFor(Actor unit, BitSet<TargetableType> targetTypes)
 		{
 			if (!unit.Info.HasTraitInfo<AttackBaseInfo>())
