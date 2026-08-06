@@ -146,6 +146,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		/// </summary>
 		protected static bool IsStandUpFight(CNSquad squad)
 		{
+			// Under fire from a position it can kill faster than it is being killed: press on. Backing
+			// off here is what turned an attack into a grind, losing a unit per pass without landing a
+			// shot. Too few guns to count as a pitched battle, but every reason not to leave.
+			if (squad.SquadManager.OutTradesDefenses(squad))
+				return true;
+
 			var minEnemies = squad.SquadManager.Info.StandUpFightMinEnemies;
 			if (minEnemies <= 0)
 				return false;
@@ -718,7 +724,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					WDist.FromCells(squad.SquadManager.Info.DangerScanRadius))
 				: null;
 
-			if (pursuer != null && squad.World.WorldTick - fleeStartTick < MaxRegroupTicks)
+			// Static defences never chase, so waiting only for a pursuer to give up ended the retreat as
+			// soon as the squad stepped outside DangerScanRadius — and it marched straight back into the
+			// same guns. Keep going until their fire cannot reach us either.
+			var stillEngaged = pursuer != null || squad.SquadManager.IsUnderDefensiveFire(squad);
+			if (stillEngaged && squad.World.WorldTick - fleeStartTick < MaxRegroupTicks)
 				return;
 
 			// Losses during the retreat can still take it below the bar.

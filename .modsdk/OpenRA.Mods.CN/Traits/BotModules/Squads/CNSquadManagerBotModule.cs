@@ -2756,6 +2756,56 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return best;
 		}
 
+		/// <summary>
+		/// True while enemy static defences can still reach this squad. A gun emplacement never chases,
+		/// so a retreat that waits only for a pursuer to give up ends the moment the squad steps outside
+		/// DangerScanRadius — whereupon it marches back into exactly the same guns.
+		/// </summary>
+		public bool IsUnderDefensiveFire(CNSquad squad)
+		{
+			var leader = squad?.CenterUnit();
+			return leader != null && GetDefenseThreatAt(leader.CenterPosition, leader.Info) > 0;
+		}
+
+		/// <summary>
+		/// True if the squad puts out more damage per salvo against the nearest defence firing on it
+		/// than all covering defences put out against the squad — the case for pressing the attack home
+		/// rather than trickling units out of range one at a time.
+		/// </summary>
+		public bool OutTradesDefenses(CNSquad squad)
+		{
+			var leader = squad?.CenterUnit();
+			if (leader == null)
+				return false;
+
+			var incoming = GetDefenseThreatAt(leader.CenterPosition, leader.Info);
+			if (incoming <= 0)
+				return false;
+
+			Actor nearest = null;
+			var nearestDistSq = long.MaxValue;
+			foreach (var building in GetCachedEnemyBuildings())
+			{
+				if (building.IsDead || !building.IsInWorld || !building.Info.HasTraitInfo<AttackBaseInfo>())
+					continue;
+
+				var range = MaxWeaponRange(building.Info);
+				if (range <= 0)
+					continue;
+
+				var distSq = (building.CenterPosition - leader.CenterPosition).LengthSquared;
+				if (distSq > (long)range * range || distSq >= nearestDistSq)
+					continue;
+
+				nearestDistSq = distSq;
+				nearest = building;
+			}
+
+			// Measured against one defence rather than all of them because the squad focuses its fire:
+			// what matters is whether it can kill what it is shooting at faster than the position kills it.
+			return nearest != null && EstimateSquadDamage(squad, nearest) > incoming;
+		}
+
 		public Actor FindClosestEnemy(Actor sourceActor, Func<Actor, bool> additionalFilter = null)
 		{
 			if (sourceActor == null)
