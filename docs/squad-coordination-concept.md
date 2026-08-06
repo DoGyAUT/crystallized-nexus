@@ -24,10 +24,14 @@ eigenen Anführer aus. Es gibt kein Register darüber, wer bereits worauf schie�
 
 ### Was es an Intelligenz gibt
 
-* `SquadEngageFraction` (`CNSquadHelper.cs:111`) — Anteil des Trupps, der das Ziel
-  **überhaupt treffen** kann. Beantwortet nicht „sind wir gut dagegen": ein Raketensoldat
-  gegen Infanterie liefert 1,0. Benutzt an zwei Stellen (`ScoreRushTarget`,
-  `AircraftStates.cs:198`) — im normalen Assault-Pfad gar nicht.
+* `SquadEngageFraction` — Anteil des Trupps, der das Ziel **überhaupt treffen** kann.
+  Beantwortet nicht „sind wir gut dagegen": ein Raketensoldat gegen Infanterie liefert 1,0.
+  <br>*Korrektur zum ersten Entwurf:* die binäre Variante (`CanSquadEngage`) wird sehr wohl
+  überall angewandt — `FindClosestEnemyUnit`, `FindClosestEnemyBuilding` und
+  `FindPriorityTarget` filtern damit. Nur der **Bruchteil** war auf `ScoreRushTarget` und
+  die Flugzeugzustände beschränkt. **Erledigt** (Commit `3d9ce64`): fließt jetzt in
+  `FindPriorityTarget` ein und gilt damit für alle Rollen.
+* `CounterFraction` — **neu, erledigt** (Commit `3d9ce64`), siehe Abschnitt 3.
 * `WaveTargetValueScore` (`:2044`) — Gebäudewert über Capabilities: Superwaffe 50,
   Produktion 30, Tech 25, Wirtschaft 20, Strom 10, Verteidigung −15. Nur für das Wellenziel.
 * `PriorityTargetCapabilities` — Zielvorzug, aber nur für `Raider`, `AircraftRaider`,
@@ -59,13 +63,21 @@ if (target.Info.Name.Contains("harv") || target.Info.Name.Contains("proc") ||
     score -= 220;
 ```
 
-Obwohl `BotCapabilities` dafür `Harvester` und `Economy` kennt. Nods `WEED` trägt
-`Harvester`, heißt aber weder harv noch proc noch ref — und zählt deshalb nicht als
-Wirtschaftsziel.
+Obwohl `BotCapabilities` dafür `Harvester` und `Economy` kennt. Der Namensvergleich war in
+beide Richtungen falsch: er verfehlte Nods `WEED` (trägt `Harvester`, heißt aber weder harv
+noch proc noch ref) und das Tiberiumsilo, und traf dafür `GHARV.Husk`/`NHARV.Husk` (Wracks),
+den reinen Tooltip-Platzhalter `PROC` und `gharv.colorpicker`.
+**Erledigt** (Commit `f0b7c53`).
 
-Und `AttachedTo` (`:1172`) nimmt den **erstbesten** Trupp der Liste, nicht den nächsten,
-einmal bei der Aufstellung und nie neu bewertet. Eine Artilleriegruppe kann einem Trupp am
-anderen Kartenende hinterherfahren.
+**Korrektur zum ersten Entwurf zu `AttachedTo`:** die States bewerten sehr wohl neu —
+`ArtilleryIdleState` bevorzugt sogar einen unbeanspruchten Trupp und unter gleichen den
+nächsten. Der echte Defekt lag woanders: **beide States verdrahteten ihre Kandidatenrollen
+hart** (`Assault`/`Rush`, für Support zusätzlich `Protection`) und ignorierten damit das
+`AttachToRole` des Templates — konfiguriert in `GDI_Juggernaut_Siege` und
+`Nod_Artillery_Siege`, gelesen nur von der Erstzuweisung im Manager, die es anschließend
+überschrieben bekam. Tote Konfiguration. Dazu nahm die Erstzuweisung den erstbesten statt
+den nächsten Trupp, und die Artillerie behält ihren Gastgeber, solange er gültig ist.
+**Erledigt** (Commit `9cfefb7`).
 
 ---
 
@@ -201,8 +213,8 @@ Das gemeinsame Ziel wird beim Start korrekt durchgereicht
 
 | Stufe | Inhalt | Umfang |
 |---|---|---|
-| 1 | `AttachedTo` reparieren: nächster statt erstbester, Neubewertung bei Verlust/Drift. `ScoreRushTarget` auf Capabilities statt Namensfragmente. | klein, klar abgegrenzte Fehler |
-| 2 | `SquadEngageFraction` auch im Assault-Pfad. `CounterFraction` ergänzen. | klein |
+| ~~1~~ | ~~`AttachToRole` wird respektiert, Erstzuweisung nimmt den nächsten Trupp. `ScoreRushTarget` auf Capabilities.~~ **erledigt** (`9cfefb7`, `f0b7c53`) | klein |
+| ~~2~~ | ~~`SquadEngageFraction` in die Zielbewertung aller Rollen. `CounterFraction` ergänzt.~~ **erledigt** (`3d9ce64`) | klein |
 | 3 | Zielregister mit zugesagtem Schaden → Fokusfeuer + Overkill-Schutz. Explizite `Attack`-Befehle mit Verfolgungsleine. | der Hauptbrocken |
 | 4 | Wellen-Zusammenhalt (Abschnitt 5). | mittel |
 | 5 | Counter-Zuweisung über die Eignung im Register. | Kür |
