@@ -215,13 +215,23 @@ Das gemeinsame Ziel wird beim Start korrekt durchgereicht
 |---|---|---|
 | ~~1~~ | ~~`AttachToRole` wird respektiert, Erstzuweisung nimmt den nächsten Trupp. `ScoreRushTarget` auf Capabilities.~~ **erledigt** (`9cfefb7`, `f0b7c53`) | klein |
 | ~~2~~ | ~~`SquadEngageFraction` in die Zielbewertung aller Rollen. `CounterFraction` ergänzt.~~ **erledigt** (`3d9ce64`) | klein |
-| 3 | Zielregister mit zugesagtem Schaden → Fokusfeuer + Overkill-Schutz. Explizite `Attack`-Befehle mit Verfolgungsleine. | der Hauptbrocken |
-| 4 | Wellen-Zusammenhalt (Abschnitt 5). | mittel |
-| 5 | Counter-Zuweisung über die Eignung im Register. | Kür |
+| ~~3a~~ | ~~Schadensschätzung + Zielregister mit zugesagtem Schaden → Overkill-Schutz.~~ **erledigt** (`07b8e4e`) | mittel |
+| ~~3b~~ | ~~Fokusfeuer: explizite `Attack`-Befehle mit Verfolgungsleine.~~ **erledigt** (`4ab4f3a`) | mittel |
+| ~~4~~ | ~~Wellen-Zusammenhalt: Teilnahme überlebt die Freigabe, Ziel rückt nach, Kohäsion gegen den Wellenschwerpunkt.~~ **erledigt** (`4dbf983`) | mittel |
+| 5 | Counter-**Zuweisung**: der AntiInf-Trupp bekommt die Infanterie zugeteilt, statt dass jeder Trupp nur für sich bewertet. | Kür, offen |
 
-Stufe 3 ist der größte Einzelgewinn an Gefechtsstärke im ganzen Bot. Fokusfeuer ist
-zugleich der sichtbarste Unterschied zwischen einem Bot und einem Spieler, der seine
-Einheiten von Hand führt.
+Was von Stufe 4 **nicht** umgesetzt ist: der gemeinsame Rückzug einer geschlagenen Welle,
+und dass Artillerie/Support sich an die Welle hängen statt an einen Einzeltrupp.
+
+### Was jetzt auf dem Feld anders ist
+
+Fokusfeuer ist der sichtbarste Unterschied zwischen einem Bot und einem Spieler, der von
+Hand führt. Ein Trupp tötet jetzt einen Gegner nach dem anderen, statt Schaden über alles
+in Reichweite zu streuen — und zehn Flieger hören auf, ein Gebäude zu bombardieren, das
+drei von ihnen bereits erledigt haben.
+
+**Ungetestet.** Nichts davon ist gespielt worden, und es liegt auf 33 ebenfalls ungespielten
+Commits obendrauf.
 
 ---
 
@@ -230,13 +240,24 @@ Einheiten von Hand führt.
 Fokusfeuer macht Bots deutlich stärker — das braucht eine Bremse für leichtere Profile.
 Passt in dasselbe Bild wie beim Taskforce-Umbau: das Profil dreht an Zahlen.
 
+Umgesetzt, mit diesen Vorgabewerten im Code — noch in **keiner** Profildatei überschrieben,
+das gehört nach der ersten Partie eingestellt:
+
 ```
-			FocusFireStrictness: 100     # 0 = aus (heutiges Verhalten), 100 = konsequent
-			OverkillFactorBuilding: 115  # Prozent
-			OverkillFactorMobile: 140
-			TargetSwitchHysteresis: 30   # Mindestvorsprung für einen Zielwechsel
-			PursuitLeashCells: 8
+			TargetClaimingEnabled: True  # Hauptschalter für das Zielregister
+			OverkillFactorBuilding: 115  # Prozent des Restlebens, ab dem ein Ziel "gedeckt" ist
+			OverkillFactorMobile: 140    # höher: bewegliche Ziele weichen aus und werden repariert
+			FocusFireStrictness: 100     # Prozent der freien Einheiten, die direkt angreifen
+			PursuitLeashCells: 8         # darüber hinaus wird nicht verfolgt
+			WaveCohesionCells: 12        # Vorsprung, ab dem ein Trupp auf die Welle wartet
 ```
+
+Für leichtere Profile ist vor allem `FocusFireStrictness` der Regler: deutlich unter 100
+gesetzt mikromanagt der Bot spürbar schlechter, ohne dass sonst etwas geändert werden muss.
+
+Noch nicht umgesetzt: `TargetSwitchHysteresis` (Mindestvorsprung für einen Zielwechsel).
+Bisher bremst nur die Verfolgungsleine; ein Trupp kann sein Ziel noch jederzeit wechseln,
+wenn die Bewertung kippt.
 
 ---
 
