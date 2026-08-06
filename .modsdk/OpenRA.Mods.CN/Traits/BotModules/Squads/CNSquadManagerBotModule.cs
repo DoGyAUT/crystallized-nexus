@@ -2417,6 +2417,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (damagePerSalvoCache.TryGetValue(key, out var cached))
 				return cached;
 
+			var targetTypes = target.GetAllTargetTypes();
+
 			var total = 0;
 			foreach (var armament in attacker.TraitInfos<ArmamentInfo>())
 			{
@@ -2424,10 +2426,23 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				if (weapon == null)
 					continue;
 
+				// Only weapons that can actually be fired at this target count. Without this the Nod
+				// helicopter booked its air-to-air launcher against buildings, and every ground armament
+				// counted against aircraft - inflating the claim and waving other squads off a target
+				// the attacker cannot in fact hurt that hard.
+				if (!weapon.IsValidTarget(targetTypes))
+					continue;
+
 				var perShot = 0;
 				foreach (var warhead in weapon.Warheads)
 				{
 					if (warhead is not DamageWarhead damageWarhead || damageWarhead.Damage <= 0)
+						continue;
+
+					// Warhead.IsValidTarget is protected, so the same test is spelled out here against the
+					// public fields: a warhead counts only if the target's types overlap ValidTargets and
+					// are not overruled by InvalidTargets (e.g. Hellfire declares InvalidTargets: Infantry).
+					if (!damageWarhead.ValidTargets.Overlaps(targetTypes) || damageWarhead.InvalidTargets.Overlaps(targetTypes))
 						continue;
 
 					perShot += Util.ApplyPercentageModifiers(damageWarhead.Damage, [EstimateVersus(damageWarhead, target)]);
@@ -2573,7 +2588,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (committed <= 0)
 				return false;
 
-			var health = target.TraitOrDefault<Health>();
+			// IHealth, not Health: this mod's actors carry CNHealth, which implements IHealth rather than
+			// deriving from Health. TraitOrDefault<Health>() therefore returned null for every actor in
+			// the game and switched the whole overkill check off. CNStateBase queries IHealth throughout.
+			var health = target.TraitOrDefault<IHealth>();
 			if (health == null)
 				return false;
 
