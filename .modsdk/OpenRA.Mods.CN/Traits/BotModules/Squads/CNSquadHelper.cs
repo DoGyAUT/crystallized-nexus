@@ -279,6 +279,21 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return false;
 		}
 
+		/// <summary>
+		/// Score penalty for a target covered by enemy static defences, scaled by how badly they would
+		/// hurt the unit doing the looking. Weighted in hundredths so a profile can tune how shy its
+		/// squads are of fortified ground without touching the rest of the scoring.
+		/// </summary>
+		public static int DefenseThreatPenalty(CNSquad squad, Actor target, Actor reference)
+		{
+			var weight = squad.SquadManager.Info.DefenseThreatPenaltyPercent;
+			if (weight <= 0 || reference == null)
+				return 0;
+
+			var threat = squad.SquadManager.GetDefenseThreatAt(target.CenterPosition, reference.Info);
+			return threat <= 0 ? 0 : threat * weight / 100;
+		}
+
 		/// <summary>Closest enemy unit visible to the player and engageable by the squad (wide scan).</summary>
 		public static Actor FindClosestEnemyUnit(CNSquad squad)
 		{
@@ -359,6 +374,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 						score += OversubscribedPenalty;
 					if (squad.SquadManager.IsTargetBetterServed(squad, actor, counter))
 						score += BetterServedPenalty;
+
+					// What sits under a battery of guns is worth less than what does not. Without this a
+					// squad that was driven off simply picked the same objective again on its next pass
+					// and was ground down a few units at a time without ever landing a shot.
+					score += DefenseThreatPenalty(squad, actor, sourceUnit);
 
 					if (score < bestScoreByPriority[i])
 					{

@@ -286,6 +286,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"fleeing target.")]
 		public readonly int PursuitLeashCells = 8;
 
+		[Desc("If true, attacks stage at the most lightly defended way in that the topology scan knows of, " +
+			"instead of marching down the straight line from base to target. False keeps the direct line.")]
+		public readonly bool AvoidDefendedApproaches = true;
+
+		[Desc("How far from the target to look for a way in, in cells. Beyond this the detour costs more " +
+			"than the defences it avoids.")]
+		public readonly int ApproachSearchRadiusCells = 24;
+
+		[Desc("Score penalty per point of static-defence damage per salvo covering a target, in hundredths. " +
+			"Makes squads prefer objectives that are not sitting under a battery of guns, so a beaten squad " +
+			"tries somewhere else rather than walking back into what just killed it. 0 ignores defences.")]
+		public readonly int DefenseThreatPenaltyPercent = 200;
+
 		[Desc("Cells from the squad's centre at which a unit is called back. PursuitLeashCells only " +
 			"governs whether a pursuit is started; an attack activity then follows its target for as long " +
 			"as it lives, so this is what actually ends the chase. 0 disables the recall.")]
@@ -2024,7 +2037,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (IsWaveLaunched)
 				return false;
 
-			var rally = ComputeRallyCell(target);
+			// A representative of what is about to march, so "how hot is this approach" is measured
+			// against the armour that will actually be standing in it.
+			ActorInfo victim = null;
+			foreach (var participant in participants)
+			{
+				victim = participant?.CenterUnit()?.Info;
+				if (victim != null)
+					break;
+			}
+
+			var rally = ComputeRallyCell(target, victim);
 
 			WaveTarget = target;
 			WaveRallyCell = rally;
@@ -2211,7 +2234,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return buildings.Count > 0 ? buildings[World.LocalRandom.Next(buildings.Count)] : null;
 		}
 
-		CPos ComputeRallyCell(Actor target)
+		CPos ComputeRallyCell(Actor target, ActorInfo victim)
 		{
 			var ownCell = GetRandomBaseCenter();
 			var ownPos = World.Map.CenterOfCell(ownCell);
@@ -2255,6 +2278,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				if (!World.Map.Contains(cell))
 					cell = new CPos((ownCell.X + World.Map.CellContaining(enemyPos).X) / 2,
 						(ownCell.Y + World.Map.CellContaining(enemyPos).Y) / 2);
+			}
+
+			// Everything above stages the wave on the straight line from base to target, which is how
+			// attacks kept forming up in front of whatever fortification happened to sit on that line.
+			// If the topology scan knows a way in that is under fewer guns, gather there instead.
+			var approach = PickApproachCell(target, victim);
+			if (approach != null && World.Map.Contains(approach.Value))
+			{
+				var approachThreat = GetDefenseThreatAt(World.Map.CenterOfCell(approach.Value), victim);
+				if (approachThreat < GetDefenseThreatAt(World.Map.CenterOfCell(cell), victim))
+					return approach.Value;
 			}
 
 			return cell;
@@ -2627,6 +2661,99 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				: Info.OverkillFactorMobile;
 
 			return committed >= health.HP * Math.Max(100, factor) / 100;
+		}
+
+		// ---------------------------------------------------------------------------
+		// Defended approaches
+		//
+		// The topology scan has always known where the ways in are - CNTacticalMapBotModule maps
+		// chokepoints, ramps and bridges - but only defence placement ever asked. Attacks marched
+		// at whatever the straight line from base to target ran into, which meant walking into the
+		// same fortified front over and over while an undefended flank stood open.
+		// ---------------------------------------------------------------------------
+		readonly Dictionary<string, int> maxWeaponRangeCache = [];
+
+		/// <summary>Longest weapon range this actor type can bring to bear.</summary>
+		public int MaxWeaponRange(ActorInfo info)
+		{
+			if (info == null)
+				return 0;
+
+			if (maxWeaponRangeCache.TryGetValue(info.Name, out var cached))
+				return cached;
+
+			var range = 0;
+			foreach (var armament in info.TraitInfos<ArmamentInfo>())
+			{
+				var weapon = armament.WeaponInfo;
+				if (weapon != null && weapon.Range.Length > range)
+					range = weapon.Range.Length;
+			}
+
+			maxWeaponRangeCache[info.Name] = range;
+			return range;
+		}
+
+		/// <summary>
+		/// Damage per salvo that enemy static defences covering <paramref name="pos"/> would put on a
+		/// unit of <paramref name="victim"/>'s type — the measure of how hot an approach is.
+		/// Returns 0 for a null victim, so callers without a representative unit simply express no
+		/// preference rather than being steered by a meaningless number.
+		/// </summary>
+		public int GetDefenseThreatAt(WPos pos, ActorInfo victim)
+		{
+			if (victim == null)
+				return 0;
+
+			var total = 0;
+			foreach (var building in GetCachedEnemyBuildings())
+			{
+				if (building.IsDead || !building.IsInWorld || !building.Info.HasTraitInfo<AttackBaseInfo>())
+					continue;
+
+				var range = MaxWeaponRange(building.Info);
+				if (range <= 0 || (building.CenterPosition - pos).LengthSquared > (long)range * range)
+					continue;
+
+				total += EstimateDamagePerSalvo(building.Info, victim);
+			}
+
+			return total;
+		}
+
+		/// <summary>
+		/// The most lightly defended chokepoint within reach of <paramref name="target"/>, or null when
+		/// the tactical map has nothing to offer — in which case the caller stays on the direct line.
+		/// </summary>
+		public CPos? PickApproachCell(Actor target, ActorInfo victim)
+		{
+			if (!Info.AvoidDefendedApproaches || target == null || victim == null || tacticalMap == null)
+				return null;
+
+			var chokepoints = tacticalMap.GetChokepoints();
+			if (chokepoints.Count == 0)
+				return null;
+
+			var reach = WDist.FromCells(Math.Max(1, Info.ApproachSearchRadiusCells));
+			var reachSq = (long)reach.Length * reach.Length;
+
+			CPos? best = null;
+			var bestThreat = int.MaxValue;
+			foreach (var chokepoint in chokepoints)
+			{
+				var pos = World.Map.CenterOfCell(chokepoint.Cell);
+				if ((pos - target.CenterPosition).LengthSquared > reachSq)
+					continue;
+
+				var threat = GetDefenseThreatAt(pos, victim);
+				if (threat >= bestThreat)
+					continue;
+
+				bestThreat = threat;
+				best = chokepoint.Cell;
+			}
+
+			return best;
 		}
 
 		public Actor FindClosestEnemy(Actor sourceActor, Func<Actor, bool> additionalFilter = null)

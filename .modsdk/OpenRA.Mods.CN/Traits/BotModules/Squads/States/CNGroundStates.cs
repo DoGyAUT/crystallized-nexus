@@ -253,6 +253,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (squad.SquadManager.IsTargetBetterServed(squad, target, counter))
 				score += 3200;
 
+			score += CNSquadHelper.DefenseThreatPenalty(squad, target, leader);
+
 			return score;
 		}
 	}
