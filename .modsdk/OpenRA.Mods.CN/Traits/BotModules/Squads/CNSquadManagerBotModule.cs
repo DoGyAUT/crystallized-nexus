@@ -16,6 +16,7 @@ using OpenRA.Mods.CN.Traits.BotModules.Squads.States;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Mods.Common.Warheads;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -257,6 +258,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		[Desc("Enemy target types to never attack.")]
 		public readonly BitSet<TargetableType> IgnoredEnemyTargetTypes;
+
+		[Desc("Master switch for target claiming. When false, squads pick targets without regard for what " +
+			"other squads have already committed to - the behaviour before the claim registry existed.")]
+		public readonly bool TargetClaimingEnabled = true;
+
+		[Desc("Percent of a building's remaining health that squads may commit damage to before it counts " +
+			"as covered and stops attracting more of them. Above 100 to leave room for shots that miss or " +
+			"land after it dies.")]
+		public readonly int OverkillFactorBuilding = 115;
+
+		[Desc("OverkillFactorBuilding for mobile targets. Higher, because they dodge, retreat and get " +
+			"repaired, so a committed salvo is less likely to land in full.")]
+		public readonly int OverkillFactorMobile = 140;
 
 		[Desc("Master switch for the coordinated attack wave system. If false, squads attack independently as soon as they form.")]
 		public readonly bool AttackWaveEnabled = true;
@@ -1710,6 +1724,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				// loaded transports forever.
 				assignment.Passengers.RemoveAll(a => a == null || a.IsDead);
 			}
+
+			// The claim was sized against the squad as it was when it picked the target. Now that the
+			// dead have been removed, re-price it - otherwise a squad reduced to one survivor keeps
+			// reserving the firepower of five and waves everyone else off a target it can no longer kill.
+			RefreshTargetClaim(squad);
 		}
 
 		void ApplyPerformancePenalty(string tag, int deaths)
@@ -2137,6 +2156,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public void UnregisterSquad(CNSquad squad)
 		{
+			// Before anything else: a dead squad must stop reserving its target, or the damage it can no
+			// longer deal would keep every other squad away from it for the rest of the match.
+			ClearTargetClaim(squad);
+
 			Squads.Remove(squad);
 			foreach (var unit in squad.Units)
 				activeUnits.Remove(unit);
@@ -2256,6 +2279,169 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			return false;
+		}
+
+		// ---------------------------------------------------------------------------
+		// Target claims
+		//
+		// Squads used to pick targets in complete ignorance of each other: every one of them
+		// scanned from its own leader and took whatever was closest. Five squads would converge
+		// on one harvester while a war factory stood untouched, and ten aircraft would keep
+		// bombing a building three of them had already killed.
+		//
+		// The registry below is the shared bookkeeping that fixes both: each squad records how
+		// much damage it has committed to its target, and a target that already has enough
+		// damage committed stops attracting further squads.
+		// ---------------------------------------------------------------------------
+		readonly Dictionary<CNSquad, (Actor Target, int Damage)> targetClaims = [];
+		readonly Dictionary<Actor, int> committedDamage = [];
+		readonly Dictionary<(string Attacker, string Target), int> damagePerSalvoCache = [];
+
+		/// <summary>
+		/// Rough damage one actor of <paramref name="attacker"/>'s type lands on one actor of
+		/// <paramref name="target"/>'s type per salvo.
+		/// <para>
+		/// Deliberately an estimate built from static rules rather than a simulation: it sums every
+		/// damage warhead of every armament, applies the Versus percentages for the target's armor
+		/// types, and multiplies by burst. It ignores range, reload, accuracy, damage modifiers and
+		/// conditionally disabled armor — none of which change the answer to "is this target already
+		/// covered" enough to be worth the cost. Cached per actor-type pair, so the reflection-ish
+		/// walk happens once per pairing and never again.
+		/// </para>
+		/// </summary>
+		public int EstimateDamagePerSalvo(ActorInfo attacker, ActorInfo target)
+		{
+			if (attacker == null || target == null)
+				return 0;
+
+			var key = (attacker.Name, target.Name);
+			if (damagePerSalvoCache.TryGetValue(key, out var cached))
+				return cached;
+
+			var total = 0;
+			foreach (var armament in attacker.TraitInfos<ArmamentInfo>())
+			{
+				var weapon = armament.WeaponInfo;
+				if (weapon == null)
+					continue;
+
+				var perShot = 0;
+				foreach (var warhead in weapon.Warheads)
+				{
+					if (warhead is not DamageWarhead damageWarhead || damageWarhead.Damage <= 0)
+						continue;
+
+					perShot += Util.ApplyPercentageModifiers(damageWarhead.Damage, [EstimateVersus(damageWarhead, target)]);
+				}
+
+				total += perShot * Math.Max(1, weapon.Burst);
+			}
+
+			damagePerSalvoCache[key] = total;
+			return total;
+		}
+
+		// Mirrors DamageWarhead.DamageVersus, but off ActorInfo instead of a live victim and hit shape:
+		// every armor type the target declares that the warhead has a Versus entry for is applied as a
+		// percentage modifier, exactly as the engine does it.
+		static int EstimateVersus(DamageWarhead warhead, ActorInfo target)
+		{
+			if (warhead.Versus.Count == 0)
+				return 100;
+
+			var modifiers = new List<int>();
+			foreach (var armor in target.TraitInfos<ArmorInfo>())
+				if (armor.Type != null && warhead.Versus.TryGetValue(armor.Type, out var versus))
+					modifiers.Add(versus);
+
+			return modifiers.Count == 0 ? 100 : Util.ApplyPercentageModifiers(100, modifiers);
+		}
+
+		/// <summary>Damage the squad's living units land on the target in one salvo.</summary>
+		public int EstimateSquadDamage(CNSquad squad, Actor target)
+		{
+			if (squad == null || target == null || target.IsDead || !target.IsInWorld)
+				return 0;
+
+			var total = 0;
+			foreach (var unit in squad.OrderableUnits)
+				total += EstimateDamagePerSalvo(unit.Info, target.Info);
+
+			return total;
+		}
+
+		/// <summary>
+		/// Records that <paramref name="squad"/> is committing to <paramref name="target"/>, replacing
+		/// any claim it held before. Called from CNSquad.SetActorToTarget, the single funnel through
+		/// which every squad target assignment passes.
+		/// </summary>
+		public void SetTargetClaim(CNSquad squad, Actor target)
+		{
+			if (squad == null)
+				return;
+
+			ClearTargetClaim(squad);
+
+			if (target == null || target.IsDead || !target.IsInWorld)
+				return;
+
+			var damage = EstimateSquadDamage(squad, target);
+			targetClaims[squad] = (target, damage);
+			committedDamage[target] = committedDamage.GetValueOrDefault(target) + damage;
+		}
+
+		/// <summary>Re-prices an existing claim after the squad's strength changed.</summary>
+		public void RefreshTargetClaim(CNSquad squad)
+		{
+			if (squad != null && targetClaims.TryGetValue(squad, out var claim))
+				SetTargetClaim(squad, claim.Target);
+		}
+
+		public void ClearTargetClaim(CNSquad squad)
+		{
+			if (squad == null || !targetClaims.TryGetValue(squad, out var claim))
+				return;
+
+			targetClaims.Remove(squad);
+			if (claim.Target == null)
+				return;
+
+			var remaining = committedDamage.GetValueOrDefault(claim.Target) - claim.Damage;
+			if (remaining > 0)
+				committedDamage[claim.Target] = remaining;
+			else
+				committedDamage.Remove(claim.Target);
+		}
+
+		/// <summary>
+		/// True if other squads have already committed enough damage to finish this target, so
+		/// <paramref name="squad"/> should look elsewhere. The squad's own claim is excluded, or a squad
+		/// would talk itself out of the target it is already attacking.
+		/// </summary>
+		public bool IsTargetOversubscribed(CNSquad squad, Actor target)
+		{
+			if (!Info.TargetClaimingEnabled || target == null || target.IsDead || !target.IsInWorld)
+				return false;
+
+			var committed = committedDamage.GetValueOrDefault(target);
+			if (committed <= 0)
+				return false;
+
+			if (squad != null && targetClaims.TryGetValue(squad, out var own) && own.Target == target)
+				committed -= own.Damage;
+
+			if (committed <= 0)
+				return false;
+
+			var health = target.TraitOrDefault<Health>();
+			if (health == null)
+				return false;
+
+			var factor = target.Info.HasTraitInfo<BuildingInfo>()
+				? Info.OverkillFactorBuilding
+				: Info.OverkillFactorMobile;
+
+			return committed >= health.HP * Math.Max(100, factor) / 100;
 		}
 
 		public Actor FindClosestEnemy(Actor sourceActor, Func<Actor, bool> additionalFilter = null)

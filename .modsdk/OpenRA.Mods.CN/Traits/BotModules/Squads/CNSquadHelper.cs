@@ -29,6 +29,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		const int EngageFractionBonus = 150;
 		const int CounterFractionBonus = 150;
 
+		// Penalty for a target other squads have already committed enough damage to kill. Worth roughly
+		// twenty cells of detour, so a covered target loses to anything else within reach but still beats
+		// having no target at all - a hard filter here would leave squads standing idle once the army
+		// outnumbers the things worth shooting.
+		const int OversubscribedPenalty = 6400;
+
 		// --- Movement ---
 
 		/// <summary>
@@ -301,6 +307,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					var score = (int)((actor.CenterPosition - sourceUnit.CenterPosition).LengthSquared / 65536);
 					score -= (int)(SquadEngageFraction(squad, actor) * EngageFractionBonus);
 					score -= (int)(CounterFraction(squad, actor) * CounterFractionBonus);
+					if (squad.SquadManager.IsTargetOversubscribed(squad, actor))
+						score += OversubscribedPenalty;
 
 					if (score < bestScoreByPriority[i])
 					{

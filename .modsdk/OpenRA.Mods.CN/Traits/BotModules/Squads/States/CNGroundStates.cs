@@ -168,6 +168,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Prefer targets the squad's actual composition can hit well, so a squad heavy on
 			// anti-armor doesn't keep picking infantry it can barely scratch when armor is nearby.
 			score -= (int)(CNSquadHelper.SquadEngageFraction(squad, target) * 150);
+			score -= (int)(CNSquadHelper.CounterFraction(squad, target) * 150);
+
+			// Worth roughly twenty cells of detour: a target other squads have already committed enough
+			// damage to kill loses to anything else in reach, but still beats having no target at all.
+			if (squad.SquadManager.IsTargetOversubscribed(squad, target))
+				score += 6400;
 
 			return score;
 		}

@@ -250,6 +250,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			Target = actor != null ? Target.FromActor(actor) : Target.Invalid;
 			if (actor != null)
 				NoTargetIdleTicks = 0;
+
+			// Single funnel for every squad target assignment, so the manager's claim registry stays in
+			// step without each state having to remember to report what it picked.
+			SquadManager.SetTargetClaim(this, actor);
 		}
 
 		public void SetPositionToTarget(WPos pos)
