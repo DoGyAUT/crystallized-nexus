@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
@@ -22,6 +23,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 	/// </summary>
 	static class CNSquadHelper
 	{
+		// Target-scoring weights, in the same scale ScoreRushTarget uses: distance is
+		// LengthSquared/65536, so one cell of separation is worth roughly 16 points at close
+		// range. 150 therefore buys a few cells of detour for a target the squad fights better.
+		const int EngageFractionBonus = 150;
+		const int CounterFractionBonus = 150;
+
 		// --- Movement ---
 
 		/// <summary>
@@ -156,6 +163,69 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return total == 0 ? 0 : (double)canHit / total;
 		}
 
+		/// <summary>
+		/// Fraction (0..1) of the squad's orderable units whose capabilities counter the target's.
+		/// <para>
+		/// SquadEngageFraction only answers "can we hit it at all" — a rocket soldier has a weapon
+		/// valid against infantry and scores 1.0 there, however badly it actually performs. This
+		/// answers "are we good against it" by reading the squad manager's NeedRules backwards:
+		/// the rule <c>AntiArmor: EnemyCapabilities: Vehicle, Tank</c> declares that our AntiArmor
+		/// units counter anything carrying Vehicle or Tank. Same table, opposite direction.
+		/// </para>
+		/// Returns 0 when either side declares no capabilities, so it can only ever add preference,
+		/// never remove a target that the engage filter already accepted.
+		/// </summary>
+		public static double CounterFraction(CNSquad squad, Actor target)
+		{
+			if (target == null || target.IsDead || !target.IsInWorld)
+				return 0;
+
+			var targetCaps = target.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			if (targetCaps == null || targetCaps.Count == 0)
+				return 0;
+
+			var needRules = squad.SquadManager.Info.NeedRules;
+			if (needRules == null || needRules.Count == 0)
+				return 0;
+
+			var total = 0;
+			var counters = 0;
+			foreach (var unit in squad.OrderableUnits)
+			{
+				if (unit == null || unit.IsDead || !unit.IsInWorld)
+					continue;
+
+				total++;
+
+				var unitCaps = unit.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+				if (unitCaps == null)
+					continue;
+
+				if (UnitCountersTarget(unitCaps, targetCaps, needRules))
+					counters++;
+			}
+
+			return total == 0 ? 0 : (double)counters / total;
+		}
+
+		static bool UnitCountersTarget(
+			IReadOnlySet<string> unitCaps,
+			IReadOnlySet<string> targetCaps,
+			Dictionary<string, CNSquadNeedRuleInfo> needRules)
+		{
+			foreach (var cap in unitCaps)
+			{
+				if (!needRules.TryGetValue(cap, out var rule))
+					continue;
+
+				foreach (var counteredCap in rule.EnemyCapabilities)
+					if (targetCaps.Contains(counteredCap))
+						return true;
+			}
+
+			return false;
+		}
+
 		/// <summary>Closest enemy unit visible to the player and engageable by the squad (wide scan).</summary>
 		public static Actor FindClosestEnemyUnit(CNSquad squad)
 		{
@@ -201,10 +271,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var world = squad.World;
 			var bestByPriority = new Actor[priorityCaps.Length];
-			var bestDistanceByPriority = new long[priorityCaps.Length];
+			var bestScoreByPriority = new int[priorityCaps.Length];
 
-			for (var i = 0; i < bestDistanceByPriority.Length; i++)
-				bestDistanceByPriority[i] = long.MaxValue;
+			for (var i = 0; i < bestScoreByPriority.Length; i++)
+				bestScoreByPriority[i] = int.MaxValue;
 
 			void CheckActor(Actor actor)
 			{
@@ -224,10 +294,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (!caps.Contains(priorityCaps[i]))
 						continue;
 
-					var distance = (actor.CenterPosition - sourceUnit.CenterPosition).LengthSquared;
-					if (distance < bestDistanceByPriority[i])
+					// Within a priority tier, distance used to be the only criterion. It now competes
+					// with how much of the squad can engage the target at all, and how much of it
+					// actually counters the target - so an anti-armor group walks past the infantry
+					// standing slightly closer and takes the tank behind it.
+					var score = (int)((actor.CenterPosition - sourceUnit.CenterPosition).LengthSquared / 65536);
+					score -= (int)(SquadEngageFraction(squad, actor) * EngageFractionBonus);
+					score -= (int)(CounterFraction(squad, actor) * CounterFractionBonus);
+
+					if (score < bestScoreByPriority[i])
 					{
-						bestDistanceByPriority[i] = distance;
+						bestScoreByPriority[i] = score;
 						bestByPriority[i] = actor;
 					}
 

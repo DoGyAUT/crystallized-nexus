@@ -22,12 +22,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class SupportIdleState : CNStateBase, ICNState
 	{
+		// Game ticks, not update cycles.
+		const int ScanInterval = 225;
+
 		// Used only when the template does not configure AttachToRole.
 		static readonly CNSquadType[] DefaultAttachRoles =
 			[CNSquadType.Assault, CNSquadType.Rush, CNSquadType.Protection];
-
-		// Game ticks, not update cycles.
-		const int ScanInterval = 225;
 		int scanTicks;
 		int idleTicks;
 

@@ -103,7 +103,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public readonly CNSquadType[] AttachToRole = [];
 
 		[Desc("Preferred target capability tags in priority order (first match wins). " +
-			"Matches actors that have BotCapabilities: <tag>. Applies to Raider, AircraftRaider, Stealth, and SubAssault roles.")]
+			"Matches actors that have BotCapabilities: <tag>. Applies to every role whose target search " +
+			"runs through CNSquadHelper.FindTarget - the ground assault and wave states included, not " +
+			"just the raider/stealth roles this used to claim.")]
 		public readonly string[] PriorityTargetCapabilities = [];
 
 		[Desc("Restrict template to specific factions (empty = all factions).")]
