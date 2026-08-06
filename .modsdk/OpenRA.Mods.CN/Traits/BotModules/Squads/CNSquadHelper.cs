@@ -35,6 +35,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// outnumbers the things worth shooting.
 		const int OversubscribedPenalty = 6400;
 
+		// Penalty for a target a markedly better-suited squad has already claimed. Half the
+		// oversubscription penalty on purpose: leaving a target to a better answer is a preference,
+		// while shooting something already dead on paper is waste.
+		const int BetterServedPenalty = 3200;
+
 		// --- Movement ---
 
 		/// <summary>
@@ -314,11 +319,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					// with how much of the squad can engage the target at all, and how much of it
 					// actually counters the target - so an anti-armor group walks past the infantry
 					// standing slightly closer and takes the tank behind it.
+					var counter = CounterFraction(squad, actor);
 					var score = (int)((actor.CenterPosition - sourceUnit.CenterPosition).LengthSquared / 65536);
 					score -= (int)(SquadEngageFraction(squad, actor) * EngageFractionBonus);
-					score -= (int)(CounterFraction(squad, actor) * CounterFractionBonus);
+					score -= (int)(counter * CounterFractionBonus);
 					if (squad.SquadManager.IsTargetOversubscribed(squad, actor))
 						score += OversubscribedPenalty;
+					if (squad.SquadManager.IsTargetBetterServed(squad, actor, counter))
+						score += BetterServedPenalty;
 
 					if (score < bestScoreByPriority[i])
 					{

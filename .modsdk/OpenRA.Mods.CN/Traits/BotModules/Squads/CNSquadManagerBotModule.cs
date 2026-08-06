@@ -268,6 +268,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"other squads have already committed to - the behaviour before the claim registry existed.")]
 		public readonly bool TargetClaimingEnabled = true;
 
+		[Desc("How much better suited another squad must already be - measured as the percentage-point gap " +
+			"between the shares of each squad's units that counter the target - before this one leaves the " +
+			"target to them. This is what turns the per-squad counter bonus into an actual division of " +
+			"labour, so the anti-infantry group takes the infantry and the tanks go for the tanks. " +
+			"0 disables deference and lets every squad simply prefer what suits it.")]
+		public readonly int CounterDeferenceMargin = 34;
+
 		[Desc("Percent of a squad's free units that are ordered to attack its target directly instead of " +
 			"attack-moving toward it. Direct orders concentrate fire, killing one enemy at a time rather " +
 			"than spreading damage across everything in range - the clearest difference between a bot and " +
@@ -2384,8 +2391,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// much damage it has committed to its target, and a target that already has enough
 		// damage committed stops attracting further squads.
 		// ---------------------------------------------------------------------------
-		readonly Dictionary<CNSquad, (Actor Target, int Damage)> targetClaims = [];
+		readonly Dictionary<CNSquad, (Actor Target, int Damage, int Suitability)> targetClaims = [];
 		readonly Dictionary<Actor, int> committedDamage = [];
+		readonly Dictionary<Actor, int> bestClaimSuitability = [];
 		readonly Dictionary<(string Attacker, string Target), int> damagePerSalvoCache = [];
 
 		/// <summary>
@@ -2477,8 +2485,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return;
 
 			var damage = EstimateSquadDamage(squad, target);
-			targetClaims[squad] = (target, damage);
+			var suitability = (int)(CNSquadHelper.CounterFraction(squad, target) * 100);
+			targetClaims[squad] = (target, damage, suitability);
 			committedDamage[target] = committedDamage.GetValueOrDefault(target) + damage;
+			bestClaimSuitability[target] = Math.Max(bestClaimSuitability.GetValueOrDefault(target), suitability);
 		}
 
 		/// <summary>Re-prices an existing claim after the squad's strength changed.</summary>
@@ -2502,6 +2512,45 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				committedDamage[claim.Target] = remaining;
 			else
 				committedDamage.Remove(claim.Target);
+
+			// Recompute the best suitability from the remaining claimants. Only runs when a claim
+			// changes, not per candidate during a scan, so the walk is affordable here.
+			var best = 0;
+			foreach (var (_, other) in targetClaims)
+				if (other.Target == claim.Target && other.Suitability > best)
+					best = other.Suitability;
+
+			if (best > 0)
+				bestClaimSuitability[claim.Target] = best;
+			else
+				bestClaimSuitability.Remove(claim.Target);
+		}
+
+		/// <summary>
+		/// True if another squad that counters this target markedly better has already claimed it, so
+		/// <paramref name="squad"/> should leave it to them and take something it fights better.
+		/// <para>
+		/// This is what turns the per-squad CounterFraction bonus into an actual division of labour:
+		/// without it, an anti-armor group and an anti-infantry group both simply prefer what suits
+		/// them, and nothing stops the anti-armor group taking the infantry when it happens to be the
+		/// closer target. The margin means a squad only defers to a clearly better answer, not to a
+		/// marginally better one.
+		/// </para>
+		/// </summary>
+		public bool IsTargetBetterServed(CNSquad squad, Actor target, double ownSuitability)
+		{
+			if (!Info.TargetClaimingEnabled || Info.CounterDeferenceMargin <= 0)
+				return false;
+			if (target == null || target.IsDead || !target.IsInWorld)
+				return false;
+
+			// Already ours: keep it. Deferring here would make a squad talk itself off the target it is
+			// currently attacking, and the best-suitability figure below includes its own claim anyway.
+			if (targetClaims.TryGetValue(squad, out var own) && own.Target == target)
+				return false;
+
+			var best = bestClaimSuitability.GetValueOrDefault(target);
+			return best - (int)(ownSuitability * 100) >= Info.CounterDeferenceMargin;
 		}
 
 		/// <summary>

@@ -197,6 +197,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// can actually engage).
 			score -= (int)(CNSquadHelper.SquadEngageFraction(squad, target) * 150);
 
+			var counter = CNSquadHelper.CounterFraction(squad, target);
+			score -= (int)(counter * 150);
+
+			// The claim penalties matter most here of anywhere: flights are the squads most prone to
+			// piling onto one building, because they reach it fastest and all see the same thing.
+			// Ten aircraft kept bombing what three of them had already killed.
+			if (squad.SquadManager.IsTargetOversubscribed(squad, target))
+				score += 6400;
+
+			if (squad.SquadManager.IsTargetBetterServed(squad, target, counter))
+				score += 3200;
+
 			return score;
 		}
 
