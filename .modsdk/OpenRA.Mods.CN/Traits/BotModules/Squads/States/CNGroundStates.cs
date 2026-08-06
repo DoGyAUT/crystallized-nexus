@@ -413,6 +413,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					squad.SetActorToTarget(nearEnemy);
 					squad.FuzzyStateMachine.ChangeState(squad, new CNGroundAttackState());
 				}
+				else if (squad.SquadManager.HasOutrunTheWave(squad) &&
+					squad.SquadManager.WaveCenterPosition() is WPos waveCenter)
+				{
+					// Ahead of the rest of the wave with nothing to fight here: ease back toward the
+					// wave's centre so the attack lands as one body instead of arriving in pieces and
+					// being beaten in detail. Engaging still wins over holding formation — this branch
+					// is only reached when no enemy is in scan range at all.
+					squad.Bot.QueueOrder(new Order("AttackMove", null,
+						Target.FromCell(squad.World, squad.World.Map.CellContaining(waveCenter)), false,
+						groupedActors: squad.OrderableUnits.ToArray()));
+				}
 				else
 				{
 					squad.Bot.QueueOrder(new Order("AttackMove", null, squad.Target, false,

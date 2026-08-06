@@ -259,6 +259,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Enemy target types to never attack.")]
 		public readonly BitSet<TargetableType> IgnoredEnemyTargetTypes;
 
+		[Desc("Cells a launched wave's squads may run ahead of the wave's centre before they hold and let " +
+			"the rest catch up. Only applies in the direction of the objective, so a squad that has fallen " +
+			"behind is never told to wait. 0 disables cohesion and lets every squad advance at its own pace.")]
+		public readonly int WaveCohesionCells = 12;
+
 		[Desc("Master switch for target claiming. When false, squads pick targets without regard for what " +
 			"other squads have already committed to - the behaviour before the claim registry existed.")]
 		public readonly bool TargetClaimingEnabled = true;
@@ -2017,6 +2022,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (squad == null || !squad.IsValid)
 						continue;
 
+					// Only squads still staging need releasing. The rest are in their own attack states
+					// by now and must not be reset to idle mid-engagement - harmless while the wave ended
+					// at release, destructive now that participation outlives it.
+					if (!squad.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>())
+						continue;
+
 					if (WaveTarget != null && !WaveTarget.IsDead && WaveTarget.IsInWorld)
 						squad.SetActorToTarget(WaveTarget);
 
@@ -2027,13 +2038,82 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return;
 			}
 
-			// Drop participants that died or already moved on (e.g. transitioned past MoveToRally).
-			WaveParticipants.RemoveWhere(s =>
-				s == null || !s.IsValid || !s.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>());
+			// Only squads that no longer exist leave the wave. Participation used to end the moment a
+			// squad left the staging states, so the wave dissolved into independent squads at exactly
+			// the moment it was released: it was a start condition, not a formation.
+			WaveParticipants.RemoveWhere(s => s == null || !s.IsValid);
 
-			var targetDead = WaveTarget == null || WaveTarget.IsDead || !WaveTarget.IsInWorld;
-			if (WaveParticipants.Count == 0 || targetDead)
+			// The wave outlives its first objective. When the target falls, advance to the next one and
+			// push it to every participant, instead of disbanding and letting each squad wander off after
+			// whatever its own scan turns up next.
+			if (WaveTarget == null || WaveTarget.IsDead || !WaveTarget.IsInWorld)
+			{
+				var nextTarget = PickWaveTarget();
+				if (nextTarget == null)
+				{
+					ClearActiveWave();
+					return;
+				}
+
+				WaveTarget = nextTarget;
+				foreach (var squad in WaveParticipants)
+					if (squad != null && squad.IsValid)
+						squad.SetActorToTarget(nextTarget);
+			}
+
+			if (WaveParticipants.Count == 0)
 				ClearActiveWave();
+		}
+
+		/// <summary>
+		/// Average position of the wave's living participants, or null while no wave is running.
+		/// The reference point squads keep formation against once the wave has been released.
+		/// </summary>
+		public WPos? WaveCenterPosition()
+		{
+			if (!IsWaveLaunched || WaveParticipants.Count == 0)
+				return null;
+
+			long x = 0, y = 0, z = 0;
+			var count = 0;
+			foreach (var squad in WaveParticipants)
+			{
+				if (squad == null || !squad.IsValid)
+					continue;
+
+				var pos = squad.CenterPosition();
+				x += pos.X;
+				y += pos.Y;
+				z += pos.Z;
+				count++;
+			}
+
+			return count == 0 ? null : new WPos((int)(x / count), (int)(y / count), (int)(z / count));
+		}
+
+		/// <summary>
+		/// True while this squad has run so far ahead of the rest of the wave that it should wait.
+		/// Measured against the wave's centre and only in the direction of the objective, so a squad
+		/// that is merely off to one side is left alone.
+		/// </summary>
+		public bool HasOutrunTheWave(CNSquad squad)
+		{
+			if (squad == null || Info.WaveCohesionCells <= 0 || !IsWaveLaunched || !WaveParticipants.Contains(squad))
+				return false;
+
+			var center = WaveCenterPosition();
+			if (center == null || WaveTarget == null || WaveTarget.IsDead || !WaveTarget.IsInWorld)
+				return false;
+
+			var squadPos = squad.CenterPosition();
+			var allowed = WDist.FromCells(Info.WaveCohesionCells);
+			if ((squadPos - center.Value).LengthSquared <= (long)allowed.Length * allowed.Length)
+				return false;
+
+			// Ahead means closer to the objective than the wave's centre is. A squad that fell behind is
+			// also far from the centre, but telling it to wait would strand it for good.
+			var targetPos = WaveTarget.CenterPosition;
+			return (squadPos - targetPos).LengthSquared < (center.Value - targetPos).LengthSquared;
 		}
 
 		void ClearActiveWave()
