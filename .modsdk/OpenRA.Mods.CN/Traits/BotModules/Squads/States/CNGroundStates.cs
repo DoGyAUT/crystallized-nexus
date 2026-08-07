@@ -634,6 +634,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// so the squad kills one enemy at a time instead of each unit picking whatever its own
 			// auto-target likes best and the damage spreading across everything in range.
 			var focusBudget = FocusFireUnitCount(squad);
+
+			// Everything that is only moving goes out as one grouped order rather than one order each.
+			// Per-unit attack-moves let every unit path to the objective on its own, so a squad arrived
+			// spread across the approach instead of as a body; grouped orders let the engine hold a
+			// formation. The march state has always ordered this way - the attack state did not, which
+			// is why squads visibly scattered the moment they made contact.
+			var moveGroup = new List<Actor>();
+
 			foreach (var unit in squad.OrderableUnits)
 			{
 				// Call back anything that has chased its target out of the squad's reach. CanFocusFire
@@ -662,8 +670,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					continue;
 				}
 
-				squad.Bot.QueueOrder(new Order("AttackMove", unit, squad.Target, false));
+				moveGroup.Add(unit);
 			}
+
+			if (moveGroup.Count > 0)
+				squad.Bot.QueueOrder(new Order("AttackMove", null, squad.Target, false,
+					groupedActors: moveGroup.ToArray()));
 
 			if (fleeing)
 				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
