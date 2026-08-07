@@ -2357,20 +2357,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// attacks kept forming up in front of whatever fortification happened to sit on that line.
 			// If the topology scan knows a way in that is under fewer guns, gather there instead.
 			var approach = PickApproachCell(target, victim);
-			if (approach != null && World.Map.Contains(approach.Value))
-			{
-				var approachThreat = GetDefenseThreatAt(World.Map.CenterOfCell(approach.Value), victim);
-				var directThreat = GetDefenseThreatAt(World.Map.CenterOfCell(cell), victim);
+			var usable = approach != null && World.Map.Contains(approach.Value);
+			var approachThreat = usable ? GetDefenseThreatAt(World.Map.CenterOfCell(approach.Value), victim) : -1;
+			var directThreat = GetDefenseThreatAt(World.Map.CenterOfCell(cell), victim);
 
-				// Logged because a rally point is the one bot decision whose reasoning is completely
-				// invisible from the outside - you see squads gather somewhere odd and cannot tell
-				// whether the terrain scan, the threat estimate or the detour bound put them there.
-				CNBotLog.Debug("{0} wave rally: direct {1} (threat {2}) vs approach {3} (threat {4})",
-					Player, cell, directThreat, approach.Value, approachThreat);
+			// Logged unconditionally, and with more than the two staging cells, because the first version
+			// of this line could not distinguish the three ways it fails: no candidate found at all, an
+			// empty defence memory, or - the current suspicion - measuring in the wrong place. The rally
+			// sits AttackWaveStagingProgressPercent short of the target, which is deliberately outside
+			// defensive range, so both staging cells read zero however much the bot knows. The threat at
+			// the target is what says whether the memory has anything in it.
+			CNBotLog.Debug(
+				"{0} wave rally: direct {1} (threat {2}) vs approach {3} (threat {4}); target threat {5}, defences known {6}",
+				Player, cell, directThreat,
+				usable ? approach.Value.ToString() : "none", approachThreat,
+				GetDefenseThreatAt(target.CenterPosition, victim), knownEnemyDefenses.Count);
 
-				if (approachThreat < directThreat)
-					return approach.Value;
-			}
+			if (usable && approachThreat < directThreat)
+				return approach.Value;
 
 			return cell;
 		}
