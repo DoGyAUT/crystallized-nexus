@@ -315,6 +315,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"definition, and assembling inside one bunches the squad up where it is easiest to shell.")]
 		public readonly int ApproachStandOffCells = 6;
 
+		[Desc("How many points along the run-in are sampled when weighing one approach against another. " +
+			"Emplacements cover approaches rather than the buildings behind them, so the fire is on the " +
+			"stretch between the gathering point and the objective and has to be summed along it.")]
+		public readonly int ApproachThreatSamples = 10;
+
 		[Desc("Score penalty per point of static-defence damage per salvo covering a target, in hundredths. " +
 			"Makes squads prefer objectives that are not sitting under a battery of guns, so a beaten squad " +
 			"tries somewhere else rather than walking back into what just killed it. 0 ignores defences.")]
@@ -772,6 +777,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			if (!IsLiveEnemyActor(e.Attacker))
 				return;
+
+			// Being shot by an emplacement is contact, and contact is knowledge. The defence memory used
+			// to fill only from what the bot could see at the moment of a periodic scan, which in practice
+			// was almost nothing: nine rally decisions in a played match ran with zero or one remembered
+			// defence, and eight only by the end. A squad does not have to look at the turret shelling it.
+			if (e.Attacker.Info.HasTraitInfo<BuildingInfo>() && e.Attacker.Info.HasTraitInfo<AttackBaseInfo>())
+				knownEnemyDefenses[e.Attacker.Location] = e.Attacker.Info.Name;
 
 			if (IsProtectedTechBuilding(self))
 				ProtectOwn(bot, e.Attacker, self);
@@ -2356,10 +2368,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// Everything above stages the wave on the straight line from base to target, which is how
 			// attacks kept forming up in front of whatever fortification happened to sit on that line.
 			// If the topology scan knows a way in that is under fewer guns, gather there instead.
+			// Measured along the final leg, from where the squads gather to what they are attacking —
+			// the stretch they actually have to cross. Comparing the two staging cells instead compared
+			// two points that are cold by construction.
 			var approach = PickApproachCell(target, victim);
 			var usable = approach != null && World.Map.Contains(approach.Value);
-			var approachThreat = usable ? GetDefenseThreatAt(World.Map.CenterOfCell(approach.Value), victim) : -1;
-			var directThreat = GetDefenseThreatAt(World.Map.CenterOfCell(cell), victim);
+			var approachThreat = usable
+				? GetDefenseThreatAlong(World.Map.CenterOfCell(approach.Value), target.CenterPosition, victim)
+				: -1;
+			var directThreat = GetDefenseThreatAlong(World.Map.CenterOfCell(cell), target.CenterPosition, victim);
 
 			// Logged unconditionally, and with more than the two staging cells, because the first version
 			// of this line could not distinguish the three ways it fails: no candidate found at all, an
@@ -2863,6 +2880,40 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					continue;
 
 				total += EstimateDamagePerSalvo(info, victim);
+			}
+
+			return total;
+		}
+
+		/// <summary>
+		/// Total defensive fire a unit would be exposed to walking from <paramref name="from"/> to
+		/// <paramref name="to"/>, sampled along the way.
+		/// <para>
+		/// Point samples cannot answer this, and measuring at the endpoints answered nothing at all.
+		/// Emplacements in this mod reach seven to ten cells; they cover approaches, not the buildings
+		/// behind them. The staging point sits deliberately short of the target and the target sits
+		/// inside the base, so both read zero however much the bot knows — which is exactly what a
+		/// played match showed, nine rally decisions comparing zero against zero. The fire is on the
+		/// stretch between them, and a gauntlet has to be integrated, not sampled at its ends.
+		/// </para>
+		/// Overlapping samples are intentional: a turret covering several consecutive samples counts
+		/// several times, because the squad really is under its guns for that much longer.
+		/// </summary>
+		public int GetDefenseThreatAlong(WPos from, WPos to, ActorInfo victim)
+		{
+			if (victim == null)
+				return 0;
+
+			var samples = Math.Max(1, Info.ApproachThreatSamples);
+			var total = 0;
+			for (var i = 1; i <= samples; i++)
+			{
+				var point = new WPos(
+					from.X + (int)((long)(to.X - from.X) * i / samples),
+					from.Y + (int)((long)(to.Y - from.Y) * i / samples),
+					from.Z + (int)((long)(to.Z - from.Z) * i / samples));
+
+				total += GetDefenseThreatAt(point, victim);
 			}
 
 			return total;
