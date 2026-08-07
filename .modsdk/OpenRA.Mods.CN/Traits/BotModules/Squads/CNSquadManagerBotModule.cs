@@ -292,6 +292,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"fleeing target.")]
 		public readonly int PursuitLeashCells = 8;
 
+		[Desc("Ticks between refreshes of the remembered enemy defences. The bot only counts defences it " +
+			"has seen, and keeps them in mind while they are under fog, so a squad that was driven off " +
+			"does not forget what drove it off the moment it loses sight. 0 disables the memory, which " +
+			"leaves the bot blind to defences entirely rather than all-seeing.")]
+		public readonly int EnemyDefenseMemoryInterval = 50;
+
 		[Desc("If true, attacks stage at the most lightly defended way in that the topology scan knows of, " +
 			"instead of marching down the straight line from base to target. False keeps the direct line.")]
 		public readonly bool AvoidDefendedApproaches = true;
@@ -525,6 +531,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int minAttackForceDelayTicks;
 		int cleanupTicks;
 		int threatScanTicks;
+		int defenseMemoryTicks;
 
 		// Tracked enemy capability keys from NeedRules, built once at enable.
 		readonly HashSet<string> allTrackedVisibleTags = [];
@@ -672,6 +679,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			// Its own cadence rather than the threat scan's: that one is gated on tags being tracked at
+			// all, and the defence memory has to keep working regardless of how a profile is configured.
+			if (Info.EnemyDefenseMemoryInterval > 0 && --defenseMemoryTicks <= 0)
+			{
+				defenseMemoryTicks = Info.EnemyDefenseMemoryInterval;
+				UpdateKnownEnemyDefenses();
+			}
+
 			if (Info.ThreatScanInterval > 0 && (allTrackedVisibleTags.Count > 0 || allTrackedGlobalTags.Count > 0 ||
 			 allTrackedVisiblePerUnitTags.Count > 0 || allTrackedGlobalPerUnitTags.Count > 0) && --threatScanTicks <= 0)
 			{
@@ -2730,6 +2745,56 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// ---------------------------------------------------------------------------
 		readonly Dictionary<string, int> maxWeaponRangeCache = [];
 
+		// What the bot has actually seen of the enemy's defences, kept under fog until it looks again.
+		//
+		// A plain visibility check would be worse than knowing everything: a squad approaches, sees the
+		// turret, backs off, loses sight, forgets, and walks straight back in. Remembering closes that
+		// loop and is also the honest model — every other target decision in this bot already refuses to
+		// act on what it has not seen, and this one was the odd exception.
+		readonly Dictionary<CPos, string> knownEnemyDefenses = [];
+
+		/// <summary>
+		/// Refreshes the remembered defences from what is visible right now: anything in sight is
+		/// recorded, and anything remembered on a cell the bot can currently see, but which is no longer
+		/// there, is forgotten. Cells under fog keep whatever was last seen.
+		/// </summary>
+		void UpdateKnownEnemyDefenses()
+		{
+			foreach (var building in GetCachedEnemyBuildings())
+			{
+				if (building.IsDead || !building.IsInWorld || !building.Info.HasTraitInfo<AttackBaseInfo>())
+					continue;
+
+				if (building.CanBeViewedByPlayer(Player))
+					knownEnemyDefenses[building.Location] = building.Info.Name;
+			}
+
+			scratchForgottenDefenses.Clear();
+			foreach (var (cell, _) in knownEnemyDefenses)
+			{
+				if (!Player.Shroud.IsVisible(cell))
+					continue;
+
+				var stillThere = false;
+				foreach (var actor in World.ActorMap.GetActorsAt(cell))
+				{
+					if (actor.Owner == Player || !actor.Info.HasTraitInfo<AttackBaseInfo>() || !actor.Info.HasTraitInfo<BuildingInfo>())
+						continue;
+
+					stillThere = true;
+					break;
+				}
+
+				if (!stillThere)
+					scratchForgottenDefenses.Add(cell);
+			}
+
+			foreach (var cell in scratchForgottenDefenses)
+				knownEnemyDefenses.Remove(cell);
+		}
+
+		readonly List<CPos> scratchForgottenDefenses = [];
+
 		/// <summary>Longest weapon range this actor type can bring to bear.</summary>
 		public int MaxWeaponRange(ActorInfo info)
 		{
@@ -2763,16 +2828,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return 0;
 
 			var total = 0;
-			foreach (var building in GetCachedEnemyBuildings())
+			foreach (var (cell, typeName) in knownEnemyDefenses)
 			{
-				if (building.IsDead || !building.IsInWorld || !building.Info.HasTraitInfo<AttackBaseInfo>())
+				var info = World.Map.Rules.Actors.GetValueOrDefault(typeName);
+				if (info == null)
 					continue;
 
-				var range = MaxWeaponRange(building.Info);
-				if (range <= 0 || (building.CenterPosition - pos).LengthSquared > (long)range * range)
+				var range = MaxWeaponRange(info);
+				if (range <= 0)
 					continue;
 
-				total += EstimateDamagePerSalvo(building.Info, victim);
+				if ((World.Map.CenterOfCell(cell) - pos).LengthSquared > (long)range * range)
+					continue;
+
+				total += EstimateDamagePerSalvo(info, victim);
 			}
 
 			return total;
