@@ -10,6 +10,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.CN.Traits;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.CN.Traits.BotModules.Squads;
 using OpenRA.Traits;
 
@@ -102,6 +103,26 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Danger score that immediately overrides adaptive hysteresis into Turtle.")]
 		public readonly int AdaptiveEmergencyTurtleDangerThreshold = 600;
+
+		[Desc("Known enemy emplacements at which the opponent counts as fully dug in. The count comes from " +
+			"what the bot has seen or been shot by, so it grows through contact rather than being read " +
+			"off the map. 0 disables every fortification term below.")]
+		public readonly int AdaptiveEnemyFortifiedDefenses = 6;
+
+		[Desc("Score subtracted from Rush at full enemy fortification. A rush is a small early force, " +
+			"which is exactly what a line of emplacements exists to shred.")]
+		public readonly float AdaptiveFortificationRushPenalty = 3f;
+
+		[Desc("Score added to Steamroller at full enemy fortification - the opposite of the Rush term, " +
+			"and deliberately so. Steamroller waits for a large late army; it is what you bring to crack " +
+			"a fortified position rather than what the position is built to stop.")]
+		public readonly float AdaptiveFortificationSteamrollerBonus = 2f;
+
+		[Desc("Score added to Tech at full enemy fortification: out-range what cannot be walked into.")]
+		public readonly float AdaptiveFortificationTechBonus = 2f;
+
+		[Desc("Score added to Expansion at full enemy fortification: take the map while they sit still.")]
+		public readonly float AdaptiveFortificationExpansionBonus = 1f;
 
 		[Desc("Earliest tick at which Adaptive may choose Steamroller.")]
 		public readonly int AdaptiveSteamrollerEarliestTick = 7500;
@@ -216,6 +237,7 @@ namespace OpenRA.Mods.Common.Traits
 		CNBaseBuilderBotModule baseBuilder;
 		CombatAnalysisBotModule combatAnalysis;
 		CNSquadManagerBotModule squadManager;
+		CNMcvExpansionManagerBotModule mcvExpansion;
 		PlayerResources playerResources;
 
 		public CNBotProfileBotModule(Actor self, CNBotProfileBotModuleInfo info)
@@ -249,6 +271,9 @@ namespace OpenRA.Mods.Common.Traits
 					.FirstOrDefault(t => t.IsTraitEnabled());
 				squadManager = bot.Player.PlayerActor
 					.TraitsImplementing<CNSquadManagerBotModule>()
+					.FirstOrDefault(t => t.IsTraitEnabled());
+				mcvExpansion = bot.Player.PlayerActor
+					.TraitsImplementing<CNMcvExpansionManagerBotModule>()
 					.FirstOrDefault(t => t.IsTraitEnabled());
 				firstTick = false;
 			}
@@ -364,10 +389,28 @@ namespace OpenRA.Mods.Common.Traits
 
 			var cashRich = cash >= Info.AdaptiveTechCashThreshold;
 
+			// The first two inputs about anything other than itself.
+			//
+			// Every other term below asks how much danger I am in, how many units I have, how much cash.
+			// Nothing asked what the opponent was doing, which is why the bot would keep choosing Rush
+			// against a player who had walled off every approach - it could see its own army was large
+			// and drew the obvious conclusion from that alone.
+			//
+			// Fortification is measured from emplacements the bot has actually seen or been shot by, so
+			// it grows through contact rather than being read off the map.
+			var fortifiedRatio = squadManager != null && Info.AdaptiveEnemyFortifiedDefenses > 0
+				? Math.Min(1f, (float)squadManager.KnownEnemyDefenseCount / Info.AdaptiveEnemyFortifiedDefenses)
+				: 0f;
+
+			// Absolute cash under 150 was the only economic trigger, so a bot could be mining its last
+			// field dry and feel fine as long as the till happened to be full.
+			var starving = mcvExpansion != null && mcvExpansion.IsResourceStarved();
+
 			// Score each candidate; current profile gets a momentum bonus so it takes
 			// a meaningful advantage for a rival profile to trigger a switch.
 			var best = BotProfile.Expansion;
 			var bestScore = float.MinValue;
+			var scoreReport = new System.Text.StringBuilder();
 
 			foreach (var candidate in ProfileCandidates)
 			{
@@ -381,28 +424,43 @@ namespace OpenRA.Mods.Common.Traits
 						dangerRatio * 3f + (hasActiveThreat ? 2f : 0f),
 
 					// Expansion: small constant baseline (reasonable fallback) plus a large
-					// bonus when the economy genuinely needs rebuilding.
+					// bonus when the economy genuinely needs rebuilding. Running the fields dry counts
+					// for as much as an empty till, and taking ground is also the sane answer to an
+					// opponent who has dug in rather than come out.
 					BotProfile.Expansion =>
-						1.5f + (needsExpansion ? 4f : 0f),
+						1.5f + (needsExpansion ? 4f : 0f) + (starving ? 4f : 0f)
+						+ fortifiedRatio * Info.AdaptiveFortificationExpansionBonus,
 
 					// Rush: bonus scales with unit surplus above threshold; threat reduces it.
 					// Hard penalty when below threshold so a small army doesn't rush prematurely.
+					// Fortification cuts it hardest: a rush is precisely what a wall of emplacements
+					// is built to stop, and throwing one at it is how squads get ground down for nothing.
 					BotProfile.Rush =>
 						offensiveUnits >= rushThreshold
 							? 3f + (offensiveUnits - rushThreshold) * 0.1f
 							  - dangerRatio * 2f - (hasActiveThreat ? 2f : 0f)
+							  - fortifiedRatio * Info.AdaptiveFortificationRushPenalty
 							: -3f,
 
 					// Steamroller: large bonus when all conditions align, hard penalty otherwise.
 					// Unit surplus above its threshold keeps the score growing to outpace Rush.
+					//
+					// Fortification argues FOR it, not against. This is the opposite of the Rush term
+					// above and the distinction matters: a rush is a small early force, which is exactly
+					// what a line of emplacements exists to shred. A steamroller waits for tick 7500 and
+					// thirty-two units - it is the thing you bring to crack a position, not the thing
+					// the position is built to stop.
 					BotProfile.Steamroller =>
 						steamrollerReady
 							? 4.5f + (offensiveUnits - Info.AdaptiveSteamrollerUnitThreshold) * 0.05f
+							  + fortifiedRatio * Info.AdaptiveFortificationSteamrollerBonus
 							: -5f,
 
-					// Tech: modest bonus during the cash-rich window before late-game.
+					// Tech: modest bonus during the cash-rich window before late-game, and the answer to
+					// a fortified opponent - out-range what cannot be walked into.
 					BotProfile.Tech =>
-						cashRich && stableEco && ActiveTechStage != TechStage.Late ? 2.5f : -2f,
+						(cashRich && stableEco && ActiveTechStage != TechStage.Late ? 2.5f : -2f)
+						+ fortifiedRatio * Info.AdaptiveFortificationTechBonus,
 
 					_ => 0f
 				};
@@ -434,12 +492,30 @@ namespace OpenRA.Mods.Common.Traits
 						score += (1f - frontlineRank) * Info.TeamBacklinePushBonus;
 				}
 
+				scoreReport
+					.Append(scoreReport.Length > 0 ? ", " : "")
+					.Append(candidate.ToString())
+					.Append(' ')
+					.Append(score.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture));
+
 				if (score > bestScore)
 				{
 					bestScore = score;
 					best = candidate;
 				}
 			}
+
+			// This module decided the bot's whole strategy and reported nothing. The effect was visible
+			// downstream and unattributable: a log line read "expansion held: needs 12000", which is the
+			// Turtle cash threshold, and neither we nor the player could see why the bot was on Turtle or
+			// for how long. Every input and every score, so a surprising choice can be traced to the term
+			// that caused it.
+			CNBotLog.Debug(
+				"{0} profile eval: {1} → {2} | danger {3} (ratio {4:0.00}), threat {5}, units {6}/{7}, cash {8}, " +
+				"eco stable {9}, starving {10}, enemy defences {11} (ratio {12:0.00}) | {13}",
+				player, ActiveProfile, best, dangerScore, dangerRatio, hasActiveThreat, offensiveUnits,
+				rushThreshold, cash, stableEco, starving,
+				squadManager?.KnownEnemyDefenseCount ?? 0, fortifiedRatio, scoreReport);
 
 			SwitchTo(best, emergency: false);
 		}

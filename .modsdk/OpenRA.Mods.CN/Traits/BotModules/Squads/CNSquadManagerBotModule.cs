@@ -2792,6 +2792,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		readonly Dictionary<CPos, string> knownEnemyDefenses = [];
 
 		/// <summary>
+		/// How many enemy emplacements the bot has seen or been shot by. A measure of how dug in the
+		/// opponent is, learned rather than read off the map, and the only thing the strategy layer has
+		/// ever known about what the enemy is actually doing.
+		/// </summary>
+		public int KnownEnemyDefenseCount => knownEnemyDefenses.Count;
+
+		/// <summary>
 		/// Refreshes the remembered defences from what is visible right now: anything in sight is
 		/// recorded, and anything remembered on a cell the bot can currently see, but which is no longer
 		/// there, is forgotten. Cells under fog keep whatever was last seen.

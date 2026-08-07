@@ -1085,7 +1085,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// tree, so the first version never once reported starvation in a played match. Regrowth is not
 		/// inexhaustible either - a field mined faster than it seeds runs its owner dry regardless.
 		/// </summary>
-		bool IsResourceStarved()
+		public bool IsResourceStarved()
 		{
 			if (resourceMapModule == null || Info.StarvationFieldCells <= 0)
 				return false;
