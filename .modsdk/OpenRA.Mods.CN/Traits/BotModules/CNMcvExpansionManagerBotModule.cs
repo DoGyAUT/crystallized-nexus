@@ -47,6 +47,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Per-profile cash thresholds to trigger additional MCV building. Overrides BuildAdditionalMCVCashAmount for the active profile.")]
 		public readonly FrozenDictionary<string, int> BuildAdditionalMCVCashAmounts = null;
 
+		[Desc("Resource cells left across all fields the bot works, at or below which it counts as starving " +
+			"and expands regardless of cash. Its income is about to stop, and the cash thresholds that " +
+			"normally gate expansion can never be met once it has. 0 disables the starvation trigger.")]
+		public readonly int StarvationFieldCells = 40;
+
+		[Desc("Extra construction yards a starving bot may found beyond its configured ceiling. Bounded " +
+			"rather than unlimited: a profile set to two yards should not grow without end, but it must " +
+			"not be trapped on a dead field either.")]
+		public readonly int StarvationExtraConstructionYards = 2;
+
 		[Desc("Also expand when a genuinely good free spot exists, instead of only when the bot is rich.",
 			"The construction yard counts above stay in force as the ceiling.")]
 		public readonly bool EnableOpportunityExpansion = true;
@@ -1058,6 +1068,40 @@ namespace OpenRA.Mods.Common.Traits
 			return attraction >= permille * indiceSideLength * indiceSideLength / 1000;
 		}
 
+		/// <summary>
+		/// True when the fields the bot actually works are nearly mined out, so its income is about to
+		/// stop whatever else it does.
+		/// <para>
+		/// Only worked fields count — tiberium elsewhere on the map is exactly what expanding is for, so
+		/// counting it here would mask the very condition being tested. A regrowing field never starves
+		/// its owner, so working one disqualifies the whole check.
+		/// </para>
+		/// </summary>
+		bool IsResourceStarved()
+		{
+			if (resourceMapModule == null || Info.StarvationFieldCells <= 0)
+				return false;
+
+			var worked = 0;
+			var cells = 0;
+			for (var i = 0; i < resourceMapModule.GetIndicesLength(); i++)
+			{
+				var indice = resourceMapModule.GetIndice(i);
+				if (indice == null || indice.PlayerRefineryCount <= 0)
+					continue;
+
+				if (indice.HasRespawningResourceSource)
+					return false;
+
+				worked++;
+				cells += indice.ResourceCellsCount;
+			}
+
+			// No worked field at all is a different situation - the bot has not started mining yet, or
+			// just lost its refineries - and neither is answered by founding another base.
+			return worked > 0 && cells <= Info.StarvationFieldCells;
+		}
+
 		void BuildMCV(IBot bot)
 		{
 			if (Info.McvTypes.Count <= 0)
@@ -1089,11 +1133,25 @@ namespace OpenRA.Mods.Common.Traits
 			if (conyardNum <= 0 ? mcvNum > 1 : mcvNum >= Math.Max(1, maxConcurrentMcvs))
 				return;
 
+			// Running out of tiberium is its own reason to expand, and it used to be no reason at all.
+			// Both gates below ask about cash and yard counts; neither asks whether the ground the bot
+			// stands on still has anything in it. A bot that had mined its spawn dry therefore kept
+			// building at home until it lost, and its opponent took the free fields uncontested.
+			var starving = IsResourceStarved();
+
 			// The construction yard count is now purely a ceiling, not the trigger. Before, it only rose
 			// above the minimum once the bot was sitting on BuildAdditionalMCVCashAmount, so profiles with
 			// no additional yards configured never expanded however good a free spot was, and the rest only
 			// expanded when rich enough to have hoarded five figures.
-			if (conyardNum + mcvNum >= Info.MinimumConstructionYardCount + additionalCYCount)
+			//
+			// Starvation lifts the ceiling by a bounded amount rather than removing it: a profile
+			// configured for two yards should not grow without limit, but it must not be trapped on a
+			// dead field either.
+			var yardCeiling = Info.MinimumConstructionYardCount + additionalCYCount;
+			if (starving)
+				yardCeiling += Math.Max(0, Info.StarvationExtraConstructionYards);
+
+			if (conyardNum + mcvNum >= yardCeiling)
 				return;
 
 			// Replacing a lost base is unconditional; expanding beyond the minimum needs a reason.
@@ -1105,8 +1163,19 @@ namespace OpenRA.Mods.Common.Traits
 					&& cash >= Info.OpportunityExpansionCashAmount
 					&& HasAttractiveExpansionSpot(profileKey);
 
-				if (!richEnough && !opportunity)
+				// Starvation deliberately skips the cash bar. Those thresholds exist so a comfortable bot
+				// spends its surplus on ground; a starving one has no surplus and never will again,
+				// because the income that would produce it is exactly what has run out.
+				if (!richEnough && !opportunity && !starving)
+				{
+					CNBotLog.Debug("{0} expansion held: cash {1} (needs {2} or {3}+spot), yards {4}/{5}, starving {6}",
+						player, cash, buildCashAmount, Info.OpportunityExpansionCashAmount,
+						conyardNum + mcvNum, yardCeiling, starving);
 					return;
+				}
+
+				CNBotLog.Debug("{0} expansion approved: cash {1}, yards {2}/{3}, rich {4}, opportunity {5}, starving {6}",
+					player, cash, conyardNum + mcvNum, yardCeiling, richEnough, opportunity, starving);
 			}
 
 			// We have MCV in production queue, let's wait.
