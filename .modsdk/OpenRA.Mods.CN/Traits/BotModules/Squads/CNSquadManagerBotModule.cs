@@ -2319,6 +2319,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// longer deal would keep every other squad away from it for the rest of the match.
 			ClearTargetClaim(squad);
 
+			// Same principle, and the reason this belongs here rather than at any of the fifteen call
+			// sites: a dissolved squad keeps its Units set, so IsValid stays true and the wave's only
+			// purge — RemoveWhere(!IsValid) — never sees it. The entry would point at a squad that no
+			// longer exists until the last of its former units happened to die, and while the wave holds
+			// at least one such entry it never reaches zero participants and never clears. With one wave
+			// allowed at a time, that means no further wave for the rest of the timer.
+			WaveParticipants.Remove(squad);
+
 			Squads.Remove(squad);
 			foreach (var unit in squad.Units)
 				activeUnits.Remove(unit);
