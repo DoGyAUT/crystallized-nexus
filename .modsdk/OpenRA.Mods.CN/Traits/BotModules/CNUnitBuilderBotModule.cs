@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.CN.Traits.BotModules.Squads;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Traits;
@@ -33,6 +34,19 @@ namespace OpenRA.Mods.CN.Traits
 
 		[Desc("Production queue categories the bot uses (must match queue Type fields in rules).")]
 		public readonly string[] UnitQueues = ["Vehicle", "Infantry", "Plane", "Ship", "Aircraft"];
+
+		[Desc("Ticks a savings goal survives before it is abandoned. Without an expiry a bot whose economy " +
+			"has collapsed saves for something it will never reach and stops building anything at all. " +
+			"0 disables saving, and the bot can then never buy anything costing more than it happens to hold.")]
+		public readonly int SavingsGoalTicks = 750;
+
+		[Desc("Percent of the best affordable unit's demand that an unaffordable one must reach before the " +
+			"bot starts saving for it. Saving costs production time, so it has to be wanted markedly more - " +
+			"otherwise a low-priority expensive unit stalls the whole queue for itself.")]
+		public readonly int SavingsGoalDemandPercent = 115;
+
+		[Desc("Minimum ticks between production diagnostics.")]
+		public readonly int ProductionReportInterval = 250;
 
 		[Desc(
 			"Hard cap per unit type. The bot never builds more than this many of a type regardless of demand. " +
@@ -136,6 +150,17 @@ namespace OpenRA.Mods.CN.Traits
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
 		int ticks;
+
+		// The one thing the bot is deliberately not spending its money on.
+		//
+		// Without this it can never buy anything that costs more than it happens to hold: an
+		// unaffordable candidate is dropped from the running rather than waited for, so every credit
+		// goes on whatever is cheap enough right now, which guarantees the expensive thing stays out of
+		// reach. A Turtle bot needs 2420 for an Orca Bomber and was observed never exceeding 2331.
+		string savingsGoalType;
+		int savingsGoalCost;
+		int savingsGoalExpiryTick;
+		int nextProductionReportTick;
 
 		public CNUnitBuilderBotModule(Actor self, CNUnitBuilderBotModuleInfo info)
 			: base(info)
@@ -348,6 +373,8 @@ namespace OpenRA.Mods.CN.Traits
 			int committedCost)
 		{
 			var candidates = new List<(ActorInfo Actor, int Score)>();
+			ActorInfo bestUnaffordable = null;
+			var bestUnaffordableScore = 0;
 
 			foreach (var (typeName, missingCount) in demand)
 			{
@@ -370,10 +397,22 @@ namespace OpenRA.Mods.CN.Traits
 					continue;
 
 				if (!HasBudgetFor(actorInfo, committedCost, queuesByCategory))
+				{
+					// Remember the most-wanted thing money alone put out of reach. This is both the
+					// diagnostic that was missing here and the input the savings goal needs.
+					if (missingCount > bestUnaffordableScore)
+					{
+						bestUnaffordable = actorInfo;
+						bestUnaffordableScore = missingCount;
+					}
+
 					continue;
+				}
 
 				candidates.Add((actorInfo, missingCount));
 			}
+
+			ConsiderSavingsGoal(bestUnaffordable, bestUnaffordableScore, candidates);
 
 			if (candidates.Count == 0)
 				return null;
@@ -388,7 +427,11 @@ namespace OpenRA.Mods.CN.Traits
 			// never built at all. That included the infantry types transport templates recruit as
 			// passengers, which is why loading APCs sat at "wanted=4 pool=0" indefinitely.
 			if (squadManager != null && !squadManager.IsTraitDisabled)
-				return squadManager.WeightedTemplateOrder(candidates, c => c.Score)[0].Actor;
+			{
+				var picked = squadManager.WeightedTemplateOrder(candidates, c => c.Score)[0].Actor;
+				NoteProduction(picked, bestUnaffordable, bestUnaffordableScore);
+				return picked;
+			}
 
 			// No squad manager available: keep the previous highest-demand-wins behaviour.
 			var fallback = candidates[0];
@@ -942,6 +985,103 @@ namespace OpenRA.Mods.CN.Traits
 				: BaseMaxQueuedItemsPerQueue;
 		}
 
+		/// <summary>
+		/// Decides whether to stop spending and put money aside for something the bot wants more than
+		/// anything it can currently afford.
+		/// <para>
+		/// Three guards, and the mechanism is dangerous without any of them. It expires, or a bot whose
+		/// economy has collapsed saves for something it will never reach and simply stops building. Only
+		/// one goal exists at a time, or two goals block each other and everything else. And it never
+		/// saves while the base is under attack, because a unit now beats a better unit later — that test
+		/// only became trustworthy once the threat model started counting hits on units and harvesters.
+		/// </para>
+		/// </summary>
+		void ConsiderSavingsGoal(ActorInfo unaffordable, int unaffordableScore, List<(ActorInfo Actor, int Score)> affordable)
+		{
+			if (Info.SavingsGoalTicks <= 0)
+				return;
+
+			if (savingsGoalType != null && world.WorldTick >= savingsGoalExpiryTick)
+			{
+				CNBotLog.Debug("{0} savings goal {1} expired unreached", player, savingsGoalType);
+				ClearSavingsGoal();
+			}
+
+			var underAttack = combatAnalysis != null && !combatAnalysis.IsTraitDisabled && combatAnalysis.HasActiveThreat();
+			if (underAttack)
+			{
+				if (savingsGoalType != null)
+				{
+					CNBotLog.Debug("{0} savings goal {1} dropped: base under attack", player, savingsGoalType);
+					ClearSavingsGoal();
+				}
+
+				return;
+			}
+
+			if (savingsGoalType != null || unaffordable == null)
+				return;
+
+			// Saving costs production time, so the thing being saved for has to be wanted markedly more
+			// than the best thing already affordable - otherwise a low-priority expensive unit would stall
+			// the whole queue for itself.
+			var bestAffordable = 0;
+			foreach (var candidate in affordable)
+				if (candidate.Score > bestAffordable)
+					bestAffordable = candidate.Score;
+
+			if (unaffordableScore * 100 < bestAffordable * Math.Max(100, Info.SavingsGoalDemandPercent))
+				return;
+
+			savingsGoalType = unaffordable.Name;
+			savingsGoalCost = unaffordable.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+			savingsGoalExpiryTick = world.WorldTick + Info.SavingsGoalTicks;
+
+			CNBotLog.Debug("{0} saving for {1} ({2} credits, demand {3} vs best affordable {4}), cash {5}",
+				player, savingsGoalType, savingsGoalCost, unaffordableScore, bestAffordable,
+				playerResources.GetCashAndResources());
+		}
+
+		/// <summary>
+		/// Throttled note of what was bought and, more usefully, what was wanted more but could not be
+		/// paid for. This module logged nothing at all until now, which is why "why does it never build
+		/// aircraft" had to be answered by deriving the affordability arithmetic on paper instead of
+		/// reading it off a match.
+		/// </summary>
+		void NoteProduction(ActorInfo picked, ActorInfo unaffordable, int unaffordableScore)
+		{
+			if (picked != null && string.Equals(picked.Name, savingsGoalType, StringComparison.OrdinalIgnoreCase))
+			{
+				CNBotLog.Debug("{0} savings goal {1} reached and built", player, savingsGoalType);
+				ClearSavingsGoal();
+			}
+
+			if (unaffordable == null || world.WorldTick < nextProductionReportTick)
+				return;
+
+			nextProductionReportTick = world.WorldTick + Math.Max(1, Info.ProductionReportInterval);
+			CNBotLog.Debug("{0} building {1}; {2} wanted more (demand {3}, cost {4}) but unaffordable at cash {5}",
+				player, picked?.Name ?? "nothing", unaffordable.Name, unaffordableScore,
+				unaffordable.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0,
+				playerResources.GetCashAndResources());
+		}
+
+		void ClearSavingsGoal()
+		{
+			savingsGoalType = null;
+			savingsGoalCost = 0;
+			savingsGoalExpiryTick = 0;
+		}
+
+		/// <summary>Cash that must be left untouched for the savings goal, if this purchase is not it.</summary>
+		int SavingsReservationFor(ActorInfo actorInfo)
+		{
+			if (savingsGoalType == null || world.WorldTick >= savingsGoalExpiryTick)
+				return 0;
+
+			return string.Equals(actorInfo.Name, savingsGoalType, StringComparison.OrdinalIgnoreCase) ? 0 : savingsGoalCost;
+		}
+
 		bool HasBudgetFor(ActorInfo actorInfo, int committedCost, ILookup<string, ProductionQueue> queuesByCategory)
 		{
 			var cost = actorInfo.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
@@ -953,7 +1093,7 @@ namespace OpenRA.Mods.CN.Traits
 			var reserve = skipsReserve ? 0 : GetDesiredReserve(queuesByCategory);
 
 			return playerResources.GetCashAndResources() >=
-				GetActiveProductionMinCashRequirement() + reserve + committedCost + cost;
+				GetActiveProductionMinCashRequirement() + reserve + committedCost + cost + SavingsReservationFor(actorInfo);
 		}
 
 		bool HasReservationBudget(ActorInfo actorInfo, int committedCost, ILookup<string, ProductionQueue> queuesByCategory)
