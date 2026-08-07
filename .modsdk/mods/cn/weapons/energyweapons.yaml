@@ -100,7 +100,16 @@ SonicZap:
 		Shape: Flat
 		ZOffset: 2047
 		MinDistance: 5c0
-		BeyondTargetRange: 0c256
+		# The beam sweeps two cells past whatever it was aimed at, so a target picked at close range
+		# no longer wastes the rest of the line. MinDistance would express this better - "the minimum
+		# distance the beam travels" is exactly the intent - but AreaBeam only applies it when the shot
+		# is created; TrackTarget rewrites the endpoint every tick from BeyondTargetRange alone, so on
+		# a tracking beam like this one MinDistance has no lasting effect.
+		#
+		# Additive, not a floor: a target at maximum range is overshot by these two cells as well, which
+		# is real extra reach in a line. That is the price of doing this in the weapon rather than in a
+		# custom projectile, and it applies to human players exactly as much as to bots.
+		BeyondTargetRange: 2c0
 		Blockable: true
 		TrackTarget: true
 		Color: 50F5FF45
