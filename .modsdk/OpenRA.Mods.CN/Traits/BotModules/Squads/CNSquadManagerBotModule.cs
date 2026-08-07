@@ -259,6 +259,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Enemy target types to never attack.")]
 		public readonly BitSet<TargetableType> IgnoredEnemyTargetTypes;
 
+		[Desc("Ticks a launched wave may spend gathering before it is written off. AttackWaveMaxActiveTicks " +
+			"only starts once the first squad leaves the rally, so without this a wave that never sets off " +
+			"would hold the slot forever. Generous on purpose: it must cover the march plus the staging " +
+			"wait on a large map, and only fires when not one squad ever got moving.")]
+		public readonly int AttackWaveLaunchGraceTicks = 3000;
+
 		[Desc("Cells a launched wave's squads may run ahead of the wave's centre before they hold and let " +
 			"the rest catch up. Only applies in the direction of the objective, so a squad that has fallen " +
 			"behind is never told to wait. 0 disables cohesion and lets every squad advance at its own pace.")]
@@ -567,7 +573,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int waveGrowthTicks;
 		int waveWaitingSinceTick;
 		int waveCurrentMinReady;
+
+		// 0 until the wave actually sets off. AttackWaveMaxActiveTicks is a budget for the attack, and
+		// starting it at the launch spent most of it on gathering and marching before a shot was fired.
 		int waveStartedTick;
+		int waveLaunchTick;
 		HashSet<CNSquadType> waveEligibleRoleSet = [];
 		readonly Dictionary<Actor, int> idleTickCounters = [];
 
@@ -2055,13 +2065,53 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			foreach (var s in participants)
 				WaveParticipants.Add(s);
 
-			waveStartedTick = World.WorldTick;
+			waveLaunchTick = World.WorldTick;
+			waveStartedTick = 0;
 			IsWaveLaunched = true;
 			return true;
 		}
 
 		void MonitorActiveWave()
 		{
+			// Housekeeping first, so it also runs while the wave is still gathering: a wave whose squads
+			// all died during staging must end there, and a target that falls before anyone arrives must
+			// be replaced rather than ending the wave.
+			WaveParticipants.RemoveWhere(s => s == null || !s.IsValid);
+			if (WaveParticipants.Count == 0)
+			{
+				ClearActiveWave();
+				return;
+			}
+
+			if (!AdvanceWaveTargetIfLost())
+				return;
+
+			// Arm the attack clock the moment the first participant leaves staging — that is when the wave
+			// stops gathering and starts attacking, and what AttackWaveMaxActiveTicks is meant to budget.
+			// Started at the launch instead, most of it went on marching and waiting before a shot was
+			// fired; on a large map with a long staging timeout barely a third was left for the attack.
+			if (waveStartedTick == 0)
+			{
+				foreach (var squad in WaveParticipants)
+				{
+					if (squad.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>())
+						continue;
+
+					waveStartedTick = World.WorldTick;
+					break;
+				}
+			}
+
+			// A wave that never sets off would otherwise hold the slot forever, since the attack clock
+			// never starts. AttackWaveStagingTimeoutTicks bounds the wait of a single squad, not the wave.
+			if (waveStartedTick == 0)
+			{
+				if (World.WorldTick - waveLaunchTick >= Math.Max(1, Info.AttackWaveLaunchGraceTicks))
+					ClearActiveWave();
+
+				return;
+			}
+
 			var waveExpired = World.WorldTick - waveStartedTick >= Math.Max(1, Info.AttackWaveMaxActiveTicks);
 			if (waveExpired)
 			{
@@ -2083,34 +2133,33 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				}
 
 				ClearActiveWave();
-				return;
 			}
+		}
 
-			// Only squads that no longer exist leave the wave. Participation used to end the moment a
-			// squad left the staging states, so the wave dissolved into independent squads at exactly
-			// the moment it was released: it was a start condition, not a formation.
-			WaveParticipants.RemoveWhere(s => s == null || !s.IsValid);
+		/// <summary>
+		/// The wave outlives its first objective: when the target falls, advance to the next one and push
+		/// it to every participant, instead of disbanding and letting each squad wander off after whatever
+		/// its own scan turns up next. Returns false when there is nothing left worth attacking, in which
+		/// case the wave has been cleared and the caller must stop.
+		/// </summary>
+		bool AdvanceWaveTargetIfLost()
+		{
+			if (WaveTarget != null && !WaveTarget.IsDead && WaveTarget.IsInWorld)
+				return true;
 
-			// The wave outlives its first objective. When the target falls, advance to the next one and
-			// push it to every participant, instead of disbanding and letting each squad wander off after
-			// whatever its own scan turns up next.
-			if (WaveTarget == null || WaveTarget.IsDead || !WaveTarget.IsInWorld)
+			var nextTarget = PickWaveTarget();
+			if (nextTarget == null)
 			{
-				var nextTarget = PickWaveTarget();
-				if (nextTarget == null)
-				{
-					ClearActiveWave();
-					return;
-				}
-
-				WaveTarget = nextTarget;
-				foreach (var squad in WaveParticipants)
-					if (squad != null && squad.IsValid)
-						squad.SetActorToTarget(nextTarget);
+				ClearActiveWave();
+				return false;
 			}
 
-			if (WaveParticipants.Count == 0)
-				ClearActiveWave();
+			WaveTarget = nextTarget;
+			foreach (var squad in WaveParticipants)
+				if (squad != null && squad.IsValid)
+					squad.SetActorToTarget(nextTarget);
+
+			return true;
 		}
 
 		/// <summary>
