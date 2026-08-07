@@ -9,6 +9,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.CN.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -27,11 +28,34 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Target type strings that classify an attacker as a vehicle threat (maps to AntiVehicle defense role).")]
 		public readonly FrozenSet<string> VehicleTargetTypes = new HashSet<string> { "Vehicle", "Tank" }.ToFrozenSet();
 
-		[Desc("Threat weight added per qualifying damage event.")]
+		[Desc("Base threat weight added per qualifying damage event, before value- and category-scaling.")]
 		public readonly float WeightPerHit = 10f;
 
-		[Desc("Minimum ticks between recording direct threat-role damage events.")]
+		[Desc("Attacker cost (ValuedInfo.Cost) at which the value-based weight multiplier is 1.0.",
+			"Cheaper attackers scale down towards MinValueWeightMultiplier, pricier ones scale up towards MaxValueWeightMultiplier.")]
+		public readonly float ValueWeightReference = 1000f;
+
+		[Desc("Floor for the value-based weight multiplier, so a cheap attacker's hits still register instead of scaling away to nothing.")]
+		public readonly float MinValueWeightMultiplier = 0.3f;
+
+		[Desc("Ceiling for the value-based weight multiplier, so a single hit from an expensive attacker cannot saturate a threat role by itself.")]
+		public readonly float MaxValueWeightMultiplier = 3f;
+
+		[Desc("Bot capability tags (BotCapabilitiesInfo.CapabilitySet) that mark a defended actor as an economy target,",
+			"tracked at full weight like buildings. Mirrors the tags CNGroundStates.ScoreRushTarget already treats as economy targets.")]
+		public readonly FrozenSet<string> EconomyCapabilities = new HashSet<string> { "Harvester", "Economy" }.ToFrozenSet();
+
+		[Desc("Fraction of the (value-scaled) weight recorded when a combat unit — neither a building nor an economy actor — is hit,",
+			"versus the full weight for buildings/economy. Set to 0 to ignore combat-unit hits entirely.")]
+		public readonly float CombatUnitWeightFraction = 0.275f;
+
+		[Desc("Minimum ticks between recording direct threat-role damage events against buildings or economy actors.")]
 		public readonly int ThreatRecordInterval = 25;
+
+		[Desc("Minimum ticks between recording threat-role damage events against combat units.",
+			"Tracked on its own counter from ThreatRecordInterval: combat units get hit far more often than",
+			"buildings/economy, and a shared counter would let that noise crowd out the rarer, more important signal.")]
+		public readonly int CombatUnitThreatRecordInterval = 25;
 
 		[Desc("Minimum raw damage value for a hit to count as a threat (filters negligible hits).")]
 		public readonly int MinDamageThreshold = 1;
@@ -77,11 +101,14 @@ namespace OpenRA.Mods.Common.Traits
 		// Per-enemy-player nemesis score: higher = this player attacked us more
 		readonly Dictionary<Player, float> nemesisScores = [];
 		readonly Dictionary<string, DefenseRole> attackerRoleCache = [];
+		readonly Dictionary<string, bool> economyActorCache = [];
+		readonly Dictionary<string, float> attackerValueMultiplierCache = [];
 
 		readonly Player self;
 		readonly World world;
 		int decayTicks;
 		int nextThreatRecordTick;
+		int nextCombatUnitThreatRecordTick;
 		int nextNemesisRecordTick;
 
 		public CombatAnalysisBotModule(Actor self, CombatAnalysisBotModuleInfo info)
@@ -192,15 +219,28 @@ namespace OpenRA.Mods.Common.Traits
 			if (e.Damage.Value < Info.MinDamageThreshold)
 				return;
 
-			// Defense threat tracking — buildings only. This is throttled because
-			// IBotRespondToAttack can fire for every projectile hit.
-			if (self.Info.HasTraitInfo<BuildingInfo>() && world.WorldTick >= nextThreatRecordTick)
+			// Defense threat tracking. Buildings and economy actors (harvesters, refineries, ...) count at
+			// full weight; combat units count too, but at a reduced fraction, so a skirmish out on the
+			// field registers as a signal without drowning out an attack on something that actually
+			// matters. Each category is throttled on its own counter: combat units get hit far more
+			// often than buildings/economy, and a shared counter would let that noise crowd out the
+			// rarer, more important signal (e.g. harvesters being sniped) almost every time.
+			var isSubstance = self.Info.HasTraitInfo<BuildingInfo>() || IsEconomyActor(self.Info);
+			var throttleTick = isSubstance ? nextThreatRecordTick : nextCombatUnitThreatRecordTick;
+			if (world.WorldTick >= throttleTick)
 			{
 				var role = ClassifyAttacker(e.Attacker);
 				if (role != DefenseRole.Default)
-					weights[role] = Math.Min(100f, weights[role] + Info.WeightPerHit);
+				{
+					var categoryFraction = isSubstance ? 1f : Info.CombatUnitWeightFraction;
+					var weight = Info.WeightPerHit * GetValueWeightMultiplier(e.Attacker) * categoryFraction;
+					weights[role] = Math.Min(100f, weights[role] + weight);
+				}
 
-				nextThreatRecordTick = world.WorldTick + Math.Max(1, Info.ThreatRecordInterval);
+				if (isSubstance)
+					nextThreatRecordTick = world.WorldTick + Math.Max(1, Info.ThreatRecordInterval);
+				else
+					nextCombatUnitThreatRecordTick = world.WorldTick + Math.Max(1, Info.CombatUnitThreatRecordInterval);
 			}
 
 			// Nemesis tracking — all owned actors (buildings + units)
@@ -211,6 +251,33 @@ namespace OpenRA.Mods.Common.Traits
 			nemesisScores.TryGetValue(attacker, out var current);
 			nemesisScores[attacker] = Math.Min(100f, current + Info.NemesisWeightPerHit);
 			nextNemesisRecordTick = world.WorldTick + Math.Max(1, Info.NemesisRecordInterval);
+		}
+
+		bool IsEconomyActor(ActorInfo info)
+		{
+			if (economyActorCache.TryGetValue(info.Name, out var cached))
+				return cached;
+
+			var caps = info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+			var isEconomy = caps != null && Info.EconomyCapabilities.Overlaps(caps);
+			economyActorCache[info.Name] = isEconomy;
+			return isEconomy;
+		}
+
+		float GetValueWeightMultiplier(Actor attacker)
+		{
+			if (attackerValueMultiplierCache.TryGetValue(attacker.Info.Name, out var cached))
+				return cached;
+
+			// No ValuedInfo (e.g. a walking husk or a scripted actor) is treated as reference-cost,
+			// i.e. a neutral 1.0 multiplier, rather than falling to the floor.
+			var cost = attacker.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? Info.ValueWeightReference;
+			var multiplier = Info.ValueWeightReference > 0f
+				? Math.Clamp(cost / Info.ValueWeightReference, Info.MinValueWeightMultiplier, Info.MaxValueWeightMultiplier)
+				: 1f;
+
+			attackerValueMultiplierCache[attacker.Info.Name] = multiplier;
+			return multiplier;
 		}
 
 		DefenseRole ClassifyAttacker(Actor attacker)
