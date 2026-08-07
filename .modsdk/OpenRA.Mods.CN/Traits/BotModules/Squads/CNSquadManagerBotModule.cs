@@ -306,6 +306,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"than the defences it avoids.")]
 		public readonly int ApproachSearchRadiusCells = 24;
 
+		[Desc("How much longer than the direct line the route through a chosen way in may be, in percent. " +
+			"Without this the coldest chokepoint wins even when it lies beyond the target, and squads " +
+			"march past the objective to gather behind it.")]
+		public readonly int ApproachMaxDetourPercent = 40;
+
+		[Desc("Cells short of the chosen way in that the squads actually gather. A chokepoint is narrow by " +
+			"definition, and assembling inside one bunches the squad up where it is easiest to shell.")]
+		public readonly int ApproachStandOffCells = 6;
+
 		[Desc("Score penalty per point of static-defence damage per salvo covering a target, in hundredths. " +
 			"Makes squads prefer objectives that are not sitting under a battery of guns, so a beaten squad " +
 			"tries somewhere else rather than walking back into what just killed it. 0 ignores defences.")]
@@ -2351,7 +2360,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (approach != null && World.Map.Contains(approach.Value))
 			{
 				var approachThreat = GetDefenseThreatAt(World.Map.CenterOfCell(approach.Value), victim);
-				if (approachThreat < GetDefenseThreatAt(World.Map.CenterOfCell(cell), victim))
+				var directThreat = GetDefenseThreatAt(World.Map.CenterOfCell(cell), victim);
+
+				// Logged because a rally point is the one bot decision whose reasoning is completely
+				// invisible from the outside - you see squads gather somewhere odd and cannot tell
+				// whether the terrain scan, the threat estimate or the detour bound put them there.
+				AIUtils.BotDebug("{0} wave rally: direct {1} (threat {2}) vs approach {3} (threat {4})",
+					Player, cell, directThreat, approach.Value, approachThreat);
+
+				if (approachThreat < directThreat)
 					return approach.Value;
 			}
 
@@ -2856,12 +2873,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (!Info.AvoidDefendedApproaches || target == null || victim == null || tacticalMap == null)
 				return null;
 
-			var chokepoints = tacticalMap.GetChokepoints();
+			// The useful set, not the raw one: these are the chokepoints reachable from this bot's own
+			// base that lead somewhere real. The raw list includes dead ends and pockets across
+			// impassable terrain, and staging at one of those is how the first version produced rally
+			// points the squads could not sensibly walk to.
+			var chokepoints = tacticalMap.GetUsefulChokepointsForOwnBase();
 			if (chokepoints.Count == 0)
+				return null;
+
+			var basePos = World.Map.CenterOfCell(GetRandomBaseCenter());
+			var directLength = (target.CenterPosition - basePos).Length;
+			if (directLength <= 0)
 				return null;
 
 			var reach = WDist.FromCells(Math.Max(1, Info.ApproachSearchRadiusCells));
 			var reachSq = (long)reach.Length * reach.Length;
+			var maxRouteLength = directLength + directLength * Math.Max(0, Info.ApproachMaxDetourPercent) / 100;
 
 			CPos? best = null;
 			var bestThreat = int.MaxValue;
@@ -2869,6 +2896,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			{
 				var pos = World.Map.CenterOfCell(chokepoint.Cell);
 				if ((pos - target.CenterPosition).LengthSquared > reachSq)
+					continue;
+
+				// The way in has to lie between us and the objective. Picking purely by temperature let
+				// the coldest chokepoint win even when it sat on the far side of the enemy base, so the
+				// squads marched past the target to gather behind it.
+				if ((pos - basePos).Length + (target.CenterPosition - pos).Length > maxRouteLength)
 					continue;
 
 				var threat = GetDefenseThreatAt(pos, victim);
@@ -2879,7 +2912,37 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				best = chokepoint.Cell;
 			}
 
-			return best;
+			if (best == null)
+				return null;
+
+			// Gather short of the passage rather than inside it. A chokepoint is by definition narrow;
+			// assembling a squad in one bunches it up exactly where it is easiest to shell.
+			return StandOffCell(best.Value, basePos, Info.ApproachStandOffCells);
+		}
+
+		/// <summary>Steps back from <paramref name="cell"/> toward <paramref name="towards"/>.</summary>
+		CPos StandOffCell(CPos cell, WPos towards, int cells)
+		{
+			if (cells <= 0)
+				return cell;
+
+			var pos = World.Map.CenterOfCell(cell);
+			var delta = towards - pos;
+			var length = delta.Length;
+			if (length <= 0)
+				return cell;
+
+			var step = WDist.FromCells(cells).Length;
+			if (step >= length)
+				return cell;
+
+			var backed = new WPos(
+				pos.X + (int)((long)delta.X * step / length),
+				pos.Y + (int)((long)delta.Y * step / length),
+				pos.Z + (int)((long)delta.Z * step / length));
+
+			var backedCell = World.Map.CellContaining(backed);
+			return World.Map.Contains(backedCell) ? backedCell : cell;
 		}
 
 		/// <summary>
