@@ -327,6 +327,9 @@ NAGAT:
 	Armament:
 		Weapon: GattlingCannon
 		LocalOffset: 990,255,919, 990,-255,919
+		CasingWeapon: BulletCasing
+		CasingSpawnLocalOffset: 0,255,919, 0,-255,919
+		CasingTargetOffset: 0,1455,0, 0,-1455,0
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		Recoil: 64

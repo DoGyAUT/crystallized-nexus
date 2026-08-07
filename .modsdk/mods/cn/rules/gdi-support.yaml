@@ -88,6 +88,9 @@ GAMG:
 	Armament:
 		Weapon: VulcanTower
 		LocalOffset: 910,-96,1570, 910,88,1570
+		CasingWeapon: BulletCasing
+		CasingSpawnLocalOffset: 200,-10,1570, 200,2,1570
+		CasingTargetOffset: 200,-1300,0, 200,1300,0
 		MuzzleSequence: muzzle_mg
 		MuzzlePalette: effect
 		Recoil: 64
@@ -157,7 +160,10 @@ GACAN:
 		Height: 48
 	Armament:
 		Weapon: 120mm
-		LocalOffset: 1200,250,1580
+		LocalOffset: 1200,250,1580, 1200,250,1580 ## for throwing casing on left and right
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 600,250,1580, 600,250,1580
+		CasingTargetOffset: 500, 1424, 0, 500, -1424, 0
 		MuzzleSequence: muzzle_cannon
 		MuzzlePalette: effect
 		Recoil: 128
@@ -298,6 +304,9 @@ GAGAT:
 	Armament:
 		Weapon: VulcanTowerGattling
 		LocalOffset: 910,-96,1570, 910,88,1570, 537,537,1527, 537,-537,1527, 537,537,1312, 537,-537,1312
+		CasingWeapon: BulletCasing
+		CasingSpawnLocalOffset: 200,-10,1570, 200,2,1570, -100,437,1527, -100,-437,1527, -100,437,1312, -100,-437,1312
+		CasingTargetOffset: 200,-1300,0, 200,1300,0, -100,1600,1527, -100,-1600,1527, -100,1700,1312, -100,-1700,1312
 		MuzzleSequence: muzzle_mg
 		MuzzlePalette: effect
 		Recoil: 64
