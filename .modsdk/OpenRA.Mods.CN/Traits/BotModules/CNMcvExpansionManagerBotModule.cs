@@ -52,6 +52,11 @@ namespace OpenRA.Mods.Common.Traits
 			"normally gate expansion can never be met once it has. 0 disables the starvation trigger.")]
 		public readonly int StarvationFieldCells = 40;
 
+		[Desc("Percent of StarvationFieldCells used as the threshold when a worked field has a seeding " +
+			"tree in it. Lower rather than zero: regrowth is not inexhaustible, and a field mined faster " +
+			"than it seeds runs its owner dry all the same.")]
+		public readonly int StarvationRespawningPercent = 50;
+
 		[Desc("Extra construction yards a starving bot may found beyond its configured ceiling. Bounded " +
 			"rather than unlimited: a profile set to two yards should not grow without end, but it must " +
 			"not be trapped on a dead field either.")]
@@ -1073,9 +1078,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// stop whatever else it does.
 		/// <para>
 		/// Only worked fields count — tiberium elsewhere on the map is exactly what expanding is for, so
-		/// counting it here would mask the very condition being tested. A regrowing field never starves
-		/// its owner, so working one disqualifies the whole check.
+		/// counting it here would mask the very condition being tested.
 		/// </para>
+		/// A blossom tree in the field lowers the bar rather than removing the check. Treating "regrows"
+		/// as "never starves" made this dead on arrival: nearly every Tiberian Sun field has a seeding
+		/// tree, so the first version never once reported starvation in a played match. Regrowth is not
+		/// inexhaustible either - a field mined faster than it seeds runs its owner dry regardless.
 		/// </summary>
 		bool IsResourceStarved()
 		{
@@ -1084,23 +1092,35 @@ namespace OpenRA.Mods.Common.Traits
 
 			var worked = 0;
 			var cells = 0;
+			var respawning = false;
 			for (var i = 0; i < resourceMapModule.GetIndicesLength(); i++)
 			{
 				var indice = resourceMapModule.GetIndice(i);
 				if (indice == null || indice.PlayerRefineryCount <= 0)
 					continue;
 
-				if (indice.HasRespawningResourceSource)
-					return false;
-
 				worked++;
 				cells += indice.ResourceCellsCount;
+				respawning |= indice.HasRespawningResourceSource;
 			}
 
 			// No worked field at all is a different situation - the bot has not started mining yet, or
 			// just lost its refineries - and neither is answered by founding another base.
-			return worked > 0 && cells <= Info.StarvationFieldCells;
+			if (worked <= 0)
+				return false;
+
+			var threshold = respawning
+				? Info.StarvationFieldCells * Math.Clamp(Info.StarvationRespawningPercent, 0, 100) / 100
+				: Info.StarvationFieldCells;
+
+			starvationReport = $"{cells} cells over {worked} field(s), threshold {threshold}{(respawning ? ", regrowing" : "")}";
+			return cells <= threshold;
 		}
+
+		// Last computed starvation inputs, for the expansion log. The verdict alone was not enough to
+		// tell "the fields are still full" from "the check disqualified itself" - which is exactly how
+		// the regrowth bug above survived a whole match unnoticed.
+		string starvationReport = "not evaluated";
 
 		void BuildMCV(IBot bot)
 		{
@@ -1168,14 +1188,14 @@ namespace OpenRA.Mods.Common.Traits
 				// because the income that would produce it is exactly what has run out.
 				if (!richEnough && !opportunity && !starving)
 				{
-					CNBotLog.Debug("{0} expansion held: cash {1} (needs {2} or {3}+spot), yards {4}/{5}, starving {6}",
+					CNBotLog.Debug("{0} expansion held: cash {1} (needs {2} or {3}+spot), yards {4}/{5}, starving {6} ({7})",
 						player, cash, buildCashAmount, Info.OpportunityExpansionCashAmount,
-						conyardNum + mcvNum, yardCeiling, starving);
+						conyardNum + mcvNum, yardCeiling, starving, starvationReport);
 					return;
 				}
 
-				CNBotLog.Debug("{0} expansion approved: cash {1}, yards {2}/{3}, rich {4}, opportunity {5}, starving {6}",
-					player, cash, conyardNum + mcvNum, yardCeiling, richEnough, opportunity, starving);
+				CNBotLog.Debug("{0} expansion approved: cash {1}, yards {2}/{3}, rich {4}, opportunity {5}, starving {6} ({7})",
+					player, cash, conyardNum + mcvNum, yardCeiling, richEnough, opportunity, starving, starvationReport);
 			}
 
 			// We have MCV in production queue, let's wait.
