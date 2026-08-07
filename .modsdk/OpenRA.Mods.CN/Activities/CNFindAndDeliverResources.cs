@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using OpenRA.Activities;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -86,7 +87,7 @@ namespace OpenRA.Mods.Common.Activities
 					return false;
 
 				if (reservedHost != null)
-					AIUtils.BotDebug($"CN AI: Harvester {self} held a reservation on a refinery that is gone — choosing another dock.");
+					CNBotLog.Debug($"CN AI: Harvester {self} held a reservation on a refinery that is gone — choosing another dock.");
 
 				QueueChild(CreateMoveToBestDock(self));
 				hasDeliveredLoad = true;

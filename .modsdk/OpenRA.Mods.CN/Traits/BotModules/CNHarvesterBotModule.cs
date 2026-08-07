@@ -14,6 +14,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Traits;
 
@@ -494,7 +495,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (isStuck)
 			{
-				AIUtils.BotDebug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. Re-issuing harvest order.");
+				CNBotLog.Debug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. Re-issuing harvest order.");
 				h.StationaryTicks = 0;
 			}
 
@@ -502,7 +503,7 @@ namespace OpenRA.Mods.Common.Traits
 			ClearHarvesterRefinery(h.Actor);
 			var refineryAnchor = FindBestRefineryAnchor(h.Actor, h);
 			var newSafeResourcePatch = FindNextResource(h.Actor, h, refineryAnchor);
-			AIUtils.BotDebug($"CN AI: Harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
+			CNBotLog.Debug($"CN AI: Harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
 			if (newSafeResourcePatch.Type != TargetType.Invalid)
 			{
 				bot.QueueOrder(new Order("Harvest", h.Actor, newSafeResourcePatch, false));
@@ -764,7 +765,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (bestScore < currentScore + Info.DockReassignmentScoreThreshold)
 					continue;
 
-				AIUtils.BotDebug($"CN AI: Rerouting full harvester {h.Actor} from congested refinery {currentDock} to {bestDock}.");
+				CNBotLog.Debug($"CN AI: Rerouting full harvester {h.Actor} from congested refinery {currentDock} to {bestDock}.");
 				bot.QueueOrder(new Order("Dock", h.Actor, Target.FromActor(bestDock), false));
 			}
 		}

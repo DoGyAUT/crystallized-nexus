@@ -13,6 +13,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
@@ -907,7 +908,7 @@ namespace OpenRA.Mods.Common.Traits
 						// path length, threat, coordination with other MCVs and how crowded the field
 						// already is. Logged per candidate so a surprising choice can be traced to the
 						// term that caused it.
-						AIUtils.BotDebug(
+						CNBotLog.Debug(
 							"{0} mcv field {1}: attraction {2} (cells {3}, threat -{4}, coordination -{5}, occupancy -{6})",
 							player, indiceCenter, attraction, resourceCellsCount,
 							threatPenalty, coordinationPenalty, occupancyBefore - attraction);
@@ -923,7 +924,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (cr_suitablespot == null)
 						return (null, int.MinValue, null);
 
-					AIUtils.BotDebug("{0} mcv chose field {1} with attraction {2}", player, cr_checkspot, cr_best);
+					CNBotLog.Debug("{0} mcv chose field {1} with attraction {2}", player, cr_checkspot, cr_best);
 
 					return (cr_suitablespot, cr_best, cr_checkspot);
 

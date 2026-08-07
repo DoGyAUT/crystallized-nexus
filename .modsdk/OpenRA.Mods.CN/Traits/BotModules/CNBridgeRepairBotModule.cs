@@ -9,6 +9,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -113,7 +114,7 @@ namespace OpenRA.Mods.CN.Traits
 				bot.QueueOrder(new Order("RepairBridge", repairer, Target.FromActor(target), false));
 				activeAssignments[repairer] = target;
 				assignedTargets.Add(target);
-				AIUtils.BotDebug("AI ({0}): Ordered {1} to repair bridge hut {2}", player.ClientIndex, repairer, target);
+				CNBotLog.Debug("AI ({0}): Ordered {1} to repair bridge hut {2}", player.ClientIndex, repairer, target);
 			}
 		}
 

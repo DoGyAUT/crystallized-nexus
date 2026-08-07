@@ -14,6 +14,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
@@ -2768,7 +2769,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (possibleRallyPoints.Count == 0)
 			{
-				AIUtils.BotDebug("{0} has no possible rallypoint near {1}", producer.Owner, producer.Location);
+				CNBotLog.Debug("{0} has no possible rallypoint near {1}", producer.Owner, producer.Location);
 				return producer.Location;
 			}
 
@@ -3109,7 +3110,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// This caps GetTargetRefineryCount, so when it comes out low the bot stops wanting
 			// refineries entirely — no placement is ever attempted and nothing else reports why.
-			AIUtils.BotDebug(
+			CNBotLog.Debug(
 				"{0} refinery capacity: {1} from {2}/{3} indices (largest field {4} cells, thresholds {5}/{6})",
 				player, supportedCapacity, scored, ResourceMapModule.GetIndicesLength(),
 				largestField, Info.MinFiniteFieldCellsForRefinery, Info.MinFiniteFieldCellsForExtraRefinery);
@@ -3561,7 +3562,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (sellCandidate == null)
 				return false;
 
-			AIUtils.BotDebug($"CN AI: Selling {sellCandidate} to recover refinery economy. Cash {cash}, refinery cost {refineryCost}.");
+			CNBotLog.Debug($"CN AI: Selling {sellCandidate} to recover refinery economy. Cash {cash}, refinery cost {refineryCost}.");
 			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
 			return true;
 		}
@@ -3601,7 +3602,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (sellCandidate == null)
 				return false;
 
-			AIUtils.BotDebug($"CN AI: Selling {sellCandidate} to recover harvester. Cash {cash}, harvester cost {harvesterCost}.");
+			CNBotLog.Debug($"CN AI: Selling {sellCandidate} to recover harvester. Cash {cash}, harvester cost {harvesterCost}.");
 			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
 			return true;
 		}
@@ -3639,7 +3640,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (sellCandidate == null)
 				return false;
 
-			AIUtils.BotDebug($"CN AI: Selling {sellCandidate} to recover MCV. Cash {cash}, MCV cost {mcvCost}.");
+			CNBotLog.Debug($"CN AI: Selling {sellCandidate} to recover MCV. Cash {cash}, MCV cost {mcvCost}.");
 			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
 			return true;
 		}
@@ -3657,7 +3658,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			terminalRecoveryTriggered = true;
-			AIUtils.BotDebug($"CN AI: Terminal bankruptcy — selling all and going kamikaze. Cash {cash}.");
+			CNBotLog.Debug($"CN AI: Terminal bankruptcy — selling all and going kamikaze. Cash {cash}.");
 
 			ExecuteKamikaze(bot);
 		}

@@ -14,6 +14,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.CN.Traits;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
@@ -648,7 +649,7 @@ namespace OpenRA.Mods.Common.Traits
 						// A refinery with no accessible tiberium spot should not jam the entire build
 						// queue — the bot should still build power, barracks, defenses, etc.
 						// Cancel it and start a cooldown before the economy check tries again.
-						AIUtils.BotDebug("{0} refinery: placement found no cell, cancelling (have {1}, target {2})",
+						CNBotLog.Debug("{0} refinery: placement found no cell, cancelling (have {1}, target {2})",
 							player, AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings),
 							baseBuilder.GetTargetRefineryCount());
 
@@ -663,7 +664,7 @@ namespace OpenRA.Mods.Common.Traits
 					// If we just reached the maximum fail count, cache the number of current structures
 					if (++failCount >= baseBuilder.Info.MaximumFailedPlacementAttempts)
 					{
-						AIUtils.BotDebug($"{player} has nowhere to place {currentBuilding.Item}");
+						CNBotLog.Debug($"{player} has nowhere to place {currentBuilding.Item}");
 						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
 						lastFailedBuilding = currentBuilding.Item;
 						if (type == BuildingType.Defense)
@@ -960,14 +961,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (playerPower != null && effectiveExcessPower < minimumExcessPower &&
 				power != null && power.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault).Sum(p => p.Amount) > 0)
 			{
-				AIUtils.BotDebug("{0} decided to build {1}: Priority override (low power)", queue.Actor.Owner, power.Name);
+				CNBotLog.Debug("{0} decided to build {1}: Priority override (low power)", queue.Actor.Owner, power.Name);
 				return power;
 			}
 
 			// Next is to build up a strong economy
 			var wantsEconomy = baseBuilder.ShouldExpandEconomy();
 			if (!wantsEconomy || refineryPlacementCooldownTicks > 0)
-				AIUtils.BotDebug("{0} refinery: skipped (wantsEconomy {1}, have {2}/{3}, cooldown {4})",
+				CNBotLog.Debug("{0} refinery: skipped (wantsEconomy {1}, have {2}/{3}, cooldown {4})",
 					player, wantsEconomy,
 					AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings),
 					baseBuilder.GetTargetRefineryCount(), refineryPlacementCooldownTicks);
@@ -976,9 +977,9 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var refinery = GetProducibleBuilding(baseBuilder.Info.RefineryTypes, buildableThings);
 				if (refinery == null)
-					AIUtils.BotDebug("{0} refinery: none buildable in this queue", player);
+					CNBotLog.Debug("{0} refinery: none buildable in this queue", player);
 				else if (!HasSufficientPowerForActor(refinery))
-					AIUtils.BotDebug("{0} refinery: {1} blocked on power", player, refinery.Name);
+					CNBotLog.Debug("{0} refinery: {1} blocked on power", player, refinery.Name);
 
 				if (refinery != null && HasSufficientPowerForActor(refinery))
 				{
@@ -989,14 +990,14 @@ namespace OpenRA.Mods.Common.Traits
 					if (!hasExistingRefinery || hasRequestedExpansionRefinery || HasViableRefineryField(refinery))
 					{
 						baseBuilder.RefineryExpansionBlocked = false;
-						AIUtils.BotDebug("{0} decided to build {1}: Priority override (refinery)", queue.Actor.Owner, refinery.Name);
+						CNBotLog.Debug("{0} decided to build {1}: Priority override (refinery)", queue.Actor.Owner, refinery.Name);
 						return refinery;
 					}
 					else
 					{
 						// No viable spot for a second refinery — signal that expansion is blocked so
 						// PauseUnitProduction doesn't hold units hostage waiting for an impossible refinery.
-						AIUtils.BotDebug("{0} refinery: no viable field near {1} (have {2}, opportunity {3})",
+						CNBotLog.Debug("{0} refinery: no viable field near {1} (have {2}, opportunity {3})",
 							player, baseBuilder.ResourceConyardCenter ?? baseBuilder.GetRandomBaseCenter(),
 							AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings),
 							baseBuilder.HasViableRefineryExpansionOpportunity());
@@ -1007,7 +1008,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (power != null && refinery != null && !HasSufficientPowerForActor(refinery))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 					return power;
 				}
 			}
@@ -1032,7 +1033,7 @@ namespace OpenRA.Mods.Common.Traits
 						var (gateLoc, _, _) = ChooseGateLocation(gate);
 						if (gateLoc != null)
 						{
-							AIUtils.BotDebug("{0} decided to build {1}: Priority override (gate)", queue.Actor.Owner, gate.Name);
+							CNBotLog.Debug("{0} decided to build {1}: Priority override (gate)", queue.Actor.Owner, gate.Name);
 							return gate;
 						}
 					}
@@ -1045,7 +1046,7 @@ namespace OpenRA.Mods.Common.Traits
 					var (wallLoc, _, _) = ChooseWallLocation(wallActorInfo);
 					if (wallLoc != null)
 					{
-						AIUtils.BotDebug("{0} decided to build {1}: Priority override (wall)", queue.Actor.Owner, wall.Name);
+						CNBotLog.Debug("{0} decided to build {1}: Priority override (wall)", queue.Actor.Owner, wall.Name);
 						return wall;
 					}
 				}
@@ -1058,13 +1059,13 @@ namespace OpenRA.Mods.Common.Traits
 				var production = GetProducibleBuilding(baseBuilder.Info.ProductionTypes, buildableThings);
 				if (production != null && HasSufficientPowerForActor(production))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (production)", queue.Actor.Owner, production.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (production)", queue.Actor.Owner, production.Name);
 					return production;
 				}
 
 				if (power != null && production != null && !HasSufficientPowerForActor(production))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 					return power;
 				}
 			}
@@ -1077,13 +1078,13 @@ namespace OpenRA.Mods.Common.Traits
 				var navalproduction = GetProducibleBuilding(baseBuilder.Info.NavalProductionTypes, buildableThings);
 				if (navalproduction != null && HasSufficientPowerForActor(navalproduction))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (navalproduction)", queue.Actor.Owner, navalproduction.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (navalproduction)", queue.Actor.Owner, navalproduction.Name);
 					return navalproduction;
 				}
 
 				if (power != null && navalproduction != null && !HasSufficientPowerForActor(navalproduction))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 					return power;
 				}
 			}
@@ -1094,13 +1095,13 @@ namespace OpenRA.Mods.Common.Traits
 				var silo = GetProducibleBuilding(baseBuilder.Info.SiloTypes, buildableThings);
 				if (silo != null && HasSufficientPowerForActor(silo))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (silo)", queue.Actor.Owner, silo.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (silo)", queue.Actor.Owner, silo.Name);
 					return silo;
 				}
 
 				if (power != null && silo != null && !HasSufficientPowerForActor(silo))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 					return power;
 				}
 			}
@@ -1152,7 +1153,7 @@ namespace OpenRA.Mods.Common.Traits
 					var reactiveDefense = ChooseReactiveDefense(buildableThings, reactiveRole, totalDefenseCount, roleDefenseCounts);
 					if (reactiveDefense != null)
 					{
-						AIUtils.BotDebug("{0} reactive defense: building {1} (threat role: {2})",
+						CNBotLog.Debug("{0} reactive defense: building {1} (threat role: {2})",
 							player, reactiveDefense.Name, reactiveRole);
 						return reactiveDefense;
 					}
@@ -1161,7 +1162,7 @@ namespace OpenRA.Mods.Common.Traits
 				var plannedDefense = ChoosePlannedDefense(buildableThings, totalDefenseCount, roleDefenseCounts);
 				if (plannedDefense != null)
 				{
-					AIUtils.BotDebug("{0} planned defense: building {1}", player, plannedDefense.Name);
+					CNBotLog.Debug("{0} planned defense: building {1}", player, plannedDefense.Name);
 					return plannedDefense;
 				}
 			}
@@ -1277,23 +1278,23 @@ namespace OpenRA.Mods.Common.Traits
 					if (power != null && power.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault).Sum(pi => pi.Amount) > 0)
 					{
 						if (playerPower.PowerOutageRemainingTicks > 0)
-							AIUtils.BotDebug("{0} decided to build {1}: Priority override (is low power)", queue.Actor.Owner, power.Name);
+							CNBotLog.Debug("{0} decided to build {1}: Priority override (is low power)", queue.Actor.Owner, power.Name);
 						else
-							AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+							CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 
 						return power;
 					}
 				}
 
 				// Lets build this
-				AIUtils.BotDebug("{0} decided to build {1}: Desired is {2} ({3} / {4}); current is {5} / {4}",
+				CNBotLog.Debug("{0} decided to build {1}: Desired is {2} ({3} / {4}); current is {5} / {4}",
 					queue.Actor.Owner, bestFractionName, bestFractionValue, bestFractionValue * playerBuildings.Length,
 					playerBuildings.Length, bestFractionCount);
 				return bestFractionActor;
 			}
 
 			// Too spammy to keep enabled all the time, but very useful when debugging specific issues.
-			// AIUtils.BotDebug("{0} couldn't decide what to build for queue {1}.", queue.Actor.Owner, queue.Info.Group);
+			// CNBotLog.Debug("{0} couldn't decide what to build for queue {1}.", queue.Actor.Owner, queue.Info.Group);
 			return null;
 		}
 

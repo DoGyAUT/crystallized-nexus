@@ -1818,7 +1818,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				value = Math.Max(value, -Info.MaxPerformancePenaltyPerTag);
 
 			tagPerformance[tag] = value;
-			AIUtils.BotDebug($"CN AI: Tag '{tag}' lost {deaths} unit(s), performance penalty now {value:0.0}.");
+			CNBotLog.Debug($"CN AI: Tag '{tag}' lost {deaths} unit(s), performance penalty now {value:0.0}.");
 		}
 
 		// Recovers every tracked tag's performance penalty back toward 0 each cleanup pass, so a
@@ -2365,7 +2365,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				// Logged because a rally point is the one bot decision whose reasoning is completely
 				// invisible from the outside - you see squads gather somewhere odd and cannot tell
 				// whether the terrain scan, the threat estimate or the detour bound put them there.
-				AIUtils.BotDebug("{0} wave rally: direct {1} (threat {2}) vs approach {3} (threat {4})",
+				CNBotLog.Debug("{0} wave rally: direct {1} (threat {2}) vs approach {3} (threat {4})",
 					Player, cell, directThreat, approach.Value, approachThreat);
 
 				if (approachThreat < directThreat)
