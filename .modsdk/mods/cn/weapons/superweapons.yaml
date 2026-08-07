@@ -101,6 +101,111 @@ IonCannon:
 		Explosions: ionbeam6
 		ImpactActors: false
 
+
+CNC3IonCannonSpawner: ### THIS ONE GENERATES THE MAIN ION BEAM DUMMY
+	ReloadDelay: 6
+	Range: 12c0
+	ValidTargets: Ground, Vehicle, Infantry, Building, Water, Air
+	Warhead@4BeamEff: FireReverseRadius
+		ValidTargets: Vehicle, Infantry, Building, Ground, Water, Air
+		Weapon: CNC3IonBeamMini
+		ImpactActors: false
+		Amount: 10
+		AirThreshold: 8c0
+	Warhead@5BeamEff: FireFragment
+		Delay: 100
+		ImpactActors: false
+		Weapon: CNC3IonBeam
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 8c0
+	Warhead@6BeamEff: FireFragment
+		Delay: 147
+		ImpactActors: false
+		Weapon: CNC3IonBeamMini
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 8c0
+	### THIS IS THE MAIN ION CANON WEAPON, after Delay=110
+	Warhead@1Dam_impact: SpreadDamage
+		Delay: 110
+		Spread: 1c0
+		Damage: 250
+		Falloff: 1000, 368, 135, 50, 18, 7, 0
+		ValidTargets: Ground, Water, Air
+		DamageTypes: Prone100Percent, TriggerProne, EnergyDeath
+	Warhead@2Dam_area: SpreadDamage
+		Spread: 1c0
+		Damage: 500
+		Falloff: 100, 50, 25, 0
+		Delay: 109
+		ValidTargets: Ground, Water, Air, Trees
+		DamageTypes: Prone50Percent, TriggerProne, EnergyDeath
+		AirThreshold: 8c0
+	Warhead@3Smu_area: LeaveSmudge
+		Delay: 110
+		SmudgeType: SmallScorch
+		InvalidTargets: Vehicle, Building, Wall
+		Size: 2
+		AirThreshold: 8c0
+	Warhead@3Effect: CreateEffect
+		Delay: 110
+		Explosions: ionring
+		ImpactSounds: ion1.aud
+		AffectsParent: true
+		ImpactActors: false
+		ValidTargets: Ground, Water, BlueTiberium, Tiberium, Air
+		AirThreshold: 8c0
+	Warhead@Shake: ShakeScreen
+		Duration: 15
+		Intensity: 8
+		Multiplier: 1,1
+		AirThreshold: 8c0
+		Delay: 114
+
+CNC3IonBeam:
+	ReloadDelay: 9999
+	ValidTargets: Ground, Water, Air
+	Projectile: SpriteAthenaLaser
+		Image: explosion
+		Sequence: cnc3ionbeam
+		RingImage: explosion
+		RingSequence: ionring_mini
+		SpriteNumber: 6
+		HeightOffset: 6146
+		StayTicks: 50
+		Speed: 0
+		ExplosionInterval: 3
+	Warhead@1Eff_impact: CreateEffect
+		Explosions: cnc3ion_piffs
+		ExplosionPalette: apolcyan
+		AirThreshold: 8c0
+		ImpactActors: false
+
+CNC3IonBeamMini:
+	Inherits: CNC3IonBeam
+	Range: 5c256
+	Projectile: SpriteAthenaLaser
+		Sequence: cnc3ionbeam_mini
+		RingSequence: ionring_mini_fast
+		StayTicks: 10
+		ExplosionInterval: 3
+		SpriteNumber: 12
+		HeightOffset: 3073
+		Speed: 52
+		RotSpeed: 12
+	Warhead@1Eff_impact: CreateEffect
+		Explosions: cnc3ion_piffs
+		ExplosionPalette: apolcyan
+		AirThreshold: 8c0
+		ImpactActors: false
+	Warhead@2Dam_area: SpreadDamage
+		Spread: 0c256
+		Damage: 50
+		Falloff: 100, 50, 25, 0
+		ValidTargets: Ground, Water, Air, Trees
+		DamageTypes: Prone50Percent, TriggerProne, EnergyDeath
+		AirThreshold: 8c0
+
+
 EMPulseCannon:
 	ReloadDelay: 100
 	Range: 40c0

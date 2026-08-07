@@ -878,7 +878,7 @@ GAPLUG:
 		RequiresCondition: plug.ioncannona || plug.ioncannonb
 		Icon: ioncannon
 		Effect: explosion
-		EffectSequence: ionring
+		EffectSequence: tiny_flash_w
 		WeaponDelay: 0
 		ChargeInterval: 12750
 		Name: actor-gaplug.ioncannonpower-name
@@ -889,6 +889,7 @@ GAPLUG:
 		SelectTargetTextNotification: notification-select-target
 		DisplayRadarPing: True
 		CameraActor: camera
+		Weapon: CNC3IonCannonSpawner
 	DropPodsPower:
 		Cursor: ioncannon
 		PauseOnCondition: disabled || empdisable
