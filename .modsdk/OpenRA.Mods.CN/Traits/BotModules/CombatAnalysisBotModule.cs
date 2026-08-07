@@ -10,6 +10,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.CN.Traits;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -234,7 +235,10 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var categoryFraction = isSubstance ? 1f : Info.CombatUnitWeightFraction;
 					var weight = Info.WeightPerHit * GetValueWeightMultiplier(e.Attacker) * categoryFraction;
-					weights[role] = Math.Min(100f, weights[role] + weight);
+					var before = weights[role];
+					weights[role] = Math.Min(100f, before + weight);
+
+					ReportThreatTransition(role, before, self, e.Attacker, isSubstance);
 				}
 
 				if (isSubstance)
@@ -251,6 +255,32 @@ namespace OpenRA.Mods.Common.Traits
 			nemesisScores.TryGetValue(attacker, out var current);
 			nemesisScores[attacker] = Math.Min(100f, current + Info.NemesisWeightPerHit);
 			nextNemesisRecordTick = world.WorldTick + Math.Max(1, Info.NemesisRecordInterval);
+		}
+
+		/// <summary>
+		/// Logs the two moments in a threat role's life that actually mean something: the point where it
+		/// crosses ReactThreshold and the bot starts building against it, and the point where it pins at
+		/// the cap. Logging every recorded hit would bury both in noise.
+		/// <para>
+		/// This exists because the module's failure mode is silence. Sniping harvesters registered
+		/// nothing at all until the economy actors were added, and nobody noticed for the length of a
+		/// match — there was no way to see that the table had stayed at zero. It also lets the combat-unit
+		/// weighting be judged in practice: if a role pins at 100 during every field engagement,
+		/// CombatUnitWeightFraction is too high, and the log is what shows it.
+		/// </para>
+		/// </summary>
+		void ReportThreatTransition(DefenseRole role, float before, Actor damaged, Actor attacker, bool isSubstance)
+		{
+			var now = weights[role];
+
+			if (before < Info.ReactThreshold && now >= Info.ReactThreshold)
+				CNBotLog.Debug("{0} threat {1} reached react threshold ({2:0.0}) — hit on {3} by {4} [{5}]",
+					self, role, now, damaged.Info.Name, attacker.Info.Name,
+					isSubstance ? "substance" : "combat unit");
+			else if (before < 100f && now >= 100f)
+				CNBotLog.Debug("{0} threat {1} pinned at the cap — hit on {2} by {3} [{4}]",
+					self, role, damaged.Info.Name, attacker.Info.Name,
+					isSubstance ? "substance" : "combat unit");
 		}
 
 		bool IsEconomyActor(ActorInfo info)
