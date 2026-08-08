@@ -667,7 +667,7 @@ WARDEN:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
-		Prerequisites: ~gaweap, ~techlevel.medium, ~tech.steel
+		Prerequisites:  ~gaweap, garadr, ~techlevel.medium, ~tech.steel
 		Description: actor-warden.description
 	Mobile:
 		Locomotor: walker
