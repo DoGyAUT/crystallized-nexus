@@ -237,7 +237,6 @@ namespace OpenRA.Mods.Common.Traits
 		int switchCooldown;
 		int activeProfileSinceTick;
 		int profileConditionToken = Actor.InvalidConditionToken;
-		bool firstTick = true;
 
 		CNBaseBuilderBotModule baseBuilder;
 		CombatAnalysisBotModule combatAnalysis;
@@ -266,22 +265,33 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
-			if (firstTick)
-			{
+			// Re-resolved whenever the cached one is no longer enabled, not once at startup.
+			//
+			// There is one squad manager, base builder and MCV manager PER PROFILE, each gated by a
+			// RequiresCondition, and this module is what switches between them. Caching the reference
+			// on the first tick therefore left it pointing at an instance that the module's own next
+			// decision disabled. The fortification input read zero for the rest of the match while the
+			// active squad manager knew of twenty-two enemy emplacements, and every other read through
+			// these references was equally stale. Same pattern CNUnitBuilderBotModule already uses.
+			if (baseBuilder == null || !baseBuilder.IsTraitEnabled())
 				baseBuilder = bot.Player.PlayerActor
 					.TraitsImplementing<CNBaseBuilderBotModule>()
 					.FirstOrDefault(t => t.IsTraitEnabled());
+
+			if (combatAnalysis == null || !combatAnalysis.IsTraitEnabled())
 				combatAnalysis = bot.Player.PlayerActor
 					.TraitsImplementing<CombatAnalysisBotModule>()
 					.FirstOrDefault(t => t.IsTraitEnabled());
+
+			if (squadManager == null || !squadManager.IsTraitEnabled())
 				squadManager = bot.Player.PlayerActor
 					.TraitsImplementing<CNSquadManagerBotModule>()
 					.FirstOrDefault(t => t.IsTraitEnabled());
+
+			if (mcvExpansion == null || !mcvExpansion.IsTraitEnabled())
 				mcvExpansion = bot.Player.PlayerActor
 					.TraitsImplementing<CNMcvExpansionManagerBotModule>()
 					.FirstOrDefault(t => t.IsTraitEnabled());
-				firstTick = false;
-			}
 
 			UpdateTechStage();
 
