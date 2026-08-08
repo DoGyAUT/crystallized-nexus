@@ -1,4 +1,4 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -151,6 +151,14 @@ namespace OpenRA.Mods.Common.Traits
 			"leaving the MCV wandering.")]
 		public readonly int DeploySiteMinBuildableCells = 60;
 
+		[Desc("Percent of the straight line from a deploy candidate to its tiberium field that may be",
+			"undriveable before the candidate is passed over. Straight-line closeness to the field is",
+			"what ranks candidates, and under a cliff is as close as it gets - so without this a yard",
+			"lands below the terrace its tiberium sits on and every haul pays for it. Only candidates",
+			"that clear it are considered; if none can be built on, the full list is used anyway rather",
+			"than leaving the MCV wandering.")]
+		public readonly int DeployMaxBlockedLinePercent = 20;
+
 		[Desc("Initial expansion mode chosen by AI.")]
 		public readonly BotMcvExpansionMode InitialExpansionMode = BotMcvExpansionMode.CheckResource;
 
@@ -242,6 +250,10 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		// When ExpansionModeAutoSwitch is true, if the AI fails to find a deploy spot enough time even in CheckBase mode
 		// NegativeMaxFailedAttempts is applied to make AI switch bettween modes more frequently until a successful attempt
+		// Samples along the line from a prospective yard site to the field. Enough to tell a cliff from
+		// a gap, and cheap enough to run over every deploy candidate.
+		const int DeployLineSamples = 20;
+
 		const int CRmodPositiveMaxFailedAttempts = 3;
 		const int CBmodPositiveMaxFailedAttempts = 2;
 		const int NegativeMaxFailedAttempts = 0;
@@ -1350,6 +1362,38 @@ namespace OpenRA.Mods.Common.Traits
 			return resourceMapModule.CountValuableResourceCellsNear(cell, footprintReach + Info.McvResourceClearance) > 0;
 		}
 
+		/// <summary>
+		/// Whether a harvester could drive the straight line from a prospective yard site to the field,
+		/// sampled rather than pathed. A full path would answer "yes" for a site under a cliff too - the
+		/// road exists, it just runs the long way round, and that is precisely the case being excluded.
+		/// What separates the two is whether the direct line is driveable at all.
+		/// </summary>
+		bool LineToFieldIsDrivable(CPos from, CPos to)
+		{
+			var locomotors = cnBaseBuilder?.HarvesterLocomotorsList;
+			if (locomotors == null || locomotors.Length == 0)
+				return true;
+
+			var straight = (to - from).Length;
+			if (straight <= 0)
+				return true;
+
+			var samples = Math.Min(straight, DeployLineSamples);
+			var blocked = 0;
+			for (var i = 1; i <= samples; i++)
+			{
+				var step = new CPos(
+					from.X + ((to.X - from.X) * i / samples),
+					from.Y + ((to.Y - from.Y) * i / samples));
+
+				if (!world.Map.Contains(step)
+					|| !locomotors.All(l => l.MovementCostForCell(step) != PathGraph.MovementCostForUnreachableCell))
+					blocked++;
+			}
+
+			return blocked * 100 / samples <= Info.DeployMaxBlockedLinePercent;
+		}
+
 		int CountBuildableCellsAround(CPos center, BuildingInfo bi)
 		{
 			var radius = Math.Max(1, Info.DeploySiteCheckRadius);
@@ -1564,56 +1608,70 @@ namespace OpenRA.Mods.Common.Traits
 				// Clear of the tiberium but cramped beats roomy but sitting in the field: a yard in the
 				// tiberium permanently costs harvestable ground, blocks the refinery from the cells it
 				// wants and gets overgrown, while a tight plot still grows outward as the base expands.
-				CPos? bestcell = null;
-				CPos? clearButCramped = null;
-				CPos? roomyButNearResources = null;
-				CPos? lastResort = null;
-				var clearButCrampedRoom = -1;
-				var roomyButNearResourcesRoom = -1;
-				var lastResortRoom = -1;
-
-				foreach (var cell in cells)
+				CPos? PickFrom(IEnumerable<CPos> candidates)
 				{
-					if (!world.CanPlaceBuilding(cell + offset, transformIntoInfo, transformIntoBuildingInfo, mcv))
-						continue;
+					CPos? bestcell = null;
+					CPos? clearButCramped = null;
+					CPos? roomyButNearResources = null;
+					CPos? lastResort = null;
+					var clearButCrampedRoom = -1;
+					var roomyButNearResourcesRoom = -1;
+					var lastResortRoom = -1;
 
-					// Roomiest of each class, not the first. Candidates are ordered by closeness to the
-					// target, so taking the first settled for whatever sat nearest the field — the strip
-					// between tiberium and map edge included.
-					var room = CountBuildableCellsAround(cell, transformIntoBuildingInfo);
-					var hasRoom = room >= Info.DeploySiteMinBuildableCells;
-					var clearOfResources = !IsTooCloseToResources(cell, transformIntoBuildingInfo);
-
-					if (hasRoom && clearOfResources)
+					foreach (var cell in candidates)
 					{
-						bestcell = cell;
-						break;
-					}
+						if (!world.CanPlaceBuilding(cell + offset, transformIntoInfo, transformIntoBuildingInfo, mcv))
+							continue;
 
-					if (clearOfResources)
-					{
-						if (room > clearButCrampedRoom)
+						// Roomiest of each class, not the first. Candidates are ordered by closeness to the
+						// target, so taking the first settled for whatever sat nearest the field — the strip
+						// between tiberium and map edge included.
+						var room = CountBuildableCellsAround(cell, transformIntoBuildingInfo);
+						var hasRoom = room >= Info.DeploySiteMinBuildableCells;
+						var clearOfResources = !IsTooCloseToResources(cell, transformIntoBuildingInfo);
+
+						if (hasRoom && clearOfResources)
 						{
-							clearButCrampedRoom = room;
-							clearButCramped = cell;
+							bestcell = cell;
+							break;
+						}
+
+						if (clearOfResources)
+						{
+							if (room > clearButCrampedRoom)
+							{
+								clearButCrampedRoom = room;
+								clearButCramped = cell;
+							}
+						}
+						else if (hasRoom)
+						{
+							if (room > roomyButNearResourcesRoom)
+							{
+								roomyButNearResourcesRoom = room;
+								roomyButNearResources = cell;
+							}
+						}
+						else if (room > lastResortRoom)
+						{
+							lastResortRoom = room;
+							lastResort = cell;
 						}
 					}
-					else if (hasRoom)
-					{
-						if (room > roomyButNearResourcesRoom)
-						{
-							roomyButNearResourcesRoom = room;
-							roomyButNearResources = cell;
-						}
-					}
-					else if (room > lastResortRoom)
-					{
-						lastResortRoom = room;
-						lastResort = cell;
-					}
+
+					return bestcell ?? clearButCramped ?? roomyButNearResources ?? lastResort;
 				}
 
-				bestcell ??= clearButCramped ?? roomyButNearResources ?? lastResort;
+				// Candidates are ranked by straight-line closeness to the field, and on a terraced map
+				// the cells nearest the tiberium in a straight line are the ones directly under the cliff
+				// it sits on. That is how a bot came to found an expansion where every field cost 77 to 90
+				// cells of driving for 13 to 16 of straight line - and once the yard stands there, refinery
+				// placement can only choose between bad options, because the decision was already made.
+				//
+				// So look first at the cells that can actually drive to the field, and only fall back to
+				// the full list if none of them can be built on. Deploying awkwardly beats not deploying.
+				var bestcell = PickFrom(cells.Where(c => LineToFieldIsDrivable(c, target)));
+				bestcell ??= PickFrom(cells);
 
 				// If no deployble cell found, return null
 				if (bestcell == null)
