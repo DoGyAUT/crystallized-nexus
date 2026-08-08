@@ -35,6 +35,10 @@ namespace OpenRA.Mods.Common.Traits
 		// neighbourhood the refinery is being placed in anyway.
 		const int MaxFieldSpreadInspections = 512;
 
+		// Samples along the straight line when no unit exists to path with. Enough to tell a wall from
+		// a gap; the answer is an estimate either way.
+		const int MaxUnmeasuredLineSamples = 24;
+
 		public readonly string Category;
 		public int WaitTicks;
 
@@ -328,6 +332,7 @@ namespace OpenRA.Mods.Common.Traits
 				return cached < 0 ? null : cached;
 
 			var length = -1;
+			var blockedPercent = 0;
 
 			// A harvester is the right thing to ask, but the opening refinery is placed before the bot
 			// owns one - and that placement matters most of all, since a first refinery on the wrong
@@ -368,16 +373,42 @@ namespace OpenRA.Mods.Common.Traits
 				// check being skipped on the one placement that matters most.
 				// CVec.Length is already in cells - the operands are cell coordinates, not world
 				// positions - so there is no 1024 to divide out here.
+				//
+				// Walk the straight line and count how much of it a harvester could not drive. That is
+				// the question worth asking: not how high the two ends are above each other, but how
+				// badly the straight line misrepresents the road.
+				//
+				// Height difference alone was tried first and ranked nothing. In the bowl this was
+				// written for, every field sits four levels up, so it scaled all of them by the same
+				// factor 7 - 98 for a field 14 away, 133 for one 19 away - which is the straight-line
+				// order it was supposed to correct, wearing bigger numbers.
 				var straight = (resource - baseCenter).Length;
-				var heightDelta = Math.Abs(world.Map.Height[resource] - world.Map.Height[baseCenter]);
-				if (straight > 0 && heightDelta > 0)
-					length = straight * (100 + heightDelta * Math.Max(0, baseBuilder.Info.RefineryUnmeasuredHeightDetourPercent)) / 100;
+				if (straight > 0)
+				{
+					var samples = Math.Min(straight, MaxUnmeasuredLineSamples);
+					var blocked = 0;
+					for (var i = 1; i <= samples; i++)
+					{
+						var step = new CPos(
+							baseCenter.X + ((resource.X - baseCenter.X) * i / samples),
+							baseCenter.Y + ((resource.Y - baseCenter.Y) * i / samples));
+
+						if (!world.Map.Contains(step) || !IsPassableForHarvesters(step))
+							blocked++;
+					}
+
+					var detourPercent = blocked * Math.Max(0, baseBuilder.Info.RefineryUnmeasuredBlockedDetourPercent) / samples;
+					length = straight * (100 + detourPercent) / 100;
+					blockedPercent = blocked * 100 / samples;
+				}
 			}
 
 			if (length > 0)
 				CNBotLog.Debug("{0} field {1}: {2} cells to drive, {3} straight{4}",
 					player, resource, length, (resource - baseCenter).Length,
-					harvester == null ? " (estimated from height, no unit to path with)" : "");
+					harvester == null
+						? $" (estimated, no unit to path with: {blockedPercent}% of the line is undriveable)"
+						: "");
 
 			fieldPathLengthCache[(baseCenter, resource)] = length;
 			return length < 0 ? null : length;
