@@ -468,24 +468,79 @@ namespace OpenRA.Mods.Common.Traits
 					.Take(maxChecks)
 					.ToArray();
 
-			var localCells = resources
-				.OrderByDescending(c => CountPassableOrthogonalNeighbors(c) * 10 - (c - baseLoc).LengthSquared / 8)
-				.Take(maxChecks);
+			// Ordered by straight-line proximity and openness, then spread across fields. The ordering
+			// alone fills the whole allowance with neighbours of the nearest blob - a played match spent
+			// an entire decision on sixteen cells of one field, each 82 to 87 cells of driving away for
+			// 11 to 14 of straight line. The drive-length penalty was measuring correctly and had
+			// nothing to rank against, because the alternative field was never in the list.
+			var localCells = SpreadAcrossFields(resources
+				.OrderByDescending(c => CountPassableOrthogonalNeighbors(c) * 10 - (c - baseLoc).LengthSquared / 8));
 
 			if (existingRefineryLoc == null)
 				return localCells.ToArray();
 
 			// Additional refineries should spread out, but not at the cost of ignoring
 			// nearby open field cells that can support a second refinery in the same base.
-			var spreadCells = resources
-				.OrderByDescending(c => (c - existingRefineryLoc.Value).LengthSquared)
-				.Take(maxChecks);
+			var spreadCells = SpreadAcrossFields(resources
+				.OrderByDescending(c => (c - existingRefineryLoc.Value).LengthSquared));
 
 			return localCells
 				.Concat(spreadCells)
 				.Distinct()
 				.Take(Math.Max(maxChecks, 16))
 				.ToArray();
+		}
+
+		// A field can run to 150 cells, so reaching the second one costs a few hundred steps; past that
+		// the ordering has left the neighbourhood the refinery is being placed in anyway.
+		const int MaxFieldSpreadInspections = 512;
+
+		/// <summary>
+		/// Walks an ordered candidate list and lets through at most ResourceCellsPerField cells from
+		/// each of the first MaxResourceFieldsToCheck fields, so the caller ends up comparing fields
+		/// rather than comparing one field against its own neighbouring cells.
+		/// </summary>
+		IEnumerable<CPos> SpreadAcrossFields(IEnumerable<CPos> ordered)
+		{
+			var cellsPerField = Math.Max(1, baseBuilder.Info.ResourceCellsPerField);
+			var maxFields = Math.Max(1, baseBuilder.Info.MaxResourceFieldsToCheck);
+
+			// Without the resource map there is nothing to group by; fall back on the plain ordering.
+			if (baseBuilder.ResourceMapModule == null)
+			{
+				foreach (var cell in ordered.Take(cellsPerField * maxFields))
+					yield return cell;
+
+				yield break;
+			}
+
+			// Both bounds matter. Emission stops once the quota is full; inspection stops regardless,
+			// because when only one field is in reach nothing ever fills the quota and the walk would
+			// otherwise run the length of the resource list, asking which field every single cell
+			// belongs to - a linear scan over every indice on the map, per cell.
+			var quota = cellsPerField * maxFields;
+			var emitted = 0;
+			var inspected = 0;
+
+			var takenPerField = new Dictionary<CPos, int>();
+			foreach (var cell in ordered)
+			{
+				if (emitted >= quota || ++inspected > MaxFieldSpreadInspections)
+					yield break;
+
+				// Keyed by the field centre rather than the indice object: a value comparison that
+				// cannot be defeated by the module handing back a fresh instance.
+				var indice = baseBuilder.ResourceMapModule.FindClosestIndiceFromCPos(cell);
+				var key = indice?.IndiceCenter ?? cell;
+
+				takenPerField.TryGetValue(key, out var taken);
+				if (taken >= cellsPerField || (taken == 0 && takenPerField.Count >= maxFields))
+					continue;
+
+				takenPerField[key] = taken + 1;
+				emitted++;
+				yield return cell;
+			}
 		}
 
 		IEnumerable<CPos> GetRefineryCandidateCellsForField(

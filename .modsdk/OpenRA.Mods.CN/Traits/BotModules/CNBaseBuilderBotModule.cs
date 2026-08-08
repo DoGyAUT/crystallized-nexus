@@ -443,6 +443,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How many randomly chosen cells with resources to check when deciding refinery placement.")]
 		public readonly int MaxResourceCellsToCheck = 3;
 
+		[Desc("How many distinct resource fields a refinery placement decision must consider, and how " +
+			"many cells it samples from each. Cells alone are not a choice: neighbouring cells of one " +
+			"blob all score alike, so a decision that fills up on them compares a field only against " +
+			"itself and whatever lies behind a cliff wins by being the only thing asked about.")]
+		public readonly int MaxResourceFieldsToCheck = 4;
+
+		public readonly int ResourceCellsPerField = 2;
+
 		[Desc("Maximum number of refineries allowed near the same resource cluster. 0 = no limit.")]
 		public readonly int MaxRefineriesPerCluster = 0;
 
