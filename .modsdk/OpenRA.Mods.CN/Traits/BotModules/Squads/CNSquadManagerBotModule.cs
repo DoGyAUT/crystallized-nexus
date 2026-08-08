@@ -2974,7 +2974,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 				withinDetour++;
 
-				var threat = GetDefenseThreatAt(pos, victim);
+				// Ranked by the road from the chokepoint to the objective, not by how cold it is to
+				// stand in. Those are different questions, and picking on the second answer produced
+				// candidates the caller then threw away: over a played match it offered a way in that
+				// was hotter than simply walking up the straight line ten times, against three where
+				// it was genuinely better. A chokepoint can be perfectly quiet and still open onto the
+				// muzzle of everything behind it - which is, after all, what a chokepoint is for.
+				var threat = GetDefenseThreatAlong(pos, target.CenterPosition, victim);
 				if (threat >= bestThreat)
 					continue;
 
@@ -2986,9 +2992,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// the threat measurement beside it worked and the defence memory held twenty-two entries -
 			// and there was no way to tell whether the topology scan had nothing, the radius was too
 			// tight, or the detour bound was. Three counters answer that in one line.
+			// The detour bound is an ellipse through base and target, so it tightens as the two move
+			// together: at a short direct line even a chokepoint straight ahead can fail it. Whether
+			// that is what empties the list cannot be read without the distance it is scaled from.
 			if (best == null)
-				CNBotLog.Debug("{0} no approach: {1} useful chokepoints, {2} within {3} cells of target, {4} within detour",
-					Player, chokepoints.Count, inRadius, Info.ApproachSearchRadiusCells, withinDetour);
+				CNBotLog.Debug(
+					"{0} no approach: {1} useful chokepoints, {2} within {3} cells of target, {4} within detour "
+					+ "(direct {5} cells, route allowance {6})",
+					Player, chokepoints.Count, inRadius, Info.ApproachSearchRadiusCells, withinDetour,
+					directLength / 1024, maxRouteLength / 1024);
 
 			if (best == null)
 				return null;
