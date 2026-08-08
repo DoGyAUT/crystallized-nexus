@@ -104,6 +104,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Danger score that immediately overrides adaptive hysteresis into Turtle.")]
 		public readonly int AdaptiveEmergencyTurtleDangerThreshold = 600;
 
+		[Desc("Show each adaptive profile switch in the chat, to spectators only. Anyone playing in the " +
+			"match sees nothing - which strategy a bot has adopted is information a human opponent should " +
+			"not be handed. Needs no debug setting; it is meant for watching a playtest.")]
+		public readonly bool AnnounceProfileToObservers = true;
+
 		[Desc("Known enemy emplacements at which the opponent counts as fully dug in. The count comes from " +
 			"what the bot has seen or been shot by, so it grows through contact rather than being read " +
 			"off the map. 0 disables every fortification term below.")]
@@ -647,6 +652,30 @@ namespace OpenRA.Mods.Common.Traits
 			};
 		}
 
+		/// <summary>
+		/// Tells spectators which strategy a bot just adopted, and tells nobody else.
+		/// <para>
+		/// Watching a match, the one thing you cannot see is what the bot thinks it is doing - a bot
+		/// that stops attacking looks broken whether it switched to Turtle on purpose or is stuck.
+		/// Playing against it, knowing that is a straight information leak, so the line is gated on the
+		/// viewer having no player of their own. Every client simulates the bot, so this check is made
+		/// per client and each one answers it for itself.
+		/// </para>
+		/// Display only: it writes to the chat overlay and touches nothing the simulation reads, so it
+		/// cannot desync a game where one participant is watching and another is playing.
+		/// </summary>
+		void AnnounceProfileToObservers(BotProfile from, BotProfile to, bool emergency)
+		{
+			if (!Info.AnnounceProfileToObservers || Info.Profile != BotProfile.Adaptive)
+				return;
+
+			if (world.LocalPlayer != null)
+				return;
+
+			TextNotificationsManager.AddSystemLine("Bot",
+				$"{player.PlayerName}: {from} → {to}{(emergency ? " (emergency)" : "")}");
+		}
+
 		void SwitchTo(BotProfile nextProfile, bool emergency)
 		{
 			if (!emergency && ActiveProfile == nextProfile)
@@ -658,6 +687,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (ActiveProfile != nextProfile)
 			{
+				AnnounceProfileToObservers(ActiveProfile, nextProfile, emergency);
+
 				ActiveProfile = nextProfile;
 				activeProfileSinceTick = world.WorldTick;
 
