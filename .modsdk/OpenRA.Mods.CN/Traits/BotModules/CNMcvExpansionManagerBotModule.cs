@@ -49,8 +49,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Resource cells left across all fields the bot works, at or below which it counts as starving " +
 			"and expands regardless of cash. Its income is about to stop, and the cash thresholds that " +
-			"normally gate expansion can never be met once it has. 0 disables the starvation trigger.")]
-		public readonly int StarvationFieldCells = 40;
+			"normally gate expansion can never be met once it has. 0 disables the starvation trigger.",
+			"Means 'running low', not 'empty'. At 40 - halved to 20 by the regrowth rule, which nearly " +
+			"every Tiberian Sun field triggers - a played match logged bots sitting on 37 and 63 cells " +
+			"with no cash at all and still not qualifying. By the time a field is down to twenty cells " +
+			"the expansion needed to arrive minutes ago.")]
+		public readonly int StarvationFieldCells = 120;
 
 		[Desc("Percent of StarvationFieldCells used as the threshold when a worked field has a seeding " +
 			"tree in it. Lower rather than zero: regrowth is not inexhaustible, and a field mined faster " +

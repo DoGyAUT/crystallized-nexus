@@ -303,8 +303,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public readonly bool AvoidDefendedApproaches = true;
 
 		[Desc("How far from the target to look for a way in, in cells. Beyond this the detour costs more " +
-			"than the defences it avoids.")]
-		public readonly int ApproachSearchRadiusCells = 24;
+			"than the defences it avoids. 24 proved far too tight in play - chokepoints are terrain " +
+			"features and an objective deep inside a base rarely has one that close, so no alternative " +
+			"was ever found.")]
+		public readonly int ApproachSearchRadiusCells = 40;
 
 		[Desc("How much longer than the direct line the route through a chosen way in may be, in percent. " +
 			"Without this the coldest chokepoint wins even when it lies beyond the target, and squads " +
@@ -2954,17 +2956,23 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			CPos? best = null;
 			var bestThreat = int.MaxValue;
+			var inRadius = 0;
+			var withinDetour = 0;
 			foreach (var chokepoint in chokepoints)
 			{
 				var pos = World.Map.CenterOfCell(chokepoint.Cell);
 				if ((pos - target.CenterPosition).LengthSquared > reachSq)
 					continue;
 
+				inRadius++;
+
 				// The way in has to lie between us and the objective. Picking purely by temperature let
 				// the coldest chokepoint win even when it sat on the far side of the enemy base, so the
 				// squads marched past the target to gather behind it.
 				if ((pos - basePos).Length + (target.CenterPosition - pos).Length > maxRouteLength)
 					continue;
+
+				withinDetour++;
 
 				var threat = GetDefenseThreatAt(pos, victim);
 				if (threat >= bestThreat)
@@ -2973,6 +2981,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				bestThreat = threat;
 				best = chokepoint.Cell;
 			}
+
+			// Which filter emptied the list. A played match logged "approach none" for every wave while
+			// the threat measurement beside it worked and the defence memory held twenty-two entries -
+			// and there was no way to tell whether the topology scan had nothing, the radius was too
+			// tight, or the detour bound was. Three counters answer that in one line.
+			if (best == null)
+				CNBotLog.Debug("{0} no approach: {1} useful chokepoints, {2} within {3} cells of target, {4} within detour",
+					Player, chokepoints.Count, inRadius, Info.ApproachSearchRadiusCells, withinDetour);
 
 			if (best == null)
 				return null;
