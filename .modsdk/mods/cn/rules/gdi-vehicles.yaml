@@ -162,6 +162,9 @@ APC:
 	Mobile:
 		TurnSpeed: 20
 		Speed: 113
+		SpeedRelatedWithFacing: true
+		TurnsWhileMoving: true
+		InitSpeedPercentageWithFacing: -50
 		PauseOnCondition: empdisable || loading || being-captured || carried
 		Locomotor: amphibious
 	CNHealth:
