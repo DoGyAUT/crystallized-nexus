@@ -390,8 +390,8 @@ namespace OpenRA.Mods.Common.Traits
 					for (var i = 1; i <= samples; i++)
 					{
 						var step = new CPos(
-							baseCenter.X + ((resource.X - baseCenter.X) * i / samples),
-							baseCenter.Y + ((resource.Y - baseCenter.Y) * i / samples));
+							baseCenter.X + (resource.X - baseCenter.X) * i / samples,
+							baseCenter.Y + (resource.Y - baseCenter.Y) * i / samples);
 
 						if (!world.Map.Contains(step) || !IsPassableForHarvesters(step))
 							blocked++;

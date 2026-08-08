@@ -1383,8 +1383,8 @@ namespace OpenRA.Mods.Common.Traits
 			for (var i = 1; i <= samples; i++)
 			{
 				var step = new CPos(
-					from.X + ((to.X - from.X) * i / samples),
-					from.Y + ((to.Y - from.Y) * i / samples));
+					from.X + (to.X - from.X) * i / samples,
+					from.Y + (to.Y - from.Y) * i / samples);
 
 				if (!world.Map.Contains(step)
 					|| !locomotors.All(l => l.MovementCostForCell(step) != PathGraph.MovementCostForUnreachableCell))
