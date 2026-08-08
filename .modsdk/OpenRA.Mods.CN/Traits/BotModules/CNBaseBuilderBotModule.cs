@@ -692,6 +692,16 @@ namespace OpenRA.Mods.Common.Traits
 			"straight-line distance and skips the pathfinder query (one per field per placement decision).")]
 		public readonly int RefineryDetourPenalty = 6;
 
+		[Desc("Drive length, as a percent of the straight line to the field, from which that field's road " +
+			"counts as detouring. Above it, a dock on a different level from the tiberium is treated as " +
+			"the cause of the detour rather than as a detail.")]
+		public readonly int RefineryDetourDockHeightPercent = 200;
+
+		[Desc("How much heavier the dock height penalty weighs for a field whose road detours. On a map " +
+			"whose tiberium sits on a terrace, six cells across the cliff otherwise beats twelve cells " +
+			"on the level, and the harvesters pay the difference on every single trip.")]
+		public readonly int RefineryDetouringDockHeightMultiplier = 8;
+
 		[Desc("Detour percent assumed per level of height difference when the bot owns nothing that can " +
 			"be asked for a path - the moment right after the MCV deploys, when the first and most " +
 			"consequential refinery is sited. A field on another terrace is only reachable by a ramp, " +

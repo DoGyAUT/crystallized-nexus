@@ -297,6 +297,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		readonly Dictionary<(CPos Base, CPos Resource), int> fieldPathLengthCache = [];
+
 		int fieldPathCacheTick = -1;
 
 		/// <summary>
@@ -382,7 +383,8 @@ namespace OpenRA.Mods.Common.Traits
 			return length < 0 ? null : length;
 		}
 
-		int ScoreRefineryTopologyFit(CPos refineryLoc, List<CPos> dockCells, IReadOnlyList<CPos> sampledResourceCells)
+		int ScoreRefineryTopologyFit(CPos refineryLoc, List<CPos> dockCells, IReadOnlyList<CPos> sampledResourceCells,
+			bool fieldRoadDetours)
 		{
 			if (sampledResourceCells == null || sampledResourceCells.Count == 0 || !world.Map.Contains(refineryLoc))
 				return 0;
@@ -400,8 +402,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (usableDocks.Count == 0)
 				usableDocks.Add(refineryLoc);
 
+			// A dock on a different level from the tiberium means a ramp somewhere. Usually harmless -
+			// the ramp is right there. But when the road out to this field is already known to run
+			// long, the wrong level is precisely why, and the plain 350 loses the argument: six cells
+			// across a one-level cliff scores 360 + 350 against 1440 for twelve cells on the level, so
+			// the cliff-side placement wins and the harvesters pay for it on every trip.
 			var bestDockHeightDelta = usableDocks.Min(d => Math.Abs(world.Map.Height[d] - resourceHeight));
-			var score = bestDockHeightDelta * bestDockHeightDelta * 350;
+			var heightWeight = fieldRoadDetours
+				? 350 * Math.Max(1, baseBuilder.Info.RefineryDetouringDockHeightMultiplier)
+				: 350;
+
+			var score = bestDockHeightDelta * bestDockHeightDelta * heightWeight;
 
 			foreach (var sample in sampledResourceCells.Take(4))
 			{
@@ -652,7 +663,14 @@ namespace OpenRA.Mods.Common.Traits
 			else
 				score += (refineryLoc - resourceLoc).LengthSquared * 10;
 
-			score += ScoreRefineryTopologyFit(refineryLoc, dockCells, sampledResourceCells);
+			// Whether this field's road runs long relative to the straight line to it. Known per field,
+			// applied per candidate: it is what turns "a dock on the wrong level" from a detail into
+			// the explanation.
+			var straightToField = (resourceLoc - baseLoc).Length;
+			var fieldRoadDetours = harvesterPathLength != null && straightToField > 0
+				&& harvesterPathLength.Value * 100 > straightToField * baseBuilder.Info.RefineryDetourDockHeightPercent;
+
+			score += ScoreRefineryTopologyFit(refineryLoc, dockCells, sampledResourceCells, fieldRoadDetours);
 
 			// Secondary: prefer placements that don't drift too far from the local base anchor.
 			score += (refineryLoc - baseLoc).LengthSquared * 2;
@@ -2783,6 +2801,12 @@ namespace OpenRA.Mods.Common.Traits
 						// Small relaxed second pass with a much tighter candidate budget.
 						foreach (var r in resourcesShouldCheck)
 						{
+							// Measured here too. This pass used to score without it, and it is not the rare
+							// fallback the name suggests: a played match placed a bot's opening refinery
+							// from here, so the detour term was skipped on the one placement that shapes
+							// the whole game. The value is already cached from the pass above, so asking
+							// again costs nothing.
+							var relaxedPathLength = HarvesterPathLengthToField(targetBase.Center, r);
 							var sampledRelaxed = GetFieldSampleCells(nearbyResources, r);
 							var relaxedCandidateLimit = layout == BaseBuildingLayout.BaseGrid ? 12 : 6;
 							var candidatesRelaxed = GetRefineryCandidateCellsForField(actorInfo, bi, sampledRelaxed)
@@ -2820,14 +2844,14 @@ namespace OpenRA.Mods.Common.Traits
 								if (!HasOpenRefineryApproach(actorInfo, loc, bi.Dimensions, r))
 									continue;
 
-								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, null)
+								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, relaxedPathLength)
 									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
 								{
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
 									bestField = r;
-									bestFieldDrive = null;
-									bestPass = "relaxed scan (drive length not consulted)";
+									bestFieldDrive = relaxedPathLength;
+									bestPass = "relaxed scan";
 								}
 							}
 						}
