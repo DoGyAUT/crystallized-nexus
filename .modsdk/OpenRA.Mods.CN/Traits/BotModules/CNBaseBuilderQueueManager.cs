@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using OpenRA.Mods.CN.Traits;
 using OpenRA.Mods.CN.Traits.BotModules;
@@ -2767,9 +2768,12 @@ namespace OpenRA.Mods.Common.Traits
 							// for, so a refinery still facing the cliff could not be told apart from
 							// harvesters walking past a correctly placed one.
 							CNBotLog.Debug("{0} refinery at {1} for field {2} ({3} to drive) via {4}",
-								player, bestCandidate.Value.Placement.Item1,
-								bestField?.ToString() ?? "none",
-								bestFieldDrive?.ToString() ?? "unmeasured", bestPass);
+								player, bestCandidate.Value.Placement.Location,
+								bestField.HasValue ? bestField.Value.ToString() : "none",
+								bestFieldDrive.HasValue
+									? bestFieldDrive.Value.ToString(NumberFormatInfo.CurrentInfo)
+									: "unmeasured",
+								bestPass);
 
 							if (baseBuilder.RequestedRefineries.Count > 0)
 								baseBuilder.RequestedRefineries.Remove(requestRef);
@@ -2836,9 +2840,12 @@ namespace OpenRA.Mods.Common.Traits
 							// for, so a refinery still facing the cliff could not be told apart from
 							// harvesters walking past a correctly placed one.
 							CNBotLog.Debug("{0} refinery at {1} for field {2} ({3} to drive) via {4}",
-								player, bestCandidate.Value.Placement.Item1,
-								bestField?.ToString() ?? "none",
-								bestFieldDrive?.ToString() ?? "unmeasured", bestPass);
+								player, bestCandidate.Value.Placement.Location,
+								bestField.HasValue ? bestField.Value.ToString() : "none",
+								bestFieldDrive.HasValue
+									? bestFieldDrive.Value.ToString(NumberFormatInfo.CurrentInfo)
+									: "unmeasured",
+								bestPass);
 
 							if (baseBuilder.RequestedRefineries.Count > 0)
 								baseBuilder.RequestedRefineries.Remove(requestRef);
