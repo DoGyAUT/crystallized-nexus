@@ -18,10 +18,14 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	/// <summary>
-	/// Idle: wait for an Assault/Rush squad to attach to.
+	/// Idle: wait for a squad to attach to — those named by the template's AttachToRole,
+	/// or Assault/Rush when the template does not configure it.
 	/// </summary>
 	sealed class ArtilleryIdleState : CNStateBase, ICNState
 	{
+		// Used only when the template does not configure AttachToRole.
+		static readonly CNSquadType[] DefaultAttachRoles = [CNSquadType.Assault, CNSquadType.Rush];
+
 		public void Activate(CNSquad squad) { }
 
 		public void Tick(CNSquad squad)
@@ -41,8 +45,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					.ToHashSet();
 
 				var attachable = squad.SquadManager.Squads
-					.Where(s => s.IsValid &&
-						(s.Type == CNSquadType.Assault || s.Type == CNSquadType.Rush))
+					.Where(s => s.IsValid && CNSquadHelper.IsAttachCandidate(squad, s, DefaultAttachRoles))
 					.ToList();
 
 				squad.AttachedTo =
@@ -224,7 +227,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class ArtilleryBombardState : CNStateBase, ICNState
 	{
-		const int MaxStaleTicks = 5;
+		// Game ticks, not update cycles: how long the battery tolerates having no valid target
+		// before it goes looking for a new one.
+		const int MaxStaleTicks = 375;
+
+		// Percent of weapon range the battery stops at. Short of the maximum so that the target
+		// drifting a cell, or the piece settling on a neighbouring cell, does not immediately put
+		// it out of range again and start the walk-forward-undeploy cycle over.
+		const int FiringRangePercent = 85;
+
 		int staleTicks;
 
 		public void Activate(CNSquad squad) { staleTicks = 0; }
@@ -237,7 +248,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Revalidate target
 			if (!squad.IsTargetValid)
 			{
-				staleTicks++;
+				staleTicks += squad.TicksSinceLastUpdate;
 				if (staleTicks > MaxStaleTicks)
 				{
 					// Try to find a new target in range
@@ -275,10 +286,45 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					squad.SetActorToTarget(killSecureTarget);
 			}
 
-			// Issue attack orders only to units not already attacking
+			// Hold at firing range instead of driving onto the target. The Juggernaut and the Nod
+			// artillery only carry an armament while deployed, and any move order undeploys them
+			// (UndeployOnMove), so an AttackMove aimed at the target marched the whole battery into
+			// the enemy base with its guns packed away. They only ever came up once something shot
+			// back from close enough for the deploy module to react - by then inside the 5 cell
+			// MinRange, where the gun cannot fire at all, and after taking losses on the walk in.
+			var targetPos = squad.Target.CenterPosition;
+			var targetCell = squad.World.Map.CellContaining(targetPos);
+
 			foreach (var unit in squad.OrderableUnits)
-				if (!BusyAttack(unit))
+			{
+				if (BusyAttack(unit))
+					continue;
+
+				var firingRange = squad.SquadManager.MaxWeaponRange(unit.Info) * FiringRangePercent / 100;
+				if (firingRange <= 0)
+				{
 					squad.Bot.QueueOrder(new Order("AttackMove", unit, squad.Target, false));
+					continue;
+				}
+
+				if ((unit.CenterPosition - targetPos).HorizontalLengthSquared > (long)firingRange * firingRange)
+				{
+					var standOff = squad.SquadManager.StandOffCell(targetCell, unit.CenterPosition, firingRange / 1024);
+					squad.Bot.QueueOrder(new Order("AttackMove", unit,
+						Target.FromCell(squad.World, standOff), false));
+					continue;
+				}
+
+				// In range. A piece that still has to deploy is left strictly alone: every order it
+				// receives here is one more thing for UndeployOnMove to cancel, and the deploy module
+				// brings the guns up on its own. Everything else gets Attack rather than AttackMove,
+				// which fires from where it stands instead of closing the distance first.
+				var canFireNow = unit.TraitsImplementing<AttackBase>().Any(ab => !ab.IsTraitDisabled);
+				if (!canFireNow && unit.Info.HasTraitInfo<GrantConditionOnDeployInfo>())
+					continue;
+
+				squad.Bot.QueueOrder(new Order("Attack", unit, squad.Target, false));
+			}
 
 			// Flee check (only if we're too exposed)
 			if (ShouldFlee(squad))

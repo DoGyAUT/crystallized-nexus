@@ -78,7 +78,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	/// </summary>
 	sealed class RaiderAttackState : CNStateBase, ICNState
 	{
-		const int StuckThreshold = 8;
+		// Game ticks, not update cycles: how long the squad may sit on the same cell before the
+		// attack run is abandoned.
+		const int StuckThreshold = 600;
 		const int KiteThreatRadiusCells = 5;
 		int stuckTicks;
 		CPos lastPos;
@@ -120,7 +122,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Stuck detection
 			var currentPos = squad.CenterUnit()?.Location ?? CPos.Zero;
 			if (currentPos == lastPos && currentPos != CPos.Zero)
-				stuckTicks++;
+				stuckTicks += squad.TicksSinceLastUpdate;
 			else
 			{
 				stuckTicks = 0;

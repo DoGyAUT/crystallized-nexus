@@ -17,11 +17,17 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	/// <summary>
-	/// Idle: scan for an active Assault, Rush, or Protection squad to attach to.
+	/// Idle: scan for an active squad to attach to — those named by the template's AttachToRole,
+	/// or Assault/Rush/Protection when the template does not configure it.
 	/// </summary>
 	sealed class SupportIdleState : CNStateBase, ICNState
 	{
-		const int ScanInterval = 3;
+		// Game ticks, not update cycles.
+		const int ScanInterval = 225;
+
+		// Used only when the template does not configure AttachToRole.
+		static readonly CNSquadType[] DefaultAttachRoles =
+			[CNSquadType.Assault, CNSquadType.Rush, CNSquadType.Protection];
 		int scanTicks;
 		int idleTicks;
 
@@ -42,14 +48,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			idleTicks++;
+			idleTicks += squad.TicksSinceLastUpdate;
 			if (idleTicks >= squad.SquadManager.Info.MaxIdleScanTicks)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new SupportGuardState());
 				return;
 			}
 
-			if (--scanTicks > 0)
+			scanTicks -= squad.TicksSinceLastUpdate;
+			if (scanTicks > 0)
 				return;
 
 			scanTicks = ScanInterval;
@@ -59,10 +66,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 
 			var attachTarget = squad.SquadManager.Squads
-				.Where(s => s != squad && s.IsOperational &&
-							(s.Type == CNSquadType.Assault ||
-							 s.Type == CNSquadType.Rush ||
-							 s.Type == CNSquadType.Protection))
+				.Where(s => s.IsOperational && CNSquadHelper.IsAttachCandidate(squad, s, DefaultAttachRoles))
 				.OrderBy(s =>
 				{
 					var sCenter = s.CenterUnit();
@@ -212,7 +216,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class SupportFleeState : CNStateBase, ICNState
 	{
-		const int FleeDuration = 90;
+		// Game ticks, not update cycles.
+		const int FleeDuration = 6750;
 		int fleeTicks;
 
 		public void Activate(CNSquad squad)
@@ -226,7 +231,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsOperational)
 				return;
 
-			if (--fleeTicks <= 0 || !SupportStateHelpers.IsUnderThreat(squad))
+			fleeTicks -= squad.TicksSinceLastUpdate;
+			if (fleeTicks <= 0 || !SupportStateHelpers.IsUnderThreat(squad))
 				squad.FuzzyStateMachine.ChangeState(squad, new SupportGuardState());
 		}
 
@@ -247,6 +253,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		/// </summary>
 		public static bool IsMissingSquadMembers(Actor actor)
 		{
+			// Ask the master when handed a member. A member carries no MobSpawnerMaster trait of its
+			// own — the squad rules strip it explicitly — so it used to sail straight through this
+			// filter, and medics went on healing the individual soldiers of a depleted squad instead
+			// of the master. That is just as futile: AggregateHealth is on by default and recomputes
+			// the group's health from the member count every AggregateHealthUpdateDelay ticks,
+			// overwriting whatever the medic just restored.
+			var slave = actor.TraitOrDefault<MobSpawnerSlave>();
+			var master = slave?.Master;
+			if (master != null && master != actor && !master.IsDead && master.IsInWorld)
+				return IsMissingSquadMembers(master);
+
 			var mob = actor.TraitOrDefault<MobSpawnerMaster>();
 			if (mob == null)
 				return false;

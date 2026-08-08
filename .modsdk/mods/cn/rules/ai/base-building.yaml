@@ -35,11 +35,16 @@ Player:
 			Tech: 120
 			Defense: 130
 			Production: 35
+		# Weighted by the profile's budget split, so the production-heavy profiles used to land here.
+		# Production was 1, which inverted the logic: a profile spending 64-70% on production needs
+		# more income than the others, not less. It also cost Steamroller and Rush the fallback that
+		# allows queueing a refinery when no tiberium-adjacent spot is free — that only applies while
+		# the minimum is unmet, so at 1 it lapsed after the very first refinery.
 		BudgetInitialMinimumRefineryCounts:
 			Expansion: 2
 			Tech: 2
 			Defense: 2
-			Production: 1
+			Production: 2
 		
 		DefenseQueues: Support
 		MinimumExcessPower: 30
@@ -51,6 +56,7 @@ Player:
 		PowerTypes: gapowr, napowr, naapwr
 		ProductionTypes: gapile, nahand, gaweap, naweap, gahpad, nahpad
 		TechTypes: garadr, naradr, gaarmory, gatech, gadept, gaplug, natmpl, namisl, napyra
+		DistributedTechTypes: garadr, naradr
 		SiloTypes: gasilo
 		DefenseTypes: gamg, gagat, gasam, gacan, gasen, gamortar, gafort, nalasr, nasam, naflamer, nagat, naobel, napuls
 		MaxRefineriesPerCluster: 2
@@ -186,6 +192,15 @@ Player:
 			nastlh:
 				Layout: Coverage
 				MinSpacing: 15
+			# Radar is a 15-cell DetectCloaked + RevealsShroud source. One at home leaves every other
+			# base blind to stealth, so these spread instead of clustering. Spacing is set below the
+			# 15-cell radius on purpose: neighbouring circles should overlap slightly, not tile.
+			garadr:
+				Layout: Coverage
+				MinSpacing: 11
+			naradr:
+				Layout: Coverage
+				MinSpacing: 11
 		
 		# --- Economy overflow scaling ---
 		# Generic cash/income trend signal. Drives runtime scaling of BuildingLimits,
@@ -212,9 +227,12 @@ Player:
 			gadept: 2
 			gahpad: 10
 			nahpad: 10
-			garadr: 1
+			# Radar is a detector, not a one-off tech unlock: capped per base rather than per player.
+			# 1000 credits and -50 power each for GDI, 1500 and -40 for Nod, so 3 is a deliberate
+			# ceiling — enough for the main base plus two expansions.
+			garadr: 3
 			gaarmory: 1
-			naradr: 1
+			naradr: 3
 			gatech: 1
 			napyra: 1
 			gaplug: 1

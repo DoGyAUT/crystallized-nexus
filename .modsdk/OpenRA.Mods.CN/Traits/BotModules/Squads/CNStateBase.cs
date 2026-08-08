@@ -487,6 +487,62 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return health != null && health.DamageState > DamageState.Undamaged;
 		}
 
+		/// <summary>
+		/// Sends badly damaged units home for repair while the rest of the squad keeps fighting.
+		/// <para>
+		/// Without this the only response to damage was the whole squad's flee check, so a squad
+		/// either fought on with a nearly dead member until it lost it, or turned around entirely.
+		/// Releasing the unit — rather than merely ordering it away — is what gets it repaired:
+		/// CNRepairManagerBotModule only ever sees units that are not claimed by a squad.
+		/// </para>
+		/// <para>
+		/// Never strips the squad below MinStrengthPercentAfterWithdraw of its living strength. Once a
+		/// squad is hurt that broadly, pulling it back as a body is the right answer and the flee
+		/// check will do it.
+		/// </para>
+		/// </summary>
+		protected static void WithdrawDamagedUnits(CNSquad squad)
+		{
+			var info = squad.SquadManager.Info;
+			if (info.WithdrawDamageState <= DamageState.Undamaged)
+				return;
+
+			var live = squad.Units.Count(u => u != null && !u.IsDead && u.IsInWorld);
+			if (live <= 1)
+				return;
+
+			var floor = Math.Max(1, live * info.MinStrengthPercentAfterWithdraw / 100);
+			if (live <= floor)
+				return;
+
+			var withdrawn = new List<Actor>();
+			foreach (var unit in squad.OrderableUnits.ToList())
+			{
+				if (live - withdrawn.Count <= floor)
+					break;
+
+				var health = unit.TraitOrDefault<IHealth>();
+				if (health == null || health.DamageState < info.WithdrawDamageState)
+					continue;
+
+				withdrawn.Add(unit);
+			}
+
+			foreach (var unit in withdrawn)
+			{
+				// Order the move before releasing: once released the unit is no longer in
+				// squad.OrderableUnits, and a released unit standing in the open is exactly what this
+				// is meant to prevent. The repair module picks it up from wherever it ends up.
+				if (TryFindRepairOrder(unit, out var orderId, out var repairBuilding))
+					squad.Bot.QueueOrder(new Order(orderId, unit, Target.FromActor(repairBuilding), false));
+				else
+					squad.Bot.QueueOrder(new Order("Move", unit,
+						Target.FromCell(squad.World, RandomBuildingLocation(squad)), false));
+
+				squad.SquadManager.ReleaseUnitFromSquad(squad, unit);
+			}
+		}
+
 		static bool TryFindRepairOrder(Actor unit, out string orderId, out Actor repairBuilding)
 		{
 			orderId = "Repair";

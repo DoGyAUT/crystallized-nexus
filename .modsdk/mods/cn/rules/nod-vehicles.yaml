@@ -193,7 +193,10 @@ BGGY:
 		FullBrightPaletteIndexRanges: 1, 16, 240, 255
 	Armament:
 		Weapon: RaiderCannon
-		LocalOffset: 360,0,950
+		LocalOffset: 360,0,950, 360,0,950
+		CasingWeapon: BulletCasing
+		CasingSpawnLocalOffset: 120,0,950, 120,0,950
+		CasingTargetOffset: 120,-800,950, 120,800,950
 		MuzzleSequence: muzzle
 	Turreted:
 		TurnSpeed: 60
@@ -346,7 +349,10 @@ LTNK:
 		MuzzlePalette: effect
 		Recoil: 256
 		RecoilRecovery: 32
-		LocalOffset: 1450,0,870
+		LocalOffset: 1450,0,870, 1450,0,870, ## for throwing casing on left and right
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 800,0,870, 800,0,870
+		CasingTargetOffset: 800,-1120,870, 800,1120,870
 	WithMuzzleOverlay:
 	Selectable:
 		DecorationBounds: 1267, 2534
@@ -466,6 +472,9 @@ TTNK:
 		Turret: primary
 		Weapon: 57mm
 		LocalOffset: 960,180,780
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 700,180,870
+		CasingTargetOffset: 700,1120,870
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		RequiresCondition: undeployed
@@ -476,6 +485,9 @@ TTNK:
 		Turret: primary
 		Weapon: 57mm
 		LocalOffset: 960,-180,780
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 700,-180,870
+		CasingTargetOffset: 700,-1120,870
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		RequiresCondition: undeployed
@@ -501,6 +513,9 @@ TTNK:
 		Turret: deployed
 		Weapon: 57mm_deployed
 		LocalOffset: 960,180,780
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 700,180,870
+		CasingTargetOffset: 700,1120,870
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		RequiresCondition: deployed
@@ -511,6 +526,9 @@ TTNK:
 		Turret: deployed
 		Weapon: 57mm_deployed
 		LocalOffset: 960,-180,780
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 700,-180,870
+		CasingTargetOffset: 700,-1120,870
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		RequiresCondition: deployed

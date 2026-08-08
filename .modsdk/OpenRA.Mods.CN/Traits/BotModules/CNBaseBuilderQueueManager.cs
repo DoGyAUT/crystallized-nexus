@@ -12,8 +12,10 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using OpenRA.Mods.CN.Traits;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
@@ -27,6 +29,19 @@ namespace OpenRA.Mods.Common.Traits
 		// Deficit used for a building that fills a base's capability floor: above any real fraction deficit,
 		// so filling the floor wins over topping up a category that is merely below its share.
 		const int CapabilityFloorDeficit = int.MaxValue / 2;
+
+		// How far the field-spread walk may look for a second field. A field can run to 150 cells, so
+		// reaching the next one costs a few hundred steps; past that the ordering has left the
+		// neighbourhood the refinery is being placed in anyway.
+		const int MaxFieldSpreadInspections = 512;
+
+		// Safety net on the drive-distance flood fill, not a tuning knob: the reachable ground around a
+		// base is bounded by the map, and this only stops a pathological one running away with a tick.
+		const int MaxHarvesterFloodCells = 30000;
+
+		// Ground around the base centre used to seed that flood fill. The centre cell itself is usually
+		// under a construction yard, where driveability says nothing.
+		const int HarvesterFloodSeedRadius = 4;
 
 		public readonly string Category;
 		public int WaitTicks;
@@ -289,7 +304,106 @@ namespace OpenRA.Mods.Common.Traits
 			return passableDockCells * 2 >= dockCells.Count && goodApproachCells >= 2;
 		}
 
-		int ScoreRefineryTopologyFit(CPos refineryLoc, List<CPos> dockCells, IReadOnlyList<CPos> sampledResourceCells)
+		readonly Dictionary<CPos, int> harvesterDistances = [];
+		CPos harvesterDistanceOrigin;
+		int harvesterDistanceTick = -1;
+
+		/// <summary>
+		/// How far a harvester actually has to drive from the base to reach a field, in cells.
+		/// <para>
+		/// One flood fill outward from the base answers this for every field at once, which is both
+		/// cheaper than the A*-per-field it replaces and, more importantly, needs no unit to ask. The
+		/// opening refinery is sited before the bot owns anything that can be pathed with, and that is
+		/// the placement that matters most - a first refinery on the wrong side of a cliff handicaps
+		/// the whole game.
+		/// </para>
+		/// Two heuristics were tried for that opening case and both had to go. Height difference
+		/// between base and field ranked nothing, because in a bowl every field sits the same number of
+		/// levels up. Counting undriveable cells along the straight line ranked the wrong way round: on
+		/// Forest Fire the field with the cleanest line (5% blocked) turned out to be the worst by road
+		/// (102 cells), while the one whose line clipped a cliff edge (14%) was the best (51). A cliff
+		/// you drive around by a ramp beside it blocks many cells and costs nothing; a narrow barrier
+		/// blocks few and costs eighty. Nothing short of following the ground answers this.
+		/// </summary>
+		int? HarvesterPathLengthToField(CPos baseCenter, CPos resource)
+		{
+			if (baseBuilder.Info.RefineryDetourPenalty <= 0)
+				return null;
+
+			BuildHarvesterDistances(baseCenter);
+
+			if (!harvesterDistances.TryGetValue(resource, out var distance))
+				return null;
+
+			CNBotLog.Debug("{0} field {1}: {2} cells to drive, {3} straight",
+				player, resource, distance, (resource - baseCenter).Length);
+
+			return distance;
+		}
+
+		/// <summary>
+		/// Breadth-first over ground a harvester can cross, counting steps from the base. Terrain only,
+		/// matching the BlockedByActor.None the A* used: a building in the way is a temporary fact, the
+		/// cliff it stands on is not.
+		/// </summary>
+		/// <summary>
+		/// Ordering key for "nearest field": the drive where the flood fill knows it, the straight line
+		/// where it does not. Reachability filters only ask whether a route exists, and one nearly
+		/// always does - around the cliff, the long way - so ordering by straight line afterwards picks
+		/// the field that looks nearest rather than the one that is.
+		/// </summary>
+		int DriveOrStraightDistance(CPos origin, CPos cell)
+		{
+			BuildHarvesterDistances(origin);
+			return harvesterDistances.TryGetValue(cell, out var drive) ? drive : (cell - origin).Length;
+		}
+
+		void BuildHarvesterDistances(CPos origin)
+		{
+			if (harvesterDistanceTick == world.WorldTick && harvesterDistanceOrigin == origin)
+				return;
+
+			harvesterDistanceTick = world.WorldTick;
+			harvesterDistanceOrigin = origin;
+			harvesterDistances.Clear();
+
+			if (!world.Map.Contains(origin))
+				return;
+
+			var queue = new Queue<CPos>();
+
+			// The base centre is usually a construction yard footprint, and whether that particular cell
+			// is driveable says nothing useful. Seed from whatever ground around it is.
+			foreach (var cell in world.Map.FindTilesInAnnulus(origin, 0, HarvesterFloodSeedRadius))
+			{
+				if (!world.Map.Contains(cell) || !IsPassableForHarvesters(cell))
+					continue;
+
+				harvesterDistances[cell] = (cell - origin).Length;
+				queue.Enqueue(cell);
+			}
+
+			while (queue.Count > 0 && harvesterDistances.Count < MaxHarvesterFloodCells)
+			{
+				var cell = queue.Dequeue();
+				var next = harvesterDistances[cell] + 1;
+
+				foreach (var direction in CVec.Directions)
+				{
+					var step = cell + direction;
+					if (harvesterDistances.ContainsKey(step)
+						|| !world.Map.Contains(step)
+						|| !IsPassableForHarvesters(step))
+						continue;
+
+					harvesterDistances[step] = next;
+					queue.Enqueue(step);
+				}
+			}
+		}
+
+		int ScoreRefineryTopologyFit(CPos refineryLoc, List<CPos> dockCells, IReadOnlyList<CPos> sampledResourceCells,
+			bool fieldRoadDetours)
 		{
 			if (sampledResourceCells == null || sampledResourceCells.Count == 0 || !world.Map.Contains(refineryLoc))
 				return 0;
@@ -307,8 +421,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (usableDocks.Count == 0)
 				usableDocks.Add(refineryLoc);
 
+			// A dock on a different level from the tiberium means a ramp somewhere. Usually harmless -
+			// the ramp is right there. But when the road out to this field is already known to run
+			// long, the wrong level is precisely why, and the plain 350 loses the argument: six cells
+			// across a one-level cliff scores 360 + 350 against 1440 for twelve cells on the level, so
+			// the cliff-side placement wins and the harvesters pay for it on every trip.
 			var bestDockHeightDelta = usableDocks.Min(d => Math.Abs(world.Map.Height[d] - resourceHeight));
-			var score = bestDockHeightDelta * bestDockHeightDelta * 350;
+			var heightWeight = fieldRoadDetours
+				? 350 * Math.Max(1, baseBuilder.Info.RefineryDetouringDockHeightMultiplier)
+				: 350;
+
+			var score = bestDockHeightDelta * bestDockHeightDelta * heightWeight;
 
 			foreach (var sample in sampledResourceCells.Take(4))
 			{
@@ -381,24 +504,75 @@ namespace OpenRA.Mods.Common.Traits
 					.Take(maxChecks)
 					.ToArray();
 
-			var localCells = resources
-				.OrderByDescending(c => CountPassableOrthogonalNeighbors(c) * 10 - (c - baseLoc).LengthSquared / 8)
-				.Take(maxChecks);
+			// Ordered by straight-line proximity and openness, then spread across fields. The ordering
+			// alone fills the whole allowance with neighbours of the nearest blob - a played match spent
+			// an entire decision on sixteen cells of one field, each 82 to 87 cells of driving away for
+			// 11 to 14 of straight line. The drive-length penalty was measuring correctly and had
+			// nothing to rank against, because the alternative field was never in the list.
+			var localCells = SpreadAcrossFields(resources
+				.OrderByDescending(c => CountPassableOrthogonalNeighbors(c) * 10 - (c - baseLoc).LengthSquared / 8));
 
 			if (existingRefineryLoc == null)
 				return localCells.ToArray();
 
 			// Additional refineries should spread out, but not at the cost of ignoring
 			// nearby open field cells that can support a second refinery in the same base.
-			var spreadCells = resources
-				.OrderByDescending(c => (c - existingRefineryLoc.Value).LengthSquared)
-				.Take(maxChecks);
+			var spreadCells = SpreadAcrossFields(resources
+				.OrderByDescending(c => (c - existingRefineryLoc.Value).LengthSquared));
 
 			return localCells
 				.Concat(spreadCells)
 				.Distinct()
 				.Take(Math.Max(maxChecks, 16))
 				.ToArray();
+		}
+
+		/// <summary>
+		/// Walks an ordered candidate list and lets through at most ResourceCellsPerField cells from
+		/// each of the first MaxResourceFieldsToCheck fields, so the caller ends up comparing fields
+		/// rather than comparing one field against its own neighbouring cells.
+		/// </summary>
+		IEnumerable<CPos> SpreadAcrossFields(IEnumerable<CPos> ordered)
+		{
+			var cellsPerField = Math.Max(1, baseBuilder.Info.ResourceCellsPerField);
+			var maxFields = Math.Max(1, baseBuilder.Info.MaxResourceFieldsToCheck);
+
+			// Without the resource map there is nothing to group by; fall back on the plain ordering.
+			if (baseBuilder.ResourceMapModule == null)
+			{
+				foreach (var cell in ordered.Take(cellsPerField * maxFields))
+					yield return cell;
+
+				yield break;
+			}
+
+			// Both bounds matter. Emission stops once the quota is full; inspection stops regardless,
+			// because when only one field is in reach nothing ever fills the quota and the walk would
+			// otherwise run the length of the resource list, asking which field every single cell
+			// belongs to - a linear scan over every indice on the map, per cell.
+			var quota = cellsPerField * maxFields;
+			var emitted = 0;
+			var inspected = 0;
+
+			var takenPerField = new Dictionary<CPos, int>();
+			foreach (var cell in ordered)
+			{
+				if (emitted >= quota || ++inspected > MaxFieldSpreadInspections)
+					yield break;
+
+				// Keyed by the field centre rather than the indice object: a value comparison that
+				// cannot be defeated by the module handing back a fresh instance.
+				var indice = baseBuilder.ResourceMapModule.FindClosestIndiceFromCPos(cell);
+				var key = indice?.IndiceCenter ?? cell;
+
+				takenPerField.TryGetValue(key, out var taken);
+				if (taken >= cellsPerField || (taken == 0 && takenPerField.Count >= maxFields))
+					continue;
+
+				takenPerField[key] = taken + 1;
+				emitted++;
+				yield return cell;
+			}
 		}
 
 		IEnumerable<CPos> GetRefineryCandidateCellsForField(
@@ -480,10 +654,19 @@ namespace OpenRA.Mods.Common.Traits
 			var score = 0;
 			var dockCells = GetRefineryDockCells(actorInfo, refineryLoc, actorInfo.TraitInfoOrDefault<BuildingInfo>()?.Dimensions ?? CVec.Zero);
 
-			// Primary goal: actual harvester route quality from the dock to the field.
+			// How far the harvesters have to drive to reach this field at all. A property of the field,
+			// so it is identical for every candidate cell and ranks fields against each other - it says
+			// nothing about where within the base the refinery should stand. Squared, in the same
+			// currency as the dock distance below, so a road that doubles back costs quadratically more
+			// than its straight-line distance suggests.
 			if (harvesterPathLength != null)
-				score += harvesterPathLength.Value * harvesterPathLength.Value * 6;
-			else if (sampledResourceCells != null && sampledResourceCells.Count > 0)
+				score += harvesterPathLength.Value * harvesterPathLength.Value * baseBuilder.Info.RefineryDetourPenalty;
+
+			// Added to that, never instead of it. Making the two exclusive left every candidate for a
+			// given field scoring identically here, so the only thing still separating them was the pull
+			// toward the base anchor below - which is how refineries ended up parked in open ground in
+			// the middle of the base rather than beside the tiberium they serve.
+			if (sampledResourceCells != null && sampledResourceCells.Count > 0)
 			{
 				var totalDistance = 0;
 				foreach (var sample in sampledResourceCells)
@@ -499,7 +682,14 @@ namespace OpenRA.Mods.Common.Traits
 			else
 				score += (refineryLoc - resourceLoc).LengthSquared * 10;
 
-			score += ScoreRefineryTopologyFit(refineryLoc, dockCells, sampledResourceCells);
+			// Whether this field's road runs long relative to the straight line to it. Known per field,
+			// applied per candidate: it is what turns "a dock on the wrong level" from a detail into
+			// the explanation.
+			var straightToField = (resourceLoc - baseLoc).Length;
+			var fieldRoadDetours = harvesterPathLength != null && straightToField > 0
+				&& harvesterPathLength.Value * 100 > straightToField * baseBuilder.Info.RefineryDetourDockHeightPercent;
+
+			score += ScoreRefineryTopologyFit(refineryLoc, dockCells, sampledResourceCells, fieldRoadDetours);
 
 			// Secondary: prefer placements that don't drift too far from the local base anchor.
 			score += (refineryLoc - baseLoc).LengthSquared * 2;
@@ -624,24 +814,36 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (type == BuildingType.Defense)
 					{
-						// Defense placement uses a bounded sampled search. A miss can simply
-						// mean this phase did not include a valid cell, not that the base is
-						// truly stuck. Retry later with a different phase, then allow the
-						// normal failure path to cancel instead of dropping defenses inside
-						// the structured base grid.
+						// Defense placement uses a bounded sampled search. A miss can simply mean this
+						// attempt's candidate set held no valid cell, not that the base is truly stuck,
+						// so retry with a progressively wider search (see placementRelaxation above).
 						defensePlacementAttempt++;
 						if (defensePlacementAttempt < baseBuilder.Info.MaximumFailedPlacementAttempts)
 							return true;
 
+						// Out of attempts: cancel and cool down, exactly as an unplaceable refinery does,
+						// instead of falling through to the shared failure path. That path raises failCount
+						// by only one per exhausted run, so reaching its own cancel threshold took
+						// MaximumFailedPlacementAttempts squared — 36 attempts at the configured 6, around
+						// half a minute of a finished defense waiting on a placement that was never going
+						// to succeed. It also let defenses trip the builder-wide production stall, which is
+						// meant for a genuinely walled-in base, not for one crowded corner.
 						defensePlacementAttempt = 0;
+						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
+						defensePlacementCooldownTicks = baseBuilder.Info.DefensePlacementRetryDelay;
+						return false;
 					}
 					else if (type == BuildingType.Refinery && AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings) > 0)
 					{
 						// A refinery with no accessible tiberium spot should not jam the entire build
 						// queue — the bot should still build power, barracks, defenses, etc.
 						// Cancel it and start a cooldown before the economy check tries again.
+						CNBotLog.Debug("{0} refinery: placement found no cell, cancelling (have {1}, target {2})",
+							player, AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings),
+							baseBuilder.GetTargetRefineryCount());
+
 						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
-						refineryPlacementCooldownTicks = baseBuilder.Info.StructureProductionResumeDelay;
+						refineryPlacementCooldownTicks = baseBuilder.Info.RefineryPlacementRetryDelay;
 						return false;
 					}
 				}
@@ -651,7 +853,7 @@ namespace OpenRA.Mods.Common.Traits
 					// If we just reached the maximum fail count, cache the number of current structures
 					if (++failCount >= baseBuilder.Info.MaximumFailedPlacementAttempts)
 					{
-						AIUtils.BotDebug($"{player} has nowhere to place {currentBuilding.Item}");
+						CNBotLog.Debug($"{player} has nowhere to place {currentBuilding.Item}");
 						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
 						lastFailedBuilding = currentBuilding.Item;
 						if (type == BuildingType.Defense)
@@ -914,10 +1116,24 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// If the bot still needs its minimum refineries, allow queueing even when
-			// the field is too far for a perfect tiberium-adjacent placement. Placement
-			// will use a BaseGrid fallback toward the field instead of cancelling.
-			return existingRefineryLocs.Count < baseBuilder.GetActiveInititalMinimumRefineryCount();
+			// The scan above is a fast reject, not proof. It samples a few fields, probes four anchors
+			// per field and demands flat, ramp-free ground within four cells of them — on broken
+			// terrain, which is exactly where an expansion tends to land, it reports "nowhere" while
+			// the full placement search would still find a spot. Taken as final it stopped bots from
+			// ever building a refinery at an expansion that had tiberium right next to it.
+			//
+			// So when the resource map says a field genuinely still supports another refinery, let the
+			// placement attempt be the judge. A real miss is already handled: the refinery is
+			// cancelled and refineryPlacementCooldownTicks throttles the retry.
+			if (baseBuilder.HasViableRefineryExpansionOpportunity())
+				return true;
+
+			// With no refinery at all, queue one regardless: placement then falls back to the base grid
+			// pointing at a field, which is a poor spot but better than no income. Matched to the same
+			// condition in the placement fallback — from the second refinery onward a spot beside the
+			// tiberium is the whole point, and one parked in the middle of the base is not worth its
+			// plot or its power.
+			return existingRefineryLocs.Count < 1;
 		}
 
 		ActorInfo ChooseBuildingToBuild(ProductionQueue queue)
@@ -934,14 +1150,26 @@ namespace OpenRA.Mods.Common.Traits
 			if (playerPower != null && effectiveExcessPower < minimumExcessPower &&
 				power != null && power.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault).Sum(p => p.Amount) > 0)
 			{
-				AIUtils.BotDebug("{0} decided to build {1}: Priority override (low power)", queue.Actor.Owner, power.Name);
+				CNBotLog.Debug("{0} decided to build {1}: Priority override (low power)", queue.Actor.Owner, power.Name);
 				return power;
 			}
 
 			// Next is to build up a strong economy
-			if (baseBuilder.ShouldExpandEconomy() && refineryPlacementCooldownTicks <= 0)
+			var wantsEconomy = baseBuilder.ShouldExpandEconomy();
+			if (!wantsEconomy || refineryPlacementCooldownTicks > 0)
+				CNBotLog.Debug("{0} refinery: skipped (wantsEconomy {1}, have {2}/{3}, cooldown {4})",
+					player, wantsEconomy,
+					AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings),
+					baseBuilder.GetTargetRefineryCount(), refineryPlacementCooldownTicks);
+
+			if (wantsEconomy && refineryPlacementCooldownTicks <= 0)
 			{
 				var refinery = GetProducibleBuilding(baseBuilder.Info.RefineryTypes, buildableThings);
+				if (refinery == null)
+					CNBotLog.Debug("{0} refinery: none buildable in this queue", player);
+				else if (!HasSufficientPowerForActor(refinery))
+					CNBotLog.Debug("{0} refinery: {1} blocked on power", player, refinery.Name);
+
 				if (refinery != null && HasSufficientPowerForActor(refinery))
 				{
 					// Pre-flight: skip queuing if no buildable spot exists near a reachable resource field.
@@ -951,20 +1179,25 @@ namespace OpenRA.Mods.Common.Traits
 					if (!hasExistingRefinery || hasRequestedExpansionRefinery || HasViableRefineryField(refinery))
 					{
 						baseBuilder.RefineryExpansionBlocked = false;
-						AIUtils.BotDebug("{0} decided to build {1}: Priority override (refinery)", queue.Actor.Owner, refinery.Name);
+						CNBotLog.Debug("{0} decided to build {1}: Priority override (refinery)", queue.Actor.Owner, refinery.Name);
 						return refinery;
 					}
 					else
 					{
 						// No viable spot for a second refinery — signal that expansion is blocked so
 						// PauseUnitProduction doesn't hold units hostage waiting for an impossible refinery.
+						CNBotLog.Debug("{0} refinery: no viable field near {1} (have {2}, opportunity {3})",
+							player, baseBuilder.ResourceConyardCenter ?? baseBuilder.GetRandomBaseCenter(),
+							AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings),
+							baseBuilder.HasViableRefineryExpansionOpportunity());
+
 						baseBuilder.RefineryExpansionBlocked = true;
 					}
 				}
 
 				if (power != null && refinery != null && !HasSufficientPowerForActor(refinery))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 					return power;
 				}
 			}
@@ -989,7 +1222,7 @@ namespace OpenRA.Mods.Common.Traits
 						var (gateLoc, _, _) = ChooseGateLocation(gate);
 						if (gateLoc != null)
 						{
-							AIUtils.BotDebug("{0} decided to build {1}: Priority override (gate)", queue.Actor.Owner, gate.Name);
+							CNBotLog.Debug("{0} decided to build {1}: Priority override (gate)", queue.Actor.Owner, gate.Name);
 							return gate;
 						}
 					}
@@ -1002,7 +1235,7 @@ namespace OpenRA.Mods.Common.Traits
 					var (wallLoc, _, _) = ChooseWallLocation(wallActorInfo);
 					if (wallLoc != null)
 					{
-						AIUtils.BotDebug("{0} decided to build {1}: Priority override (wall)", queue.Actor.Owner, wall.Name);
+						CNBotLog.Debug("{0} decided to build {1}: Priority override (wall)", queue.Actor.Owner, wall.Name);
 						return wall;
 					}
 				}
@@ -1015,13 +1248,13 @@ namespace OpenRA.Mods.Common.Traits
 				var production = GetProducibleBuilding(baseBuilder.Info.ProductionTypes, buildableThings);
 				if (production != null && HasSufficientPowerForActor(production))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (production)", queue.Actor.Owner, production.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (production)", queue.Actor.Owner, production.Name);
 					return production;
 				}
 
 				if (power != null && production != null && !HasSufficientPowerForActor(production))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 					return power;
 				}
 			}
@@ -1034,13 +1267,13 @@ namespace OpenRA.Mods.Common.Traits
 				var navalproduction = GetProducibleBuilding(baseBuilder.Info.NavalProductionTypes, buildableThings);
 				if (navalproduction != null && HasSufficientPowerForActor(navalproduction))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (navalproduction)", queue.Actor.Owner, navalproduction.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (navalproduction)", queue.Actor.Owner, navalproduction.Name);
 					return navalproduction;
 				}
 
 				if (power != null && navalproduction != null && !HasSufficientPowerForActor(navalproduction))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 					return power;
 				}
 			}
@@ -1051,13 +1284,13 @@ namespace OpenRA.Mods.Common.Traits
 				var silo = GetProducibleBuilding(baseBuilder.Info.SiloTypes, buildableThings);
 				if (silo != null && HasSufficientPowerForActor(silo))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (silo)", queue.Actor.Owner, silo.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (silo)", queue.Actor.Owner, silo.Name);
 					return silo;
 				}
 
 				if (power != null && silo != null && !HasSufficientPowerForActor(silo))
 				{
-					AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+					CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 					return power;
 				}
 			}
@@ -1109,7 +1342,7 @@ namespace OpenRA.Mods.Common.Traits
 					var reactiveDefense = ChooseReactiveDefense(buildableThings, reactiveRole, totalDefenseCount, roleDefenseCounts);
 					if (reactiveDefense != null)
 					{
-						AIUtils.BotDebug("{0} reactive defense: building {1} (threat role: {2})",
+						CNBotLog.Debug("{0} reactive defense: building {1} (threat role: {2})",
 							player, reactiveDefense.Name, reactiveRole);
 						return reactiveDefense;
 					}
@@ -1118,7 +1351,7 @@ namespace OpenRA.Mods.Common.Traits
 				var plannedDefense = ChoosePlannedDefense(buildableThings, totalDefenseCount, roleDefenseCounts);
 				if (plannedDefense != null)
 				{
-					AIUtils.BotDebug("{0} planned defense: building {1}", player, plannedDefense.Name);
+					CNBotLog.Debug("{0} planned defense: building {1}", player, plannedDefense.Name);
 					return plannedDefense;
 				}
 			}
@@ -1234,23 +1467,23 @@ namespace OpenRA.Mods.Common.Traits
 					if (power != null && power.TraitInfos<PowerInfo>().Where(i => i.EnabledByDefault).Sum(pi => pi.Amount) > 0)
 					{
 						if (playerPower.PowerOutageRemainingTicks > 0)
-							AIUtils.BotDebug("{0} decided to build {1}: Priority override (is low power)", queue.Actor.Owner, power.Name);
+							CNBotLog.Debug("{0} decided to build {1}: Priority override (is low power)", queue.Actor.Owner, power.Name);
 						else
-							AIUtils.BotDebug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
+							CNBotLog.Debug("{0} decided to build {1}: Priority override (would be low power)", queue.Actor.Owner, power.Name);
 
 						return power;
 					}
 				}
 
 				// Lets build this
-				AIUtils.BotDebug("{0} decided to build {1}: Desired is {2} ({3} / {4}); current is {5} / {4}",
+				CNBotLog.Debug("{0} decided to build {1}: Desired is {2} ({3} / {4}); current is {5} / {4}",
 					queue.Actor.Owner, bestFractionName, bestFractionValue, bestFractionValue * playerBuildings.Length,
 					playerBuildings.Length, bestFractionCount);
 				return bestFractionActor;
 			}
 
 			// Too spammy to keep enabled all the time, but very useful when debugging specific issues.
-			// AIUtils.BotDebug("{0} couldn't decide what to build for queue {1}.", queue.Actor.Owner, queue.Info.Group);
+			// CNBotLog.Debug("{0} couldn't decide what to build for queue {1}.", queue.Actor.Owner, queue.Info.Group);
 			return null;
 		}
 
@@ -1707,7 +1940,7 @@ namespace OpenRA.Mods.Common.Traits
 						(baseBuilder.PathFinder == null || baseBuilder.HarvesterLocomotorsList.Length == 0 ||
 							baseBuilder.HarvesterLocomotorsList.All(l =>
 								baseBuilder.PathFinder.PathMightExistForLocomotorBlockedByImmovable(l, origin, c))))
-					.OrderBy(c => (c - origin).LengthSquared))
+					.OrderBy(c => DriveOrStraightDistance(origin, c)))
 					return cell;
 
 				return null;
@@ -2017,10 +2250,21 @@ namespace OpenRA.Mods.Common.Traits
 					IEnumerable<CPos> sortedDefenseCells;
 					var placementThreats = baseBuilder.GetDefensePlacementThreats(defenseCenter, role);
 					long DefenseScore(CPos cell) => baseBuilder.ScoreDefensePlacement(cell, defenseCenter, targetCell, placementThreats);
-					var defMinSpacing = role == DefenseRole.AADefense || role == DefenseRole.InfantryDefense
-						? baseBuilder.Info.DefenseOuterMinSpacing
-						: baseBuilder.Info.DefenseInnerMinSpacing;
+					// Widen the search on every retry. The candidate list is truncated by score, so all
+					// surviving cells face the same threat hotspot and sit close together; once one
+					// defense stands there, the hard spacing filter rules out that whole cluster, and the
+					// cells further out never made the list. Retrying with identical parameters therefore
+					// reproduced the same miss — only the random building variant differed. Each attempt
+					// now drops the spacing requirement by a cell and weighs proportionally more
+					// candidates, so a retry actually explores somewhere new.
+					var placementRelaxation = Math.Max(0, defensePlacementAttempt);
+					var defMinSpacing = Math.Max(0,
+						(role == DefenseRole.AADefense || role == DefenseRole.InfantryDefense
+							? baseBuilder.Info.DefenseOuterMinSpacing
+							: baseBuilder.Info.DefenseInnerMinSpacing) - placementRelaxation);
 					var defMinSpacingSq = defMinSpacing * defMinSpacing;
+					var defCandidateLimit = Math.Max(1,
+						baseBuilder.Info.DefensePlacementCandidateLimit * (1 + placementRelaxation));
 					long FormationScore(CPos cell, int preferredRadius)
 					{
 						var score = DefenseScore(cell);
@@ -2046,8 +2290,7 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						minRange = Math.Max(0, minRange);
 						maxRange = Math.Max(minRange, maxRange);
-						var limit = Math.Max(1, baseBuilder.Info.DefensePlacementCandidateLimit);
-						var maxCandidates = Math.Max(64, limit * 8);
+						var maxCandidates = Math.Max(64, defCandidateLimit * 8);
 						var result = new List<CPos>(maxCandidates);
 						var seen = new HashSet<CPos>();
 						var dx = target.X - center.X;
@@ -2129,7 +2372,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					IEnumerable<CPos> LimitDefenseCandidates(IEnumerable<CPos> cells, Func<CPos, long> score, bool descending = true)
 					{
-						var limit = Math.Max(1, baseBuilder.Info.DefensePlacementCandidateLimit);
+						var limit = defCandidateLimit;
 						var selected = new List<(CPos Cell, long Score)>(limit);
 
 						foreach (var cell in cells)
@@ -2192,8 +2435,14 @@ namespace OpenRA.Mods.Common.Traits
 
 						case DefenseRole.AADefense:
 						{
-							// Coverage-based: pick cell that covers the most uncovered base buildings.
-							// Use the actor's weapon range to determine coverage radius.
+							// Coverage of the base is one term in the score, not the sort key. It used to be
+							// the primary key with FormationScore only breaking ties — and since two cells
+							// almost never cover exactly the same number of buildings, the tie-break never
+							// bound. AA therefore ignored the AADefense danger hotspot that was already
+							// computed for it above and spread evenly around the base, including across the
+							// side no aircraft had ever come from. Every other defense role sorts by
+							// FormationScore, i.e. toward the threat; this one now does too, with coverage
+							// able to decide between cells that face it equally well.
 							var weaponRange = actorInfo.TraitInfos<ArmamentInfo>()
 								.Select(a =>
 								{
@@ -2206,31 +2455,52 @@ namespace OpenRA.Mods.Common.Traits
 							var coverageRadiusCells = Math.Max(3, weaponRange.Length / 1024);
 							var coverageRadiusCellsSq = coverageRadiusCells * coverageRadiusCells;
 
-							// Buildings that need AA coverage
-							var baseBuildingPositions = playerBuildings
+							// Only buildings worth an air strike count. Weighting every structure equally let
+							// a cluster of walls and power plants outvote the refinery or the war factory.
+							var protectedCaps = baseBuilder.Info.AAProtectedCapabilities;
+							var protectable = playerBuildings
+								.Where(b => protectedCaps.Count == 0 ||
+									(b.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet
+										.Overlaps(protectedCaps) ?? false))
 								.Select(b => b.Location)
 								.ToList();
 
-							// Track which base buildings are already covered by existing AA
+							// Nothing tagged yet (very early game, or a mod that doesn't tag): fall back to
+							// all buildings rather than scoring every candidate identically at zero.
+							if (protectable.Count == 0)
+								protectable = playerBuildings.Select(b => b.Location).ToList();
+
+							// Track which of those are already covered by existing AA of this type.
 							var coveredByExisting = new HashSet<CPos>();
 							foreach (var existingAA in playerBuildings.Where(b => b.Info.Name == actorType))
-								foreach (var bPos in baseBuildingPositions)
+								foreach (var bPos in protectable)
 									if ((bPos - existingAA.Location).LengthSquared <= coverageRadiusCellsSq)
 										coveredByExisting.Add(bPos);
 
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								baseBuilder.Info.MinimumDefenseRadius, outerRadius);
 
-							// First limit by tactical direction, then run the heavier coverage check
-							// only on the small candidate set.
-							// Materialize uncoveredPositions once to avoid re-evaluating LINQ per candidate in OrderByDescending.
-							var uncoveredPositions = baseBuildingPositions
+							// Materialized once to avoid re-evaluating the LINQ per candidate below.
+							var uncoveredPositions = protectable
 								.Where(bPos => !coveredByExisting.Contains(bPos))
 								.ToArray();
+
+							var coverageWeight = (long)Math.Max(0, baseBuilder.Info.AACoverageWeight);
+							long AACoverageScore(CPos cell)
+							{
+								if (coverageWeight == 0 || uncoveredPositions.Length == 0)
+									return FormationScore(cell, outerRadius);
+
+								var covered = 0;
+								foreach (var bPos in uncoveredPositions)
+									if ((bPos - cell).LengthSquared <= coverageRadiusCellsSq)
+										covered++;
+
+								return FormationScore(cell, outerRadius) + covered * coverageWeight;
+							}
+
 							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
-								.OrderByDescending(c =>
-									uncoveredPositions.Count(bPos => (bPos - c).LengthSquared <= coverageRadiusCellsSq))
-								.ThenByDescending(c => FormationScore(c, outerRadius));
+								.OrderByDescending(AACoverageScore);
 							break;
 						}
 
@@ -2375,6 +2645,9 @@ namespace OpenRA.Mods.Common.Traits
 							.Select(a => a.Location)
 							.ToList();
 						RefineryCandidate? bestCandidate = null;
+						CPos? bestField = null;
+						int? bestFieldDrive = null;
+						var bestPass = "none";
 
 						foreach (var r in resourcesShouldCheck)
 						{
@@ -2403,6 +2676,21 @@ namespace OpenRA.Mods.Common.Traits
 							var candidateCells = GetRefineryCandidateCellsForField(actorInfo, bi, sampledResourceCells)
 								.Take(refineryCandidateLimit)
 								.ToArray();
+
+							// The structural checks below (open neighbours, dock probe, HasOpenRefineryApproach,
+							// PathMightExistForLocomotorBlockedByImmovable) reject cliff-LOCKED placements, but
+							// they cannot see a field that IS reachable and only the long way round. On Forest
+							// Fire the bot put refineries against the cliff below the blue tiberium, which sits
+							// on the terrace above and is only reachable by driving out around the forest path,
+							// so the harvesters gave up on it and drove down to the green field instead.
+							// Straight-line distance said "adjacent"; the road said otherwise.
+							//
+							// Path-length A* was removed from here once before because it lagged out placement -
+							// it was being run from every candidate cell, hundreds of searches per decision. The
+							// road length is a property of the field, not of which base cell the refinery lands
+							// on, so measuring it once per field (at most MaxResourceCellsToCheck of them) is the
+							// same information for a fraction of the cost.
+							var harvesterPathLength = HarvesterPathLengthToField(targetBase.Center, r);
 
 							foreach (var loc in candidateCells)
 							{
@@ -2497,21 +2785,33 @@ namespace OpenRA.Mods.Common.Traits
 									}
 								}
 
-								// Path-length A* removed: too expensive (hundreds of full A* calls per placement decision).
-								// The structural checks above (open neighbours, dock probe, HasOpenRefineryApproach,
-								// PathMightExistForLocomotorBlockedByImmovable, nearbyResources >= 3 open neighbours)
-								// are sufficient to reject cliff-locked placements without pathfinder cost.
-								int? harvesterPathLength = null;
-
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledResourceCells, harvesterPathLength)
 									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
+								{
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
+									bestField = r;
+									bestFieldDrive = harvesterPathLength;
+									bestPass = "field scan";
+								}
 							}
 						}
 
 						if (bestCandidate != null)
 						{
+							// Which field won, and how far the harvesters will have to drive to it. The
+							// inputs were logged before this and showed the scan comparing a field 6 cells
+							// away against one 71 away - but not which of them the refinery was then built
+							// for, so a refinery still facing the cliff could not be told apart from
+							// harvesters walking past a correctly placed one.
+							CNBotLog.Debug("{0} refinery at {1} for field {2} ({3} to drive) via {4}",
+								player, bestCandidate.Value.Placement.Location,
+								bestField.HasValue ? bestField.Value.ToString() : "none",
+								bestFieldDrive.HasValue
+									? bestFieldDrive.Value.ToString(NumberFormatInfo.CurrentInfo)
+									: "unmeasured",
+								bestPass);
+
 							if (baseBuilder.RequestedRefineries.Count > 0)
 								baseBuilder.RequestedRefineries.Remove(requestRef);
 							return bestCandidate.Value.Placement;
@@ -2520,6 +2820,12 @@ namespace OpenRA.Mods.Common.Traits
 						// Small relaxed second pass with a much tighter candidate budget.
 						foreach (var r in resourcesShouldCheck)
 						{
+							// Measured here too. This pass used to score without it, and it is not the rare
+							// fallback the name suggests: a played match placed a bot's opening refinery
+							// from here, so the detour term was skipped on the one placement that shapes
+							// the whole game. The value is already cached from the pass above, so asking
+							// again costs nothing.
+							var relaxedPathLength = HarvesterPathLengthToField(targetBase.Center, r);
 							var sampledRelaxed = GetFieldSampleCells(nearbyResources, r);
 							var relaxedCandidateLimit = layout == BaseBuildingLayout.BaseGrid ? 12 : 6;
 							var candidatesRelaxed = GetRefineryCandidateCellsForField(actorInfo, bi, sampledRelaxed)
@@ -2557,15 +2863,33 @@ namespace OpenRA.Mods.Common.Traits
 								if (!HasOpenRefineryApproach(actorInfo, loc, bi.Dimensions, r))
 									continue;
 
-								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, null)
+								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, relaxedPathLength)
 									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
+								{
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
+									bestField = r;
+									bestFieldDrive = relaxedPathLength;
+									bestPass = "relaxed scan";
+								}
 							}
 						}
 
 						if (bestCandidate != null)
 						{
+							// Which field won, and how far the harvesters will have to drive to it. The
+							// inputs were logged before this and showed the scan comparing a field 6 cells
+							// away against one 71 away - but not which of them the refinery was then built
+							// for, so a refinery still facing the cliff could not be told apart from
+							// harvesters walking past a correctly placed one.
+							CNBotLog.Debug("{0} refinery at {1} for field {2} ({3} to drive) via {4}",
+								player, bestCandidate.Value.Placement.Location,
+								bestField.HasValue ? bestField.Value.ToString() : "none",
+								bestFieldDrive.HasValue
+									? bestFieldDrive.Value.ToString(NumberFormatInfo.CurrentInfo)
+									: "unmeasured",
+								bestPass);
+
 							if (baseBuilder.RequestedRefineries.Count > 0)
 								baseBuilder.RequestedRefineries.Remove(requestRef);
 							return bestCandidate.Value.Placement;
@@ -2575,15 +2899,40 @@ namespace OpenRA.Mods.Common.Traits
 					if (baseBuilder.RequestedRefineries.Count > 0)
 						baseBuilder.RequestedRefineries.Remove(requestRef);
 
+					// Fallback placement puts the refinery on the base grid aimed at a field rather than
+					// beside one. Aimed at a real field that is still worth doing at any refinery count:
+					// the grid position closest to the tiberium shortens every haul, and a field being
+					// far away is a reason to build toward it, not a reason to build nothing.
+					//
+					// What is not worth doing is the degenerate case below, where no field can be found
+					// at all and the target collapses to the base centre. That is what produced
+					// refineries parked in the middle of the base with tiberium nowhere near them. It
+					// only pays off for the very first refinery, where the alternative is no income.
 					var existingRefineryCount = AIUtils.CountActorByCommonName(baseBuilder.RefineryBuildings);
-					var requiredRefineryCount = Math.Max(1, baseBuilder.GetActiveInititalMinimumRefineryCount());
-					if (existingRefineryCount < requiredRefineryCount)
+					var resourceFallbackRadius = Math.Max(effectiveMaxRadius, baseBuilder.Info.SellRefineryNoResourceDistance * 2);
+					var fallbackTarget = requestedResourceLoc
+						?? FindNearestReachableResource(resourceBaseCenter, resourceFallbackRadius);
+
+					// Logged like the other two paths. A bot built its opening refinery from here and left
+					// no trace at all, so the log said nothing about the placement while the field
+					// measurements sat right above it - which reads as the measurement being ignored
+					// rather than as no candidate having survived the scans.
+					if (fallbackTarget.HasValue)
 					{
-						var resourceFallbackRadius = Math.Max(effectiveMaxRadius, baseBuilder.Info.SellRefineryNoResourceDistance * 2);
-						var fallbackTarget = requestedResourceLoc
-							?? FindNearestReachableResource(resourceBaseCenter, resourceFallbackRadius)
-							?? baseCenter;
-						return FindPos(baseCenter, fallbackTarget, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
+						CNBotLog.Debug("{0} refinery for field {1} ({2} to drive) via base grid fallback, no candidate survived either scan",
+							player, fallbackTarget.Value,
+							HarvesterPathLengthToField(targetBase.Center, fallbackTarget.Value)
+								?.ToString(NumberFormatInfo.CurrentInfo) ?? "unreachable");
+
+						return FindPos(baseCenter, fallbackTarget.Value, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
+					}
+
+					if (existingRefineryCount < 1)
+					{
+						CNBotLog.Debug("{0} refinery aimed at its own base centre: no field found at all within {1} cells",
+							player, resourceFallbackRadius);
+
+						return FindPos(baseCenter, baseCenter, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
 					}
 
 					return (null, null, 0);
@@ -2592,11 +2941,28 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (layout == BaseBuildingLayout.Coverage)
 					{
-						// Read coverage radius from ProximityExternalCondition on the actor, fall back to 8.
+						// Coverage radius: the aura range for aura buildings, otherwise the range that
+						// actually makes the building worth spreading out — detection first, then plain
+						// vision. Without the latter two a radar (DetectCloaked and RevealsShroud at 15
+						// cells, no ProximityExternalCondition) would have been spaced as if it covered 8,
+						// and the bot would have clustered them into overlapping circles.
 						var proximityInfo = actorInfo.TraitInfoOrDefault<ProximityExternalConditionInfo>();
+						var detectionRange = actorInfo.TraitInfos<DetectCloakedInfo>()
+							.Select(d => d.Range)
+							.DefaultIfEmpty(WDist.Zero)
+							.Max();
+						var visionRange = actorInfo.TraitInfos<RevealsShroudInfo>()
+							.Select(r => r.Range)
+							.DefaultIfEmpty(WDist.Zero)
+							.Max();
+
 						var coverageRadius = proximityInfo != null
 							? Math.Max(1, proximityInfo.Range.Length / 1024)
-							: 8;
+							: detectionRange > WDist.Zero
+								? Math.Max(1, detectionRange.Length / 1024)
+								: visionRange > WDist.Zero
+									? Math.Max(1, visionRange.Length / 1024)
+									: 8;
 						var coverageRadiusSq = coverageRadius * coverageRadius;
 
 						var baseBuildingPositions = playerBuildings

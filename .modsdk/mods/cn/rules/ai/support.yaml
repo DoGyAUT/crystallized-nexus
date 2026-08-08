@@ -164,8 +164,17 @@ Player:
 			Rush: 1
 			Turtle: 1
 			Tech: 2
-			Expansion: 5
+			# Expansion's whole idea is to sit on the map's resources before anyone else does, so its
+			# ceiling is set by how many fields a map has rather than by what a base needs.
+			Expansion: 8
 			Steamroller: 3
+		# One MCV at a time means every expansion waits out the previous drive and deploy. Expansion
+		# founds three at once; Steamroller two, since it expands to feed production rather than to
+		# claim ground. The rest keep the old serial behaviour.
+		MaxConcurrentMcvs: 1
+		MaxConcurrentMcvCounts:
+			Expansion: 3
+			Steamroller: 2
 		BuildAdditionalMCVCashAmount: 9000
 		BuildAdditionalMCVCashAmounts:
 			Turtle: 12000
@@ -186,6 +195,11 @@ Player:
 		McvEnemyBaseHardAvoidanceRadius: 4
 		McvEnemyBaseRoutePenalty: 2048
 		McvSafeMoveWaypointPathCells: 12
+		# Distance the MCV aims to keep from the *centre* of a resource field. At 8 it lands inside any
+		# field wider than that, and the clearance check then has to reject every candidate the ring
+		# produced. Aiming further out means the preferred ring already sits beside the field instead
+		# of on it, with room left for the refinery between yard and tiberium.
+		CRmodeTryMaintainRange: 14
 		McvExpansionCoordinationRadius: 24
 		McvExpansionCoordinationPenalty: 768
 		CBmodeFrontlineOutpostBonus: 384

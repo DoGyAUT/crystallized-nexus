@@ -17,7 +17,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
 	sealed class StealthIdleState : CNStateBase, ICNState
 	{
-		const int RethinkInterval = 3;
+		// Game ticks, not update cycles: how long a target picked here is kept before the squad
+		// looks for a better one.
+		const int RethinkInterval = 225;
 		int rethinkTicks;
 
 		public void Activate(CNSquad squad) { rethinkTicks = 0; }
@@ -27,7 +29,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (!squad.IsValid)
 				return;
 
-			if (--rethinkTicks > 0 && squad.IsTargetValid)
+			rethinkTicks -= squad.TicksSinceLastUpdate;
+			if (rethinkTicks > 0 && squad.IsTargetValid)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new StealthApproachState());
 				return;

@@ -14,6 +14,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Traits;
 
@@ -115,6 +116,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		const int StuckHarvesterThreshold = 200;
 		const int StuckNearRefineryRadius = 3;
+
+		// Backstop for the near-refinery exemption below. That exemption exists because a full
+		// harvester waiting its turn at a busy dock is doing the right thing — but no queue takes this
+		// long, so past this point the harvester is stuck on something else and gets re-ordered anyway.
+		// Without it a harvester that lost its refinery mid-delivery can hold position indefinitely.
+		const int StuckHarvesterHardThreshold = 900;
 
 		readonly World world;
 		readonly Player player;
@@ -456,7 +463,7 @@ namespace OpenRA.Mods.Common.Traits
 				// for this long (it should be docking-and-leaving or already searching for resources), so
 				// it stays flagged even near a refinery. This is what actually deadlocks a busy dock: an
 				// empty harvester wedged in the approach blocks everyone still queueing to deliver.
-				if (!h.Harvester.IsEmpty)
+				if (!h.Harvester.IsEmpty && h.StationaryTicks < StuckHarvesterHardThreshold)
 				{
 					foreach (var refinery in refineries.Actors)
 					{
@@ -488,7 +495,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (isStuck)
 			{
-				AIUtils.BotDebug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. Re-issuing harvest order.");
+				CNBotLog.Debug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. Re-issuing harvest order.");
 				h.StationaryTicks = 0;
 			}
 
@@ -496,7 +503,7 @@ namespace OpenRA.Mods.Common.Traits
 			ClearHarvesterRefinery(h.Actor);
 			var refineryAnchor = FindBestRefineryAnchor(h.Actor, h);
 			var newSafeResourcePatch = FindNextResource(h.Actor, h, refineryAnchor);
-			AIUtils.BotDebug($"CN AI: Harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
+			CNBotLog.Debug($"CN AI: Harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
 			if (newSafeResourcePatch.Type != TargetType.Invalid)
 			{
 				bot.QueueOrder(new Order("Harvest", h.Actor, newSafeResourcePatch, false));
@@ -758,7 +765,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (bestScore < currentScore + Info.DockReassignmentScoreThreshold)
 					continue;
 
-				AIUtils.BotDebug($"CN AI: Rerouting full harvester {h.Actor} from congested refinery {currentDock} to {bestDock}.");
+				CNBotLog.Debug($"CN AI: Rerouting full harvester {h.Actor} from congested refinery {currentDock} to {bestDock}.");
 				bot.QueueOrder(new Order("Dock", h.Actor, Target.FromActor(bestDock), false));
 			}
 		}

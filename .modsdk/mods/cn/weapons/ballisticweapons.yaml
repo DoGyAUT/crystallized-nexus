@@ -256,12 +256,19 @@ WardenAutoCannon:
 	Range: 8c0
 	Report: 20mm_v1.ogg, 20mm_v2.ogg, 20mm_v3.ogg
 	ValidTargets: Ground, Air, DeadInfantry
-	Projectile: Bullet
-		-Image:
-		Speed: 1c512
+	# Instant hit, with the tracers kept as pure decoration. A travelling bullet at 1c512 against
+	# aircraft that move faster than that arrives where the target used to be, which made the Warden
+	# poor at the one job an anti-air vehicle exists for. The fake bullets fly the same path the real
+	# ones did, so nothing looks different - the damage simply no longer depends on the flight.
+	# Naming a different projectile type replaces the inherited block outright, so ^Cannon's Speed,
+	# Shadow, LaunchAngle and Palette do not need removing - and cannot be, since a removal is checked
+	# against the new type just as an assignment is.
+	Projectile: InstantHitWithFakeBullets
 		Blockable: false
-		LaunchAngle: 0
 		Inaccuracy: 2c0
+		FakeBulletNumber: 4
+		FakeBulletSpeed: 1536
+		FakeBulletInaccuracy: 0c256
 		ContrailLength: 10
 		ContrailStartWidth: 0c32
 		ContrailEndWidth: 0c8

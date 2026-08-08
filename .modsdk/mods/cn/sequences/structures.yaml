@@ -2311,7 +2311,7 @@ gamg:
 			DESERT: gamg_tur.shp
 		Facings: 32
 		ShadowStart: 32
-		Offset: 0, -15, 25
+		Offset: 0, -15, 15
 	icon:
 		Filename: gamgicon.shp
 
@@ -2324,7 +2324,7 @@ gagat:
 			DESERT: gagat_tur.shp
 		Facings: 32
 		ShadowStart: 32
-		Offset: 0, -15, 25
+		Offset: 0, -15, 15
 	icon:
 		Filename: gagaticon.shp
 
@@ -2337,7 +2337,7 @@ gacan:
 			DESERT: gacan_tur.shp
 		Facings: 32
 		ShadowStart: -1
-		Offset: 0, -15, 25
+		Offset: 0, -15, 15
 	icon:
 		Filename: gacanicon.shp
 

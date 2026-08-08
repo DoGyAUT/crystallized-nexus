@@ -584,6 +584,146 @@ explosion:
 		Filename: tpiff.shp
 		Length: *
 		BloomGlow: True
+	bulletcasingscorch1:
+		Filename: bulletcasing.shp
+		Tick: 1200
+		Start: 0
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	bulletcasingscorch2:
+		Filename: bulletcasing.shp
+		Tick: 1200
+		Start: 1
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	bulletcasingscorch3:
+		Filename: bulletcasing.shp
+		Tick: 1200
+		Length: 2
+		Start: 3
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	bulletcasingscorch4:
+		Filename: bulletcasing.shp
+		Tick: 1200
+		Start: 3
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	bulletcasingscorch5:
+		Filename: bulletcasing.shp
+		Tick: 1200
+		Start: 4
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	bulletcasingscorch6:
+		Filename: bulletcasing.shp
+		Tick: 1200
+		Start: 5
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	bulletcasingscorch7:
+		Filename: bulletcasing.shp
+		Tick: 1200
+		Start: 6
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	cannoncasingscorch1:
+		Filename: cannoncasing.shp
+		Tick: 1200
+		Start: 2
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	cannoncasingscorch2:
+		Filename: cannoncasing.shp
+		Tick: 1200
+		Start: 4
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	cannoncasingscorch3:
+		Filename: cannoncasing.shp
+		Tick: 1200
+		Length: 1
+		Start: 6
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	cannoncasingscorch4:
+		Filename: cannoncasing.shp
+		Tick: 1200
+		Start: 8
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	cannoncasingscorch5:
+		Filename: cannoncasing.shp
+		Tick: 1200
+		Start: 10
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	cannoncasingscorch6:
+		Filename: cannoncasing.shp
+		Tick: 1200
+		Start: 12
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
+	cannoncasingscorch7:
+		Filename: cannoncasing.shp
+		Tick: 1200
+		Start: 15
+		Length: 1
+		Zramp: 1
+		ZOffset: 0
+		Offset: 0, 0, 1
+		IgnoreWorldTint: false
+		AlphaFade: False
 	artexplo01:
 		Filename: artexplo01.png
 		BlendMode: Additive
@@ -750,6 +890,73 @@ canister:
 		Length: *
 		ZOffset: 1023
 		Offset: 0, 0, 12
+
+bulletcasing:
+	Defaults:
+		Filename: bulletcasing.shp
+		Offset: 0, 0, 64
+		ZOffset: 1023
+		Tick: 50
+		Length: *
+		Zramp: 1
+	1:
+		Frames: 0,1,2,3,4,5,6,7
+	2:
+		Frames: 1,2,3,4,5,6,7,0
+	3:
+		Frames: 2,3,4,5,6,7,0,1
+	4:
+		Frames: 3,4,5,6,7,0,1,2
+	5:
+		Frames: 4,5,6,7,0,1,2,3
+	6:
+		Frames: 5,6,7,0,1,2,3,4
+	7:
+		Frames: 6,7,0,1,2,3,4,5
+	8:
+		Frames: 7,0,1,2,3,4,5,6
+
+cannoncasing:
+	Defaults:
+		Filename: cannoncasing.shp
+		ZOffset: 1023
+		Tick: 30
+		Length: *
+		Offset: 0, 0, 64
+		Zramp: 1
+	1:
+		Frames: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+	2:
+		Frames: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0
+	3:
+		Frames: 2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,1
+	4:
+		Frames: 3,4,5,6,7,8,9,10,11,12,13,14,15,0,1,2
+	5:
+		Frames: 4,5,6,7,8,9,10,11,12,13,14,15,0,1,2,3
+	6:
+		Frames: 5,6,7,8,9,10,11,12,13,14,15,0,1,2,3,4
+	7:
+		Frames: 6,7,8,9,10,11,12,13,14,15,0,1,2,3,4,5
+	8:
+		Frames: 7,8,9,10,11,12,13,14,15,0,1,2,3,4,5,6
+	9:
+		Frames: 8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7
+	10:
+		Frames: 9,10,11,12,13,14,15,0,1,2,3,4,5,6,7,8
+	11:
+		Frames: 10,11,12,13,14,15,0,1,2,3,4,5,6,7,8,9
+	12:
+		Frames: 11,12,13,14,15,0,1,2,3,4,5,6,7,8,9,10
+	13:
+		Frames: 12,13,14,15,0,1,2,3,4,5,6,7,8,9,10,11
+	14:
+		Frames: 13,14,15,0,1,2,3,4,5,6,7,8,9,10,11,12
+	15:
+		Frames: 14,15,0,1,2,3,4,5,6,7,8,9,10,11,12,13
+	16:
+		Frames: 15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14
+
 
 pulsball:
 	idle:

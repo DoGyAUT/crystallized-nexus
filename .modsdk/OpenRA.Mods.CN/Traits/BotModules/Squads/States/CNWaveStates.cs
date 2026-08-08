@@ -23,6 +23,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// ---------------------------------------------------------------------------
 	sealed class CNWaveHoldState : CNStateBase, ICNState
 	{
+		// Throttle between drift-correction move orders, in game ticks. This used to count down once
+		// per update while being set to AttackForceInterval — a tick value used as a cycle count, so
+		// a squad that wandered off stayed away for roughly two minutes before being called back.
+		const int DriftReissueTicks = 300;
+
 		CPos holdCell;
 		WPos holdPos;
 		bool holdInitialized;
@@ -60,11 +65,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// (e.g. units chased a target out of range), re-issue the move order. Throttled
 			// so we don't spam Move orders every tick.
 			if (reissueCooldown > 0)
-				reissueCooldown--;
+				reissueCooldown -= squad.TicksSinceLastUpdate;
 			else if (HasDrifted(squad))
 			{
 				IssueHoldMove(squad);
-				reissueCooldown = squad.SquadManager.Info.AttackForceInterval;
+				reissueCooldown = DriftReissueTicks;
 			}
 		}
 
@@ -76,7 +81,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var baseCell = mgr.GetRandomBaseCenter();
 
 			// Stable per-squad scatter so squads of the same template don't pile up.
-			var seed = (squad.TemplateName ?? "").GetHashCode() ^ squad.CreatedTick;
+			var seed = CNSquadHelper.StableHash(squad.TemplateName) ^ squad.CreatedTick;
 			var scatter = mgr.Info.WaveHoldScatterCells;
 			if (scatter > 0)
 			{
@@ -92,7 +97,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			holdInitialized = true;
 
 			IssueHoldMove(squad);
-			reissueCooldown = mgr.Info.AttackForceInterval;
+			reissueCooldown = DriftReissueTicks;
 		}
 
 		void IssueHoldMove(CNSquad squad)
@@ -281,9 +286,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		/// enough of this one squad. Judging only its own units made the rally cell a shared waypoint
 		/// rather than a meeting point, so squads filed into the enemy base one after another.
 		/// <para>
-		/// Every participant evaluates this against the same unpruned participant set within a single
-		/// manager tick (squads are updated before MonitorActiveWave prunes), so the wave releases as
-		/// a body instead of cascading one squad at a time.
+		/// Only participants that are still staging count. Participation used to end when a squad left
+		/// the staging states, so the set pruned itself and the denominator shrank as squads peeled off.
+		/// Now that a wave outlives its launch, squads pulled out of staging early — by an ambush on the
+		/// way, or by getting stuck — would otherwise stay in the count forever as "not arrived" and put
+		/// the threshold out of reach for everyone still waiting.
 		/// </para>
 		/// </summary>
 		static bool EnoughWaveParticipantsArrived(CNSquad squad, WPos rallyPos, long arrivalSq)
@@ -300,6 +307,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			foreach (var participant in mgr.WaveParticipants)
 			{
 				if (participant == null || !participant.IsValid)
+					continue;
+
+				// Squads that have already left staging are on their way and are not being waited for.
+				if (!participant.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>())
 					continue;
 
 				participants++;

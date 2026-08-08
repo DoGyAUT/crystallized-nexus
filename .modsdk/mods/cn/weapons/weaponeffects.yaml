@@ -90,3 +90,46 @@
 		ContrailLength: 2
 		ContrailStartWidth: 18
 		ContrailZOffset: 3000
+
+BulletCasing:
+	ReloadDelay: 60
+	Range: 6c0
+	ValidTargets: Ground, Water, Air
+	Projectile: Bullet
+		Speed: 50,65
+		Image: bulletcasing
+		Sequences: 1,2,3,4,5,6,7,8
+		Blockable: false
+		Inaccuracy: 0c256
+		InaccuracyType: Absolute
+		LaunchAngle: 220, 230
+	Warhead@2Eff: CreateEffect
+		Explosions: bulletcasingscorch1, bulletcasingscorch2, bulletcasingscorch3, bulletcasingscorch4, bulletcasingscorch5, bulletcasingscorch6, bulletcasingscorch7
+		ExplosionPalette: effect
+		ValidTargets: Ground
+		InvalidTargets: Water, Air
+		AirThreshold: 8c0
+		ImpactActors: false
+	Warhead@3EffWater: CreateEffect
+		Explosions: water_piffs
+		ExplosionPalette: ra
+		ValidTargets: Water
+		InvalidTargets: Ground, Air
+		AirThreshold: 8c0
+		ImpactActors: false
+
+BulletCasingAir:
+	Inherits: BulletCasing
+	Projectile: Bullet
+		Speed: 150,170
+		LaunchAngle: 10, 20
+
+CannonCasing:
+	Inherits: BulletCasing
+	Projectile: Bullet
+		Speed: 60,80
+		Sequences: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
+		Image: cannoncasing
+		Shadow: true
+	Warhead@2Eff: CreateEffect
+		Explosions: cannoncasingscorch1, cannoncasingscorch2, cannoncasingscorch3, cannoncasingscorch4, cannoncasingscorch5, cannoncasingscorch6, cannoncasingscorch7

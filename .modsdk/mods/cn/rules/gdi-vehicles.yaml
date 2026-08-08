@@ -463,6 +463,9 @@ SMECH:
 	Armament@primary:
 		Weapon: AssaultCannon
 		LocalOffset: 550,256,870, 550,-256,870
+		CasingWeapon: BulletCasing
+		CasingSpawnLocalOffset: 550,256,880, 550,-256,880
+		CasingTargetOffset: 550, 1000, 0, 550, -1000, 0
 	RenderSprites:
 		FullBrightPaletteIndexRanges: 176, 191, 192, 199
 	WithInfantryBody:
@@ -542,7 +545,10 @@ GTMTNK:
 		MuzzlePalette: effect
 		Recoil: 256
 		RecoilRecovery: 32
-		LocalOffset: 1620,0,870
+		LocalOffset: 1620,0,870, 1620,0,870 ## for throwing casing on left and right
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 900,0,870, 900,0,870
+		CasingTargetOffset: 900,-1190,870, 900,1190,870
 	WithMuzzleOverlay:
 	Selectable:
 		DecorationBounds: 1267, 2534
@@ -627,6 +633,9 @@ MMCH:
 		Recoil: 128
 		RecoilRecovery: 32
 		LocalOffset: 1188,458,1485
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 100,458,1485
+		CasingTargetOffset: 0, 1424, 0
 	DetectCloaked:
 		Range: 6c768
 	RenderDetectionCircle:
@@ -658,7 +667,7 @@ WARDEN:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
-		Prerequisites: ~gaweap, ~techlevel.medium, ~tech.steel
+		Prerequisites:  ~gaweap, garadr, ~techlevel.medium, ~tech.steel
 		Description: actor-warden.description
 	Mobile:
 		Locomotor: walker
@@ -715,6 +724,9 @@ WARDEN:
 		Recoil: 128
 		RecoilRecovery: 32
 		LocalOffset: 650,458,1485, 650,-458,1485
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: -150,640,1485, -150,-640,1485
+		CasingTargetOffset: -200,1658,0, -200,-1658,0
 	DetectCloaked:
 		Range: 6c768
 	RenderDetectionCircle:
@@ -785,6 +797,9 @@ WARDEN:
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		LocalOffset: 1556,181,1061
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 900,180,1061
+		CasingTargetOffset: 900,1220,1061
 		Recoil: 256
 		RecoilRecovery: 32
 	Armament@SECONDARY:
@@ -793,6 +808,9 @@ WARDEN:
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect
 		LocalOffset: 1556,-181,1061
+		CasingWeapon: CannonCasing
+		CasingSpawnLocalOffset: 900,-180,1061
+		CasingTargetOffset: 900,-1220,1061
 		Recoil: 256
 		RecoilRecovery: 32
 		FireDelay: 10

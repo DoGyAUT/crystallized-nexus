@@ -23,7 +23,7 @@ Player:
 		AttackWaveStagingTimeoutTicks: 600
 		AttackWaveStagingArrivalCells: 7
 		WaveHoldScatterCells: 3
-		WaveParticipantRoles: Assault, ArtilleryAssault, SubterraneanAssault, Raider, Stealth, AircraftAttack, AircraftRaider
+		WaveParticipantRoles: Assault, ArtilleryAssault, SubterraneanAssault, Raider, Stealth
 		KnownSquadTags: Frontline, AntiInfantry, AntiArmor, AntiAir, Siege, Harass, Stealth, Transport, Support, Infantry, Vehicle, Aircraft
 		RoleWeights:
 			Assault: 10

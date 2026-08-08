@@ -75,6 +75,23 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		internal Actor TargetActor { get; private set; }
 		internal int NoTargetIdleTicks;
 
+		/// <summary>
+		/// Game ticks that passed since this squad was last updated. States count their timeouts in
+		/// game ticks by adding this rather than incrementing per update, so a squad that is updated
+		/// more often — see CNSquadManagerBotModule's engaged/idle cadence — does not silently run
+		/// every stuck detector, wait window and reissue interval down faster.
+		/// </summary>
+		public int TicksSinceLastUpdate { get; private set; } = 1;
+
+		/// <summary>
+		/// World tick at which the squad manager should next update this squad. Set by the manager
+		/// from the engaged/idle cadence; staggering it per squad also spreads the update cost
+		/// across ticks instead of putting the whole army on one.
+		/// </summary>
+		public int NextUpdateTick { get; set; }
+
+		int lastUpdatedTick;
+
 		// --- Slot assignments (from template) ---
 		public readonly List<CNSlotAssignment> SlotAssignments = [];
 
@@ -181,6 +198,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public void Update()
 		{
+			// First update of a squad's life has no previous tick to measure against; one tick keeps
+			// any elapsed-time test from firing on the very first pass.
+			TicksSinceLastUpdate = lastUpdatedTick == 0
+				? 1
+				: System.Math.Max(1, World.WorldTick - lastUpdatedTick);
+			lastUpdatedTick = World.WorldTick;
+
 			if (IsValid)
 				FuzzyStateMachine.Update(this);
 		}
@@ -226,12 +250,21 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			Target = actor != null ? Target.FromActor(actor) : Target.Invalid;
 			if (actor != null)
 				NoTargetIdleTicks = 0;
+
+			// Single funnel for every squad target assignment, so the manager's claim registry stays in
+			// step without each state having to remember to report what it picked.
+			SquadManager.SetTargetClaim(this, actor);
 		}
 
 		public void SetPositionToTarget(WPos pos)
 		{
 			TargetActor = null;
 			Target = Target.FromPos(pos);
+
+			// The second funnel. Dropping the actor without releasing the claim left a squad reserving
+			// damage against a target it had walked away from — a subterranean squad moving to its
+			// ambush position kept other squads off its former target for as long as that actor lived.
+			SquadManager.ClearTargetClaim(this);
 		}
 
 		/// <summary>

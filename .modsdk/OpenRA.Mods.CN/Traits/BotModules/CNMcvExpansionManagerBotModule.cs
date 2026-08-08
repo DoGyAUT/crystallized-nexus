@@ -1,4 +1,4 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -13,6 +13,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
@@ -45,6 +46,25 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Per-profile cash thresholds to trigger additional MCV building. Overrides BuildAdditionalMCVCashAmount for the active profile.")]
 		public readonly FrozenDictionary<string, int> BuildAdditionalMCVCashAmounts = null;
+
+		[Desc("Resource cells left across all fields the bot works, at or below which it counts as starving " +
+			"and expands regardless of cash. Its income is about to stop, and the cash thresholds that " +
+			"normally gate expansion can never be met once it has. 0 disables the starvation trigger.",
+			"Means 'running low', not 'empty'. At 40 - halved to 20 by the regrowth rule, which nearly " +
+			"every Tiberian Sun field triggers - a played match logged bots sitting on 37 and 63 cells " +
+			"with no cash at all and still not qualifying. By the time a field is down to twenty cells " +
+			"the expansion needed to arrive minutes ago.")]
+		public readonly int StarvationFieldCells = 120;
+
+		[Desc("Percent of StarvationFieldCells used as the threshold when a worked field has a seeding " +
+			"tree in it. Lower rather than zero: regrowth is not inexhaustible, and a field mined faster " +
+			"than it seeds runs its owner dry all the same.")]
+		public readonly int StarvationRespawningPercent = 50;
+
+		[Desc("Extra construction yards a starving bot may found beyond its configured ceiling. Bounded " +
+			"rather than unlimited: a profile set to two yards should not grow without end, but it must " +
+			"not be trapped on a dead field either.")]
+		public readonly int StarvationExtraConstructionYards = 2;
 
 		[Desc("Also expand when a genuinely good free spot exists, instead of only when the bot is rich.",
 			"The construction yard counts above stay in force as the ceiling.")]
@@ -82,6 +102,62 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("When economy is already covered, prefer CheckBase expansions as forward outposts instead of only resource expansions.")]
 		public readonly bool EnableStrategicOutposts = true;
+
+		[Desc("Cells around the starting MCV searched for tiberium before deciding whether to deploy on",
+			"the spot or walk to a field first.",
+			"This is a last-resort test for a spawn with no workable tiberium at all, not a judgement of",
+			"how good the spawn is. Map authors place spawns deliberately, and a central one with fields",
+			"fifteen or twenty cells out is a fine start — walking away from it to sit closer to one",
+			"field trades a good position for a worse one. Keep this wide enough that only a genuinely",
+			"stranded spawn fails it.")]
+		public readonly int StartDeployResourceSearchRadius = 25;
+
+		[Desc("Valuable resource cells that must lie within " + nameof(StartDeployResourceSearchRadius),
+			"for the starting MCV to deploy where it stands. Below this it looks for a field instead —",
+			"the one relocation decision the bot can never revisit later.")]
+		public readonly int StartDeployMinResourceCells = 12;
+
+		[Desc("How long a travelling MCV keeps the deploy cell it picked. Expansion scoring is relative to",
+			"the MCV's own position, so the ranking of candidate fields shifts as it drives; re-picking",
+			"every scan makes it change its mind mid-journey and arc across the map. The expiry only",
+			"exists so an MCV that cannot reach its choice eventually reconsiders.")]
+		public readonly int McvDeployGoalHoldTicks = 1500;
+
+		[Desc("Cells of clearance kept between a deploying construction yard and valuable resource cells.",
+			"CRmodeTryMaintainRange measures to the centre of a field, which on a large one still lands",
+			"inside it, so this is what actually keeps the yard out of the tiberium.",
+			"Sized to leave a lane free between yard and field rather than to merely clear the edge:",
+			"the refinery belongs in that lane, and a yard parked against the field takes the cells it",
+			"needs. 0 disables the clearance.")]
+		public readonly int McvResourceClearance = 6;
+
+		[Desc("How many MCVs may be travelling at the same time. One means expansions are founded strictly",
+			"one after another — build, drive, deploy, only then the next — which is what a land-grab",
+			"profile cannot afford. Ignored while the bot has no construction yard: rebuilding a base",
+			"never needs more than one spare.")]
+		public readonly int MaxConcurrentMcvs = 1;
+
+		[Desc("Per-profile override for " + nameof(MaxConcurrentMcvs) + ".")]
+		public readonly FrozenDictionary<string, int> MaxConcurrentMcvCounts = null;
+
+		[Desc("Cells around a candidate deploy cell examined for usable building ground. The deploy check",
+			"itself only asks whether the construction yard fits, which a ledge between a cliff and a",
+			"tiberium field satisfies while offering nowhere to put the rest of the base.")]
+		public readonly int DeploySiteCheckRadius = 8;
+
+		[Desc("Flat, buildable cells that must lie within " + nameof(DeploySiteCheckRadius) + " for a",
+			"deploy cell to count as a viable base site. A candidate below this is skipped in favour of",
+			"the next one; if no candidate clears it, the best available cell is used anyway rather than",
+			"leaving the MCV wandering.")]
+		public readonly int DeploySiteMinBuildableCells = 60;
+
+		[Desc("Percent of the straight line from a deploy candidate to its tiberium field that may be",
+			"undriveable before the candidate is passed over. Straight-line closeness to the field is",
+			"what ranks candidates, and under a cliff is as close as it gets - so without this a yard",
+			"lands below the terrace its tiberium sits on and every haul pays for it. Only candidates",
+			"that clear it are considered; if none can be built on, the full list is used anyway rather",
+			"than leaving the MCV wandering.")]
+		public readonly int DeployMaxBlockedLinePercent = 20;
 
 		[Desc("Initial expansion mode chosen by AI.")]
 		public readonly BotMcvExpansionMode InitialExpansionMode = BotMcvExpansionMode.CheckResource;
@@ -174,6 +250,10 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		// When ExpansionModeAutoSwitch is true, if the AI fails to find a deploy spot enough time even in CheckBase mode
 		// NegativeMaxFailedAttempts is applied to make AI switch bettween modes more frequently until a successful attempt
+		// Samples along the line from a prospective yard site to the field. Enough to tell a cliff from
+		// a gap, and cheap enough to run over every deploy candidate.
+		const int DeployLineSamples = 20;
+
 		const int CRmodPositiveMaxFailedAttempts = 3;
 		const int CBmodPositiveMaxFailedAttempts = 2;
 		const int NegativeMaxFailedAttempts = 0;
@@ -199,6 +279,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly Dictionary<Actor, CPos?> activeMCVs = [];
 		readonly Dictionary<Actor, int> mcvRetryCooldown = [];
+
+		// Deploy cell a travelling MCV has committed to, with an expiry as a safety net.
+		readonly Dictionary<Actor, (CPos Cell, int UntilTick)> mcvDeployGoals = [];
 		readonly Dictionary<CPos, (ExpansionGoal Goal, int UntilTick)> pendingExpansionGoalLocks = [];
 		readonly Dictionary<Actor, (ExpansionGoal Goal, int UntilTick, CPos DeployCell)> conyardExpansionGoalLocks = [];
 
@@ -515,18 +598,27 @@ namespace OpenRA.Mods.Common.Traits
 			return path;
 		}
 
-		CPos ChooseSafeMoveWaypoint(List<CPos> path, CPos finalCell)
+		/// <summary>
+		/// The safe route as a list of move waypoints, source-first, ending on the deploy cell.
+		/// <para>
+		/// Waypoints exist so a plain Move order cannot re-route the MCV across a whole enemy base:
+		/// each leg is short enough that the engine's own pathing stays on the corridor that
+		/// FindSafeMcvPath approved. They are all handed over at once — issuing one per scan left the
+		/// MCV standing at every leg's end until the next scan came round, which is the stop-start
+		/// crawl seen in testing.
+		/// </para>
+		/// </summary>
+		IEnumerable<CPos> BuildSafeWaypoints(List<CPos> path, CPos finalCell)
 		{
-			if (path == null || path.Count == 0)
-				return finalCell;
+			if (path != null && path.Count > 0)
+			{
+				// Paths are returned reversed, target -> source, so walk backwards to travel outward.
+				var maxStep = Math.Max(1, Info.McvSafeMoveWaypointPathCells);
+				for (var i = path.Count - 1 - maxStep; i > 0; i -= maxStep)
+					yield return path[i];
+			}
 
-			var maxStep = Math.Max(1, Info.McvSafeMoveWaypointPathCells);
-			if (path.Count <= maxStep + 1)
-				return finalCell;
-
-			// Paths are returned reversed, target -> source. Pick a waypoint near the source
-			// so the normal Move order can't re-route across a whole enemy base in one go.
-			return path[Math.Max(0, path.Count - 1 - maxStep)];
+			yield return finalCell;
 		}
 
 		void TrackExpansionGoal(CPos deployCell)
@@ -804,9 +896,13 @@ namespace OpenRA.Mods.Common.Traits
 
 						var resCenter = resourceCreatorLocs.Length == 0 || world.LocalRandom.Next(2) > 0 ? resourceCellsCenter : resourceCreatorLocs.Random(world.LocalRandom);
 
-						attraction -= CalculateThreats(indiceSideLengthSquare, i);
+						var threatPenalty = CalculateThreats(indiceSideLengthSquare, i);
+						attraction -= threatPenalty;
 
-						attraction -= CalculateExpansionCoordinationPenalty(resCenter, mcv, indiceSideLengthSquare);
+						var coordinationPenalty = CalculateExpansionCoordinationPenalty(resCenter, mcv, indiceSideLengthSquare);
+						attraction -= coordinationPenalty;
+
+						var occupancyBefore = attraction;
 
 						foreach (var (location, isAlly) in cr_refinarylocs)
 						{
@@ -839,6 +935,15 @@ namespace OpenRA.Mods.Common.Traits
 								attraction -= indiceSideLengthSquare << 1;
 						}
 
+						// Why one field beats another is impossible to read from the outside: the terms are
+						// path length, threat, coordination with other MCVs and how crowded the field
+						// already is. Logged per candidate so a surprising choice can be traced to the
+						// term that caused it.
+						CNBotLog.Debug(
+							"{0} mcv field {1}: attraction {2} (cells {3}, threat -{4}, coordination -{5}, occupancy -{6})",
+							player, indiceCenter, attraction, resourceCellsCount,
+							threatPenalty, coordinationPenalty, occupancyBefore - attraction);
+
 						if (attraction > cr_best)
 						{
 							cr_best = attraction;
@@ -849,6 +954,8 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (cr_suitablespot == null)
 						return (null, int.MinValue, null);
+
+					CNBotLog.Debug("{0} mcv chose field {1} with attraction {2}", player, cr_checkspot, cr_best);
 
 					return (cr_suitablespot, cr_best, cr_checkspot);
 
@@ -896,10 +1003,22 @@ namespace OpenRA.Mods.Common.Traits
 				if (resourceMapModule == null)
 					return;
 
+				// Wait for the resource map's initial sweep to finish before deciding what to do with the
+				// starting MCV. That sweep is amortised over a few ticks, so on the very first one the
+				// bot knows almost nothing about where the tiberium is — and this is the one decision
+				// it can never revisit: UnDeployConyard needs either a second construction yard or an
+				// established economy, so a yard planted out of harvester reach stays there.
+				if (!resourceMapModule.InitialScanComplete)
+					return;
+
 				pathDistanceSquareFactor = resourceMapModule.GetIndiceRowCount() * resourceMapModule.GetIndiceRowCount()
 					+ resourceMapModule.GetIndiceColumnCount() * resourceMapModule.GetIndiceColumnCount();
 
-				DeployMcvs(bot, false);
+				// Normally the starting MCV deploys where it stands: the opening is worth more than a
+				// better spot. Only when the spawn has no worthwhile tiberium within reach is it worth
+				// walking first, because everything downstream — refinery placement, harvester range,
+				// the refinery target itself — is built on having a field near the base.
+				DeployMcvs(bot, !HasWorthwhileResourcesAtStart());
 				firstTick = false;
 			}
 
@@ -916,6 +1035,11 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var amcv in mcvRetryCooldown.Keys.ToList())
 					if (amcv.IsDead || !amcv.IsInWorld)
 						mcvRetryCooldown.Remove(amcv);
+
+				// A deployed MCV leaves the world, which is also how a commitment is retired.
+				foreach (var amcv in mcvDeployGoals.Keys.ToList())
+					if (amcv.IsDead || !amcv.IsInWorld)
+						mcvDeployGoals.Remove(amcv);
 
 				scanInterval = Info.ScanForNewMcvInterval;
 				DeployMcvs(bot, true);
@@ -965,6 +1089,55 @@ namespace OpenRA.Mods.Common.Traits
 			return attraction >= permille * indiceSideLength * indiceSideLength / 1000;
 		}
 
+		/// <summary>
+		/// True when the fields the bot actually works are nearly mined out, so its income is about to
+		/// stop whatever else it does.
+		/// <para>
+		/// Only worked fields count — tiberium elsewhere on the map is exactly what expanding is for, so
+		/// counting it here would mask the very condition being tested.
+		/// </para>
+		/// A blossom tree in the field lowers the bar rather than removing the check. Treating "regrows"
+		/// as "never starves" made this dead on arrival: nearly every Tiberian Sun field has a seeding
+		/// tree, so the first version never once reported starvation in a played match. Regrowth is not
+		/// inexhaustible either - a field mined faster than it seeds runs its owner dry regardless.
+		/// </summary>
+		public bool IsResourceStarved()
+		{
+			if (resourceMapModule == null || Info.StarvationFieldCells <= 0)
+				return false;
+
+			var worked = 0;
+			var cells = 0;
+			var respawning = false;
+			for (var i = 0; i < resourceMapModule.GetIndicesLength(); i++)
+			{
+				var indice = resourceMapModule.GetIndice(i);
+				if (indice == null || indice.PlayerRefineryCount <= 0)
+					continue;
+
+				worked++;
+				cells += indice.ResourceCellsCount;
+				respawning |= indice.HasRespawningResourceSource;
+			}
+
+			// No worked field at all is a different situation - the bot has not started mining yet, or
+			// just lost its refineries - and neither is answered by founding another base.
+			if (worked <= 0)
+				return false;
+
+			var threshold = respawning
+				? Info.StarvationFieldCells * Math.Clamp(Info.StarvationRespawningPercent, 0, 100) / 100
+				: Info.StarvationFieldCells;
+
+			starvationReport = $"{cells} cells over {worked} field(s), threshold {threshold}{(respawning ? ", regrowing" : "")}";
+			return cells <= threshold;
+		}
+
+		// Last computed starvation inputs, for the expansion log. The verdict alone was not enough to
+		// tell "the fields are still full" from "the check disqualified itself" - which is exactly how
+		// the regrowth bug above survived a whole match unnoticed.
+		string starvationReport = "not evaluated";
+
 		void BuildMCV(IBot bot)
 		{
 			if (Info.McvTypes.Count <= 0)
@@ -984,16 +1157,37 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.BuildAdditionalMCVCashAmounts.TryGetValue(profileKey, out var profileCash)
 				? profileCash : Info.BuildAdditionalMCVCashAmount;
 
-			// If we only have 1 MCV and no conyard, we should be allowed to build another MCV.
-			// Otherwise, when an mcv is on the move and we should wait.
-			if ((conyardNum <= 0 && mcvNum > 1) || (conyardNum > 0 && mcvNum > 0))
+			var maxConcurrentMcvs = profileKey != null
+				&& Info.MaxConcurrentMcvCounts != null
+				&& Info.MaxConcurrentMcvCounts.TryGetValue(profileKey, out var profileConcurrent)
+				? profileConcurrent : Info.MaxConcurrentMcvs;
+
+			// With no construction yard the bot is rebuilding its base and one spare MCV is all that
+			// helps. With one, the cap is how many expansions may be under way at once — at 1 (the
+			// default, and the old hardcoded behaviour) every expansion waits for the previous MCV to
+			// finish driving and deploying, which is what kept a land-grab profile crawling.
+			if (conyardNum <= 0 ? mcvNum > 1 : mcvNum >= Math.Max(1, maxConcurrentMcvs))
 				return;
+
+			// Running out of tiberium is its own reason to expand, and it used to be no reason at all.
+			// Both gates below ask about cash and yard counts; neither asks whether the ground the bot
+			// stands on still has anything in it. A bot that had mined its spawn dry therefore kept
+			// building at home until it lost, and its opponent took the free fields uncontested.
+			var starving = IsResourceStarved();
 
 			// The construction yard count is now purely a ceiling, not the trigger. Before, it only rose
 			// above the minimum once the bot was sitting on BuildAdditionalMCVCashAmount, so profiles with
 			// no additional yards configured never expanded however good a free spot was, and the rest only
 			// expanded when rich enough to have hoarded five figures.
-			if (conyardNum + mcvNum >= Info.MinimumConstructionYardCount + additionalCYCount)
+			//
+			// Starvation lifts the ceiling by a bounded amount rather than removing it: a profile
+			// configured for two yards should not grow without limit, but it must not be trapped on a
+			// dead field either.
+			var yardCeiling = Info.MinimumConstructionYardCount + additionalCYCount;
+			if (starving)
+				yardCeiling += Math.Max(0, Info.StarvationExtraConstructionYards);
+
+			if (conyardNum + mcvNum >= yardCeiling)
 				return;
 
 			// Replacing a lost base is unconditional; expanding beyond the minimum needs a reason.
@@ -1005,8 +1199,19 @@ namespace OpenRA.Mods.Common.Traits
 					&& cash >= Info.OpportunityExpansionCashAmount
 					&& HasAttractiveExpansionSpot(profileKey);
 
-				if (!richEnough && !opportunity)
+				// Starvation deliberately skips the cash bar. Those thresholds exist so a comfortable bot
+				// spends its surplus on ground; a starving one has no surplus and never will again,
+				// because the income that would produce it is exactly what has run out.
+				if (!richEnough && !opportunity && !starving)
+				{
+					CNBotLog.Debug("{0} expansion held: cash {1} (needs {2} or {3}+spot), yards {4}/{5}, starving {6} ({7})",
+						player, cash, buildCashAmount, Info.OpportunityExpansionCashAmount,
+						conyardNum + mcvNum, yardCeiling, starving, starvationReport);
 					return;
+				}
+
+				CNBotLog.Debug("{0} expansion approved: cash {1}, yards {2}/{3}, rich {4}, opportunity {5}, starving {6} ({7})",
+					player, cash, conyardNum + mcvNum, yardCeiling, richEnough, opportunity, starving, starvationReport);
 			}
 
 			// We have MCV in production queue, let's wait.
@@ -1114,6 +1319,145 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// Flat, buildable ground around a candidate deploy cell — a proxy for "is there room for a base
+		/// here at all". The deploy check only asks whether the construction yard itself fits, which a
+		/// ledge wedged between a cliff and a tiberium field passes while leaving nowhere for the
+		/// refinery, the power plants or the factories that have to follow.
+		/// </summary>
+		/// <summary>
+		/// True if the cell an MCV committed to is still worth driving to: on the map, still free for
+		/// the yard, and still reachable. Deliberately the cheap reachability test — the expensive,
+		/// threat-aware routing runs once per scan anyway and drops the commitment itself if it fails.
+		/// </summary>
+		bool CanStillDeployAt(Actor mcv, ActorInfo actorInfo, BuildingInfo bi, CVec offset, CPos cell)
+		{
+			if (!world.Map.Contains(cell))
+				return false;
+
+			if (!world.CanPlaceBuilding(cell + offset, actorInfo, bi, mcv))
+				return false;
+
+			var mobile = mcv.TraitOrDefault<Mobile>();
+			return mobile == null
+				|| pathfinder.PathMightExistForLocomotorBlockedByImmovable(mobile.Locomotor, mcv.Location, cell);
+		}
+
+		/// <summary>
+		/// True if a construction yard placed here would sit on or right against tiberium. The yard is
+		/// the one building guaranteed to be surrounded by others later, so planting it in a field
+		/// costs that ground twice: once for the yard's own footprint and again for everything the base
+		/// grid then packs around it — including the refinery, which wants exactly those cells.
+		/// </summary>
+		bool IsTooCloseToResources(CPos cell, BuildingInfo bi)
+		{
+			if (Info.McvResourceClearance <= 0 || resourceMapModule == null)
+				return false;
+
+			// Footprint half-extent plus the clearance: CountValuableResourceCellsNear measures from a
+			// single cell, so the yard's own size has to be folded into the radius.
+			var dims = bi?.Dimensions ?? new CVec(1, 1);
+			var footprintReach = (Math.Max(dims.X, dims.Y) + 1) / 2;
+
+			return resourceMapModule.CountValuableResourceCellsNear(cell, footprintReach + Info.McvResourceClearance) > 0;
+		}
+
+		/// <summary>
+		/// Whether a harvester could drive the straight line from a prospective yard site to the field,
+		/// sampled rather than pathed. A full path would answer "yes" for a site under a cliff too - the
+		/// road exists, it just runs the long way round, and that is precisely the case being excluded.
+		/// What separates the two is whether the direct line is driveable at all.
+		/// </summary>
+		bool LineToFieldIsDrivable(CPos from, CPos to)
+		{
+			var locomotors = cnBaseBuilder?.HarvesterLocomotorsList;
+			if (locomotors == null || locomotors.Length == 0)
+				return true;
+
+			var straight = (to - from).Length;
+			if (straight <= 0)
+				return true;
+
+			var samples = Math.Min(straight, DeployLineSamples);
+			var blocked = 0;
+			for (var i = 1; i <= samples; i++)
+			{
+				var step = new CPos(
+					from.X + (to.X - from.X) * i / samples,
+					from.Y + (to.Y - from.Y) * i / samples);
+
+				if (!world.Map.Contains(step)
+					|| !locomotors.All(l => l.MovementCostForCell(step) != PathGraph.MovementCostForUnreachableCell))
+					blocked++;
+			}
+
+			return blocked * 100 / samples <= Info.DeployMaxBlockedLinePercent;
+		}
+
+		int CountBuildableCellsAround(CPos center, BuildingInfo bi)
+		{
+			var radius = Math.Max(1, Info.DeploySiteCheckRadius);
+			var count = 0;
+
+			foreach (var cell in world.Map.FindTilesInAnnulus(center, 0, radius))
+			{
+				if (!world.Map.Contains(cell))
+					continue;
+
+				// Ramps are the important exclusion: they read as ordinary terrain but nothing can be
+				// built on them, so a slope-heavy pocket looks far better than it plays.
+				if (world.Map.Ramp[cell] != 0)
+					continue;
+
+				if (bi != null && !bi.TerrainTypes.Contains(world.Map.GetTerrainInfo(cell).Type))
+					continue;
+
+				count++;
+			}
+
+			return count;
+		}
+
+		/// <summary>
+		/// True if any starting MCV stands within reach of enough tiberium to be worth deploying on the
+		/// spot. With none, deploying in place strands the base: harvesters haul across the map, the
+		/// refinery placement fallback has no field to aim at, and no later mechanism moves the yard.
+		/// </summary>
+		bool HasWorthwhileResourcesAtStart()
+		{
+			if (resourceMapModule == null)
+				return true;
+
+			var radius = Math.Max(1, Info.StartDeployResourceSearchRadius);
+			var required = Math.Max(1, Info.StartDeployMinResourceCells);
+
+			var anyMcv = false;
+			foreach (var mcv in mcvs.Actors)
+			{
+				if (mcv.IsDead || !mcv.IsInWorld || mcv.Owner != player)
+					continue;
+
+				anyMcv = true;
+
+				// Straight-line proximity is not enough: tiberium on a plateau or across a chasm can sit
+				// a handful of cells away and still be unreachable, and deploying next to it strands the
+				// bot exactly as a spawn with no tiberium at all would. A field that is further in a
+				// straight line but on the same level is the better spawn, and rejecting the unreachable
+				// one here sends the MCV to look for it — ChooseMcvDeployLocation then scores candidates
+				// by real path length.
+				var mobile = mcv.TraitOrDefault<Mobile>();
+				var reachable = mobile == null
+					? (Func<CPos, bool>)null
+					: cell => pathfinder.PathMightExistForLocomotorBlockedByImmovable(mobile.Locomotor, mcv.Location, cell);
+
+				if (resourceMapModule.CountValuableResourceCellsNear(mcv.Location, radius, reachable) >= required)
+					return true;
+			}
+
+			// No MCV to judge: leave the existing behaviour alone rather than sending anything walking.
+			return !anyMcv;
+		}
+
 		// Find any MCV and deploy them at a sensible location.
 		void DeployMcv(IBot bot, Actor mcv, bool move)
 		{
@@ -1127,38 +1471,69 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (move)
 			{
-				var (deployLocation, resLoc, checkloc) = ChooseMcvDeployLocation(mcv, actorInfo, bi, transformsInfo.Offset, allowfallback);
-				allowfallback = true;
-				desiredLocation = deployLocation;
-				if (desiredLocation == null)
+				CPos? resLoc = null;
+				CPos? checkloc;
+
+				// Stay with the cell already chosen. Candidate fields are scored relative to the MCV's
+				// own position, so their ranking shifts with every metre it drives — re-deciding on each
+				// scan had MCVs swing out across the map and come back. The commitment is dropped only
+				// when the cell stops being usable, or when the hold expires as a safety net.
+				if (mcvDeployGoals.TryGetValue(mcv, out var held)
+					&& world.WorldTick < held.UntilTick
+					&& CanStillDeployAt(mcv, actorInfo, bi, transformsInfo.Offset, held.Cell))
 				{
-					mcvRetryCooldown[mcv] = world.WorldTick + 150;
-					return;
+					desiredLocation = held.Cell;
+					checkloc = held.Cell;
+				}
+				else
+				{
+					var (deployLocation, chosenResLoc, chosenCheckloc) = ChooseMcvDeployLocation(mcv, actorInfo, bi, transformsInfo.Offset, allowfallback);
+					allowfallback = true;
+					desiredLocation = deployLocation;
+					resLoc = chosenResLoc;
+					checkloc = chosenCheckloc;
+
+					if (desiredLocation == null)
+					{
+						mcvDeployGoals.Remove(mcv);
+						mcvRetryCooldown[mcv] = world.WorldTick + 150;
+						return;
+					}
+
+					mcvDeployGoals[mcv] = (desiredLocation.Value, world.WorldTick + Math.Max(1, Info.McvDeployGoalHoldTicks));
 				}
 
 				var safePath = FindSafeMcvPath(mcv, mcv.Location, desiredLocation.Value);
 				if (safePath == null)
 				{
+					// No safe route: give up on this cell rather than holding it until the expiry.
+					// FindSafeMcvPath weighs threats, so this is a stronger test than the plain
+					// reachability check that keeps the commitment alive.
 					FindBadDeploySpot(checkloc);
+					mcvDeployGoals.Remove(mcv);
 					mcvRetryCooldown[mcv] = world.WorldTick + 150;
 					return;
 				}
 
-				var moveLocation = ChooseSafeMoveWaypoint(safePath, desiredLocation.Value);
-				var movingToFinalDeployCell = moveLocation == desiredLocation.Value;
-
 				activeMCVs[mcv] = checkloc;
 				mcvRetryCooldown.Remove(mcv);
-				if (movingToFinalDeployCell && resLoc != null)
+				if (resLoc != null)
 				{
 					foreach (var srp in suggestRefineryProduction)
 						srp.RequestLocation(resLoc.Value, desiredLocation.Value, mcv);
 				}
 
-				bot.QueueOrder(new Order("Move", mcv, Target.FromCell(world, moveLocation), true));
-
-				if (!movingToFinalDeployCell)
+				// Nothing to do while it is already driving its route. This runs every
+				// ScanForNewMcvInterval (20 ticks) and the orders queue rather than replace, so
+				// re-issuing would pile up waypoints computed from stale positions.
+				if (!mcv.IsIdle)
 					return;
+
+				// Whole route and the deploy in one order block: the MCV sets off once and unpacks on
+				// arrival. Handing out a single leg per scan made it stop at the end of each one and
+				// wait for the next scan before moving again.
+				foreach (var waypoint in BuildSafeWaypoints(safePath, desiredLocation.Value))
+					bot.QueueOrder(new Order("Move", mcv, Target.FromCell(world, waypoint), true));
 			}
 			else
 			{
@@ -1224,15 +1599,79 @@ namespace OpenRA.Mods.Common.Traits
 				else
 					cells = cells.Shuffle(world.LocalRandom);
 
-				CPos? bestcell = null;
-				foreach (var cell in cells)
+				// The yard fitting says nothing about whether a base fits around it, nor about whether it
+				// is standing in the tiberium it came for. Both are preferences rather than vetoes,
+				// because refusing to deploy is worse than deploying awkwardly and on a tight map every
+				// candidate is awkward — but they are not equally important, so the compromises are
+				// ranked instead of lumped together.
+				//
+				// Clear of the tiberium but cramped beats roomy but sitting in the field: a yard in the
+				// tiberium permanently costs harvestable ground, blocks the refinery from the cells it
+				// wants and gets overgrown, while a tight plot still grows outward as the base expands.
+				CPos? PickFrom(IEnumerable<CPos> candidates)
 				{
-					if (world.CanPlaceBuilding(cell + offset, transformIntoInfo, transformIntoBuildingInfo, mcv))
+					CPos? bestcell = null;
+					CPos? clearButCramped = null;
+					CPos? roomyButNearResources = null;
+					CPos? lastResort = null;
+					var clearButCrampedRoom = -1;
+					var roomyButNearResourcesRoom = -1;
+					var lastResortRoom = -1;
+
+					foreach (var cell in candidates)
 					{
-						bestcell = cell;
-						break;
+						if (!world.CanPlaceBuilding(cell + offset, transformIntoInfo, transformIntoBuildingInfo, mcv))
+							continue;
+
+						// Roomiest of each class, not the first. Candidates are ordered by closeness to the
+						// target, so taking the first settled for whatever sat nearest the field — the strip
+						// between tiberium and map edge included.
+						var room = CountBuildableCellsAround(cell, transformIntoBuildingInfo);
+						var hasRoom = room >= Info.DeploySiteMinBuildableCells;
+						var clearOfResources = !IsTooCloseToResources(cell, transformIntoBuildingInfo);
+
+						if (hasRoom && clearOfResources)
+						{
+							bestcell = cell;
+							break;
+						}
+
+						if (clearOfResources)
+						{
+							if (room > clearButCrampedRoom)
+							{
+								clearButCrampedRoom = room;
+								clearButCramped = cell;
+							}
+						}
+						else if (hasRoom)
+						{
+							if (room > roomyButNearResourcesRoom)
+							{
+								roomyButNearResourcesRoom = room;
+								roomyButNearResources = cell;
+							}
+						}
+						else if (room > lastResortRoom)
+						{
+							lastResortRoom = room;
+							lastResort = cell;
+						}
 					}
+
+					return bestcell ?? clearButCramped ?? roomyButNearResources ?? lastResort;
 				}
+
+				// Candidates are ranked by straight-line closeness to the field, and on a terraced map
+				// the cells nearest the tiberium in a straight line are the ones directly under the cliff
+				// it sits on. That is how a bot came to found an expansion where every field cost 77 to 90
+				// cells of driving for 13 to 16 of straight line - and once the yard stands there, refinery
+				// placement can only choose between bad options, because the decision was already made.
+				//
+				// So look first at the cells that can actually drive to the field, and only fall back to
+				// the full list if none of them can be built on. Deploying awkwardly beats not deploying.
+				var bestcell = PickFrom(cells.Where(c => LineToFieldIsDrivable(c, target)));
+				bestcell ??= PickFrom(cells);
 
 				// If no deployble cell found, return null
 				if (bestcell == null)

@@ -14,6 +14,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
@@ -415,6 +416,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Number of refineries to build additionally after building any production building.")]
 		public readonly int AdditionalMinimumRefineryCount = 1;
 
+		[Desc("Refineries the bot must own before unit production is allowed to resume. A hard floor on",
+			"the economy, deliberately independent of the budget-weighted refinery target: that target",
+			"is an expansion goal, and holding every unit — including the MCVs an expansion needs —",
+			"hostage to it stalls the bot outright whenever the next refinery is slow to arrive.")]
+		public readonly int ProductionPauseRefineryCount = 1;
+
 		[Desc("Additional delay (in ticks) between structure production checks when there is no active production.",
 			"StructureProductionRandomBonusDelay is added to this.")]
 		public readonly int StructureProductionInactiveDelay = 90;
@@ -435,6 +442,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("How many randomly chosen cells with resources to check when deciding refinery placement.")]
 		public readonly int MaxResourceCellsToCheck = 3;
+
+		[Desc("How many distinct resource fields a refinery placement decision must consider, and how " +
+			"many cells it samples from each. Cells alone are not a choice: neighbouring cells of one " +
+			"blob all score alike, so a decision that fills up on them compares a field only against " +
+			"itself and whatever lies behind a cliff wins by being the only thing asked about.")]
+		public readonly int MaxResourceFieldsToCheck = 4;
+
+		public readonly int ResourceCellsPerField = 2;
 
 		[Desc("Maximum number of refineries allowed near the same resource cluster. 0 = no limit.")]
 		public readonly int MaxRefineriesPerCluster = 0;
@@ -494,8 +509,27 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum number of danger hotspots considered when scoring one defense placement.")]
 		public readonly int DefensePlacementMaxHotspots = 4;
 
-		[Desc("Maximum number of defense placement cells that receive expensive scoring and placement checks.")]
+		[Desc("Maximum number of defense placement cells that receive expensive scoring and placement checks.",
+			"Multiplied on each retry, since a retry that reconsiders the same cells cannot succeed where",
+			"the previous one failed.")]
 		public readonly int DefensePlacementCandidateLimit = 48;
+
+		[Desc("Tech buildings that are spread across bases instead of being concentrated at the spawn base.",
+			"For structures whose value is the ground they cover — radar and other detection or vision",
+			"buildings — one at home leaves every other base blind. Everything else in TechTypes is",
+			"expensive, fragile and built once, and belongs in the safest base the bot has.")]
+		public readonly FrozenSet<string> DistributedTechTypes = FrozenSet<string>.Empty;
+
+		[Desc("Ticks to wait before ordering another refinery after one could not be placed. Separate from",
+			"StructureProductionResumeDelay, which is the recovery delay for a base that cannot place",
+			"anything at all: a refinery that missed its spot is a routine miss on awkward terrain and",
+			"should be retried well before that.")]
+		public readonly int RefineryPlacementRetryDelay = 600;
+
+		[Desc("Ticks to wait before ordering another defense after one could not be placed anywhere.",
+			"Short on purpose: the base grows and the threat hotspot moves, so a blocked spot often frees",
+			"up again quickly. This delays only defenses, never the rest of the build queue.")]
+		public readonly int DefensePlacementRetryDelay = 600;
 
 		[Desc("Danger hotspots below this score are ignored for defense placement.")]
 		public readonly int DefenseDangerMemoryMinimumWeight = 80;
@@ -534,6 +568,18 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("How strongly the nearest known enemy base/building influences defense placement when no stronger danger hotspot exists.")]
 		public readonly int DefensePlacementEnemyDirectionWeight = 70;
+
+		[Desc("Score per still-uncovered protectable building an anti-air candidate would bring into range.",
+			"Comparable in size to DefensePlacementEnemyDirectionWeight and the topology weights on purpose:",
+			"coverage should be able to break a tie between two cells facing the threat, but never place AA",
+			"away from where air attacks actually come from. 0 ignores coverage entirely.")]
+		public readonly int AACoverageWeight = 40;
+
+		[Desc("BotCapabilities tags that make a building worth covering with anti-air. Counting every building",
+			"equally let walls and power plants outvote the refinery. Falls back to counting all buildings",
+			"while the bot owns nothing tagged with any of these.")]
+		public readonly FrozenSet<string> AAProtectedCapabilities =
+			new HashSet<string> { "Production", "Tech", "Superweapon", "Economy" }.ToFrozenSet();
 
 		[Desc("How strongly remembered danger hotspots make tech-building placement avoid exposed cells.")]
 		public readonly int TechPlacementDangerAvoidanceWeight = 120;
@@ -638,6 +684,23 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("If a finite field near a refinery has this many or fewer valuable resource cells left, the refinery becomes a sell candidate.")]
 		public readonly int SellRefineryLowResourceThreshold = 8;
+
+		[Desc("Weight of the measured harvester drive length (squared, in cells) in refinery placement. " +
+			"Catches fields that are adjacent on the map but only reachable the long way round - a refinery " +
+			"below a cliff whose tiberium sits on the terrace above looks perfectly placed until the " +
+			"harvesters have to drive out around the long way and give up on it. 0 falls back to " +
+			"straight-line distance and skips the pathfinder query (one per field per placement decision).")]
+		public readonly int RefineryDetourPenalty = 6;
+
+		[Desc("Drive length, as a percent of the straight line to the field, from which that field's road " +
+			"counts as detouring. Above it, a dock on a different level from the tiberium is treated as " +
+			"the cause of the detour rather than as a detail.")]
+		public readonly int RefineryDetourDockHeightPercent = 200;
+
+		[Desc("How much heavier the dock height penalty weighs for a field whose road detours. On a map " +
+			"whose tiberium sits on a terrace, six cells across the cliff otherwise beats twelve cells " +
+			"on the level, and the harvesters pay the difference on every single trip.")]
+		public readonly int RefineryDetouringDockHeightMultiplier = 8;
 
 		[Desc("Minimum valuable cells required before placing the first refinery on a finite field.")]
 		public readonly int MinFiniteFieldCellsForRefinery = 12;
@@ -1910,6 +1973,25 @@ namespace OpenRA.Mods.Common.Traits
 			// A NearBuilding entry only makes sense in a base that actually has that building.
 			var wantsNearBuilding = !string.IsNullOrEmpty(nearBuilding) && nearBuilding != actorType;
 
+			// Tech buildings go to the base nearest the spawn. They are expensive, fragile, usually
+			// built once, and losing one costs a whole branch of the tech tree — the safest base the
+			// bot owns is the one it started at. Under the generic ordering below they tended to end
+			// up in the newest forward expansion instead, because that base has none of them and the
+			// fewest buildings overall, and spawn distance only ever broke a tie. An MCV pushed toward
+			// the front also lands in broken terrain often enough that the placement then fails
+			// outright and the item is cancelled and re-queued in a loop.
+			//
+			// A NearBuilding constraint still wins: gadept next to a war factory is worth more than
+			// gadept at home.
+			// DistributedTechTypes are the exception: radar and similar structures earn their keep by
+			// covering ground, so concentrating them at the spawn wastes them. They keep the generic
+			// ordering below, which spreads a type across the bases that have none.
+			if (Info.TechTypes.Contains(actorType) && !Info.DistributedTechTypes.Contains(actorType))
+				return bases
+					.OrderByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
+					.ThenBy(b => (b.Center - BaseOrigin).LengthSquared)
+					.ToList();
+
 			// Need is measured against the base's own share, not against the raw count: a fresh expansion
 			// has none of anything, so a plain "fewest wins" would redirect the whole build order there.
 			// A base wants the type once it holds fewer than BuildingFractions says for its current size;
@@ -2004,7 +2086,11 @@ namespace OpenRA.Mods.Common.Traits
 			DefenseCenter = newLocation;
 		}
 
-		bool IBotRequestPauseUnitProduction.PauseUnitProduction => !IsTraitDisabled && !HasMinimalRefineryCount() &&
+		// Gated on the hard production floor, not on the refinery *target*. Those were the same number
+		// until the target became budget-weighted, at which point raising it for production-heavy
+		// profiles silently stopped them building any units at all while they were short of it —
+		// MCVs included, so they could not expand their way out either.
+		bool IBotRequestPauseUnitProduction.PauseUnitProduction => !IsTraitDisabled && !HasProductionFloorRefineries() &&
 			HasEconomyRecoveryPath() && !RefineryExpansionBlocked;
 
 		void IBotTick.BotTick(IBot bot)
@@ -2708,7 +2794,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (possibleRallyPoints.Count == 0)
 			{
-				AIUtils.BotDebug("{0} has no possible rallypoint near {1}", producer.Owner, producer.Location);
+				CNBotLog.Debug("{0} has no possible rallypoint near {1}", producer.Owner, producer.Location);
 				return producer.Location;
 			}
 
@@ -2777,6 +2863,13 @@ namespace OpenRA.Mods.Common.Traits
 			GetTargetRefineryCount();
 		public bool HasMinimalRefineryCount() =>
 			AIUtils.CountActorByCommonName(RefineryBuildings) >= GetActiveInititalMinimumRefineryCount();
+
+		/// <summary>
+		/// The bot has the bare minimum economy needed to justify building units at all. Separate from
+		/// HasMinimalRefineryCount, which measures against the budget-weighted expansion target.
+		/// </summary>
+		public bool HasProductionFloorRefineries() =>
+			AIUtils.CountActorByCommonName(RefineryBuildings) >= Math.Max(1, Info.ProductionPauseRefineryCount);
 
 		public bool HasEconomyRecoveryPath()
 		{
@@ -2997,16 +3090,84 @@ namespace OpenRA.Mods.Common.Traits
 			if (ResourceMapModule == null)
 				return int.MaxValue;
 
-			if (world.WorldTick - cachedSupportedRefineryCapacityTick < SupportedRefineryCapacityMaxAgeTicks)
+			// The int.MinValue "never computed" sentinel underflows this subtraction: WorldTick minus
+			// int.MinValue wraps to a large negative number, the age test passes on the very first
+			// call, and the method returns the zero-initialised cache — forever, because the line that
+			// records the tick sits below and is never reached. The scan never ran once.
+			//
+			// GetTargetRefineryCount clamps its target to this value, so the target collapsed to
+			// Math.Max(activeMinRefinery, 0), i.e. exactly the minimum. That is why bots never built
+			// more than two refineries no matter how much tiberium the map held, and why no placement
+			// or field-viability message ever appeared: the economy check was satisfied at two.
+			if (cachedSupportedRefineryCapacityTick != int.MinValue &&
+				world.WorldTick - cachedSupportedRefineryCapacityTick < SupportedRefineryCapacityMaxAgeTicks)
 				return cachedSupportedRefineryCapacity;
 
+			// Only fields the bot can actually work count. Summing every indice on the map answers
+			// "how much tiberium exists", but the number wanted here is "how much can we haul", and a
+			// field on the far side of the map contributes nothing to that — it just inflates the cap
+			// until the target formula's own terms (production buildings, extra construction yards,
+			// economy overflow) run unchecked and the bot rings a single field with refineries.
+			//
+			// A field counts once the bot has a refinery in it or a base within building range of it.
+			// Expanding to a new field therefore raises the ceiling, which is the intended order:
+			// first reach the tiberium, then build the refineries for it.
 			var supportedCapacity = 0;
+			var scored = 0;
+			var largestField = 0;
 			for (var i = 0; i < ResourceMapModule.GetIndicesLength(); i++)
-				supportedCapacity += GetSupportedRefineryCapacity(ResourceMapModule.GetIndice(i));
+			{
+				var indice = ResourceMapModule.GetIndice(i);
+				if (indice == null)
+					continue;
+
+				if (indice.ResourceCellsCount > largestField)
+					largestField = indice.ResourceCellsCount;
+
+				if (!IsIndiceWithinReach(indice))
+					continue;
+
+				var capacity = GetSupportedRefineryCapacity(indice);
+				supportedCapacity += capacity;
+				if (capacity > 0)
+					scored++;
+			}
+
+			// This caps GetTargetRefineryCount, so when it comes out low the bot stops wanting
+			// refineries entirely — no placement is ever attempted and nothing else reports why.
+			CNBotLog.Debug(
+				"{0} refinery capacity: {1} from {2}/{3} indices (largest field {4} cells, thresholds {5}/{6})",
+				player, supportedCapacity, scored, ResourceMapModule.GetIndicesLength(),
+				largestField, Info.MinFiniteFieldCellsForRefinery, Info.MinFiniteFieldCellsForExtraRefinery);
 
 			cachedSupportedRefineryCapacityTick = world.WorldTick;
 			cachedSupportedRefineryCapacity = Math.Max(Info.InititalMinimumRefineryCount, supportedCapacity);
 			return cachedSupportedRefineryCapacity;
+		}
+
+		/// <summary>
+		/// True if the bot already works this field or has a base close enough to build at it. Anything
+		/// further out is tiberium it does not have access to yet, and counting it toward refinery
+		/// capacity would licence refineries it has nowhere to put.
+		/// </summary>
+		bool IsIndiceWithinReach(CNResourceIndice indice)
+		{
+			if (indice.PlayerRefineryCount > 0)
+				return true;
+
+			var reach = GetEffectiveMaxBaseRadius();
+			var reachSq = (long)reach * reach;
+
+			foreach (var b in GetBases())
+			{
+				if (!b.IsBuildSite)
+					continue;
+
+				if ((b.Center - indice.IndiceCenter).LengthSquared <= reachSq)
+					return true;
+			}
+
+			return false;
 		}
 
 		int GetSupportedRefineryCapacity(CNResourceIndice indice)
@@ -3175,10 +3336,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		void SellUselessRefinery(IBot bot)
 		{
-			// Sell one refinery each time. Preserve at least one refinery.
-			var refineries = world.ActorsHavingTrait<Refinery>().Where(a => a.Owner == player).ToArray();
+			// Sell one refinery each time, and only ever an actual refinery type.
+			//
+			// This used to select on the Refinery trait, which in CN also sits on nawast. Waste
+			// facilities are not refineries to any other part of the bot — RefineryTypes is gproc and
+			// nproc — so they inflated the count this threshold is checked against while the sale
+			// itself took a real refinery. A Nod bot on an exhausted field could sell its way down
+			// past the intended floor because two nawast were padding the total.
+			var refineries = world.ActorsHavingTrait<Refinery>()
+				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld && Info.RefineryTypes.Contains(a.Info.Name))
+				.ToArray();
 
 			if (refineries.Length <= GetActiveInititalMinimumRefineryCount() + Info.AdditionalMinimumRefineryCount)
+				return;
+
+			// Hard floor independent of the budget-weighted target above: whatever the strategy says,
+			// a bot that sells its last refinery has no way back. The target is an expansion goal and
+			// can legitimately be low; this is survival.
+			if (refineries.Length <= Math.Max(1, Info.ProductionPauseRefineryCount))
 				return;
 
 			// A refinery is active if a harvester is currently docked/reserved at its dock,
@@ -3216,6 +3391,14 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (ResourceMapModule == null)
+				return;
+
+			// Selling an idle refinery only makes sense while another one is still working. When the
+			// field runs dry every refinery goes idle at once, and then this loop would sell them one
+			// after another for as long as the count threshold allowed — the bot dismantling its own
+			// economy precisely when it has none. Keeping them costs power; not having one when the
+			// expansion finally reaches tiberium costs the game.
+			if (!refineries.Any(IsRefineryActive))
 				return;
 
 			Actor bestCandidate = null;
@@ -3404,7 +3587,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (sellCandidate == null)
 				return false;
 
-			AIUtils.BotDebug($"CN AI: Selling {sellCandidate} to recover refinery economy. Cash {cash}, refinery cost {refineryCost}.");
+			CNBotLog.Debug($"CN AI: Selling {sellCandidate} to recover refinery economy. Cash {cash}, refinery cost {refineryCost}.");
 			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
 			return true;
 		}
@@ -3444,7 +3627,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (sellCandidate == null)
 				return false;
 
-			AIUtils.BotDebug($"CN AI: Selling {sellCandidate} to recover harvester. Cash {cash}, harvester cost {harvesterCost}.");
+			CNBotLog.Debug($"CN AI: Selling {sellCandidate} to recover harvester. Cash {cash}, harvester cost {harvesterCost}.");
 			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
 			return true;
 		}
@@ -3482,7 +3665,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (sellCandidate == null)
 				return false;
 
-			AIUtils.BotDebug($"CN AI: Selling {sellCandidate} to recover MCV. Cash {cash}, MCV cost {mcvCost}.");
+			CNBotLog.Debug($"CN AI: Selling {sellCandidate} to recover MCV. Cash {cash}, MCV cost {mcvCost}.");
 			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
 			return true;
 		}
@@ -3500,7 +3683,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			terminalRecoveryTriggered = true;
-			AIUtils.BotDebug($"CN AI: Terminal bankruptcy — selling all and going kamikaze. Cash {cash}.");
+			CNBotLog.Debug($"CN AI: Terminal bankruptcy — selling all and going kamikaze. Cash {cash}.");
 
 			ExecuteKamikaze(bot);
 		}

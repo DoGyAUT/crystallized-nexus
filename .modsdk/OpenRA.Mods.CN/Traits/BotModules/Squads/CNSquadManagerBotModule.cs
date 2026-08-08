@@ -16,6 +16,7 @@ using OpenRA.Mods.CN.Traits.BotModules.Squads.States;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Mods.Common.Warheads;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -103,7 +104,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public readonly CNSquadType[] AttachToRole = [];
 
 		[Desc("Preferred target capability tags in priority order (first match wins). " +
-			"Matches actors that have BotCapabilities: <tag>. Applies to Raider, AircraftRaider, Stealth, and SubAssault roles.")]
+			"Matches actors that have BotCapabilities: <tag>. Applies to every role whose target search " +
+			"runs through CNSquadHelper.FindTarget - the ground assault and wave states included, not " +
+			"just the raider/stealth roles this used to claim.")]
 		public readonly string[] PriorityTargetCapabilities = [];
 
 		[Desc("Restrict template to specific factions (empty = all factions).")]
@@ -256,14 +259,109 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Enemy target types to never attack.")]
 		public readonly BitSet<TargetableType> IgnoredEnemyTargetTypes;
 
+		[Desc("Ticks a launched wave may spend gathering before it is written off. AttackWaveMaxActiveTicks " +
+			"only starts once the first squad leaves the rally, so without this a wave that never sets off " +
+			"would hold the slot forever. Generous on purpose: it must cover the march plus the staging " +
+			"wait on a large map, and only fires when not one squad ever got moving.")]
+		public readonly int AttackWaveLaunchGraceTicks = 3000;
+
+		[Desc("Cells a launched wave's squads may run ahead of the wave's centre before they hold and let " +
+			"the rest catch up. Only applies in the direction of the objective, so a squad that has fallen " +
+			"behind is never told to wait. 0 disables cohesion and lets every squad advance at its own pace.")]
+		public readonly int WaveCohesionCells = 12;
+
+		[Desc("Master switch for target claiming. When false, squads pick targets without regard for what " +
+			"other squads have already committed to - the behaviour before the claim registry existed.")]
+		public readonly bool TargetClaimingEnabled = true;
+
+		[Desc("How much better suited another squad must already be - measured as the percentage-point gap " +
+			"between the shares of each squad's units that counter the target - before this one leaves the " +
+			"target to them. This is what turns the per-squad counter bonus into an actual division of " +
+			"labour, so the anti-infantry group takes the infantry and the tanks go for the tanks. " +
+			"0 disables deference and lets every squad simply prefer what suits it.")]
+		public readonly int CounterDeferenceMargin = 34;
+
+		[Desc("Percent of a squad's free units that are ordered to attack its target directly instead of " +
+			"attack-moving toward it. Direct orders concentrate fire, killing one enemy at a time rather " +
+			"than spreading damage across everything in range - the clearest difference between a bot and " +
+			"a player leading units by hand. 0 restores attack-move for everyone.")]
+		public readonly int FocusFireStrictness = 100;
+
+		[Desc("Cells beyond which a squad stops issuing direct attack orders. An attack order makes units " +
+			"pursue and an attack-move does not, so without a leash a squad strings itself out chasing a " +
+			"fleeing target.")]
+		public readonly int PursuitLeashCells = 8;
+
+		[Desc("Ticks between refreshes of the remembered enemy defences. The bot only counts defences it " +
+			"has seen, and keeps them in mind while they are under fog, so a squad that was driven off " +
+			"does not forget what drove it off the moment it loses sight. 0 disables the memory, which " +
+			"leaves the bot blind to defences entirely rather than all-seeing.")]
+		public readonly int EnemyDefenseMemoryInterval = 50;
+
+		[Desc("If true, attacks stage at the most lightly defended way in that the topology scan knows of, " +
+			"instead of marching down the straight line from base to target. False keeps the direct line.")]
+		public readonly bool AvoidDefendedApproaches = true;
+
+		[Desc("How far from the target to look for a way in, in cells. Beyond this the detour costs more " +
+			"than the defences it avoids. 24 proved far too tight in play - chokepoints are terrain " +
+			"features and an objective deep inside a base rarely has one that close, so no alternative " +
+			"was ever found.")]
+		public readonly int ApproachSearchRadiusCells = 40;
+
+		[Desc("How much longer than the direct line the route through a chosen way in may be, in percent. " +
+			"Without this the coldest chokepoint wins even when it lies beyond the target, and squads " +
+			"march past the objective to gather behind it.")]
+		public readonly int ApproachMaxDetourPercent = 40;
+
+		[Desc("Cells short of the chosen way in that the squads actually gather. A chokepoint is narrow by " +
+			"definition, and assembling inside one bunches the squad up where it is easiest to shell.")]
+		public readonly int ApproachStandOffCells = 6;
+
+		[Desc("How many points along the run-in are sampled when weighing one approach against another. " +
+			"Emplacements cover approaches rather than the buildings behind them, so the fire is on the " +
+			"stretch between the gathering point and the objective and has to be summed along it.")]
+		public readonly int ApproachThreatSamples = 10;
+
+		[Desc("Score penalty per point of static-defence damage per salvo covering a target, in hundredths. " +
+			"Makes squads prefer objectives that are not sitting under a battery of guns, so a beaten squad " +
+			"tries somewhere else rather than walking back into what just killed it. 0 ignores defences.")]
+		public readonly int DefenseThreatPenaltyPercent = 200;
+
+		[Desc("Cells from the squad's centre at which a unit is called back. PursuitLeashCells only " +
+			"governs whether a pursuit is started; an attack activity then follows its target for as long " +
+			"as it lives, so this is what actually ends the chase. 0 disables the recall.")]
+		public readonly int PursuitRecallCells = 16;
+
+		[Desc("Enemy gun platforms in contact from which the squad treats the engagement as a stand-up " +
+			"fight and stops withdrawing damaged units, trading to the finish instead. A matchup it " +
+			"cannot win still pulls the whole squad through the normal flee check. 0 always withdraws.")]
+		public readonly int StandUpFightMinEnemies = 5;
+
+		[Desc("Percent of a building's remaining health that squads may commit damage to before it counts " +
+			"as covered and stops attracting more of them. Above 100 to leave room for shots that miss or " +
+			"land after it dies.")]
+		public readonly int OverkillFactorBuilding = 115;
+
+		[Desc("OverkillFactorBuilding for mobile targets. Higher, because they dodge, retreat and get " +
+			"repaired, so a committed salvo is less likely to land in full.")]
+		public readonly int OverkillFactorMobile = 140;
+
 		[Desc("Master switch for the coordinated attack wave system. If false, squads attack independently as soon as they form.")]
 		public readonly bool AttackWaveEnabled = true;
 
-		[Desc("Ticks before the first wave can fire after this module enables.")]
+		[Desc("Ticks before the first wave can fire, measured from the start of the game rather than " +
+			"from this module enabling — an adaptive profile switch swaps one profile's squad manager " +
+			"for another mid-game and must not re-arm the delay.")]
 		public readonly int AttackWaveInitialDelay = 3000;
 
-		[Desc("Ticks between wave-trigger evaluations.")]
+		[Desc("Minimum ticks between the launch of one wave and the next. This is the spacing between " +
+			"waves, not the rate at which readiness is evaluated — see AttackWaveCheckInterval.")]
 		public readonly int AttackWaveInterval = 4500;
+
+		[Desc("Ticks between readiness evaluations once the wave cooldown has expired. Keep well below " +
+			"AttackWaveInterval: this is what decides how quickly a wave goes out after the last " +
+			"required squad is ready.")]
+		public readonly int AttackWaveCheckInterval = 250;
 
 		[Desc("Minimum ready (Operational) wave-eligible squads required to launch a wave. " +
 			"Grows over time up to AttackWaveMaxMinReadySquads when AttackWaveSizeGrowthInterval > 0.")]
@@ -272,11 +370,34 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[Desc("Hard cap on AttackWaveMinReadySquads after growth.")]
 		public readonly int AttackWaveMaxMinReadySquads = 6;
 
-		[Desc("After this many consecutive skipped wave evaluations, launch a fallback wave with whatever is available (>= AttackWaveFallbackMinSquads).")]
+		[Desc("After waiting this many times AttackWaveInterval without reaching the normal threshold, " +
+			"launch a fallback wave with whatever is available (>= AttackWaveFallbackMinSquads).")]
 		public readonly int AttackWaveMaxSkipsBeforeFallback = 2;
 
 		[Desc("Minimum ready squads required for a fallback wave (when the normal threshold has been skipped too often).")]
 		public readonly int AttackWaveFallbackMinSquads = 1;
+
+		[Desc("Damage state at which a unit is pulled out of a fighting squad and released for repair.",
+			"Undamaged disables withdrawal entirely. Deliberately not set to Light: a squad that sheds",
+			"a member on the first scratch bleeds itself out before it reaches anything.")]
+		public readonly DamageState WithdrawDamageState = DamageState.Critical;
+
+		[Desc("Percent of its living units a squad must retain when withdrawing damaged members.",
+			"Withdrawal stops once the squad is down to this share, so it never dismantles itself",
+			"one casualty at a time — at that point the whole squad retreating is the right answer.")]
+		public readonly int MinStrengthPercentAfterWithdraw = 60;
+
+		[Desc("Percent of its original size a retreating squad must still have to regroup and return.",
+			"Below this it dissolves instead, so its survivors are folded into a fresh full-strength",
+			"squad rather than limping back out understrength.")]
+		public readonly int SquadRegroupStrengthPercent = 50;
+
+		[Desc("Ticks between updates of a squad that is currently engaged — it holds a live target. Kept",
+			"well below AttackForceInterval: this is how long a squad in combat needs to notice that its",
+			"target died, that it is being beaten, or that something better is in reach. Squads without a",
+			"target keep the slower AttackForceInterval cadence, which is what bounds the cost: idle squads",
+			"are the many, engaged squads the few.")]
+		public readonly int EngagedSquadInterval = 15;
 
 		[Desc("Ticks between AttackWaveMinReadySquads growth steps. 0 = disabled.")]
 		public readonly int AttackWaveSizeGrowthInterval = 0;
@@ -319,6 +440,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		[Desc("Cells of random scatter around the hold position so wave-holding squads don't stack on top of each other.")]
 		public readonly int WaveHoldScatterCells = 4;
+
+		[Desc("Radius in cells around an own building within which a forming squad counts as being at home. " +
+			"Squads formed outside it skip the wave hold and go straight to their role state, so units " +
+			"already in the field are not recalled.")]
+		public readonly int WaveHoldHomeRadiusCells = 20;
 
 		[Desc("Squad roles that participate in coordinated waves. Protection is always excluded regardless of this list. " +
 			"Roles not listed attack independently as soon as they are formed.")]
@@ -418,10 +544,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		// Ticking counters
 		int assignRolesTicks;
-		int attackForceTicks;
 		int minAttackForceDelayTicks;
 		int cleanupTicks;
 		int threatScanTicks;
+		int defenseMemoryTicks;
 
 		// Tracked enemy capability keys from NeedRules, built once at enable.
 		readonly HashSet<string> allTrackedVisibleTags = [];
@@ -466,10 +592,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		// Wave manager state
 		int waveCooldownTicks;
+		int waveCheckTicks;
 		int waveGrowthTicks;
-		int waveSkipCount;
+		int waveWaitingSinceTick;
 		int waveCurrentMinReady;
+
+		// 0 until the wave actually sets off. AttackWaveMaxActiveTicks is a budget for the attack, and
+		// starting it at the launch spent most of it on gathering and marching before a shot was fired.
 		int waveStartedTick;
+		int waveLaunchTick;
 		HashSet<CNSquadType> waveEligibleRoleSet = [];
 		readonly Dictionary<Actor, int> idleTickCounters = [];
 
@@ -533,7 +664,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var random = World.LocalRandom;
 			assignRolesTicks = random.Next(0, Info.AssignRolesInterval);
-			attackForceTicks = random.Next(0, Info.AttackForceInterval);
 			minAttackForceDelayTicks = random.Next(0, Info.MinimumAttackForceDelay + 1);
 			cleanupTicks = random.Next(0, CleanupInterval);
 
@@ -541,11 +671,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			waveEligibleRoleSet = [.. Info.WaveParticipantRoles ?? []];
 			waveEligibleRoleSet.Remove(CNSquadType.Protection);
 
+			// The initial delay counts from the start of the game, not from this module enabling. The
+			// adaptive bot swaps one profile's squad manager for another mid-game, and re-arming the
+			// full delay on every switch meant a profile whose delay exceeds the adaptive hold time
+			// (Tech 5000, Turtle 6000 against AdaptiveMinimumIntentHoldTicks 3000) never reached its
+			// first wave evaluation at all. The stagger — which exists to keep several bots from
+			// attacking on the same tick — only applies while that initial delay is still running;
+			// a mid-game switch has no reason to re-stagger against anyone.
 			var staggerWindow = Math.Max(1, Info.AttackWaveInterval / 4);
-			waveCooldownTicks = Info.AttackWaveInitialDelay + random.Next(0, staggerWindow);
+			var remainingInitialDelay = Math.Max(0, Info.AttackWaveInitialDelay - World.WorldTick);
+			waveCooldownTicks = remainingInitialDelay > 0
+				? remainingInitialDelay + random.Next(0, staggerWindow)
+				: 0;
+			waveCheckTicks = 0;
 			waveCurrentMinReady = Math.Max(1, Info.AttackWaveMinReadySquads);
 			waveGrowthTicks = Info.AttackWaveSizeGrowthInterval;
-			waveSkipCount = 0;
+			waveWaitingSinceTick = 0;
 			waveStartedTick = 0;
 			IsWaveLaunched = false;
 			WaveTarget = null;
@@ -554,6 +695,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			// Its own cadence rather than the threat scan's: that one is gated on tags being tracked at
+			// all, and the defence memory has to keep working regardless of how a profile is configured.
+			if (Info.EnemyDefenseMemoryInterval > 0 && --defenseMemoryTicks <= 0)
+			{
+				defenseMemoryTicks = Info.EnemyDefenseMemoryInterval;
+				UpdateKnownEnemyDefenses();
+			}
+
 			if (Info.ThreatScanInterval > 0 && (allTrackedVisibleTags.Count > 0 || allTrackedGlobalTags.Count > 0 ||
 			 allTrackedVisiblePerUnitTags.Count > 0 || allTrackedGlobalPerUnitTags.Count > 0) && --threatScanTicks <= 0)
 			{
@@ -578,14 +727,27 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			TrackIdleTime();
 
-			if (--attackForceTicks <= 0)
+			// Per-squad schedule rather than one global timer. A squad holding a live target is updated
+			// on the much shorter EngagedSquadInterval, because AttackForceInterval — 55 to 95 ticks,
+			// so two to four seconds — is how long a squad in combat used to stand around after its
+			// target died before anything re-evaluated it. That delay, not the decision quality, is
+			// most of what reads as the bots being slow-witted.
+			//
+			// Squads without a target stay on the old cadence, which keeps the cost bounded: target
+			// searching is the expensive part and idle squads are the majority. Staggering by squad
+			// also spreads the work across ticks instead of updating the whole army on one of them.
+			foreach (var squad in Squads.ToList())
 			{
-				attackForceTicks = Info.AttackForceInterval;
-				foreach (var squad in Squads.ToList())
-				{
-					squad.Update();
-					ReleaseStaleNoTargetSquad(squad);
-				}
+				if (World.WorldTick < squad.NextUpdateTick)
+					continue;
+
+				squad.Update();
+				ReleaseStaleNoTargetSquad(squad);
+
+				var interval = squad.IsTargetValid || squad.FuzzyStateMachine.IsInTimeCriticalState
+					? Info.EngagedSquadInterval
+					: Info.AttackForceInterval;
+				squad.NextUpdateTick = World.WorldTick + Math.Max(1, interval);
 			}
 
 			if (Info.AttackWaveEnabled)
@@ -617,6 +779,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			if (!IsLiveEnemyActor(e.Attacker))
 				return;
+
+			// Being shot by an emplacement is contact, and contact is knowledge. The defence memory used
+			// to fill only from what the bot could see at the moment of a periodic scan, which in practice
+			// was almost nothing: nine rally decisions in a played match ran with zero or one remembered
+			// defence, and eight only by the end. A squad does not have to look at the turret shelling it.
+			if (e.Attacker.Info.HasTraitInfo<BuildingInfo>() && e.Attacker.Info.HasTraitInfo<AttackBaseInfo>())
+				knownEnemyDefenses[e.Attacker.Location] = e.Attacker.Info.Name;
 
 			if (IsProtectedTechBuilding(self))
 				ProtectOwn(bot, e.Attacker, self);
@@ -1110,11 +1279,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			if (template.AttachToRole.Length > 0)
 			{
-				var attachTarget = Squads.FirstOrDefault(s =>
-					s != squad &&
-					s.IsValid &&
-					template.AttachToRole.Contains(s.Type));
-				squad.AttachedTo = attachTarget;
+				// Nearest, not first in the list. The artillery idle state only re-picks once its host
+				// becomes invalid, so a poor seed here is carried for the rest of the squad's life —
+				// an artillery group could end up towed behind a squad on the far side of the map.
+				var origin = squad.CenterPosition();
+				squad.AttachedTo = Squads
+					.Where(s => s != squad && s.IsValid && template.AttachToRole.Contains(s.Type))
+					.MinByOrDefault(s => (s.CenterPosition() - origin).LengthSquared);
 			}
 
 			foreach (var unit in squad.Units)
@@ -1647,6 +1818,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				// loaded transports forever.
 				assignment.Passengers.RemoveAll(a => a == null || a.IsDead);
 			}
+
+			// The claim was sized against the squad as it was when it picked the target. Now that the
+			// dead have been removed, re-price it - otherwise a squad reduced to one survivor keeps
+			// reserving the firepower of five and waves everyone else off a target it can no longer kill.
+			RefreshTargetClaim(squad);
 		}
 
 		void ApplyPerformancePenalty(string tag, int deaths)
@@ -1656,7 +1832,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				value = Math.Max(value, -Info.MaxPerformancePenaltyPerTag);
 
 			tagPerformance[tag] = value;
-			AIUtils.BotDebug($"CN AI: Tag '{tag}' lost {deaths} unit(s), performance penalty now {value:0.0}.");
+			CNBotLog.Debug($"CN AI: Tag '{tag}' lost {deaths} unit(s), performance penalty now {value:0.0}.");
 		}
 
 		// Recovers every tracked tag's performance penalty back toward 0 each cleanup pass, so a
@@ -1680,13 +1856,42 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			// Wave-eligible squads park in a hold state near the base until the
 			// wave manager launches them as part of a coordinated attack.
-			if (Info.AttackWaveEnabled && waveEligibleRoleSet.Contains(squad.Type))
+			//
+			// Squads that form out in the field are exempt. An adaptive profile switch dissolves every
+			// squad and re-forms it through here, so without this check units that were mid-attack were
+			// handed a hold cell back home and turned around two seconds after the profile changed.
+			// The same applies to any squad rebuilt from survivors far from base.
+			if (Info.AttackWaveEnabled && waveEligibleRoleSet.Contains(squad.Type) && IsAtHome(squad))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new CNWaveHoldState());
 				return;
 			}
 
 			InitializeSquadStateForRole(squad);
+		}
+
+		/// <summary>
+		/// True if the squad's centre sits within WaveHoldHomeRadiusCells of one of our buildings.
+		/// A bot with no buildings left is never "at home" — it has nowhere to hold.
+		/// </summary>
+		bool IsAtHome(CNSquad squad)
+		{
+			var buildings = GetCachedOwnBuildings();
+			if (buildings.Count == 0)
+				return false;
+
+			var center = squad.CenterPosition();
+			if (center == WPos.Zero)
+				return false;
+
+			var radius = WDist.FromCells(Math.Max(1, Info.WaveHoldHomeRadiusCells)).Length;
+			var radiusSq = (long)radius * radius;
+
+			foreach (var building in buildings)
+				if ((center - building.CenterPosition).LengthSquared <= radiusSq)
+					return true;
+
+			return false;
 		}
 
 		public void InitializeSquadStateForRole(CNSquad squad)
@@ -1764,8 +1969,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return;
 			}
 
-			EvaluateWaveTrigger();
-			waveCooldownTicks = Math.Max(1, GetScaledAttackWaveInterval());
+			// AttackWaveInterval used to be both the spacing between waves and the rate at which
+			// readiness was evaluated, because the cooldown was re-armed after every evaluation
+			// whether or not a wave went out. A single evaluation that missed the threshold — by one
+			// squad, a second too early — therefore cost a full interval: up to 4800 ticks on Turtle
+			// and Expansion. That got worse the higher the threshold grew, which is exactly backwards.
+			//
+			// Now the evaluation runs on its own short cadence and only a launched wave re-arms the
+			// interval, so the spacing between waves is unchanged but "ready but not yet asked"
+			// waiting is gone.
+			if (--waveCheckTicks > 0)
+				return;
+
+			waveCheckTicks = Math.Max(1, Info.AttackWaveCheckInterval);
+
+			if (EvaluateWaveTrigger())
+				waveCooldownTicks = Math.Max(1, GetScaledAttackWaveInterval());
 		}
 
 		int GetScaledAttackWaveInterval()
@@ -1799,7 +2018,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return Info.EconomyOverflowFuzzyAttackBoost * (milli / 1000.0);
 		}
 
-		void EvaluateWaveTrigger()
+		/// <summary>Evaluates wave readiness. Returns true if a wave was actually launched.</summary>
+		bool EvaluateWaveTrigger()
 		{
 			var ready = new List<CNSquad>();
 			foreach (var squad in Squads)
@@ -1817,32 +2037,65 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			var threshold = GetScaledWaveMinReadyThreshold();
-			var canLaunchNormally = ready.Count >= threshold;
-			var fallbackTriggered =
-				!canLaunchNormally &&
-				waveSkipCount >= Math.Max(1, Info.AttackWaveMaxSkipsBeforeFallback) &&
-				ready.Count >= Math.Max(1, Info.AttackWaveFallbackMinSquads);
-
-			if (!canLaunchNormally && !fallbackTriggered)
+			if (ready.Count < threshold)
 			{
-				waveSkipCount++;
-				return;
+				// The fallback is measured in elapsed time, not in evaluations. It used to count
+				// skipped evaluations, which was the same thing only while an evaluation happened
+				// exactly once per interval; with the faster cadence a plain counter would fire the
+				// fallback almost immediately and no bot would ever assemble a full-size wave.
+				if (waveWaitingSinceTick == 0)
+					waveWaitingSinceTick = World.WorldTick;
+
+				var fallbackDelay = (long)Math.Max(1, Info.AttackWaveMaxSkipsBeforeFallback) *
+					Math.Max(1, GetScaledAttackWaveInterval());
+
+				var fallbackReady =
+					World.WorldTick - waveWaitingSinceTick >= fallbackDelay &&
+					ready.Count >= Math.Max(1, Info.AttackWaveFallbackMinSquads);
+
+				if (!fallbackReady)
+					return false;
 			}
 
-			waveSkipCount = 0;
-			LaunchWave(ready);
+			// LaunchWave can still decline (no enemy building to aim at). Only a wave that actually
+			// went out clears the wait clock, otherwise a bot that cannot see a target would keep
+			// pushing its own fallback deadline back.
+			if (!LaunchWave(ready))
+				return false;
+
+			waveWaitingSinceTick = 0;
+			return true;
 		}
 
-		void LaunchWave(IList<CNSquad> participants)
+		/// <summary>Launches a wave. Returns false if there was nothing to launch or nothing to aim at.</summary>
+		bool LaunchWave(IList<CNSquad> participants)
 		{
 			if (participants == null || participants.Count == 0)
-				return;
+				return false;
 
 			var target = PickWaveTarget();
 			if (target == null)
-				return;
+				return false;
 
-			var rally = ComputeRallyCell(target);
+			// One wave at a time. This clear was harmless while participation ended at release - the set
+			// was empty by then - but now that a wave outlives its launch, starting a second one would
+			// silently drop the first wave's squads out of the registry mid-attack: no target advancing,
+			// no cohesion, no shared expiry. Reachable wherever AttackWaveInterval is shorter than
+			// AttackWaveMaxActiveTicks, which is every rush game once the economy bonus shortens it.
+			if (IsWaveLaunched)
+				return false;
+
+			// A representative of what is about to march, so "how hot is this approach" is measured
+			// against the armour that will actually be standing in it.
+			ActorInfo victim = null;
+			foreach (var participant in participants)
+			{
+				victim = participant?.CenterUnit()?.Info;
+				if (victim != null)
+					break;
+			}
+
+			var rally = ComputeRallyCell(target, victim);
 
 			WaveTarget = target;
 			WaveRallyCell = rally;
@@ -1850,18 +2103,65 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			foreach (var s in participants)
 				WaveParticipants.Add(s);
 
-			waveStartedTick = World.WorldTick;
+			waveLaunchTick = World.WorldTick;
+			waveStartedTick = 0;
 			IsWaveLaunched = true;
+			return true;
 		}
 
 		void MonitorActiveWave()
 		{
+			// Housekeeping first, so it also runs while the wave is still gathering: a wave whose squads
+			// all died during staging must end there, and a target that falls before anyone arrives must
+			// be replaced rather than ending the wave.
+			WaveParticipants.RemoveWhere(s => s == null || !s.IsValid);
+			if (WaveParticipants.Count == 0)
+			{
+				ClearActiveWave();
+				return;
+			}
+
+			if (!AdvanceWaveTargetIfLost())
+				return;
+
+			// Arm the attack clock the moment the first participant leaves staging — that is when the wave
+			// stops gathering and starts attacking, and what AttackWaveMaxActiveTicks is meant to budget.
+			// Started at the launch instead, most of it went on marching and waiting before a shot was
+			// fired; on a large map with a long staging timeout barely a third was left for the attack.
+			if (waveStartedTick == 0)
+			{
+				foreach (var squad in WaveParticipants)
+				{
+					if (squad.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>())
+						continue;
+
+					waveStartedTick = World.WorldTick;
+					break;
+				}
+			}
+
+			// A wave that never sets off would otherwise hold the slot forever, since the attack clock
+			// never starts. AttackWaveStagingTimeoutTicks bounds the wait of a single squad, not the wave.
+			if (waveStartedTick == 0)
+			{
+				if (World.WorldTick - waveLaunchTick >= Math.Max(1, Info.AttackWaveLaunchGraceTicks))
+					ClearActiveWave();
+
+				return;
+			}
+
 			var waveExpired = World.WorldTick - waveStartedTick >= Math.Max(1, Info.AttackWaveMaxActiveTicks);
 			if (waveExpired)
 			{
 				foreach (var squad in WaveParticipants.ToList())
 				{
 					if (squad == null || !squad.IsValid)
+						continue;
+
+					// Only squads still staging need releasing. The rest are in their own attack states
+					// by now and must not be reset to idle mid-engagement - harmless while the wave ended
+					// at release, destructive now that participation outlives it.
+					if (!squad.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>())
 						continue;
 
 					if (WaveTarget != null && !WaveTarget.IsDead && WaveTarget.IsInWorld)
@@ -1871,16 +2171,93 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				}
 
 				ClearActiveWave();
-				return;
+			}
+		}
+
+		/// <summary>
+		/// The wave outlives its first objective: when the target falls, advance to the next one and push
+		/// it to every participant, instead of disbanding and letting each squad wander off after whatever
+		/// its own scan turns up next. Returns false when there is nothing left worth attacking, in which
+		/// case the wave has been cleared and the caller must stop.
+		/// </summary>
+		bool AdvanceWaveTargetIfLost()
+		{
+			if (WaveTarget != null && !WaveTarget.IsDead && WaveTarget.IsInWorld)
+				return true;
+
+			var nextTarget = PickWaveTarget();
+			if (nextTarget == null)
+			{
+				ClearActiveWave();
+				return false;
 			}
 
-			// Drop participants that died or already moved on (e.g. transitioned past MoveToRally).
-			WaveParticipants.RemoveWhere(s =>
-				s == null || !s.IsValid || !s.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>());
+			WaveTarget = nextTarget;
+			foreach (var squad in WaveParticipants)
+				if (squad != null && squad.IsValid)
+					squad.SetActorToTarget(nextTarget);
 
-			var targetDead = WaveTarget == null || WaveTarget.IsDead || !WaveTarget.IsInWorld;
-			if (WaveParticipants.Count == 0 || targetDead)
-				ClearActiveWave();
+			return true;
+		}
+
+		/// <summary>
+		/// Average position of the wave's living participants, or null while no wave is running.
+		/// The reference point squads keep formation against once the wave has been released.
+		/// </summary>
+		public WPos? WaveCenterPosition()
+		{
+			if (!IsWaveLaunched || WaveParticipants.Count == 0)
+				return null;
+
+			long x = 0, y = 0, z = 0;
+			var count = 0;
+			foreach (var squad in WaveParticipants)
+			{
+				if (squad == null || !squad.IsValid)
+					continue;
+
+				// Squads that fell under strength are sent home but stay registered, and averaging them
+				// in drags the centre back across the map: three squads at the enemy base plus one
+				// retreating straggler put the "centre" behind the trio, so all three read as having
+				// outrun the wave and turned around to follow a squad that was never coming.
+				if (!squad.IsOperational)
+					continue;
+
+				var pos = squad.CenterPosition();
+				x += pos.X;
+				y += pos.Y;
+				z += pos.Z;
+				count++;
+			}
+
+			// A single squad cannot outrun itself, and with one contributor the centre is that squad's own
+			// position - every cohesion test against it would compare a squad to itself.
+			return count < 2 ? null : new WPos((int)(x / count), (int)(y / count), (int)(z / count));
+		}
+
+		/// <summary>
+		/// True while this squad has run so far ahead of the rest of the wave that it should wait.
+		/// Measured against the wave's centre and only in the direction of the objective, so a squad
+		/// that is merely off to one side is left alone.
+		/// </summary>
+		public bool HasOutrunTheWave(CNSquad squad)
+		{
+			if (squad == null || Info.WaveCohesionCells <= 0 || !IsWaveLaunched || !WaveParticipants.Contains(squad))
+				return false;
+
+			var center = WaveCenterPosition();
+			if (center == null || WaveTarget == null || WaveTarget.IsDead || !WaveTarget.IsInWorld)
+				return false;
+
+			var squadPos = squad.CenterPosition();
+			var allowed = WDist.FromCells(Info.WaveCohesionCells);
+			if ((squadPos - center.Value).LengthSquared <= (long)allowed.Length * allowed.Length)
+				return false;
+
+			// Ahead means closer to the objective than the wave's centre is. A squad that fell behind is
+			// also far from the centre, but telling it to wait would strand it for good.
+			var targetPos = WaveTarget.CenterPosition;
+			return (squadPos - targetPos).LengthSquared < (center.Value - targetPos).LengthSquared;
 		}
 
 		void ClearActiveWave()
@@ -1944,7 +2321,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return buildings.Count > 0 ? buildings[World.LocalRandom.Next(buildings.Count)] : null;
 		}
 
-		CPos ComputeRallyCell(Actor target)
+		CPos ComputeRallyCell(Actor target, ActorInfo victim)
 		{
 			var ownCell = GetRandomBaseCenter();
 			var ownPos = World.Map.CenterOfCell(ownCell);
@@ -1990,6 +2367,34 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 						(ownCell.Y + World.Map.CellContaining(enemyPos).Y) / 2);
 			}
 
+			// Everything above stages the wave on the straight line from base to target, which is how
+			// attacks kept forming up in front of whatever fortification happened to sit on that line.
+			// If the topology scan knows a way in that is under fewer guns, gather there instead.
+			// Measured along the final leg, from where the squads gather to what they are attacking —
+			// the stretch they actually have to cross. Comparing the two staging cells instead compared
+			// two points that are cold by construction.
+			var approach = PickApproachCell(target, victim);
+			var usable = approach != null && World.Map.Contains(approach.Value);
+			var approachThreat = usable
+				? GetDefenseThreatAlong(World.Map.CenterOfCell(approach.Value), target.CenterPosition, victim)
+				: -1;
+			var directThreat = GetDefenseThreatAlong(World.Map.CenterOfCell(cell), target.CenterPosition, victim);
+
+			// Logged unconditionally, and with more than the two staging cells, because the first version
+			// of this line could not distinguish the three ways it fails: no candidate found at all, an
+			// empty defence memory, or - the current suspicion - measuring in the wrong place. The rally
+			// sits AttackWaveStagingProgressPercent short of the target, which is deliberately outside
+			// defensive range, so both staging cells read zero however much the bot knows. The threat at
+			// the target is what says whether the memory has anything in it.
+			CNBotLog.Debug(
+				"{0} wave rally: direct {1} (threat {2}) vs approach {3} (threat {4}); target threat {5}, defences known {6}",
+				Player, cell, directThreat,
+				usable ? approach.Value.ToString() : "none", approachThreat,
+				GetDefenseThreatAt(target.CenterPosition, victim), knownEnemyDefenses.Count);
+
+			if (usable && approachThreat < directThreat)
+				return approach.Value;
+
 			return cell;
 		}
 
@@ -2001,7 +2406,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			var squad = new CNSquad(bot, this, type, templateName, templateInfo)
 			{
-				ArtilleryHangBackRange = WDist.FromCells(Info.ArtilleryHangBackCells)
+				ArtilleryHangBackRange = WDist.FromCells(Info.ArtilleryHangBackCells),
+
+				// Stagger the first update so a batch of squads formed on the same tick does not
+				// then update in lockstep for the rest of their lives.
+				NextUpdateTick = World.WorldTick + World.LocalRandom.Next(0, Math.Max(1, Info.AttackForceInterval))
 			};
 
 			Squads.Add(squad);
@@ -2010,6 +2419,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public void UnregisterSquad(CNSquad squad)
 		{
+			// Before anything else: a dead squad must stop reserving its target, or the damage it can no
+			// longer deal would keep every other squad away from it for the rest of the match.
+			ClearTargetClaim(squad);
+
+			// Same principle, and the reason this belongs here rather than at any of the fifteen call
+			// sites: a dissolved squad keeps its Units set, so IsValid stays true and the wave's only
+			// purge — RemoveWhere(!IsValid) — never sees it. The entry would point at a squad that no
+			// longer exists until the last of its former units happened to die, and while the wave holds
+			// at least one such entry it never reaches zero participants and never clears. With one wave
+			// allowed at a time, that means no further wave for the rest of the timer.
+			WaveParticipants.Remove(squad);
+
 			Squads.Remove(squad);
 			foreach (var unit in squad.Units)
 				activeUnits.Remove(unit);
@@ -2040,7 +2461,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return;
 			}
 
-			squad.NoTargetIdleTicks += Math.Max(1, Info.AttackForceInterval);
+			// Actual elapsed time rather than the assumed interval — with a per-squad cadence the
+			// gap between updates is no longer always AttackForceInterval.
+			squad.NoTargetIdleTicks += squad.TicksSinceLastUpdate;
 			if (squad.NoTargetIdleTicks >= Math.Max(1, Info.NoTargetIdleReleaseTicks))
 				UnregisterSquad(squad);
 		}
@@ -2127,6 +2550,539 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			return false;
+		}
+
+		// ---------------------------------------------------------------------------
+		// Target claims
+		//
+		// Squads used to pick targets in complete ignorance of each other: every one of them
+		// scanned from its own leader and took whatever was closest. Five squads would converge
+		// on one harvester while a war factory stood untouched, and ten aircraft would keep
+		// bombing a building three of them had already killed.
+		//
+		// The registry below is the shared bookkeeping that fixes both: each squad records how
+		// much damage it has committed to its target, and a target that already has enough
+		// damage committed stops attracting further squads.
+		// ---------------------------------------------------------------------------
+		readonly Dictionary<CNSquad, (Actor Target, int Damage, int Suitability)> targetClaims = [];
+		readonly Dictionary<Actor, int> committedDamage = [];
+		readonly Dictionary<Actor, int> bestClaimSuitability = [];
+		readonly Dictionary<(string Attacker, string Target), int> damagePerSalvoCache = [];
+
+		/// <summary>
+		/// Rough damage one actor of <paramref name="attacker"/>'s type lands on one actor of
+		/// <paramref name="target"/>'s type per salvo.
+		/// <para>
+		/// Deliberately an estimate built from static rules rather than a simulation: it sums every
+		/// damage warhead of every armament, applies the Versus percentages for the target's armor
+		/// types, and multiplies by burst. It ignores range, reload, accuracy, damage modifiers and
+		/// conditionally disabled armor — none of which change the answer to "is this target already
+		/// covered" enough to be worth the cost. Cached per actor-type pair, so the reflection-ish
+		/// walk happens once per pairing and never again.
+		/// </para>
+		/// </summary>
+		public int EstimateDamagePerSalvo(ActorInfo attacker, ActorInfo target)
+		{
+			if (attacker == null || target == null)
+				return 0;
+
+			var key = (attacker.Name, target.Name);
+			if (damagePerSalvoCache.TryGetValue(key, out var cached))
+				return cached;
+
+			var targetTypes = target.GetAllTargetTypes();
+
+			var total = 0;
+			foreach (var armament in attacker.TraitInfos<ArmamentInfo>())
+			{
+				var weapon = armament.WeaponInfo;
+				if (weapon == null)
+					continue;
+
+				// Only weapons that can actually be fired at this target count. Without this the Nod
+				// helicopter booked its air-to-air launcher against buildings, and every ground armament
+				// counted against aircraft - inflating the claim and waving other squads off a target
+				// the attacker cannot in fact hurt that hard.
+				if (!weapon.IsValidTarget(targetTypes))
+					continue;
+
+				var perShot = 0;
+				foreach (var warhead in weapon.Warheads)
+				{
+					if (warhead is not DamageWarhead damageWarhead || damageWarhead.Damage <= 0)
+						continue;
+
+					// Warhead.IsValidTarget is protected, so the same test is spelled out here against the
+					// public fields: a warhead counts only if the target's types overlap ValidTargets and
+					// are not overruled by InvalidTargets (e.g. Hellfire declares InvalidTargets: Infantry).
+					if (!damageWarhead.ValidTargets.Overlaps(targetTypes) || damageWarhead.InvalidTargets.Overlaps(targetTypes))
+						continue;
+
+					perShot += Util.ApplyPercentageModifiers(damageWarhead.Damage, [EstimateVersus(damageWarhead, target)]);
+				}
+
+				total += perShot * Math.Max(1, weapon.Burst);
+			}
+
+			damagePerSalvoCache[key] = total;
+			return total;
+		}
+
+		// Mirrors DamageWarhead.DamageVersus, but off ActorInfo instead of a live victim and hit shape:
+		// every armor type the target declares that the warhead has a Versus entry for is applied as a
+		// percentage modifier, exactly as the engine does it.
+		static int EstimateVersus(DamageWarhead warhead, ActorInfo target)
+		{
+			if (warhead.Versus.Count == 0)
+				return 100;
+
+			var modifiers = new List<int>();
+			foreach (var armor in target.TraitInfos<ArmorInfo>())
+				if (armor.Type != null && warhead.Versus.TryGetValue(armor.Type, out var versus))
+					modifiers.Add(versus);
+
+			return modifiers.Count == 0 ? 100 : Util.ApplyPercentageModifiers(100, modifiers);
+		}
+
+		/// <summary>Damage the squad's living units land on the target in one salvo.</summary>
+		public int EstimateSquadDamage(CNSquad squad, Actor target)
+		{
+			if (squad == null || target == null || target.IsDead || !target.IsInWorld)
+				return 0;
+
+			var total = 0;
+			foreach (var unit in squad.OrderableUnits)
+				total += EstimateDamagePerSalvo(unit.Info, target.Info);
+
+			return total;
+		}
+
+		/// <summary>
+		/// Records that <paramref name="squad"/> is committing to <paramref name="target"/>, replacing
+		/// any claim it held before. Called from CNSquad.SetActorToTarget, the single funnel through
+		/// which every squad target assignment passes.
+		/// </summary>
+		public void SetTargetClaim(CNSquad squad, Actor target)
+		{
+			if (squad == null)
+				return;
+
+			ClearTargetClaim(squad);
+
+			if (target == null || target.IsDead || !target.IsInWorld)
+				return;
+
+			var damage = EstimateSquadDamage(squad, target);
+			var suitability = (int)(CNSquadHelper.CounterFraction(squad, target) * 100);
+			targetClaims[squad] = (target, damage, suitability);
+			committedDamage[target] = committedDamage.GetValueOrDefault(target) + damage;
+			bestClaimSuitability[target] = Math.Max(bestClaimSuitability.GetValueOrDefault(target), suitability);
+		}
+
+		/// <summary>Re-prices an existing claim after the squad's strength changed.</summary>
+		public void RefreshTargetClaim(CNSquad squad)
+		{
+			if (squad != null && targetClaims.TryGetValue(squad, out var claim))
+				SetTargetClaim(squad, claim.Target);
+		}
+
+		public void ClearTargetClaim(CNSquad squad)
+		{
+			if (squad == null || !targetClaims.TryGetValue(squad, out var claim))
+				return;
+
+			targetClaims.Remove(squad);
+			if (claim.Target == null)
+				return;
+
+			var remaining = committedDamage.GetValueOrDefault(claim.Target) - claim.Damage;
+			if (remaining > 0)
+				committedDamage[claim.Target] = remaining;
+			else
+				committedDamage.Remove(claim.Target);
+
+			// Recompute the best suitability from the remaining claimants. Only runs when a claim
+			// changes, not per candidate during a scan, so the walk is affordable here.
+			var best = 0;
+			foreach (var (_, other) in targetClaims)
+				if (other.Target == claim.Target && other.Suitability > best)
+					best = other.Suitability;
+
+			if (best > 0)
+				bestClaimSuitability[claim.Target] = best;
+			else
+				bestClaimSuitability.Remove(claim.Target);
+		}
+
+		/// <summary>
+		/// True if another squad that counters this target markedly better has already claimed it, so
+		/// <paramref name="squad"/> should leave it to them and take something it fights better.
+		/// <para>
+		/// This is what turns the per-squad CounterFraction bonus into an actual division of labour:
+		/// without it, an anti-armor group and an anti-infantry group both simply prefer what suits
+		/// them, and nothing stops the anti-armor group taking the infantry when it happens to be the
+		/// closer target. The margin means a squad only defers to a clearly better answer, not to a
+		/// marginally better one.
+		/// </para>
+		/// </summary>
+		public bool IsTargetBetterServed(CNSquad squad, Actor target, double ownSuitability)
+		{
+			if (!Info.TargetClaimingEnabled || Info.CounterDeferenceMargin <= 0)
+				return false;
+			if (target == null || target.IsDead || !target.IsInWorld)
+				return false;
+
+			// Already ours: keep it. Deferring here would make a squad talk itself off the target it is
+			// currently attacking, and the best-suitability figure below includes its own claim anyway.
+			if (targetClaims.TryGetValue(squad, out var own) && own.Target == target)
+				return false;
+
+			var best = bestClaimSuitability.GetValueOrDefault(target);
+			return best - (int)(ownSuitability * 100) >= Info.CounterDeferenceMargin;
+		}
+
+		/// <summary>
+		/// True if other squads have already committed enough damage to finish this target, so
+		/// <paramref name="squad"/> should look elsewhere. The squad's own claim is excluded, or a squad
+		/// would talk itself out of the target it is already attacking.
+		/// </summary>
+		public bool IsTargetOversubscribed(CNSquad squad, Actor target)
+		{
+			if (!Info.TargetClaimingEnabled || target == null || target.IsDead || !target.IsInWorld)
+				return false;
+
+			var committed = committedDamage.GetValueOrDefault(target);
+			if (committed <= 0)
+				return false;
+
+			if (squad != null && targetClaims.TryGetValue(squad, out var own) && own.Target == target)
+				committed -= own.Damage;
+
+			if (committed <= 0)
+				return false;
+
+			// IHealth, not Health: this mod's actors carry CNHealth, which implements IHealth rather than
+			// deriving from Health. TraitOrDefault<Health>() therefore returned null for every actor in
+			// the game and switched the whole overkill check off. CNStateBase queries IHealth throughout.
+			var health = target.TraitOrDefault<IHealth>();
+			if (health == null)
+				return false;
+
+			var factor = target.Info.HasTraitInfo<BuildingInfo>()
+				? Info.OverkillFactorBuilding
+				: Info.OverkillFactorMobile;
+
+			return committed >= health.HP * Math.Max(100, factor) / 100;
+		}
+
+		// ---------------------------------------------------------------------------
+		// Defended approaches
+		//
+		// The topology scan has always known where the ways in are - CNTacticalMapBotModule maps
+		// chokepoints, ramps and bridges - but only defence placement ever asked. Attacks marched
+		// at whatever the straight line from base to target ran into, which meant walking into the
+		// same fortified front over and over while an undefended flank stood open.
+		// ---------------------------------------------------------------------------
+		readonly Dictionary<string, int> maxWeaponRangeCache = [];
+
+		// What the bot has actually seen of the enemy's defences, kept under fog until it looks again.
+		//
+		// A plain visibility check would be worse than knowing everything: a squad approaches, sees the
+		// turret, backs off, loses sight, forgets, and walks straight back in. Remembering closes that
+		// loop and is also the honest model — every other target decision in this bot already refuses to
+		// act on what it has not seen, and this one was the odd exception.
+		readonly Dictionary<CPos, string> knownEnemyDefenses = [];
+
+		/// <summary>
+		/// How many enemy emplacements the bot has seen or been shot by. A measure of how dug in the
+		/// opponent is, learned rather than read off the map, and the only thing the strategy layer has
+		/// ever known about what the enemy is actually doing.
+		/// </summary>
+		public int KnownEnemyDefenseCount => knownEnemyDefenses.Count;
+
+		/// <summary>
+		/// Refreshes the remembered defences from what is visible right now: anything in sight is
+		/// recorded, and anything remembered on a cell the bot can currently see, but which is no longer
+		/// there, is forgotten. Cells under fog keep whatever was last seen.
+		/// </summary>
+		void UpdateKnownEnemyDefenses()
+		{
+			foreach (var building in GetCachedEnemyBuildings())
+			{
+				if (building.IsDead || !building.IsInWorld || !building.Info.HasTraitInfo<AttackBaseInfo>())
+					continue;
+
+				if (building.CanBeViewedByPlayer(Player))
+					knownEnemyDefenses[building.Location] = building.Info.Name;
+			}
+
+			scratchForgottenDefenses.Clear();
+			foreach (var (cell, _) in knownEnemyDefenses)
+			{
+				if (!Player.Shroud.IsVisible(cell))
+					continue;
+
+				var stillThere = false;
+				foreach (var actor in World.ActorMap.GetActorsAt(cell))
+				{
+					if (actor.Owner == Player || !actor.Info.HasTraitInfo<AttackBaseInfo>() || !actor.Info.HasTraitInfo<BuildingInfo>())
+						continue;
+
+					stillThere = true;
+					break;
+				}
+
+				if (!stillThere)
+					scratchForgottenDefenses.Add(cell);
+			}
+
+			foreach (var cell in scratchForgottenDefenses)
+				knownEnemyDefenses.Remove(cell);
+		}
+
+		readonly List<CPos> scratchForgottenDefenses = [];
+
+		/// <summary>Longest weapon range this actor type can bring to bear.</summary>
+		public int MaxWeaponRange(ActorInfo info)
+		{
+			if (info == null)
+				return 0;
+
+			if (maxWeaponRangeCache.TryGetValue(info.Name, out var cached))
+				return cached;
+
+			var range = 0;
+			foreach (var armament in info.TraitInfos<ArmamentInfo>())
+			{
+				var weapon = armament.WeaponInfo;
+				if (weapon != null && weapon.Range.Length > range)
+					range = weapon.Range.Length;
+			}
+
+			maxWeaponRangeCache[info.Name] = range;
+			return range;
+		}
+
+		/// <summary>
+		/// Damage per salvo that enemy static defences covering <paramref name="pos"/> would put on a
+		/// unit of <paramref name="victim"/>'s type — the measure of how hot an approach is.
+		/// Returns 0 for a null victim, so callers without a representative unit simply express no
+		/// preference rather than being steered by a meaningless number.
+		/// </summary>
+		public int GetDefenseThreatAt(WPos pos, ActorInfo victim)
+		{
+			if (victim == null)
+				return 0;
+
+			var total = 0;
+			foreach (var (cell, typeName) in knownEnemyDefenses)
+			{
+				var info = World.Map.Rules.Actors.GetValueOrDefault(typeName);
+				if (info == null)
+					continue;
+
+				var range = MaxWeaponRange(info);
+				if (range <= 0)
+					continue;
+
+				if ((World.Map.CenterOfCell(cell) - pos).LengthSquared > (long)range * range)
+					continue;
+
+				total += EstimateDamagePerSalvo(info, victim);
+			}
+
+			return total;
+		}
+
+		/// <summary>
+		/// Total defensive fire a unit would be exposed to walking from <paramref name="from"/> to
+		/// <paramref name="to"/>, sampled along the way.
+		/// <para>
+		/// Point samples cannot answer this, and measuring at the endpoints answered nothing at all.
+		/// Emplacements in this mod reach seven to ten cells; they cover approaches, not the buildings
+		/// behind them. The staging point sits deliberately short of the target and the target sits
+		/// inside the base, so both read zero however much the bot knows — which is exactly what a
+		/// played match showed, nine rally decisions comparing zero against zero. The fire is on the
+		/// stretch between them, and a gauntlet has to be integrated, not sampled at its ends.
+		/// </para>
+		/// Overlapping samples are intentional: a turret covering several consecutive samples counts
+		/// several times, because the squad really is under its guns for that much longer.
+		/// </summary>
+		public int GetDefenseThreatAlong(WPos from, WPos to, ActorInfo victim)
+		{
+			if (victim == null)
+				return 0;
+
+			var samples = Math.Max(1, Info.ApproachThreatSamples);
+			var total = 0;
+			for (var i = 1; i <= samples; i++)
+			{
+				var point = new WPos(
+					from.X + (int)((long)(to.X - from.X) * i / samples),
+					from.Y + (int)((long)(to.Y - from.Y) * i / samples),
+					from.Z + (int)((long)(to.Z - from.Z) * i / samples));
+
+				total += GetDefenseThreatAt(point, victim);
+			}
+
+			return total;
+		}
+
+		/// <summary>
+		/// The most lightly defended chokepoint within reach of <paramref name="target"/>, or null when
+		/// the tactical map has nothing to offer — in which case the caller stays on the direct line.
+		/// </summary>
+		public CPos? PickApproachCell(Actor target, ActorInfo victim)
+		{
+			if (!Info.AvoidDefendedApproaches || target == null || victim == null || tacticalMap == null)
+				return null;
+
+			// The useful set, not the raw one: these are the chokepoints reachable from this bot's own
+			// base that lead somewhere real. The raw list includes dead ends and pockets across
+			// impassable terrain, and staging at one of those is how the first version produced rally
+			// points the squads could not sensibly walk to.
+			var chokepoints = tacticalMap.GetUsefulChokepointsForOwnBase();
+			if (chokepoints.Count == 0)
+				return null;
+
+			var basePos = World.Map.CenterOfCell(GetRandomBaseCenter());
+			var directLength = (target.CenterPosition - basePos).Length;
+			if (directLength <= 0)
+				return null;
+
+			var reach = WDist.FromCells(Math.Max(1, Info.ApproachSearchRadiusCells));
+			var reachSq = (long)reach.Length * reach.Length;
+			var maxRouteLength = directLength + directLength * Math.Max(0, Info.ApproachMaxDetourPercent) / 100;
+
+			CPos? best = null;
+			var bestThreat = int.MaxValue;
+			var inRadius = 0;
+			var withinDetour = 0;
+			foreach (var chokepoint in chokepoints)
+			{
+				var pos = World.Map.CenterOfCell(chokepoint.Cell);
+				if ((pos - target.CenterPosition).LengthSquared > reachSq)
+					continue;
+
+				inRadius++;
+
+				// The way in has to lie between us and the objective. Picking purely by temperature let
+				// the coldest chokepoint win even when it sat on the far side of the enemy base, so the
+				// squads marched past the target to gather behind it.
+				if ((pos - basePos).Length + (target.CenterPosition - pos).Length > maxRouteLength)
+					continue;
+
+				withinDetour++;
+
+				// Ranked by the road from the chokepoint to the objective, not by how cold it is to
+				// stand in. Those are different questions, and picking on the second answer produced
+				// candidates the caller then threw away: over a played match it offered a way in that
+				// was hotter than simply walking up the straight line ten times, against three where
+				// it was genuinely better. A chokepoint can be perfectly quiet and still open onto the
+				// muzzle of everything behind it - which is, after all, what a chokepoint is for.
+				var threat = GetDefenseThreatAlong(pos, target.CenterPosition, victim);
+				if (threat >= bestThreat)
+					continue;
+
+				bestThreat = threat;
+				best = chokepoint.Cell;
+			}
+
+			// Which filter emptied the list. A played match logged "approach none" for every wave while
+			// the threat measurement beside it worked and the defence memory held twenty-two entries -
+			// and there was no way to tell whether the topology scan had nothing, the radius was too
+			// tight, or the detour bound was. Three counters answer that in one line.
+			// The detour bound is an ellipse through base and target, so it tightens as the two move
+			// together: at a short direct line even a chokepoint straight ahead can fail it. Whether
+			// that is what empties the list cannot be read without the distance it is scaled from.
+			if (best == null)
+				CNBotLog.Debug(
+					"{0} no approach: {1} useful chokepoints, {2} within {3} cells of target, {4} within detour "
+					+ "(direct {5} cells, route allowance {6})",
+					Player, chokepoints.Count, inRadius, Info.ApproachSearchRadiusCells, withinDetour,
+					directLength / 1024, maxRouteLength / 1024);
+
+			if (best == null)
+				return null;
+
+			// Gather short of the passage rather than inside it. A chokepoint is by definition narrow;
+			// assembling a squad in one bunches it up exactly where it is easiest to shell.
+			return StandOffCell(best.Value, basePos, Info.ApproachStandOffCells);
+		}
+
+		/// <summary>Steps back from <paramref name="cell"/> toward <paramref name="towards"/>.</summary>
+		public CPos StandOffCell(CPos cell, WPos towards, int cells)
+		{
+			if (cells <= 0)
+				return cell;
+
+			var pos = World.Map.CenterOfCell(cell);
+			var delta = towards - pos;
+			var length = delta.Length;
+			if (length <= 0)
+				return cell;
+
+			var step = WDist.FromCells(cells).Length;
+			if (step >= length)
+				return cell;
+
+			var backed = new WPos(
+				pos.X + (int)((long)delta.X * step / length),
+				pos.Y + (int)((long)delta.Y * step / length),
+				pos.Z + (int)((long)delta.Z * step / length));
+
+			var backedCell = World.Map.CellContaining(backed);
+			return World.Map.Contains(backedCell) ? backedCell : cell;
+		}
+
+		/// <summary>
+		/// True while enemy static defences can still reach this squad. A gun emplacement never chases,
+		/// so a retreat that waits only for a pursuer to give up ends the moment the squad steps outside
+		/// DangerScanRadius — whereupon it marches back into exactly the same guns.
+		/// </summary>
+		public bool IsUnderDefensiveFire(CNSquad squad)
+		{
+			var leader = squad?.CenterUnit();
+			return leader != null && GetDefenseThreatAt(leader.CenterPosition, leader.Info) > 0;
+		}
+
+		/// <summary>
+		/// True if the squad puts out more damage per salvo against the nearest defence firing on it
+		/// than all covering defences put out against the squad — the case for pressing the attack home
+		/// rather than trickling units out of range one at a time.
+		/// </summary>
+		public bool OutTradesDefenses(CNSquad squad)
+		{
+			var leader = squad?.CenterUnit();
+			if (leader == null)
+				return false;
+
+			var incoming = GetDefenseThreatAt(leader.CenterPosition, leader.Info);
+			if (incoming <= 0)
+				return false;
+
+			Actor nearest = null;
+			var nearestDistSq = long.MaxValue;
+			foreach (var building in GetCachedEnemyBuildings())
+			{
+				if (building.IsDead || !building.IsInWorld || !building.Info.HasTraitInfo<AttackBaseInfo>())
+					continue;
+
+				var range = MaxWeaponRange(building.Info);
+				if (range <= 0)
+					continue;
+
+				var distSq = (building.CenterPosition - leader.CenterPosition).LengthSquared;
+				if (distSq > (long)range * range || distSq >= nearestDistSq)
+					continue;
+
+				nearestDistSq = distSq;
+				nearest = building;
+			}
+
+			// Measured against one defence rather than all of them because the squad focuses its fire:
+			// what matters is whether it can kill what it is shooting at faster than the position kills it.
+			return nearest != null && EstimateSquadDamage(squad, nearest) > incoming;
 		}
 
 		public Actor FindClosestEnemy(Actor sourceActor, Func<Actor, bool> additionalFilter = null)
@@ -2249,6 +3205,21 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				assignment.Units.Remove(actor);
 				assignment.Passengers.Remove(actor);
 			}
+		}
+
+		/// <summary>
+		/// Releases one unit from its squad back into the manager's free pool. Clearing activeUnits is
+		/// what makes it eligible again: while a unit counts as active it is invisible to
+		/// IBotNotifyIdleBaseUnits, so CNRepairManagerBotModule never sees a damaged squad member and
+		/// cannot send it to a repair bay.
+		/// </summary>
+		public void ReleaseUnitFromSquad(CNSquad squad, Actor actor)
+		{
+			if (squad == null || actor == null)
+				return;
+
+			RemoveActorFromSquad(squad, actor);
+			activeUnits.Remove(actor);
 		}
 
 		public IReadOnlyList<Actor> GetCachedOwnBuildings()
