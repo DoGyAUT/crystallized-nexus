@@ -29,6 +29,11 @@ namespace OpenRA.Mods.Common.Traits
 		// so filling the floor wins over topping up a category that is merely below its share.
 		const int CapabilityFloorDeficit = int.MaxValue / 2;
 
+		// How far the field-spread walk may look for a second field. A field can run to 150 cells, so
+		// reaching the next one costs a few hundred steps; past that the ordering has left the
+		// neighbourhood the refinery is being placed in anyway.
+		const int MaxFieldSpreadInspections = 512;
+
 		public readonly string Category;
 		public int WaitTicks;
 
@@ -490,10 +495,6 @@ namespace OpenRA.Mods.Common.Traits
 				.Take(Math.Max(maxChecks, 16))
 				.ToArray();
 		}
-
-		// A field can run to 150 cells, so reaching the second one costs a few hundred steps; past that
-		// the ordering has left the neighbourhood the refinery is being placed in anyway.
-		const int MaxFieldSpreadInspections = 512;
 
 		/// <summary>
 		/// Walks an ordered candidate list and lets through at most ResourceCellsPerField cells from
