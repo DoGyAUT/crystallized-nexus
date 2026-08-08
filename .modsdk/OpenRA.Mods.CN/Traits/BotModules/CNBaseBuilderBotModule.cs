@@ -702,14 +702,6 @@ namespace OpenRA.Mods.Common.Traits
 			"on the level, and the harvesters pay the difference on every single trip.")]
 		public readonly int RefineryDetouringDockHeightMultiplier = 8;
 
-		[Desc("Detour percent assumed at a fully blocked straight line when the bot owns nothing that can " +
-			"be asked for a path - the moment right after the MCV deploys, when the first and most " +
-			"consequential refinery is sited. Scaled by the fraction of the line to the field that a " +
-			"harvester could not drive, which is what says whether the straight line is telling the " +
-			"truth. Height difference between the two ends was tried and ranked nothing: where every " +
-			"field sits on the same terrace it scales them all alike.")]
-		public readonly int RefineryUnmeasuredBlockedDetourPercent = 400;
-
 		[Desc("Minimum valuable cells required before placing the first refinery on a finite field.")]
 		public readonly int MinFiniteFieldCellsForRefinery = 12;
 

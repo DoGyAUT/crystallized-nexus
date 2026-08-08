@@ -35,9 +35,13 @@ namespace OpenRA.Mods.Common.Traits
 		// neighbourhood the refinery is being placed in anyway.
 		const int MaxFieldSpreadInspections = 512;
 
-		// Samples along the straight line when no unit exists to path with. Enough to tell a wall from
-		// a gap; the answer is an estimate either way.
-		const int MaxUnmeasuredLineSamples = 24;
+		// Safety net on the drive-distance flood fill, not a tuning knob: the reachable ground around a
+		// base is bounded by the map, and this only stops a pathological one running away with a tick.
+		const int MaxHarvesterFloodCells = 30000;
+
+		// Ground around the base centre used to seed that flood fill. The centre cell itself is usually
+		// under a construction yard, where driveability says nothing.
+		const int HarvesterFloodSeedRadius = 4;
 
 		public readonly string Category;
 		public int WaitTicks;
@@ -300,118 +304,90 @@ namespace OpenRA.Mods.Common.Traits
 			return passableDockCells * 2 >= dockCells.Count && goodApproachCells >= 2;
 		}
 
-		readonly Dictionary<(CPos Base, CPos Resource), int> fieldPathLengthCache = [];
-
-		int fieldPathCacheTick = -1;
+		readonly Dictionary<CPos, int> harvesterDistances = [];
+		CPos harvesterDistanceOrigin;
+		int harvesterDistanceTick = -1;
 
 		/// <summary>
-		/// How far a harvester actually has to drive from the base to reach this field, in cells.
+		/// How far a harvester actually has to drive from the base to reach a field, in cells.
 		/// <para>
-		/// This is the term the placement scorer was written around and then had to give up on: the
-		/// A* was run per candidate cell, which meant hundreds of full searches per decision. Measured
-		/// once per field and cached it costs one, because the road length depends on where the field
-		/// lies relative to the base — not on which cell inside the base the refinery lands on.
+		/// One flood fill outward from the base answers this for every field at once, which is both
+		/// cheaper than the A*-per-field it replaces and, more importantly, needs no unit to ask. The
+		/// opening refinery is sited before the bot owns anything that can be pathed with, and that is
+		/// the placement that matters most - a first refinery on the wrong side of a cliff handicaps
+		/// the whole game.
 		/// </para>
-		/// Without it, placement sees only straight-line distance, and a field on the far side of a
-		/// cliff looks adjacent while the drive to it goes the long way round the map. The height
-		/// penalty in ScoreRefineryTopologyFit is 350 per level squared, which the distance terms -
-		/// thousands, at any real separation - comfortably outvote.
+		/// Two heuristics were tried for that opening case and both had to go. Height difference
+		/// between base and field ranked nothing, because in a bowl every field sits the same number of
+		/// levels up. Counting undriveable cells along the straight line ranked the wrong way round: on
+		/// Forest Fire the field with the cleanest line (5% blocked) turned out to be the worst by road
+		/// (102 cells), while the one whose line clipped a cliff edge (14%) was the best (51). A cliff
+		/// you drive around by a ramp beside it blocks many cells and costs nothing; a narrow barrier
+		/// blocks few and costs eighty. Nothing short of following the ground answers this.
 		/// </summary>
 		int? HarvesterPathLengthToField(CPos baseCenter, CPos resource)
 		{
 			if (baseBuilder.Info.RefineryDetourPenalty <= 0)
 				return null;
 
-			if (world.WorldTick != fieldPathCacheTick)
+			BuildHarvesterDistances(baseCenter);
+
+			if (!harvesterDistances.TryGetValue(resource, out var distance))
+				return null;
+
+			CNBotLog.Debug("{0} field {1}: {2} cells to drive, {3} straight",
+				player, resource, distance, (resource - baseCenter).Length);
+
+			return distance;
+		}
+
+		/// <summary>
+		/// Breadth-first over ground a harvester can cross, counting steps from the base. Terrain only,
+		/// matching the BlockedByActor.None the A* used: a building in the way is a temporary fact, the
+		/// cliff it stands on is not.
+		/// </summary>
+		void BuildHarvesterDistances(CPos origin)
+		{
+			if (harvesterDistanceTick == world.WorldTick && harvesterDistanceOrigin == origin)
+				return;
+
+			harvesterDistanceTick = world.WorldTick;
+			harvesterDistanceOrigin = origin;
+			harvesterDistances.Clear();
+
+			if (!world.Map.Contains(origin))
+				return;
+
+			var queue = new Queue<CPos>();
+
+			// The base centre is usually a construction yard footprint, and whether that particular cell
+			// is driveable says nothing useful. Seed from whatever ground around it is.
+			foreach (var cell in world.Map.FindTilesInAnnulus(origin, 0, HarvesterFloodSeedRadius))
 			{
-				fieldPathLengthCache.Clear();
-				fieldPathCacheTick = world.WorldTick;
-			}
-
-			if (fieldPathLengthCache.TryGetValue((baseCenter, resource), out var cached))
-				return cached < 0 ? null : cached;
-
-			var length = -1;
-			var blockedPercent = 0;
-
-			// A harvester is the right thing to ask, but the opening refinery is placed before the bot
-			// owns one - and that placement matters most of all, since a first refinery on the wrong
-			// side of a cliff handicaps the whole game. Any owned ground unit is a good enough stand-in:
-			// cliffs stop them all alike, and it is the cliff that creates the detour being measured.
-			Actor harvester = null;
-			Actor anyGround = null;
-			foreach (var actor in world.ActorsHavingTrait<Mobile>())
-			{
-				if (actor.Owner != player || actor.IsDead || !actor.IsInWorld)
+				if (!world.Map.Contains(cell) || !IsPassableForHarvesters(cell))
 					continue;
 
-				if (baseBuilder.Info.HarvesterTypes.Contains(actor.Info.Name))
-				{
-					harvester = actor;
-					break;
-				}
-
-				anyGround ??= actor;
+				harvesterDistances[cell] = (cell - origin).Length;
+				queue.Enqueue(cell);
 			}
 
-			harvester ??= anyGround;
-
-			if (harvester != null)
+			while (queue.Count > 0 && harvesterDistances.Count < MaxHarvesterFloodCells)
 			{
-				var path = baseBuilder.PathFinder.FindPathToTargetCells(
-					harvester, baseCenter, [resource], BlockedByActor.None);
+				var cell = queue.Dequeue();
+				var next = harvesterDistances[cell] + 1;
 
-				if (path != null && path.Count > 0)
-					length = path.Count;
-			}
-			else if (world.Map.Contains(resource) && world.Map.Contains(baseCenter))
-			{
-				// Nothing mobile at all - the moment right after the MCV deploys, when the very first
-				// refinery is sited. Terrain stands in for the measurement that cannot be made yet: a
-				// field on another terrace is only reachable by a ramp, and a ramp is a detour, so the
-				// straight-line distance is inflated per level of height difference rather than the
-				// check being skipped on the one placement that matters most.
-				// CVec.Length is already in cells - the operands are cell coordinates, not world
-				// positions - so there is no 1024 to divide out here.
-				//
-				// Walk the straight line and count how much of it a harvester could not drive. That is
-				// the question worth asking: not how high the two ends are above each other, but how
-				// badly the straight line misrepresents the road.
-				//
-				// Height difference alone was tried first and ranked nothing. In the bowl this was
-				// written for, every field sits four levels up, so it scaled all of them by the same
-				// factor 7 - 98 for a field 14 away, 133 for one 19 away - which is the straight-line
-				// order it was supposed to correct, wearing bigger numbers.
-				var straight = (resource - baseCenter).Length;
-				if (straight > 0)
+				foreach (var direction in CVec.Directions)
 				{
-					var samples = Math.Min(straight, MaxUnmeasuredLineSamples);
-					var blocked = 0;
-					for (var i = 1; i <= samples; i++)
-					{
-						var step = new CPos(
-							baseCenter.X + (resource.X - baseCenter.X) * i / samples,
-							baseCenter.Y + (resource.Y - baseCenter.Y) * i / samples);
+					var step = cell + direction;
+					if (harvesterDistances.ContainsKey(step)
+						|| !world.Map.Contains(step)
+						|| !IsPassableForHarvesters(step))
+						continue;
 
-						if (!world.Map.Contains(step) || !IsPassableForHarvesters(step))
-							blocked++;
-					}
-
-					var detourPercent = blocked * Math.Max(0, baseBuilder.Info.RefineryUnmeasuredBlockedDetourPercent) / samples;
-					length = straight * (100 + detourPercent) / 100;
-					blockedPercent = blocked * 100 / samples;
+					harvesterDistances[step] = next;
+					queue.Enqueue(step);
 				}
 			}
-
-			if (length > 0)
-				CNBotLog.Debug("{0} field {1}: {2} cells to drive, {3} straight{4}",
-					player, resource, length, (resource - baseCenter).Length,
-					harvester == null
-						? $" (estimated, no unit to path with: {blockedPercent}% of the line is undriveable)"
-						: "");
-
-			fieldPathLengthCache[(baseCenter, resource)] = length;
-			return length < 0 ? null : length;
 		}
 
 		int ScoreRefineryTopologyFit(CPos refineryLoc, List<CPos> dockCells, IReadOnlyList<CPos> sampledResourceCells,
