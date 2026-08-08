@@ -346,6 +346,18 @@ namespace OpenRA.Mods.Common.Traits
 		/// matching the BlockedByActor.None the A* used: a building in the way is a temporary fact, the
 		/// cliff it stands on is not.
 		/// </summary>
+		/// <summary>
+		/// Ordering key for "nearest field": the drive where the flood fill knows it, the straight line
+		/// where it does not. Reachability filters only ask whether a route exists, and one nearly
+		/// always does - around the cliff, the long way - so ordering by straight line afterwards picks
+		/// the field that looks nearest rather than the one that is.
+		/// </summary>
+		int DriveOrStraightDistance(CPos origin, CPos cell)
+		{
+			BuildHarvesterDistances(origin);
+			return harvesterDistances.TryGetValue(cell, out var drive) ? drive : (cell - origin).Length;
+		}
+
 		void BuildHarvesterDistances(CPos origin)
 		{
 			if (harvesterDistanceTick == world.WorldTick && harvesterDistanceOrigin == origin)
@@ -1928,7 +1940,7 @@ namespace OpenRA.Mods.Common.Traits
 						(baseBuilder.PathFinder == null || baseBuilder.HarvesterLocomotorsList.Length == 0 ||
 							baseBuilder.HarvesterLocomotorsList.All(l =>
 								baseBuilder.PathFinder.PathMightExistForLocomotorBlockedByImmovable(l, origin, c))))
-					.OrderBy(c => (c - origin).LengthSquared))
+					.OrderBy(c => DriveOrStraightDistance(origin, c)))
 					return cell;
 
 				return null;
@@ -2901,11 +2913,27 @@ namespace OpenRA.Mods.Common.Traits
 					var fallbackTarget = requestedResourceLoc
 						?? FindNearestReachableResource(resourceBaseCenter, resourceFallbackRadius);
 
+					// Logged like the other two paths. A bot built its opening refinery from here and left
+					// no trace at all, so the log said nothing about the placement while the field
+					// measurements sat right above it - which reads as the measurement being ignored
+					// rather than as no candidate having survived the scans.
 					if (fallbackTarget.HasValue)
+					{
+						CNBotLog.Debug("{0} refinery for field {1} ({2} to drive) via base grid fallback, no candidate survived either scan",
+							player, fallbackTarget.Value,
+							HarvesterPathLengthToField(targetBase.Center, fallbackTarget.Value)
+								?.ToString(NumberFormatInfo.CurrentInfo) ?? "unreachable");
+
 						return FindPos(baseCenter, fallbackTarget.Value, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
+					}
 
 					if (existingRefineryCount < 1)
+					{
+						CNBotLog.Debug("{0} refinery aimed at its own base centre: no field found at all within {1} cells",
+							player, resourceFallbackRadius);
+
 						return FindPos(baseCenter, baseCenter, targetBase.GridAnchor, baseBuilder.Info.MinBaseRadius, effectiveMaxRadius);
+					}
 
 					return (null, null, 0);
 
