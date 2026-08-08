@@ -2999,7 +2999,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		}
 
 		/// <summary>Steps back from <paramref name="cell"/> toward <paramref name="towards"/>.</summary>
-		CPos StandOffCell(CPos cell, WPos towards, int cells)
+		public CPos StandOffCell(CPos cell, WPos towards, int cells)
 		{
 			if (cells <= 0)
 				return cell;
