@@ -359,19 +359,18 @@ namespace OpenRA.Mods.Common.Traits
 				// field on another terrace is only reachable by a ramp, and a ramp is a detour, so the
 				// straight-line distance is inflated per level of height difference rather than the
 				// check being skipped on the one placement that matters most.
-				var straight = (resource - baseCenter).Length / 1024;
+				// CVec.Length is already in cells - the operands are cell coordinates, not world
+				// positions - so there is no 1024 to divide out here.
+				var straight = (resource - baseCenter).Length;
 				var heightDelta = Math.Abs(world.Map.Height[resource] - world.Map.Height[baseCenter]);
 				if (straight > 0 && heightDelta > 0)
 					length = straight * (100 + heightDelta * Math.Max(0, baseBuilder.Info.RefineryUnmeasuredHeightDetourPercent)) / 100;
 			}
 
 			if (length > 0)
-			{
-				var straightCells = Math.Max(1, (resource - baseCenter).Length / 1024);
 				CNBotLog.Debug("{0} field {1}: {2} cells to drive, {3} straight{4}",
-					player, resource, length, straightCells,
+					player, resource, length, (resource - baseCenter).Length,
 					harvester == null ? " (estimated from height, no unit to path with)" : "");
-			}
 
 			fieldPathLengthCache[(baseCenter, resource)] = length;
 			return length < 0 ? null : length;
@@ -568,12 +567,19 @@ namespace OpenRA.Mods.Common.Traits
 			var score = 0;
 			var dockCells = GetRefineryDockCells(actorInfo, refineryLoc, actorInfo.TraitInfoOrDefault<BuildingInfo>()?.Dimensions ?? CVec.Zero);
 
-			// Primary goal: actual harvester route quality from the dock to the field. Squared, in the
-			// same currency as the straight-line fallback below (which is squared too, weighted 10), so
-			// a road that doubles back costs quadratically more than the distance alone suggests.
+			// How far the harvesters have to drive to reach this field at all. A property of the field,
+			// so it is identical for every candidate cell and ranks fields against each other - it says
+			// nothing about where within the base the refinery should stand. Squared, in the same
+			// currency as the dock distance below, so a road that doubles back costs quadratically more
+			// than its straight-line distance suggests.
 			if (harvesterPathLength != null)
 				score += harvesterPathLength.Value * harvesterPathLength.Value * baseBuilder.Info.RefineryDetourPenalty;
-			else if (sampledResourceCells != null && sampledResourceCells.Count > 0)
+
+			// Added to that, never instead of it. Making the two exclusive left every candidate for a
+			// given field scoring identically here, so the only thing still separating them was the pull
+			// toward the base anchor below - which is how refineries ended up parked in open ground in
+			// the middle of the base rather than beside the tiberium they serve.
+			if (sampledResourceCells != null && sampledResourceCells.Count > 0)
 			{
 				var totalDistance = 0;
 				foreach (var sample in sampledResourceCells)
