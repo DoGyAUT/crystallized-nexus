@@ -290,6 +290,93 @@ namespace OpenRA.Mods.Common.Traits
 			return passableDockCells * 2 >= dockCells.Count && goodApproachCells >= 2;
 		}
 
+		readonly Dictionary<(CPos Base, CPos Resource), int> fieldPathLengthCache = [];
+		int fieldPathCacheTick = -1;
+
+		/// <summary>
+		/// How far a harvester actually has to drive from the base to reach this field, in cells.
+		/// <para>
+		/// This is the term the placement scorer was written around and then had to give up on: the
+		/// A* was run per candidate cell, which meant hundreds of full searches per decision. Measured
+		/// once per field and cached it costs one, because the road length depends on where the field
+		/// lies relative to the base — not on which cell inside the base the refinery lands on.
+		/// </para>
+		/// Without it, placement sees only straight-line distance, and a field on the far side of a
+		/// cliff looks adjacent while the drive to it goes the long way round the map. The height
+		/// penalty in ScoreRefineryTopologyFit is 350 per level squared, which the distance terms -
+		/// thousands, at any real separation - comfortably outvote.
+		/// </summary>
+		int? HarvesterPathLengthToField(CPos baseCenter, CPos resource)
+		{
+			if (baseBuilder.Info.RefineryDetourPenalty <= 0)
+				return null;
+
+			if (world.WorldTick != fieldPathCacheTick)
+			{
+				fieldPathLengthCache.Clear();
+				fieldPathCacheTick = world.WorldTick;
+			}
+
+			if (fieldPathLengthCache.TryGetValue((baseCenter, resource), out var cached))
+				return cached < 0 ? null : cached;
+
+			var length = -1;
+
+			// A harvester is the right thing to ask, but the opening refinery is placed before the bot
+			// owns one - and that placement matters most of all, since a first refinery on the wrong
+			// side of a cliff handicaps the whole game. Any owned ground unit is a good enough stand-in:
+			// cliffs stop them all alike, and it is the cliff that creates the detour being measured.
+			Actor harvester = null;
+			Actor anyGround = null;
+			foreach (var actor in world.ActorsHavingTrait<Mobile>())
+			{
+				if (actor.Owner != player || actor.IsDead || !actor.IsInWorld)
+					continue;
+
+				if (baseBuilder.Info.HarvesterTypes.Contains(actor.Info.Name))
+				{
+					harvester = actor;
+					break;
+				}
+
+				anyGround ??= actor;
+			}
+
+			harvester ??= anyGround;
+
+			if (harvester != null)
+			{
+				var path = baseBuilder.PathFinder.FindPathToTargetCells(
+					harvester, baseCenter, [resource], BlockedByActor.None);
+
+				if (path != null && path.Count > 0)
+					length = path.Count;
+			}
+			else if (world.Map.Contains(resource) && world.Map.Contains(baseCenter))
+			{
+				// Nothing mobile at all - the moment right after the MCV deploys, when the very first
+				// refinery is sited. Terrain stands in for the measurement that cannot be made yet: a
+				// field on another terrace is only reachable by a ramp, and a ramp is a detour, so the
+				// straight-line distance is inflated per level of height difference rather than the
+				// check being skipped on the one placement that matters most.
+				var straight = (resource - baseCenter).Length / 1024;
+				var heightDelta = Math.Abs(world.Map.Height[resource] - world.Map.Height[baseCenter]);
+				if (straight > 0 && heightDelta > 0)
+					length = straight * (100 + heightDelta * Math.Max(0, baseBuilder.Info.RefineryUnmeasuredHeightDetourPercent)) / 100;
+			}
+
+			if (length > 0)
+			{
+				var straightCells = Math.Max(1, (resource - baseCenter).Length / 1024);
+				CNBotLog.Debug("{0} field {1}: {2} cells to drive, {3} straight{4}",
+					player, resource, length, straightCells,
+					harvester == null ? " (estimated from height, no unit to path with)" : "");
+			}
+
+			fieldPathLengthCache[(baseCenter, resource)] = length;
+			return length < 0 ? null : length;
+		}
+
 		int ScoreRefineryTopologyFit(CPos refineryLoc, List<CPos> dockCells, IReadOnlyList<CPos> sampledResourceCells)
 		{
 			if (sampledResourceCells == null || sampledResourceCells.Count == 0 || !world.Map.Contains(refineryLoc))
@@ -481,9 +568,11 @@ namespace OpenRA.Mods.Common.Traits
 			var score = 0;
 			var dockCells = GetRefineryDockCells(actorInfo, refineryLoc, actorInfo.TraitInfoOrDefault<BuildingInfo>()?.Dimensions ?? CVec.Zero);
 
-			// Primary goal: actual harvester route quality from the dock to the field.
+			// Primary goal: actual harvester route quality from the dock to the field. Squared, in the
+			// same currency as the straight-line fallback below (which is squared too, weighted 10), so
+			// a road that doubles back costs quadratically more than the distance alone suggests.
 			if (harvesterPathLength != null)
-				score += harvesterPathLength.Value * harvesterPathLength.Value * 6;
+				score += harvesterPathLength.Value * harvesterPathLength.Value * baseBuilder.Info.RefineryDetourPenalty;
 			else if (sampledResourceCells != null && sampledResourceCells.Count > 0)
 			{
 				var totalDistance = 0;
@@ -2485,6 +2574,21 @@ namespace OpenRA.Mods.Common.Traits
 								.Take(refineryCandidateLimit)
 								.ToArray();
 
+							// The structural checks below (open neighbours, dock probe, HasOpenRefineryApproach,
+							// PathMightExistForLocomotorBlockedByImmovable) reject cliff-LOCKED placements, but
+							// they cannot see a field that IS reachable and only the long way round. On Forest
+							// Fire the bot put refineries against the cliff below the blue tiberium, which sits
+							// on the terrace above and is only reachable by driving out around the forest path,
+							// so the harvesters gave up on it and drove down to the green field instead.
+							// Straight-line distance said "adjacent"; the road said otherwise.
+							//
+							// Path-length A* was removed from here once before because it lagged out placement -
+							// it was being run from every candidate cell, hundreds of searches per decision. The
+							// road length is a property of the field, not of which base cell the refinery lands
+							// on, so measuring it once per field (at most MaxResourceCellsToCheck of them) is the
+							// same information for a fraction of the cost.
+							var harvesterPathLength = HarvesterPathLengthToField(targetBase.Center, r);
+
 							foreach (var loc in candidateCells)
 							{
 								if (!RespectsGeneralBuildingSpacing(loc, bi))
@@ -2577,12 +2681,6 @@ namespace OpenRA.Mods.Common.Traits
 											continue;
 									}
 								}
-
-								// Path-length A* removed: too expensive (hundreds of full A* calls per placement decision).
-								// The structural checks above (open neighbours, dock probe, HasOpenRefineryApproach,
-								// PathMightExistForLocomotorBlockedByImmovable, nearbyResources >= 3 open neighbours)
-								// are sufficient to reject cliff-locked placements without pathfinder cost.
-								int? harvesterPathLength = null;
 
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledResourceCells, harvesterPathLength)
 									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);

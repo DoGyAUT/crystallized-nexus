@@ -677,6 +677,19 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("If a finite field near a refinery has this many or fewer valuable resource cells left, the refinery becomes a sell candidate.")]
 		public readonly int SellRefineryLowResourceThreshold = 8;
 
+		[Desc("Weight of the measured harvester drive length (squared, in cells) in refinery placement. " +
+			"Catches fields that are adjacent on the map but only reachable the long way round - a refinery " +
+			"below a cliff whose tiberium sits on the terrace above looks perfectly placed until the " +
+			"harvesters have to drive out around the long way and give up on it. 0 falls back to " +
+			"straight-line distance and skips the pathfinder query (one per field per placement decision).")]
+		public readonly int RefineryDetourPenalty = 6;
+
+		[Desc("Detour percent assumed per level of height difference when the bot owns nothing that can " +
+			"be asked for a path - the moment right after the MCV deploys, when the first and most " +
+			"consequential refinery is sited. A field on another terrace is only reachable by a ramp, " +
+			"and a ramp is a detour, so terrain stands in for the measurement that cannot be made yet.")]
+		public readonly int RefineryUnmeasuredHeightDetourPercent = 150;
+
 		[Desc("Minimum valuable cells required before placing the first refinery on a finite field.")]
 		public readonly int MinFiniteFieldCellsForRefinery = 12;
 
