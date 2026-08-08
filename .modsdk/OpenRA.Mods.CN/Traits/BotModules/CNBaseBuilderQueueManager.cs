@@ -2607,6 +2607,9 @@ namespace OpenRA.Mods.Common.Traits
 							.Select(a => a.Location)
 							.ToList();
 						RefineryCandidate? bestCandidate = null;
+						CPos? bestField = null;
+						int? bestFieldDrive = null;
+						var bestPass = "none";
 
 						foreach (var r in resourcesShouldCheck)
 						{
@@ -2747,12 +2750,27 @@ namespace OpenRA.Mods.Common.Traits
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledResourceCells, harvesterPathLength)
 									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
+								{
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
+									bestField = r;
+									bestFieldDrive = harvesterPathLength;
+									bestPass = "field scan";
+								}
 							}
 						}
 
 						if (bestCandidate != null)
 						{
+							// Which field won, and how far the harvesters will have to drive to it. The
+							// inputs were logged before this and showed the scan comparing a field 6 cells
+							// away against one 71 away - but not which of them the refinery was then built
+							// for, so a refinery still facing the cliff could not be told apart from
+							// harvesters walking past a correctly placed one.
+							CNBotLog.Debug("{0} refinery at {1} for field {2} ({3} to drive) via {4}",
+								player, bestCandidate.Value.Placement.Item1,
+								bestField?.ToString() ?? "none",
+								bestFieldDrive?.ToString() ?? "unmeasured", bestPass);
+
 							if (baseBuilder.RequestedRefineries.Count > 0)
 								baseBuilder.RequestedRefineries.Remove(requestRef);
 							return bestCandidate.Value.Placement;
@@ -2801,12 +2819,27 @@ namespace OpenRA.Mods.Common.Traits
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, null)
 									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
+								{
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
+									bestField = r;
+									bestFieldDrive = null;
+									bestPass = "relaxed scan (drive length not consulted)";
+								}
 							}
 						}
 
 						if (bestCandidate != null)
 						{
+							// Which field won, and how far the harvesters will have to drive to it. The
+							// inputs were logged before this and showed the scan comparing a field 6 cells
+							// away against one 71 away - but not which of them the refinery was then built
+							// for, so a refinery still facing the cliff could not be told apart from
+							// harvesters walking past a correctly placed one.
+							CNBotLog.Debug("{0} refinery at {1} for field {2} ({3} to drive) via {4}",
+								player, bestCandidate.Value.Placement.Item1,
+								bestField?.ToString() ?? "none",
+								bestFieldDrive?.ToString() ?? "unmeasured", bestPass);
+
 							if (baseBuilder.RequestedRefineries.Count > 0)
 								baseBuilder.RequestedRefineries.Remove(requestRef);
 							return bestCandidate.Value.Placement;
