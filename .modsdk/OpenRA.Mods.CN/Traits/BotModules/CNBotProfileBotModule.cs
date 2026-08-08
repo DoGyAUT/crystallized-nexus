@@ -132,11 +132,28 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Earliest tick at which Adaptive may choose Steamroller.")]
 		public readonly int AdaptiveSteamrollerEarliestTick = 7500;
 
-		[Desc("Offensive unit count at which Adaptive may choose Steamroller.")]
-		public readonly int AdaptiveSteamrollerUnitThreshold = 32;
+		[Desc("Army size, as a multiple of this bot's own rush threshold, at which Adaptive may choose " +
+			"Steamroller. Relative rather than an absolute count: the same fifteen units are a rush in a " +
+			"rich game and a steamroller in a poor one, and a fixed count simply never fires on a map " +
+			"where nobody can afford the army it names.")]
+		public readonly float AdaptiveSteamrollerArmyRatio = 1.6f;
 
-		[Desc("Cash threshold at which Adaptive prefers Tech while not under immediate threat.")]
-		public readonly int AdaptiveTechCashThreshold = 6500;
+		[Desc("Army ratio required instead when the enemy is fortified. Lower, because a dug-in opponent " +
+			"is what Steamroller exists for - waiting for a bigger army against a position that keeps " +
+			"growing more emplacements is how the moment gets missed.")]
+		public readonly float AdaptiveSteamrollerFortifiedArmyRatio = 1f;
+
+		[Desc("Fortification ratio from which the enemy counts as dug in for the above.")]
+		public readonly float AdaptiveSteamrollerFortifiedRatio = 0.5f;
+
+		[Desc("Score added to Steamroller per whole army ratio above the threshold it had to clear.")]
+		public readonly float AdaptiveSteamrollerArmySurplusScore = 1.5f;
+
+		[Desc("Cash gained per minute above which Adaptive prefers Tech while not under immediate threat. " +
+			"A rate, not a balance: a bot that spends everything it earns sits near zero however well its " +
+			"economy runs, and a bot mining its last field dry can hold a full till - neither says whether " +
+			"teching is affordable, but a balance that climbs does.")]
+		public readonly int AdaptiveTechCashTrendPerMinute = 400;
 
 		[Desc("Profiles the adaptive bot randomly picks from at game start. " +
 			"Empty = always start as Expansion.")]
@@ -236,6 +253,8 @@ namespace OpenRA.Mods.Common.Traits
 		Actor playerActor;
 		int switchCooldown;
 		int activeProfileSinceTick;
+		int lastEvalCash;
+		int lastEvalCashTick;
 		int profileConditionToken = Actor.InvalidConditionToken;
 
 		CNBaseBuilderBotModule baseBuilder;
@@ -373,6 +392,19 @@ namespace OpenRA.Mods.Common.Traits
 			var cash = playerResources.GetCashAndResources();
 			var stableEco = HasStableEconomy();
 
+			// Whether the till is filling, rather than how full it happens to be right now. Sampled
+			// between evaluations, so the window is however long the last hold lasted; dividing by the
+			// elapsed ticks keeps the rate comparable regardless.
+			var cashTrendPerMinute = 0f;
+			if (lastEvalCashTick > 0 && world.WorldTick > lastEvalCashTick)
+			{
+				var ticksPerMinute = 60000f / world.Timestep;
+				cashTrendPerMinute = (cash - lastEvalCash) * ticksPerMinute / (world.WorldTick - lastEvalCashTick);
+			}
+
+			lastEvalCash = cash;
+			lastEvalCashTick = world.WorldTick;
+
 			// Team coordination: sample allied adaptive bots once per evaluation.
 			var alliedAdaptive = GetAlliedAdaptiveModules();
 			var maxAllyDangerRatio = alliedAdaptive.Length > 0
@@ -398,12 +430,6 @@ namespace OpenRA.Mods.Common.Traits
 				&& cash < Info.AdaptiveExpansionIncomeThreshold
 				&& (!baseBuilder.HasAdequateRefineryCount() || baseBuilder.ShouldExpandEconomy());
 
-			var steamrollerReady = world.WorldTick >= Info.AdaptiveSteamrollerEarliestTick
-				&& offensiveUnits >= Info.AdaptiveSteamrollerUnitThreshold
-				&& stableEco;
-
-			var cashRich = cash >= Info.AdaptiveTechCashThreshold;
-
 			// The first two inputs about anything other than itself.
 			//
 			// Every other term below asks how much danger I am in, how many units I have, how much cash.
@@ -420,6 +446,21 @@ namespace OpenRA.Mods.Common.Traits
 			// Absolute cash under 150 was the only economic trigger, so a bot could be mining its last
 			// field dry and feel fine as long as the till happened to be full.
 			var starving = mcvExpansion != null && mcvExpansion.IsResourceStarved();
+
+			// Both of the following used to be absolute: 22 offensive units and 6000 cash. Neither was
+			// reached once in a whole eight-player game - armies peaked at 15 and the till at 4038 - so
+			// two of the five profiles were unreachable by construction rather than by judgement. Both
+			// now measure against something that moves with the game.
+			var armyRatio = (float)offensiveUnits / Math.Max(1, rushThreshold);
+			var steamrollerArmyRatio = fortifiedRatio >= Info.AdaptiveSteamrollerFortifiedRatio
+				? Info.AdaptiveSteamrollerFortifiedArmyRatio
+				: Info.AdaptiveSteamrollerArmyRatio;
+
+			var steamrollerReady = world.WorldTick >= Info.AdaptiveSteamrollerEarliestTick
+				&& armyRatio >= steamrollerArmyRatio
+				&& stableEco;
+
+			var cashRich = stableEco && cashTrendPerMinute >= Info.AdaptiveTechCashTrendPerMinute;
 
 			// Score each candidate; current profile gets a momentum bonus so it takes
 			// a meaningful advantage for a rival profile to trigger a switch.
@@ -467,14 +508,14 @@ namespace OpenRA.Mods.Common.Traits
 					// the position is built to stop.
 					BotProfile.Steamroller =>
 						steamrollerReady
-							? 4.5f + (offensiveUnits - Info.AdaptiveSteamrollerUnitThreshold) * 0.05f
+							? 4.5f + (armyRatio - steamrollerArmyRatio) * Info.AdaptiveSteamrollerArmySurplusScore
 							  + fortifiedRatio * Info.AdaptiveFortificationSteamrollerBonus
 							: -5f,
 
 					// Tech: modest bonus during the cash-rich window before late-game, and the answer to
 					// a fortified opponent - out-range what cannot be walked into.
 					BotProfile.Tech =>
-						(cashRich && stableEco && ActiveTechStage != TechStage.Late ? 2.5f : -2f)
+						(cashRich && ActiveTechStage != TechStage.Late ? 2.5f : -2f)
 						+ fortifiedRatio * Info.AdaptiveFortificationTechBonus,
 
 					_ => 0f
@@ -526,10 +567,12 @@ namespace OpenRA.Mods.Common.Traits
 			// for how long. Every input and every score, so a surprising choice can be traced to the term
 			// that caused it.
 			CNBotLog.Debug(
-				"{0} profile eval: {1} → {2} | danger {3} (ratio {4:0.00}), threat {5}, units {6}/{7}, cash {8}, " +
-				"eco stable {9}, starving {10}, enemy defences {11} (ratio {12:0.00}) | {13}",
+				"{0} profile eval: {1} → {2} | danger {3} (ratio {4:0.00}), threat {5}, units {6}/{7} (army {8:0.00}, " +
+				"steamroller needs {9:0.00}), cash {10} ({11:+0;-0;0}/min, tech needs {12}), eco stable {13}, " +
+				"starving {14}, enemy defences {15} (ratio {16:0.00}) | {17}",
 				player, ActiveProfile, best, dangerScore, dangerRatio, hasActiveThreat, offensiveUnits,
-				rushThreshold, cash, stableEco, starving,
+				rushThreshold, armyRatio, steamrollerArmyRatio, cash, cashTrendPerMinute,
+				Info.AdaptiveTechCashTrendPerMinute, stableEco, starving,
 				squadManager?.KnownEnemyDefenseCount ?? 0, fortifiedRatio, scoreReport);
 
 			SwitchTo(best, emergency: false);

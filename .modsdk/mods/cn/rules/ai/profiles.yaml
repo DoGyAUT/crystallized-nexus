@@ -4,8 +4,12 @@ Player:
 		AdaptiveMinimumIntentHoldTicks: 3000
 		AdaptiveEmergencyTurtleDangerThreshold: 650
 		AdaptiveSteamrollerEarliestTick: 5000
-		AdaptiveSteamrollerUnitThreshold: 22
-		AdaptiveTechCashThreshold: 6000
+		# Relative to AdaptiveRushUnitThreshold below, not an absolute count. The old absolute 22 was
+		# never once reached in an eight-player game where armies peaked at 15, and the old 6000 cash
+		# never reached either - both profiles were unreachable by construction.
+		AdaptiveSteamrollerArmyRatio: 1.6
+		AdaptiveSteamrollerFortifiedArmyRatio: 1.0
+		AdaptiveTechCashTrendPerMinute: 400
 		AdaptiveExpansionIncomeThreshold: 300
 		AdaptiveRushUnitThreshold: 12
 
