@@ -106,6 +106,51 @@ namespace OpenRA.Mods.Common.Traits
 						$"{cp.Type.ToString()[0]} {cp.BaseWeight} (d{cp.Domain}){(useful ? "" : " x")}");
 				}
 			}
+
+			// The territory edge, split into what terrain already holds and what has to be held. Drawn per
+			// cell rather than as one outline: the point of looking at this is to see where the line runs
+			// and where it is open, and a cell is the unit both of those are decided in.
+			// Kept paired with their player, unlike moduleList above: a territory only means anything
+			// alongside whose it is, and several are drawn at once.
+			var territories = self.World.Players
+				.Select(p => (Player: p, Module: p.PlayerActor.TraitsImplementing<CNTacticalMapBotModule>().FirstOrDefault(m => m.IsTraitEnabled())))
+				.Where(x => x.Module != null && x.Module.TopologyReady);
+
+			foreach (var (owner, module) in territories)
+			{
+				// In the owning player's colour, because one shared colour would make two territories
+				// meeting look like a single one. Wall is that colour faded: it is context, the doors
+				// are the point.
+				var doorColor = owner.Color;
+				var wallColor = Color.FromArgb(110, owner.Color);
+
+				foreach (var cell in module.TerritoryWallForOverlay())
+				{
+					if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+						continue;
+
+					yield return new CircleAnnotationRenderable(
+						self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 3, 1, wallColor);
+				}
+
+				foreach (var door in module.DoorsForOverlay())
+				{
+					foreach (var cell in door.Cells)
+					{
+						if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+							continue;
+
+						yield return new CircleAnnotationRenderable(
+							self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 2, 2, doorColor);
+					}
+
+					if (!visible.Contains((PPos)door.Center.ToMPos(self.World.Map)))
+						continue;
+
+					yield return new TextAnnotationRenderable(font, self.World.Map.CenterOfCell(door.Center), 0,
+						doorColor, $"DOOR w{door.Width} beyond {door.GroundBeyond}");
+				}
+			}
 		}
 
 		bool IRenderAnnotations.SpatiallyPartitionable => false;

@@ -62,6 +62,37 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
+	/// <summary>
+	/// A contiguous run of passable cells on the edge of a player's territory: a way in.
+	/// <para>
+	/// The rest of that edge is cliff, water or map edge - wall the terrain provides for free. Only the
+	/// doors have to be held, which is what lets defence be planned as a line rather than as a scatter
+	/// of independent points: a territory spanning seven bases still has one edge and, usually, two or
+	/// three doors.
+	/// </para>
+	/// </summary>
+	public sealed class CNTerritoryDoor
+	{
+		public readonly CPos Center;
+		public readonly CPos[] Cells;
+
+		/// <summary>Direction leading out of the territory, averaged over the run.</summary>
+		public readonly CVec Outward;
+
+		/// <summary>Reachable ground behind the door, capped. What passing through it actually opens up.</summary>
+		public readonly int GroundBeyond;
+
+		public int Width => Cells.Length;
+
+		public CNTerritoryDoor(CPos center, CPos[] cells, CVec outward, int groundBeyond)
+		{
+			Center = center;
+			Cells = cells;
+			Outward = outward;
+			GroundBeyond = groundBeyond;
+		}
+	}
+
 	// A passable cliff-edge cell that overlooks reachable lower ground (height advantage, natural wall).
 	public readonly struct CNHighGroundEdge
 	{
@@ -168,6 +199,26 @@ namespace OpenRA.Mods.Common.Traits
 			"enemy buildings exist. Without this, a chokepoint whose reachable region contains no enemy building",
 			"floods the ENTIRE region before giving up - unbounded on an open map. Treated as 'not confirmed' if hit.")]
 		public readonly int FloodFillCellCap = 1500;
+
+		[Desc("Hard cap on cells claimed while working out which ground belongs to this player. Bounds the",
+			"cost on open maps; the edge that matters is near the bases, not out at the far corners.")]
+		public readonly int TerritoryCellCap = 5000;
+
+		[Desc("How far from its own buildings a player's territory reaches while no enemy building is known.",
+			"Once one is, the split is decided by which side reaches a cell in fewer steps instead.")]
+		public readonly int TerritoryUnopposedRadius = 40;
+
+		[Desc("Ticks between territory rebuilds. Also gated on the base having moved or the enemy building",
+			"count having changed, so a settled game recomputes almost never.")]
+		public readonly int TerritoryRefreshInterval = 250;
+
+		[Desc("Cells counted behind a door before the measurement stops. A door opening onto more ground than",
+			"this is simply 'wide open' - the exact figure stops mattering well before the cap.")]
+		public readonly int DoorBeyondCellCap = 1200;
+
+		[Desc("Doors narrower than this are ignored: a one-cell gap in a cliff that units barely thread",
+			"through is not what a defence line is planned around.")]
+		public readonly int MinDoorWidth = 1;
 
 		public override object Create(ActorInitializer init) { return new CNTacticalMapBotModule(init.Self, this); }
 	}
@@ -280,6 +331,7 @@ namespace OpenRA.Mods.Common.Traits
 			TickUsefulRefresh();
 			TickCorridorRefresh();
 			TickHighGroundRefresh();
+			TickTerritoryRefresh();
 
 			// Another bot rebuilt the shared topology (e.g. after a bridge change) -> adopt the newer version.
 			if (shared != null && shared.Generation != sharedGeneration)
@@ -1373,6 +1425,277 @@ namespace OpenRA.Mods.Common.Traits
 		// side — this is what actually distinguishes "a chokepoint into enemy territory" from "a wall against nothing".
 		// Current enemy building locations. Built ONCE per query and passed into the per-chokepoint floods below —
 		// scanning world.Actors per chokepoint (N x actors) was a periodic multi-ms spike.
+		#region Territory and doors
+
+		readonly HashSet<CPos> territory = [];
+		readonly List<CNTerritoryDoor> doors = [];
+		readonly List<CPos> territoryWall = [];
+		int territoryNextRefreshTick;
+		CPos? territoryLastBaseRef;
+		int territoryLastEnemyCount = -1;
+
+		/// <summary>Ground this player holds: closer to its own buildings than to any known enemy one.</summary>
+		public IReadOnlyCollection<CPos> GetTerritory() { EnsureBuilt(); return territory; }
+
+		/// <summary>The ways into that ground. Everything else along its edge is terrain doing the work.</summary>
+		public IReadOnlyList<CNTerritoryDoor> GetTerritoryDoors() { EnsureBuilt(); return doors; }
+
+		/// <summary>Edge cells backed by cliff, water or map edge - free wall, nothing to build there.</summary>
+		public IReadOnlyList<CPos> GetTerritoryWall() { EnsureBuilt(); return territoryWall; }
+
+		// Read-only views for the render thread. Deliberately without EnsureBuilt: the overlay must never
+		// trigger a topology build from render-prepare, which is what used to cause periodic spikes.
+		public IReadOnlyCollection<CPos> TerritoryForOverlay() => territory;
+		public IReadOnlyList<CNTerritoryDoor> DoorsForOverlay() => doors;
+		public IReadOnlyList<CPos> TerritoryWallForOverlay() => territoryWall;
+
+		void TickTerritoryRefresh()
+		{
+			if (world.WorldTick < territoryNextRefreshTick)
+				return;
+
+			territoryNextRefreshTick = world.WorldTick + Math.Max(1, Info.TerritoryRefreshInterval);
+
+			var reference = GetOwnBaseReference();
+			if (reference == null)
+				return;
+
+			var enemyCells = EnemyBuildingCells();
+
+			// Same guard the chokepoint refresh uses: individual buildings coming and going during a fight
+			// do not move an edge, and rebuilding on every one of them would be the expensive way to
+			// compute the same answer.
+			if (!BaseMoved(reference.Value, territoryLastBaseRef) && !EnemyBuildingCountChanged(enemyCells.Count, territoryLastEnemyCount))
+				return;
+
+			territoryLastBaseRef = reference.Value;
+			territoryLastEnemyCount = enemyCells.Count;
+
+			RebuildTerritory(enemyCells);
+		}
+
+		/// <summary>
+		/// Claims ground for this player, then reads its edge.
+		/// <para>
+		/// Ownership is settled by a race rather than by distance: own buildings and known enemy buildings
+		/// are all seeded into one breadth-first walk, and whichever side reaches a cell first keeps it.
+		/// That follows the ground - a cell ten cells away across a cliff belongs to whoever can actually
+		/// get there - which is the whole point of doing this on the map instead of on a circle.
+		/// </para>
+		/// </summary>
+		void RebuildTerritory(HashSet<CPos> enemyCells)
+		{
+			territory.Clear();
+			doors.Clear();
+			territoryWall.Clear();
+
+			var ownCells = OwnBuildingCells();
+			if (ownCells.Count == 0)
+				return;
+
+			var mine = new HashSet<CPos>();
+			var claimed = new HashSet<CPos>();
+			var queue = new Queue<(CPos Cell, bool Mine, int Dist)>();
+
+			foreach (var cell in ownCells)
+				if (world.Map.Contains(cell) && claimed.Add(cell))
+				{
+					mine.Add(cell);
+					queue.Enqueue((cell, true, 0));
+				}
+
+			foreach (var cell in enemyCells)
+				if (world.Map.Contains(cell) && claimed.Add(cell))
+					queue.Enqueue((cell, false, 0));
+
+			// Without a known enemy there is no race to lose, so the claim has to be bounded by something
+			// else or it swallows the map.
+			var unopposedLimit = enemyCells.Count == 0 ? Math.Max(1, Info.TerritoryUnopposedRadius) : int.MaxValue;
+			var cap = Math.Max(1, Info.TerritoryCellCap);
+
+			while (queue.Count > 0 && claimed.Count < cap)
+			{
+				var (cell, isMine, dist) = queue.Dequeue();
+				if (dist >= unopposedLimit)
+					continue;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var next = cell + dir;
+					if (!world.Map.Contains(next) || !IsPassable(next) || !claimed.Add(next))
+						continue;
+
+					if (isMine)
+						mine.Add(next);
+
+					queue.Enqueue((next, isMine, dist + 1));
+				}
+			}
+
+			territory.UnionWith(mine);
+			BuildDoors();
+		}
+
+		/// <summary>
+		/// Walks the edge of the claimed ground and splits it into what has to be held and what does not.
+		/// An edge cell whose outside neighbour is driveable is a way in; one backed by cliff, water or the
+		/// map edge is wall we did not have to build.
+		/// </summary>
+		void BuildDoors()
+		{
+			var doorCells = new HashSet<CPos>();
+
+			foreach (var cell in territory)
+			{
+				var isEdge = false;
+				var isDoor = false;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var next = cell + dir;
+					if (territory.Contains(next))
+						continue;
+
+					isEdge = true;
+					if (world.Map.Contains(next) && IsPassable(next))
+					{
+						isDoor = true;
+						break;
+					}
+				}
+
+				if (!isEdge)
+					continue;
+
+				if (isDoor)
+					doorCells.Add(cell);
+				else
+					territoryWall.Add(cell);
+			}
+
+			// Contiguous door cells are one way in, not several. This is what turns a scatter of edge cells
+			// into the handful of places a line is actually planned around.
+			var visited = new HashSet<CPos>();
+			foreach (var start in doorCells)
+			{
+				if (!visited.Add(start))
+					continue;
+
+				var run = new List<CPos>();
+				var walk = new Queue<CPos>();
+				walk.Enqueue(start);
+
+				while (walk.Count > 0)
+				{
+					var cell = walk.Dequeue();
+					run.Add(cell);
+
+					foreach (var dir in CVec.Directions)
+					{
+						var next = cell + dir;
+						if (doorCells.Contains(next) && visited.Add(next))
+							walk.Enqueue(next);
+					}
+				}
+
+				if (run.Count < Math.Max(1, Info.MinDoorWidth))
+					continue;
+
+				doors.Add(MakeDoor(run));
+			}
+
+			// Widest first: the door that lets the most through is the one a defence is built at.
+			doors.Sort((a, b) => b.GroundBeyond.CompareTo(a.GroundBeyond));
+		}
+
+		CNTerritoryDoor MakeDoor(List<CPos> run)
+		{
+			var sumX = 0;
+			var sumY = 0;
+			var outward = CVec.Zero;
+			var outside = new List<CPos>();
+
+			foreach (var cell in run)
+			{
+				sumX += cell.X;
+				sumY += cell.Y;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var next = cell + dir;
+					if (territory.Contains(next) || !world.Map.Contains(next) || !IsPassable(next))
+						continue;
+
+					outward += dir;
+					outside.Add(next);
+				}
+			}
+
+			var mid = new CPos(sumX / run.Count, sumY / run.Count);
+
+			// The centroid of a curved run can fall outside the run itself; the nearest actual cell is what
+			// anything downstream wants to aim at.
+			var center = run[0];
+			var bestSq = int.MaxValue;
+			foreach (var cell in run)
+			{
+				var d = (cell - mid).LengthSquared;
+				if (d < bestSq)
+				{
+					bestSq = d;
+					center = cell;
+				}
+			}
+
+			return new CNTerritoryDoor(center, run.ToArray(), outward, GroundBeyondDoor(run, outside));
+		}
+
+		/// <summary>
+		/// How much ground the door opens onto, measured with the door itself sealed so the flood cannot
+		/// simply walk back in through it. Capped: past a point the answer is just "wide open".
+		/// </summary>
+		int GroundBeyondDoor(List<CPos> run, List<CPos> outside)
+		{
+			var cap = Math.Max(1, Info.DoorBeyondCellCap);
+			var visited = new HashSet<CPos>(run);
+			visited.UnionWith(territory);
+
+			var queue = new Queue<CPos>();
+			foreach (var cell in outside)
+				if (visited.Add(cell))
+					queue.Enqueue(cell);
+
+			var count = 0;
+			while (queue.Count > 0 && count < cap)
+			{
+				var cell = queue.Dequeue();
+				count++;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var next = cell + dir;
+					if (!world.Map.Contains(next) || !IsPassable(next) || !visited.Add(next))
+						continue;
+
+					queue.Enqueue(next);
+				}
+			}
+
+			return count;
+		}
+
+		HashSet<CPos> OwnBuildingCells()
+		{
+			var cells = new HashSet<CPos>();
+			foreach (var a in world.Actors)
+				if (!a.IsDead && a.IsInWorld && a.Owner == player && a.Info.HasTraitInfo<BuildingInfo>())
+					cells.Add(a.Location);
+
+			return cells;
+		}
+
+		#endregion
+
 		HashSet<CPos> EnemyBuildingCells()
 		{
 			return world.Actors
