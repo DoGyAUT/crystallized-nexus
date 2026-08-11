@@ -229,8 +229,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int MaxDoorWidth = 14;
 
 		[Desc("Cells the flood behind a door must reach before it counts as a real way in. A pinch that",
-			"opens onto almost nothing is a dead end, not something worth anchoring a defence at.")]
-		public readonly int MinDoorGroundBeyond = 24;
+			"opens onto almost nothing is a dead end, not something worth anchoring a defence at. Same",
+			"figure as MinimumChokepointBeyondCells - both are the same question, 'is what's behind this",
+			"real', just asked for a different feature.")]
+		public readonly int MinDoorGroundBeyond = 96;
 
 		[Desc("Doors within this many cells of a wider door are folded into it instead of standing on",
 			"their own. A single gap scanned at a couple of slightly different points, or two real gaps",
