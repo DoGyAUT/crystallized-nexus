@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using OpenRA.Graphics;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -1623,12 +1624,35 @@ namespace OpenRA.Mods.Common.Traits
 			// This is why doors are not derived from the claim's edge alone: the two claims tile the whole
 			// reachable map between them, so outside the edge there is only ever enemy ground or rock, and
 			// a gap in the terrain is by definition somewhere both sides are already ours.
+			var onOwnGround = 0;
+			var adjacentOnly = 0;
 			foreach (var cp in usefulChokepoints)
+			{
 				if (territory.Contains(cp.Cell))
+				{
+					onOwnGround++;
 					doorCells.Add(cp.Cell);
+					continue;
+				}
+
+				// Counted but not admitted. A chokepoint is a pinch, and the two claims meet at pinches, so
+				// its own cell may well have gone to the other side by a step or two. Whether that is what
+				// empties the list is a question for the log rather than for another guess.
+				foreach (var dir in CVec.Directions)
+				{
+					if (!territory.Contains(cp.Cell + dir))
+						continue;
+
+					adjacentOnly++;
+					break;
+				}
+			}
 
 			// Contiguous door cells are one way in, not several. This is what turns a scatter of edge cells
 			// into the handful of places a line is actually planned around.
+			var runsFormed = 0;
+			var runsTooWide = 0;
+			var runsTooNarrow = 0;
 			var visited = new HashSet<CPos>();
 			foreach (var start in doorCells)
 			{
@@ -1652,13 +1676,19 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
+				runsFormed++;
+
 				if (run.Count < Math.Max(1, Info.MinDoorWidth))
+				{
+					runsTooNarrow++;
 					continue;
+				}
 
 				// Too wide to be a door. Terrain is not funnelling anything through a gap this size, and
 				// no arrangement of turrets closes it - treat it as front and let an army hold it.
 				if (run.Count > Math.Max(1, Info.MaxDoorWidth))
 				{
+					runsTooWide++;
 					territoryFront.AddRange(run);
 					continue;
 				}
@@ -1668,6 +1698,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Widest first: the door that lets the most through is the one a defence is built at.
 			doors.Sort((a, b) => b.GroundBeyond.CompareTo(a.GroundBeyond));
+
+			// Every step of the funnel, because three attempts at this produced no doors and each time the
+			// screen could only report the total. Which stage empties the list is not something to keep
+			// guessing at.
+			CNBotLog.Debug(
+				"{0} territory: {1} cells, {2} wall, {3} front, {4} horizon | chokepoints {5} useful, {6} on own ground, "
+				+ "{7} adjacent only | {8} runs -> {9} doors ({10} too wide, {11} too narrow)",
+				player, territory.Count, territoryWall.Count, territoryFront.Count, horizon.Count,
+				usefulChokepoints.Count, onOwnGround, adjacentOnly,
+				runsFormed, doors.Count, runsTooWide, runsTooNarrow);
 		}
 
 		CNTerritoryDoor MakeDoor(List<CPos> run)
