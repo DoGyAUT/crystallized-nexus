@@ -1615,6 +1615,18 @@ namespace OpenRA.Mods.Common.Traits
 					territoryWall.Add(cell);
 			}
 
+			// Chokepoints standing on our own ground are doors in the line we would draw, whether or not
+			// they sit on the edge of the claim. A ramp through a cliff in the middle of held territory is
+			// exactly what a defence is anchored at, and it never shows up as a boundary cell because both
+			// of its sides belong to us.
+			//
+			// This is why doors are not derived from the claim's edge alone: the two claims tile the whole
+			// reachable map between them, so outside the edge there is only ever enemy ground or rock, and
+			// a gap in the terrain is by definition somewhere both sides are already ours.
+			foreach (var cp in usefulChokepoints)
+				if (territory.Contains(cp.Cell))
+					doorCells.Add(cp.Cell);
+
 			// Contiguous door cells are one way in, not several. This is what turns a scatter of edge cells
 			// into the handful of places a line is actually planned around.
 			var visited = new HashSet<CPos>();
@@ -1697,6 +1709,13 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			// A door on the edge of the claim has ground outside it to start the measurement from. One
+			// standing inside the claim - a ramp through a cliff we hold both sides of - has none, so the
+			// far side is taken as the direction away from the base and the pinch is sealed across, the
+			// same way the chokepoint scan does it.
+			if (outside.Count == 0)
+				return new CNTerritoryDoor(center, run.ToArray(), outward, GroundBeyondPinch(center, run));
+
 			return new CNTerritoryDoor(center, run.ToArray(), outward, GroundBeyondDoor(run, outside));
 		}
 
@@ -1714,6 +1733,71 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var cell in outside)
 				if (visited.Add(cell))
 					queue.Enqueue(cell);
+
+			var count = 0;
+			while (queue.Count > 0 && count < cap)
+			{
+				var cell = queue.Dequeue();
+				count++;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var next = cell + dir;
+					if (!world.Map.Contains(next) || !IsPassable(next) || !visited.Add(next))
+						continue;
+
+					queue.Enqueue(next);
+				}
+			}
+
+			return count;
+		}
+
+		/// <summary>
+		/// Ground behind a gap that sits inside our own territory, where "behind" has to be worked out
+		/// rather than read off the claim. The pinch is sealed across its narrow axis - the same barrier
+		/// the chokepoint scan builds - and the flood starts on the side away from the base.
+		/// </summary>
+		int GroundBeyondPinch(CPos center, List<CPos> run)
+		{
+			var reference = territoryLastBaseRef ?? center;
+			var forward = center - reference;
+			if (forward.LengthSquared == 0)
+				return 0;
+
+			// Same sideways reach the chokepoint scan uses, for the same reason: far enough to close a
+			// narrow gap, short enough not to wall off open ground.
+			const int PinchBarrierReach = 16;
+
+			var perp = Math.Abs(forward.X) < Math.Abs(forward.Y) ? new CVec(1, 0) : new CVec(0, 1);
+			var barrier = new HashSet<CPos>(run);
+			foreach (var cell in run)
+			{
+				foreach (var sign in new[] { 1, -1 })
+				{
+					for (var k = 1; k <= PinchBarrierReach; k++)
+					{
+						var c = cell + perp * (sign * k);
+						if (!world.Map.Contains(c) || !IsPassable(c))
+							break;
+
+						barrier.Add(c);
+					}
+				}
+			}
+
+			var seeds = new List<CPos>();
+			if (forward.X != 0)
+				seeds.Add(center + new CVec(Math.Sign(forward.X), 0));
+			if (forward.Y != 0)
+				seeds.Add(center + new CVec(0, Math.Sign(forward.Y)));
+
+			var cap = Math.Max(1, Info.DoorBeyondCellCap);
+			var visited = new HashSet<CPos>(barrier);
+			var queue = new Queue<CPos>();
+			foreach (var seed in seeds)
+				if (world.Map.Contains(seed) && IsPassable(seed) && visited.Add(seed))
+					queue.Enqueue(seed);
 
 			var count = 0;
 			while (queue.Count > 0 && count < cap)
