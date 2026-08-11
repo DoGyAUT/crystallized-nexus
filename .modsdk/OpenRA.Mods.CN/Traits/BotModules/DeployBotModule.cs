@@ -181,11 +181,21 @@ namespace OpenRA.Mods.CN.Traits
 			if (isDeployed)
 			{
 				if (distSq <= RangeSq(group.SafeRange))
+				{
 					TryUndeploy(bot, unit, group);
+					BackAwayFrom(bot, unit, nearestEnemy, group);
+				}
 			}
 			else
 			{
-				if (distSq <= RangeSq(group.DeployRange))
+				// Packing up alone left the piece standing exactly where it was, with the enemy still
+				// inside SafeRange. The next scan saw an undeployed gun with a target in DeployRange and
+				// set it up again, the one after that packed it up again, and so on at the cooldown's
+				// pace. Retreating is what actually resolves it: SafeRange is the weapon's minimum range,
+				// so a battery that stays put cannot shoot the thing standing on top of it either.
+				if (distSq <= RangeSq(group.SafeRange))
+					BackAwayFrom(bot, unit, nearestEnemy, group);
+				else if (distSq <= RangeSq(group.DeployRange))
 					TryDeploy(bot, unit, group);
 				else if (distSq <= RangeSq(group.ScanRadius))
 					MoveIntoRange(bot, unit, nearestEnemy, group.DeployRange);
@@ -381,6 +391,47 @@ namespace OpenRA.Mods.CN.Traits
 				.FirstOrDefault(d => !d.IsTraitDisabled);
 
 			return deploy?.DeployState ?? DeployState.Undeployed;
+		}
+
+		/// <summary>
+		/// Opens the distance to something that has come inside SafeRange. Aims for the middle of the
+		/// band the piece can actually shoot from - past the minimum range that SafeRange stands for,
+		/// and still well short of the maximum - so it neither creeps back into trouble nor gives up
+		/// the target entirely.
+		/// </summary>
+		void BackAwayFrom(IBot bot, Actor unit, Actor threat, DeployBotGroup group)
+		{
+			var wanted = (group.SafeRange + group.DeployRange) / 2;
+			if (wanted <= group.SafeRange)
+				wanted = group.SafeRange + 1;
+
+			var away = unit.Location - threat.Location;
+			var dist = away.Length;
+			if (dist >= wanted)
+				return;
+
+			// Directly on top of it: any direction will do, and standing still is the one thing that
+			// cannot work.
+			var cell = dist == 0
+				? unit.Location + new CVec(wanted, 0)
+				: new CPos(
+					threat.Location.X + away.X * wanted / dist,
+					threat.Location.Y + away.Y * wanted / dist);
+
+			if (cell == unit.Location)
+				return;
+
+			var mobile = unit.TraitOrDefault<Mobile>();
+			if (mobile != null && (!world.Map.Contains(cell) || !mobile.CanEnterCell(cell)))
+			{
+				var validCell = FindNearestValidMoveCell(mobile, cell);
+				if (!validCell.HasValue || validCell.Value == unit.Location)
+					return;
+
+				cell = validCell.Value;
+			}
+
+			bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, cell), false));
 		}
 
 		void MoveIntoRange(IBot bot, Actor unit, Actor target, int range)
