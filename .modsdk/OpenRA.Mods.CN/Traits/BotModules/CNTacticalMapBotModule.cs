@@ -769,7 +769,8 @@ namespace OpenRA.Mods.Common.Traits
 			return endpoints;
 		}
 
-		// Finds bridges directly (terrain type "Bridge" plus bridge actor footprints) and yields one cell per bridge.
+		// Finds bridges directly (terrain type "Bridge", bridge actor footprints, and MapEditorData-tagged
+		// bridge actors) and yields one cell per bridge.
 		IEnumerable<CPos> ScanBridgeCenters()
 		{
 			var bridgeCells = new HashSet<CPos>();
@@ -784,6 +785,30 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				foreach (var cell in bi.Tiles(b.Actor.Location))
+					bridgeCells.Add(cell);
+			}
+
+			// High/elevated bridges (this mod's BRIDGE1/BRIDGE2/RAILBRDG1/RAILBRDG2) are pure decoration -
+			// Immobile, OccupiesSpace: false, no Bridge trait, and nothing patches the terrain layer to type
+			// "Bridge" under them since they are not destructible - so neither check above ever sees them,
+			// and they fell through to being scanned as a plain Passage instead (real, just under-weighted
+			// and missing from bridgeWatchCells - harmless there since they can never be destroyed). Every
+			// bridge actor in this mod's rules, low or high, is tagged MapEditorData Categories: Bridge,
+			// which is the one thing both families actually share.
+			foreach (var a in world.Actors)
+			{
+				if (a.IsDead || !a.IsInWorld)
+					continue;
+
+				var med = a.Info.TraitInfoOrDefault<MapEditorDataInfo>();
+				if (med == null || !med.Categories.Contains("Bridge"))
+					continue;
+
+				var bi = a.Info.TraitInfoOrDefault<BuildingInfo>();
+				if (bi == null)
+					continue;
+
+				foreach (var cell in bi.Tiles(a.Location))
 					bridgeCells.Add(cell);
 			}
 
