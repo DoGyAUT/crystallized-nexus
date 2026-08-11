@@ -114,6 +114,10 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// How far out to look for room when a harvester is wedged. Deliberately short: this is about
+		// breaking a jam at the dock, not about relocating.
+		const int StepAsideSearchRadius = 3;
+
 		const int StuckHarvesterThreshold = 200;
 		const int StuckNearRefineryRadius = 3;
 
@@ -448,6 +452,47 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// Somewhere a wedged harvester could actually move to. Checked against blocking actors, not just
+		/// terrain, because what pins these is other harvesters rather than the ground. Prefers the
+		/// candidate with the most open ground around it, so it steps clear of the jam instead of taking
+		/// the next place in it.
+		/// </summary>
+		CPos? FindStepAsideCell(HarvesterTraitWrapper h)
+		{
+			var from = h.Actor.Location;
+
+			for (var radius = 1; radius <= StepAsideSearchRadius; radius++)
+			{
+				CPos? best = null;
+				var bestRoom = -1;
+
+				foreach (var cell in world.Map.FindTilesInAnnulus(from, radius, radius))
+				{
+					if (!world.Map.Contains(cell) || !h.Mobile.CanEnterCell(cell))
+						continue;
+
+					var room = 0;
+					foreach (var dir in CVec.Directions)
+						if (h.Mobile.CanEnterCell(cell + dir))
+							room++;
+
+					if (room > bestRoom)
+					{
+						bestRoom = room;
+						best = cell;
+					}
+				}
+
+				// Nearest ring that offers anything wins: the move only has to break the deadlock, and a
+				// short hop is the one most likely to succeed while everything around is still moving.
+				if (best != null)
+					return best;
+			}
+
+			return null;
+		}
+
 		bool HarvestIfAble(IBot bot, HarvesterTraitWrapper h)
 		{
 			if (h.Actor.IsDead || !h.Actor.IsInWorld || h.Mobile == null)
@@ -495,7 +540,22 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (isStuck)
 			{
-				CNBotLog.Debug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. Re-issuing harvest order.");
+				// Re-ordering alone never freed anything. Wedged means the harvester cannot move, and a
+				// fresh Harvest order gives it somewhere new to go without giving it room to go there;
+				// 200 ticks later it is flagged again. One played match logged 901 of these, with
+				// individual harvesters caught twenty to thirty times each, all within three cells of a
+				// refinery - the dock approach, where a stuck harvester also blocks everyone queueing
+				// behind it.
+				//
+				// So step aside first. The Harvest order below still follows, queued behind the move, and
+				// takes over once there is space to act on it.
+				var freeCell = FindStepAsideCell(h);
+				if (freeCell != null)
+					bot.QueueOrder(new Order("Move", h.Actor, Target.FromCell(world, freeCell.Value), false));
+
+				CNBotLog.Debug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. " +
+					$"Stepping aside to {(freeCell != null ? freeCell.Value.ToString() : "nowhere - hemmed in")} and re-issuing harvest order.");
+
 				h.StationaryTicks = 0;
 			}
 
