@@ -220,6 +220,11 @@ namespace OpenRA.Mods.Common.Traits
 			"through is not what a defence line is planned around.")]
 		public readonly int MinDoorWidth = 1;
 
+		[Desc("Widest a gap may be and still count as a door. Past this the terrain is not pinching",
+			"anything and no arrangement of turrets closes it - that is open front, held with an army",
+			"or not at all.")]
+		public readonly int MaxDoorWidth = 14;
+
 		public override object Create(ActorInitializer init) { return new CNTacticalMapBotModule(init.Self, this); }
 	}
 
@@ -1430,6 +1435,8 @@ namespace OpenRA.Mods.Common.Traits
 		readonly HashSet<CPos> territory = [];
 		readonly List<CNTerritoryDoor> doors = [];
 		readonly List<CPos> territoryWall = [];
+		readonly List<CPos> territoryFront = [];
+		readonly HashSet<CPos> horizon = [];
 		int territoryNextRefreshTick;
 		CPos? territoryLastBaseRef;
 		int territoryLastEnemyCount = -1;
@@ -1443,11 +1450,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Edge cells backed by cliff, water or map edge - free wall, nothing to build there.</summary>
 		public IReadOnlyList<CPos> GetTerritoryWall() { EnsureBuilt(); return territoryWall; }
 
+		/// <summary>Edge cells open to the enemy, or too wide to plug. Held with an army, not with turrets.</summary>
+		public IReadOnlyList<CPos> GetTerritoryFront() { EnsureBuilt(); return territoryFront; }
+
 		// Read-only views for the render thread. Deliberately without EnsureBuilt: the overlay must never
 		// trigger a topology build from render-prepare, which is what used to cause periodic spikes.
 		public IReadOnlyCollection<CPos> TerritoryForOverlay() => territory;
 		public IReadOnlyList<CNTerritoryDoor> DoorsForOverlay() => doors;
 		public IReadOnlyList<CPos> TerritoryWallForOverlay() => territoryWall;
+		public IReadOnlyList<CPos> TerritoryFrontForOverlay() => territoryFront;
 
 		void TickTerritoryRefresh()
 		{
@@ -1488,12 +1499,14 @@ namespace OpenRA.Mods.Common.Traits
 			territory.Clear();
 			doors.Clear();
 			territoryWall.Clear();
+			territoryFront.Clear();
 
 			var ownCells = OwnBuildingCells();
 			if (ownCells.Count == 0)
 				return;
 
 			var mine = new HashSet<CPos>();
+			var theirs = new HashSet<CPos>();
 			var claimed = new HashSet<CPos>();
 			var queue = new Queue<(CPos Cell, bool Mine, int Dist)>();
 
@@ -1506,18 +1519,31 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var cell in enemyCells)
 				if (world.Map.Contains(cell) && claimed.Add(cell))
+				{
+					theirs.Add(cell);
 					queue.Enqueue((cell, false, 0));
+				}
 
 			// Without a known enemy there is no race to lose, so the claim has to be bounded by something
 			// else or it swallows the map.
 			var unopposedLimit = enemyCells.Count == 0 ? Math.Max(1, Info.TerritoryUnopposedRadius) : int.MaxValue;
 			var cap = Math.Max(1, Info.TerritoryCellCap);
 
-			while (queue.Count > 0 && claimed.Count < cap)
+			// Where the walk ran out of budget rather than out of ground. This edge is an artefact of the
+			// bound, not a feature of the map, and reading it as one produced a "door" sixty cells wide
+			// with the rest of the map behind it - the outside of a circle is open in every direction.
+			horizon.Clear();
+
+			while (queue.Count > 0)
 			{
 				var (cell, isMine, dist) = queue.Dequeue();
-				if (dist >= unopposedLimit)
+				if (dist >= unopposedLimit || claimed.Count >= cap)
+				{
+					if (isMine)
+						horizon.Add(cell);
+
 					continue;
+				}
 
 				foreach (var dir in CVec.Directions)
 				{
@@ -1527,13 +1553,15 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (isMine)
 						mine.Add(next);
+					else
+						theirs.Add(next);
 
 					queue.Enqueue((next, isMine, dist + 1));
 				}
 			}
 
 			territory.UnionWith(mine);
-			BuildDoors();
+			BuildDoors(theirs);
 		}
 
 		/// <summary>
@@ -1541,14 +1569,20 @@ namespace OpenRA.Mods.Common.Traits
 		/// An edge cell whose outside neighbour is driveable is a way in; one backed by cliff, water or the
 		/// map edge is wall we did not have to build.
 		/// </summary>
-		void BuildDoors()
+		void BuildDoors(HashSet<CPos> theirs)
 		{
 			var doorCells = new HashSet<CPos>();
 
 			foreach (var cell in territory)
 			{
+				// The bound stopped the walk here, so what lies past this cell was never examined. Reading
+				// it as an edge describes the budget, not the map.
+				if (horizon.Contains(cell))
+					continue;
+
 				var isEdge = false;
 				var isDoor = false;
+				var isFront = false;
 
 				foreach (var dir in CVec.Directions)
 				{
@@ -1557,11 +1591,17 @@ namespace OpenRA.Mods.Common.Traits
 						continue;
 
 					isEdge = true;
-					if (world.Map.Contains(next) && IsPassable(next))
-					{
+
+					if (!world.Map.Contains(next) || !IsPassable(next))
+						continue;
+
+					// Ground the enemy got to first is a front, not a way in. Nothing about the terrain
+					// funnels anything here; it is simply where the two claims met, and it is held with an
+					// army rather than with turrets.
+					if (theirs.Contains(next))
+						isFront = true;
+					else
 						isDoor = true;
-						break;
-					}
 				}
 
 				if (!isEdge)
@@ -1569,6 +1609,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (isDoor)
 					doorCells.Add(cell);
+				else if (isFront)
+					territoryFront.Add(cell);
 				else
 					territoryWall.Add(cell);
 			}
@@ -1600,6 +1642,14 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (run.Count < Math.Max(1, Info.MinDoorWidth))
 					continue;
+
+				// Too wide to be a door. Terrain is not funnelling anything through a gap this size, and
+				// no arrangement of turrets closes it - treat it as front and let an army hold it.
+				if (run.Count > Math.Max(1, Info.MaxDoorWidth))
+				{
+					territoryFront.AddRange(run);
+					continue;
+				}
 
 				doors.Add(MakeDoor(run));
 			}

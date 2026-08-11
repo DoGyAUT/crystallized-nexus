@@ -122,7 +122,8 @@ namespace OpenRA.Mods.Common.Traits
 				// meeting look like a single one. Wall is that colour faded: it is context, the doors
 				// are the point.
 				var doorColor = owner.Color;
-				var wallColor = Color.FromArgb(110, owner.Color);
+				var frontColor = Color.FromArgb(190, owner.Color);
+				var wallColor = Color.FromArgb(90, owner.Color);
 
 				foreach (var cell in module.TerritoryWallForOverlay())
 				{
@@ -131,6 +132,17 @@ namespace OpenRA.Mods.Common.Traits
 
 					yield return new CircleAnnotationRenderable(
 						self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 3, 1, wallColor);
+				}
+
+				// Open edge: either the enemy got there first, or the gap is too wide to plug. Drawn
+				// between the two, since it is neither free nor cheap to hold.
+				foreach (var cell in module.TerritoryFrontForOverlay())
+				{
+					if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+						continue;
+
+					yield return new CircleAnnotationRenderable(
+						self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 2, 1, frontColor);
 				}
 
 				foreach (var door in module.DoorsForOverlay())
