@@ -239,6 +239,13 @@ namespace OpenRA.Mods.Common.Traits
 			"a few cells apart, is one way in to a human - not several lined up in a row.")]
 		public readonly int DoorMergeRadius = 8;
 
+		[Desc("Weight given to a fully open territory door (GroundBeyond at DoorBeyondCellCap), scaled down",
+			"for narrower ones but never below PassageWeight - MinDoorGroundBeyond already means 'this is a",
+			"real way in', so the weakest qualifying door still has to compete like one. Same scale as",
+			"BridgeWeight so a door-sourced and a chokepoint-sourced threat compose identically wherever",
+			"both feed the same score.")]
+		public readonly int DoorDefenseWeight = 200;
+
 		public override object Create(ActorInitializer init) { return new CNTacticalMapBotModule(init.Self, this); }
 	}
 
@@ -1138,6 +1145,65 @@ namespace OpenRA.Mods.Common.Traits
 				.Take(Math.Max(1, Info.MaxTopologyHotspots))
 				.Select(c => new CNBaseBuilderBotModule.DefensePlacementThreat(c.Chokepoint.Cell, c.Chokepoint.BaseWeight))
 				.ToArray();
+		}
+
+		/// <summary>
+		/// Territory doors as defensive placement threats, weighted by ground behind rather than by type.
+		/// Deliberately territory-wide, not per-base like <see cref="GetTopologyHotspots"/> - a door does not
+		/// belong to whichever base happens to be nearest it, and re-ranking the same small door list by
+		/// distance to each base in turn is exactly the per-base scatter this was built to stop.
+		/// </summary>
+		public IReadOnlyList<CNBaseBuilderBotModule.DefensePlacementThreat> GetDoorHotspots()
+		{
+			var territoryDoors = GetTerritoryDoors();
+			if (territoryDoors.Count == 0)
+				return [];
+
+			var cap = Math.Max(1, Info.DoorBeyondCellCap);
+			var minBeyond = Math.Min(cap, Math.Max(0, Info.MinDoorGroundBeyond));
+			var floor = Info.PassageWeight;
+			var ceiling = Math.Max(floor, Info.DoorDefenseWeight);
+
+			return territoryDoors
+				.Select(d =>
+				{
+					var beyond = Math.Min(d.GroundBeyond, cap);
+					var weight = minBeyond >= cap
+						? ceiling
+						: floor + (ceiling - floor) * (beyond - minBeyond) / (cap - minBeyond);
+					return new CNBaseBuilderBotModule.DefensePlacementThreat(d.Center, weight);
+				})
+				.ToArray();
+		}
+
+		/// <summary>
+		/// Positions behind a territory door, facing the approach - same shape as
+		/// <see cref="GetChokepointDefenseAnchors"/>, but the axis and side are already known from the door
+		/// itself instead of having to be resigned against a reference each call.
+		/// </summary>
+		public IReadOnlyList<CPos> GetDoorDefenseAnchors()
+		{
+			var anchors = new List<CPos>();
+			foreach (var door in GetTerritoryDoors())
+			{
+				if (door.Outward == CVec.Zero)
+					continue;
+
+				// Doors are axis-aligned corridors (see ResolveChokepointCorridors), so Outward - summed over
+				// every cell in the run in MakeDoor - stays dominated by one axis even though it is not unit
+				// length itself.
+				var approach = Math.Abs(door.Outward.X) < Math.Abs(door.Outward.Y)
+					? new CVec(0, Math.Sign(door.Outward.Y))
+					: new CVec(Math.Sign(door.Outward.X), 0);
+
+				var lateral = new CVec(-approach.Y, approach.X);
+				var behind = door.Center - approach * 3; // same offset GetChokepointDefenseAnchors uses
+
+				foreach (var offset in new[] { 0, -2, 2, -4, 4 })
+					anchors.Add(behind + lateral * offset);
+			}
+
+			return anchors;
 		}
 
 		/// <summary>Bearings (from reference) toward each reachable access point, for the sealed-flank penalty.</summary>

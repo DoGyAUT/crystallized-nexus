@@ -269,6 +269,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Bot profiles that seal chokepoints when EnableChokepointSealing is set. Empty = all profiles.")]
 		public readonly FrozenSet<string> ChokepointSealProfiles = FrozenSet<string>.Empty;
 
+		[Desc("Score defense placement against territory doors (the handful of real ways into the player's",
+			"claimed ground) instead of the six chokepoints nearest each base. That per-base re-ranking is",
+			"what scattered a seven-base bot's defenses over seven neighbourhoods - doors are shared across",
+			"the whole territory, so the widest way in outweighs whatever chokepoint merely happened to be",
+			"closest. Falls back to chokepoint hotspots when no territory door exists yet. Opt-in.")]
+		public readonly bool EnableDoorDefense = false;
+
 		[Desc("Locomotor names used by harvesters. When set, refinery placement filters out resource cells " +
 			"with no passable path, preventing refineries next to cliffs.")]
 		public readonly FrozenSet<string> HarvesterLocomotors = FrozenSet<string>.Empty;
@@ -2397,6 +2404,25 @@ namespace OpenRA.Mods.Common.Traits
 			return bestHotspot;
 		}
 
+		// Territory doors when available and enabled (a handful, shared by the whole territory), else the
+		// six chokepoints nearest each base. Reused by both GetBestDefenseHotspot and
+		// GetDefensePlacementThreats so the ring this aims at and what actually scores candidates near it
+		// never disagree on which of the two sources is in play.
+		IEnumerable<DefensePlacementThreat> GetProactiveThreats(CPos reference)
+		{
+			if (TacticalMapModule == null)
+				return [];
+
+			if (Info.EnableDoorDefense)
+			{
+				var doors = TacticalMapModule.GetDoorHotspots();
+				if (doors.Count > 0)
+					return doors;
+			}
+
+			return TacticalMapModule.GetTopologyHotspots(reference);
+		}
+
 		public CPos? GetBestDefenseHotspot(CPos reference, DefenseRole role = DefenseRole.Default)
 		{
 			var bestHotspot = GetRecordedDangerHotspot(reference, role);
@@ -2404,7 +2430,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Early game: no attack recorded yet -> aim the first defenses at the nearest map chokepoint.
 			if (bestHotspot == null && TacticalMapModule != null && Info.TopologyHotspotWeight > 0)
 			{
-				var topology = TacticalMapModule.GetTopologyHotspots(reference);
+				var topology = GetProactiveThreats(reference);
 				var bestScore = long.MinValue;
 				foreach (var threat in topology)
 				{
@@ -2450,10 +2476,11 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// Proactive: static map topology (bridges, cliff ramps, narrow passages) from the cartographer.
+			// Proactive: territory doors, or static map topology (bridges, cliff ramps, narrow passages) as
+			// a fallback - see GetProactiveThreats.
 			if (TacticalMapModule != null && Info.TopologyHotspotWeight > 0)
 			{
-				foreach (var threat in TacticalMapModule.GetTopologyHotspots(reference))
+				foreach (var threat in GetProactiveThreats(reference))
 				{
 					var finalWeight = threat.Weight * Info.TopologyHotspotWeight / 100;
 					if (finalWeight <= 0)
@@ -2551,6 +2578,11 @@ namespace OpenRA.Mods.Common.Traits
 					cachedHighGround[edge.Cell] = edge;
 
 			cachedChokepointDefenseAnchors = TacticalMapModule.GetChokepointDefenseAnchors(defenseCenter).ToList();
+
+			// Same anchor bonus, extended to territory doors - without this a door-sourced threat only
+			// pulls placement toward its center, not to a position actually behind it facing the approach.
+			if (Info.EnableDoorDefense)
+				cachedChokepointDefenseAnchors.AddRange(TacticalMapModule.GetDoorDefenseAnchors());
 		}
 
 		// High-ground (height advantage / natural wall) bonus and sealed-flank (no enemy access) penalty.

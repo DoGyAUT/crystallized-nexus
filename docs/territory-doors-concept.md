@@ -1,6 +1,9 @@
 # Territory and doors
 
-Status: **concept**. Detection work exists on `ai/territory-doors` and is not wired to anything.
+Status: detection validated visually (`/cntopo`, several iterations) and now drives defense
+placement (`EnableDoorDefense`, opt-in, on by default for the tested profiles in
+`ai/base-building.yaml`). Region control, region roles, kill-zone perimeters and front squads are
+recorded below as future work, not started.
 
 ## The problem
 
@@ -63,11 +66,14 @@ The pieces are the front, cell by cell. What is missing is assembling them into 
 
 ## What consumes it, and in what order
 
-1. Nothing. Detection only, drawn in `cntopo`. **Settle whether the lines match the ones a human
-   would draw before wiring anything to them.**
-2. Defence placement: cover doors by weight instead of six points per base. The budget follows
-   the doors, so the widest way in gets a real position instead of every base getting two
-   turrets.
+1. ~~Detection only, drawn in `cntopo`.~~ **Done.** Settled visually across several iterations
+   (leak fix, merge radius, ground-behind floor) before anything consumed it.
+2. ~~Defence placement: cover doors by weight instead of six points per base.~~ **Done.**
+   `GetDoorHotspots`/`GetDoorDefenseAnchors` (`CNTacticalMapBotModule.cs`) replace
+   `GetTopologyHotspots` at both its call sites when `EnableDoorDefense` is set and a territory
+   door exists, with a graceful fallback to the old six-hotspot behaviour otherwise. The budget
+   follows the doors — no per-base distance prefilter — so the widest way in gets a real position
+   instead of every base getting two turrets.
 3. Expansion siting: does a candidate spot have a defensible boundary at all?
 4. Attack: which of the enemy's doors is weakest. `PickApproachCell` gropes at this today.
 
@@ -117,9 +123,11 @@ resolved corridors are reused as the door candidates afterwards, so the width th
 walk is exactly the width a defence would be built across.
 
 **Nothing required a door to lead anywhere**, so a pinch that opened onto almost no ground still
-counted as one. `MinDoorGroundBeyond` (default 24, matching the `MinPassageSideCells` reasoning
-used for passage chokepoints) drops these — measured with the door's own corridor sealed, per the
-algorithm's step 4.
+counted as one. `MinDoorGroundBeyond` drops these — measured with the door's own corridor sealed,
+per the algorithm's step 4. Started at 24 (matching `MinPassageSideCells`); raised to 96 (matching
+`MinimumChokepointBeyondCells` — the same "is what's behind this real" question, asked for a
+different feature) after a `beyond 25` visibly cleared the first threshold while leading nowhere
+worth defending.
 
 Even with the leak fixed, a couple of genuinely separate gaps a handful of cells apart still read
 as one door to a human, not two. `DoorMergeRadius` (default 8) folds a candidate into a wider one
@@ -161,3 +169,40 @@ approximating with distance because the terrain-bounded version did not exist ye
 Past that: regions get assigned for secondary base / eco / defense / outpost / production, the
 same shape as the existing `CNBaseRole` enum. Whether that stays exactly those five names or
 grows is unresolved on purpose - the point recorded here is *replace*, not *add another one*.
+
+## Future: a kill-zone perimeter around each door
+
+Not started. `GetDoorDefenseAnchors` pulls placement toward a position behind a door facing its
+approach, but that is still just a scoring bonus on top of the ordinary build-site search - it
+does not lay out a shape.
+
+The idea: a perimeter zone around each door - rectangle or half-circle, still undecided - that a
+bot can wall off (profile-gated, not every profile should spend on this) with defense placed
+behind it. This is a generalisation of the existing `EnableChokepointSealing` /
+`ChooseChokepointWallLocation` / `ChooseChokepointGateLocation` feature
+(`CNBaseBuilderQueueManager.cs`) from `CNSealableCorridor` to `CNTerritoryDoor` - the same
+relationship the doors themselves have to the six old hotspots: a wider, better-founded version of
+something that already works, not a new concept sitting next to it.
+
+## Future: region-aware front squads
+
+Not started. A door has terrain doing part of the work, which is what lets a handful of turrets
+hold it. A **front** - the part of the boundary touching another player's claim - has none: "held
+with an army or not at all," per the model above. Nothing in this project puts an army there;
+`GetDefensePlacementThreats` only ever proposes *building* placement, and doors intentionally give
+the front zero proactive weight of their own (see the open field question below).
+
+`CNSquadManagerBotModule`/`CNSquadType` already has a `Protection` squad, but it is purely
+*reactive* - triggered by attack. A `Front`-aware squad state would instead be fed from
+`GetTerritoryFront()` and hold or patrol that boundary proactively, before the first hit lands
+rather than after it.
+
+## Open field behaviour, for the record
+
+A fully open map (no real chokepoints anywhere) leaves `GetTerritoryDoors()` empty, so
+`GetProactiveThreats` falls back to the old six-hotspot behaviour untouched - no regression, no
+improvement, nothing to model there. A *partially* open map is the sharper case: real doors get
+covered the way this doc intends, but a wide open flank is classified `Front`, not a door, and
+gets zero proactive weight from this system - only the reactive danger-memory path responds there,
+after the first attack. That is not a bug in this pass; it is the "front squads" gap above,
+recorded rather than silently accepted.
