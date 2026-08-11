@@ -183,6 +183,10 @@ NAOBEL:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
+	UnderConstruction:
+		Condition: build-incomplete
+	WithBuildAnimation:
+		Sequence: make
 	CNHealth:
 		HP: 725
 	Armor:

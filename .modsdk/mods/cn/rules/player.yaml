@@ -49,6 +49,7 @@ Player:
 		BuildDurationModifier: 120
 		QueuedAudio: BuildTech
 		ReadyAudio: TechComplete
+	PlayerBuilders:
 	PlaceBuilding:
 		NewOptionsNotification: NewOptions
 		CannotPlaceNotification: BuildingCannotPlaceAudio

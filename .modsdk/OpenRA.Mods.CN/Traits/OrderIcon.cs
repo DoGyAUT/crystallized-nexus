@@ -5,7 +5,7 @@
  */
 #endregion
 
-using OpenRA.Traits;
+using OpenRA.Mods.Common.Traits;
 
 namespace OpenRA.Mods.CN.Traits
 {
@@ -14,7 +14,7 @@ namespace OpenRA.Mods.CN.Traits
 	/// Multiple instances can be attached via <c>OrderIcon@Tag</c>.
 	/// The OrderPanelWidget reads these at selection time and renders the grid.
 	/// </summary>
-	public class OrderIconInfo : TraitInfo
+	public class OrderIconInfo : ConditionalTraitInfo
 	{
 		/// <summary>
 		/// The order string this icon triggers. May be a standard IOrderTargeter.OrderID
@@ -57,10 +57,9 @@ namespace OpenRA.Mods.CN.Traits
 		public override object Create(ActorInitializer init) => new OrderIcon(this);
 	}
 
-	public class OrderIcon
+	public class OrderIcon : ConditionalTrait<OrderIconInfo>
 	{
-		public readonly OrderIconInfo Info;
-
-		public OrderIcon(OrderIconInfo info) { Info = info; }
+		public OrderIcon(OrderIconInfo info)
+			: base(info) { }
 	}
 }

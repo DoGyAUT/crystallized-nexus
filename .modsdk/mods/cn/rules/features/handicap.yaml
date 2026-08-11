@@ -17,9 +17,10 @@
 			Normal: 100
 			Hard: 100
 			Brutal: 75
-	HandicapIncomeMultiplier:
-		Modifiers:
-			Easy: 75
-			Normal: 100
-			Hard: 150
-			Brutal: 200
+	# HandicapIncomeMultiplier: trait type does not exist in the engine — disabled to avoid load crash.
+	# HandicapIncomeMultiplier:
+	# 	Modifiers:
+	# 		Easy: 75
+	# 		Normal: 100
+	# 		Hard: 150
+	# 		Brutal: 200

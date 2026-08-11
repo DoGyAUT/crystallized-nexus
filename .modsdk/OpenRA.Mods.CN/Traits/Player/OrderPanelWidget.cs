@@ -8,11 +8,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Activities;
 using OpenRA.Graphics;
 using OpenRA.Mods.CN.Orders;
 using OpenRA.Mods.CN.Traits;
-using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Widgets;
@@ -57,6 +55,7 @@ namespace OpenRA.Mods.CN.Widgets
 			public Sprite Sprite;
 			public Rectangle Bounds;
 			public HotkeyReference Hotkey;
+			public bool Enabled = true;
 		}
 
 		[ObjectCreator.UseCtor]
@@ -139,6 +138,10 @@ namespace OpenRA.Mods.CN.Widgets
 			availableOrders.Add("Scatter");
 			availableOrders.Add("Cancel");
 
+			// Build-structure icons are available whenever the actor can build
+			if (representative.Info.HasTraitInfo<BuilderInfo>())
+				availableOrders.Add("BuildStructure");
+
 			// Individual stance buttons if actors have AutoTarget with stances
 			if (representative.Info.HasTraitInfo<AutoTargetInfo>())
 			{
@@ -195,11 +198,49 @@ namespace OpenRA.Mods.CN.Widgets
 					Icon = iconInfo,
 					Sprite = sprite,
 					Bounds = new Rectangle(cellX, cellY, IconSize.X, IconSize.Y),
-					Hotkey = hotkey
+					Hotkey = hotkey,
+					Enabled = IsOrderIconEnabled(iconInfo, active)
 				};
 			}
 
 			cells.AddRange(grid.Values);
+		}
+
+		static bool IsOrderIconEnabled(OrderIconInfo icon, Actor[] active)
+		{
+			if (active.Length == 0)
+				return false;
+
+			switch (icon.Order)
+			{
+				case "Move":
+					return active.Any(a => a.TraitsImplementing<Mobile>().Any(m => !m.IsTraitDisabled && !m.IsTraitPaused));
+				case "Attack":
+				case "AttackGround":
+					return active.Any(a => a.TraitsImplementing<AttackBase>().Any(ab => !ab.IsTraitDisabled));
+				case "BuildStructure":
+					return active.Any(a => a.TraitsImplementing<Builder>().Any(b => !b.IsTraitDisabled));
+				case "Deploy":
+					return active.Any(a => a.TraitsImplementing<IIssueDeployOrder>().Any(d => d.CanIssueDeployOrder(a, false)));
+				case "SetStance.AttackAnything":
+				case "SetStance.Defend":
+				case "SetStance.ReturnFire":
+				case "SetStance.HoldFire":
+					return active.Any(a => a.TraitsImplementing<AutoTarget>().Any(at => at.Info.EnableStances && !at.IsTraitDisabled));
+				case "Stop":
+				case "Scatter":
+				case "Cancel":
+					return true;
+				default:
+					return active.Any(a => a.TraitsImplementing<IIssueOrder>()
+						.Any(issueOrder =>
+						{
+							if (issueOrder is IDisabledTrait disabledIssue && disabledIssue.IsTraitDisabled)
+								return false;
+
+								return issueOrder.Orders.Any(targeter => targeter.OrderID == icon.Order);
+						}));
+			}
 		}
 
 		public override void Draw()
@@ -223,6 +264,9 @@ namespace OpenRA.Mods.CN.Widgets
 				var drawY = cell.Bounds.Y + (IconSize.Y - drawH) / 2f;
 
 				WidgetUtils.DrawSprite(cell.Sprite, new float2(drawX, drawY), new float2(drawW, drawH));
+
+				if (!cell.Enabled)
+					WidgetUtils.FillRectWithColor(cell.Bounds, Color.FromArgb(140, 0, 0, 0));
 
 				if (highlighted)
 				{
@@ -260,6 +304,9 @@ namespace OpenRA.Mods.CN.Widgets
 			{
 				if (cell.Hotkey == null || !cell.Hotkey.IsActivatedBy(e))
 					continue;
+
+				if (!cell.Enabled)
+					return true;
 
 				var queued = e.Modifiers.HasModifier(Modifiers.Shift);
 				DispatchOrder(cell.Icon, queued);
@@ -306,6 +353,9 @@ namespace OpenRA.Mods.CN.Widgets
 			var cell = cells.FirstOrDefault(c => c.Bounds.Contains(mi.Location));
 			if (cell == null)
 				return false;
+
+			if (!cell.Enabled)
+				return true;
 
 			var queued = mi.Modifiers.HasModifier(Modifiers.Shift);
 			DispatchOrder(cell.Icon, queued);
@@ -377,9 +427,14 @@ namespace OpenRA.Mods.CN.Widgets
 					break;
 
 				case "SetStance.AttackAnything": SetStanceForActors(active, UnitStance.AttackAnything); break;
-				case "SetStance.Defend":         SetStanceForActors(active, UnitStance.Defend);         break;
-				case "SetStance.ReturnFire":     SetStanceForActors(active, UnitStance.ReturnFire);     break;
-				case "SetStance.HoldFire":       SetStanceForActors(active, UnitStance.HoldFire);       break;
+				case "SetStance.Defend": SetStanceForActors(active, UnitStance.Defend); break;
+				case "SetStance.ReturnFire": SetStanceForActors(active, UnitStance.ReturnFire); break;
+				case "SetStance.HoldFire": SetStanceForActors(active, UnitStance.HoldFire); break;
+
+				case "BuildStructure":
+					if (icon is BuildOrderIconInfo build)
+						world.OrderGenerator = new BuildStructureOrderGenerator(world, active, build.ActorName, worldRenderer);
+					break;
 
 				default:
 					world.OrderGenerator = new OrderIconOrderGenerator(world, active, icon.Order);
@@ -416,7 +471,8 @@ namespace OpenRA.Mods.CN.Widgets
 		bool IsTargetingModeActive() =>
 			world.OrderGenerator is AttackCommandOrderGenerator
 				or ForceAttackGroundOrderGenerator
-				or OrderIconOrderGenerator;
+				or OrderIconOrderGenerator
+				or BuildStructureOrderGenerator;
 
 		bool IsIconActive(string orderID)
 		{

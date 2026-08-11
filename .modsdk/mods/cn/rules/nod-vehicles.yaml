@@ -147,6 +147,13 @@ BGGY:
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Inherits@CRUSHABLETYPE: ^CrushableLightVehicle
+	Builder:
+	BuildOrderIcon@obelisk:
+		Order: BuildStructure
+		ActorName: naobel
+		ChromeCollection: command-icons
+		ChromeImage: deploy
+		PanelPosition: 3, 1
 	AutoCrusher@AUTOCRUSHER:
 		ScanRadius: 6c0
 	Valued:
