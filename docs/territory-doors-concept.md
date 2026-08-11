@@ -124,3 +124,40 @@ algorithm's step 4.
 Even with the leak fixed, a couple of genuinely separate gaps a handful of cells apart still read
 as one door to a human, not two. `DoorMergeRadius` (default 8) folds a candidate into a wider one
 found within that radius, kept widest-first so the one that actually leads somewhere survives.
+
+## Future: a control system, and regions that replace `CNBotBase`
+
+Not started. Recorded so the direction is not re-derived later.
+
+Right now every bot's territory is a full breadth-first race over the whole map, rebuilt from
+scratch per bot per refresh. That is doable because chokepoints already give the terrain-only
+part of the answer for free — `CNSharedTopology` already scans them once and shares the result
+across every bot on the map+locomotor. Territory does not do this yet: each bot floods the same
+ground independently, and with more than two players a bot's "mine vs. everyone else" race can
+disagree at the edge between two *other* players, since neither side of that edge is this bot's
+own walk.
+
+The next step this points at: a **region graph**, shared like the chokepoint scan — the map cut
+once into the same bowls a territory claim finds today, stable because it depends on terrain and
+doors, not on who owns what. Ownership then becomes a small per-region vote (whose buildings
+outweigh whose in that region) instead of a per-bot flood over the whole map, and it stays
+consistent for every player by construction instead of by two independent walks happening to
+agree. A region changes hands — is "conquered" — when the vote flips, which is the hook the doc's
+own open question about base clusters was pointing at:
+
+**`CNBotBase` (`CNBaseBuilderBotModule.cs`) is what a region should replace, not sit next to.**
+It already does two things a region graph would do better. Clustering: construction yards within
+`BaseClusterRadius` form a base, buildings join by raw distance (`MaxBaseRadius` /
+`GetBaseMembershipRadius`) — a radius, exactly the thing territory was built to stop using, so the
+same "seven bases, seven neighbourhoods" scatter the problem statement opens with can still happen
+one level up. Roles: `CNBaseRole` (`Core` / `Economy` / `Military` / `Outpost` / `Secondary`) is
+assigned by ad hoc heuristics — nearest-to-origin for Core, chokepoint-radius proximity for
+Outpost, distance-to-danger-hotspot for Military — each reinventing, per base, a question a region
+already answers for free: an outpost is a region that touches a door, military is a region whose
+front is active, a base behind the line needs no defence because its region has no door at all.
+Region roles would not be a new idea next to `CNBaseRole` - they are what `CNBaseRole` was
+approximating with distance because the terrain-bounded version did not exist yet.
+
+Past that: regions get assigned for secondary base / eco / defense / outpost / production, the
+same shape as the existing `CNBaseRole` enum. Whether that stays exactly those five names or
+grows is unresolved on purpose - the point recorded here is *replace*, not *add another one*.
