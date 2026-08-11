@@ -201,9 +201,11 @@ namespace OpenRA.Mods.Common.Traits
 			"floods the ENTIRE region before giving up - unbounded on an open map. Treated as 'not confirmed' if hit.")]
 		public readonly int FloodFillCellCap = 1500;
 
-		[Desc("Hard cap on cells claimed while working out which ground belongs to this player. Bounds the",
-			"cost on open maps; the edge that matters is near the bases, not out at the far corners.")]
-		public readonly int TerritoryCellCap = 5000;
+		[Desc("Hard cap on cells visited while working out which ground belongs to whom. A safety net, not",
+			"a tuning knob: it counts every claim in the same walk, so at 5000 two territories of 2900 and",
+			"2200 cells hit it between them and the walk stopped with most of the map - and nearly every",
+			"chokepoint on it - never reached. Sized to cover a whole map instead.")]
+		public readonly int TerritoryCellCap = 40000;
 
 		[Desc("How far from its own buildings a player's territory reaches while no enemy building is known.",
 			"Once one is, the split is decided by which side reaches a cell in fewer steps instead.")]
@@ -1506,6 +1508,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (ownCells.Count == 0)
 				return;
 
+			// Chokepoints hold the walk like walls. That is what makes a territory a place rather than a
+			// blob: ground is enclosed by cliffs and by the handful of gaps in them, and a claim that runs
+			// straight through those gaps describes nothing anybody would defend.
+			//
+			// It also puts the doors on the boundary by construction. Three earlier attempts tried to cut
+			// them back out of a claim that had already flowed past them, and each failed differently.
+			var gate = new HashSet<CPos>();
+			foreach (var cp in chokepoints)
+				gate.Add(cp.Cell);
+
 			var mine = new HashSet<CPos>();
 			var theirs = new HashSet<CPos>();
 			var claimed = new HashSet<CPos>();
@@ -1549,7 +1561,7 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var dir in CVec.Directions)
 				{
 					var next = cell + dir;
-					if (!world.Map.Contains(next) || !IsPassable(next) || !claimed.Add(next))
+					if (!world.Map.Contains(next) || !IsPassable(next) || gate.Contains(next) || !claimed.Add(next))
 						continue;
 
 					if (isMine)
@@ -1562,7 +1574,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			territory.UnionWith(mine);
-			BuildDoors(theirs);
+			BuildDoors(theirs, gate);
 		}
 
 		/// <summary>
@@ -1570,7 +1582,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// An edge cell whose outside neighbour is driveable is a way in; one backed by cliff, water or the
 		/// map edge is wall we did not have to build.
 		/// </summary>
-		void BuildDoors(HashSet<CPos> theirs)
+		void BuildDoors(HashSet<CPos> theirs, HashSet<CPos> gate)
 		{
 			var doorCells = new HashSet<CPos>();
 
@@ -1624,61 +1636,50 @@ namespace OpenRA.Mods.Common.Traits
 			// This is why doors are not derived from the claim's edge alone: the two claims tile the whole
 			// reachable map between them, so outside the edge there is only ever enemy ground or rock, and
 			// a gap in the terrain is by definition somewhere both sides are already ours.
-			var onOwnGround = 0;
+			// A gate cell the claim ran up against is a way out of this territory. It cannot be inside the
+			// claim - the walk was not allowed through it - so the test is adjacency, and that is exactly
+			// what makes these the boundary rather than something to be cut out of it afterwards.
 			var adjacentOnly = 0;
-			foreach (var cp in usefulChokepoints)
+			foreach (var cell in gate)
 			{
-				if (territory.Contains(cp.Cell))
-				{
-					onOwnGround++;
-					doorCells.Add(cp.Cell);
-					continue;
-				}
-
-				// Counted but not admitted. A chokepoint is a pinch, and the two claims meet at pinches, so
-				// its own cell may well have gone to the other side by a step or two. Whether that is what
-				// empties the list is a question for the log rather than for another guess.
+				var touches = false;
 				foreach (var dir in CVec.Directions)
 				{
-					if (!territory.Contains(cp.Cell + dir))
+					if (!territory.Contains(cell + dir))
 						continue;
 
-					adjacentOnly++;
+					touches = true;
 					break;
 				}
+
+				if (!touches)
+					continue;
+
+				adjacentOnly++;
+				doorCells.Add(cell);
 			}
 
-			// Contiguous door cells are one way in, not several. This is what turns a scatter of edge cells
-			// into the handful of places a line is actually planned around.
+			// A door is the span across the gap - cliff on one side, cliff on the other - not a blob of
+			// cells around the marker. Grouping neighbouring gate cells produced the latter: a lump nine
+			// wide sitting on a ramp, which is not a line anything can be built along.
+			//
+			// So each gate cell is walked outward along the axis across the passage until terrain stops
+			// it. What comes back is the width of the gap and, at the same time, the seal used to measure
+			// what lies behind it.
 			var runsFormed = 0;
 			var runsTooWide = 0;
 			var runsTooNarrow = 0;
-			var visited = new HashSet<CPos>();
+			var covered = new HashSet<CPos>();
 			foreach (var start in doorCells)
 			{
-				if (!visited.Add(start))
+				if (covered.Contains(start))
 					continue;
 
-				var run = new List<CPos>();
-				var walk = new Queue<CPos>();
-				walk.Enqueue(start);
-
-				while (walk.Count > 0)
-				{
-					var cell = walk.Dequeue();
-					run.Add(cell);
-
-					foreach (var dir in CVec.Directions)
-					{
-						var next = cell + dir;
-						if (doorCells.Contains(next) && visited.Add(next))
-							walk.Enqueue(next);
-					}
-				}
-
+				var span = SpanAcrossGap(start);
 				runsFormed++;
+				covered.UnionWith(span);
 
-				if (run.Count < Math.Max(1, Info.MinDoorWidth))
+				if (span.Count < Math.Max(1, Info.MinDoorWidth))
 				{
 					runsTooNarrow++;
 					continue;
@@ -1686,14 +1687,14 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Too wide to be a door. Terrain is not funnelling anything through a gap this size, and
 				// no arrangement of turrets closes it - treat it as front and let an army hold it.
-				if (run.Count > Math.Max(1, Info.MaxDoorWidth))
+				if (span.Count > Math.Max(1, Info.MaxDoorWidth))
 				{
 					runsTooWide++;
-					territoryFront.AddRange(run);
+					territoryFront.AddRange(span);
 					continue;
 				}
 
-				doors.Add(MakeDoor(run));
+				doors.Add(MakeDoor(span));
 			}
 
 			// Widest first: the door that lets the most through is the one a defence is built at.
@@ -1703,11 +1704,43 @@ namespace OpenRA.Mods.Common.Traits
 			// screen could only report the total. Which stage empties the list is not something to keep
 			// guessing at.
 			CNBotLog.Debug(
-				"{0} territory: {1} cells, {2} wall, {3} front, {4} horizon | chokepoints {5} useful, {6} on own ground, "
-				+ "{7} adjacent only | {8} runs -> {9} doors ({10} too wide, {11} too narrow)",
+				"{0} territory: {1} cells, {2} wall, {3} front, {4} horizon | {5} chokepoints, {6} touching this "
+				+ "territory | {7} runs -> {8} doors ({9} too wide, {10} too narrow)",
 				player, territory.Count, territoryWall.Count, territoryFront.Count, horizon.Count,
-				usefulChokepoints.Count, onOwnGround, adjacentOnly,
+				chokepoints.Count, adjacentOnly,
 				runsFormed, doors.Count, runsTooWide, runsTooNarrow);
+		}
+
+		/// <summary>
+		/// The gap a chokepoint sits in, wall to wall. Walks out from the cell along the axis across the
+		/// passage until terrain stops it in both directions, which is both the width of the door and the
+		/// line a defence would be built on.
+		/// </summary>
+		List<CPos> SpanAcrossGap(CPos cell)
+		{
+			// The passage runs perpendicular to the way out of the territory, so the span runs across
+			// that: along the axis the claim does NOT extend in.
+			var inward = CVec.Zero;
+			foreach (var dir in CVec.Directions)
+				if (territory.Contains(cell + dir))
+					inward += dir;
+
+			var across = Math.Abs(inward.X) < Math.Abs(inward.Y) ? new CVec(1, 0) : new CVec(0, 1);
+			var span = new List<CPos> { cell };
+
+			foreach (var sign in new[] { 1, -1 })
+			{
+				for (var k = 1; k <= Math.Max(1, Info.MaxDoorWidth) + 1; k++)
+				{
+					var c = cell + across * (sign * k);
+					if (!world.Map.Contains(c) || !IsPassable(c))
+						break;
+
+					span.Add(c);
+				}
+			}
+
+			return span;
 		}
 
 		CNTerritoryDoor MakeDoor(List<CPos> run)
@@ -1749,14 +1782,14 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// A door on the edge of the claim has ground outside it to start the measurement from. One
-			// standing inside the claim - a ramp through a cliff we hold both sides of - has none, so the
-			// far side is taken as the direction away from the base and the pinch is sealed across, the
-			// same way the chokepoint scan does it.
-			if (outside.Count == 0)
-				return new CNTerritoryDoor(center, run.ToArray(), outward, GroundBeyondPinch(center, run));
+			// Measured from the ground just outside where there is any. That can come to nothing - every
+			// candidate already inside the span or the claim, which is what produced "beyond 0" - so the
+			// direction-based seal is the fallback rather than only the no-outside case.
+			var beyond = outside.Count > 0 ? GroundBeyondDoor(run, outside) : 0;
+			if (beyond == 0)
+				beyond = GroundBeyondPinch(center, run);
 
-			return new CNTerritoryDoor(center, run.ToArray(), outward, GroundBeyondDoor(run, outside));
+			return new CNTerritoryDoor(center, run.ToArray(), outward, beyond);
 		}
 
 		/// <summary>
