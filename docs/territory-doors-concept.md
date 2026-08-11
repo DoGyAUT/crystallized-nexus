@@ -95,10 +95,32 @@ narrower.
 
 ## Open questions
 
-- **How many doors should a territory have?** If a map yields dozens, the model is wrong
-  somewhere; a handful is the point of it.
 - **Does the enemy race earn its cost**, or is bounding by terrain alone enough? The front
   concept needs it; the doors do not.
 - **Do base clusters survive?** They must, as build sites — buildings have to go up within
   reach of existing ones. Their *roles* are what territory should replace: a base behind the
   line needs no defence, one at a door does.
+
+## Resolved: how many doors should a territory have
+
+First `/cntopo` pass answered this one before it needed a debate: dozens, strung along a single
+cliff in a ragged chain — a few cells apart, several different widths, tiny `beyond` figures on
+most of them. Two separate causes, both visible in the same screenshot.
+
+**The gate only blocked the chokepoint's coarse marker cell**, not the corridor's actual width.
+Anything wider than one cell let the claim leak around it during the walk, so a single real gap
+fragmented into several boundary cells a cell or two apart instead of closing cleanly — each of
+those then resolved to its own nearby-but-distinct `CNSealableCorridor`, which is where the chain
+came from. Fixed by resolving every chokepoint to its corridor *before* the walk
+(`ResolveChokepointCorridors`) and gating on the corridor's full cell set, not `cp.Cell`. The same
+resolved corridors are reused as the door candidates afterwards, so the width that blocked the
+walk is exactly the width a defence would be built across.
+
+**Nothing required a door to lead anywhere**, so a pinch that opened onto almost no ground still
+counted as one. `MinDoorGroundBeyond` (default 24, matching the `MinPassageSideCells` reasoning
+used for passage chokepoints) drops these — measured with the door's own corridor sealed, per the
+algorithm's step 4.
+
+Even with the leak fixed, a couple of genuinely separate gaps a handful of cells apart still read
+as one door to a human, not two. `DoorMergeRadius` (default 8) folds a candidate into a wider one
+found within that radius, kept widest-first so the one that actually leads somewhere survives.

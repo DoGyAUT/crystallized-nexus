@@ -228,6 +228,15 @@ namespace OpenRA.Mods.Common.Traits
 			"or not at all.")]
 		public readonly int MaxDoorWidth = 14;
 
+		[Desc("Cells the flood behind a door must reach before it counts as a real way in. A pinch that",
+			"opens onto almost nothing is a dead end, not something worth anchoring a defence at.")]
+		public readonly int MinDoorGroundBeyond = 24;
+
+		[Desc("Doors within this many cells of a wider door are folded into it instead of standing on",
+			"their own. A single gap scanned at a couple of slightly different points, or two real gaps",
+			"a few cells apart, is one way in to a human - not several lined up in a row.")]
+		public readonly int DoorMergeRadius = 8;
+
 		public override object Create(ActorInitializer init) { return new CNTacticalMapBotModule(init.Self, this); }
 	}
 
@@ -1514,9 +1523,14 @@ namespace OpenRA.Mods.Common.Traits
 			//
 			// It also puts the doors on the boundary by construction. Three earlier attempts tried to cut
 			// them back out of a claim that had already flowed past them, and each failed differently.
+			//
+			// The gate has to be the chokepoint's full width, not just its coarse marker cell - blocking
+			// only the one cell let the walk leak around anything wider than a single file, which is what
+			// fragmented one real gap into a chain of several ragged "doors" a cell or two apart. The width
+			// is exactly what CNSealableCorridor already resolves, so it is looked up once here and reused
+			// for both the gate and, in BuildDoors, the door itself.
 			var gate = new HashSet<CPos>();
-			foreach (var cp in chokepoints)
-				gate.Add(cp.Cell);
+			var chokepointCorridors = ResolveChokepointCorridors(gate);
 
 			var mine = new HashSet<CPos>();
 			var theirs = new HashSet<CPos>();
@@ -1574,7 +1588,38 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			territory.UnionWith(mine);
-			BuildDoors(theirs, gate);
+			BuildDoors(theirs, chokepointCorridors);
+		}
+
+		/// <summary>
+		/// Resolves every scanned chokepoint to its genuine wall-to-wall corridor via
+		/// <see cref="FindNarrowestCrossing"/> and folds each into <paramref name="gate"/> at full width.
+		/// A chokepoint that fails to resolve to a real corridor (no thick shoulder in reach) still blocks
+		/// its own coarse cell, so the walk cannot pass straight through a marker that turned out to be
+		/// unresolvable.
+		/// </summary>
+		List<CNSealableCorridor> ResolveChokepointCorridors(HashSet<CPos> gate)
+		{
+			var corridors = new List<CNSealableCorridor>();
+			var seenCenters = new HashSet<CPos>();
+			var snapRadius = Math.Max(0, Info.ChokepointSnapRadius);
+			var maxWidth = Math.Max(1, Info.MaxDoorWidth) + 1;
+
+			foreach (var cp in chokepoints)
+			{
+				var corridor = FindNarrowestCrossing(cp.Cell, snapRadius, maxWidth);
+				if (corridor == null)
+				{
+					gate.Add(cp.Cell);
+					continue;
+				}
+
+				gate.UnionWith(corridor.Cells);
+				if (seenCenters.Add(corridor.Center))
+					corridors.Add(corridor);
+			}
+
+			return corridors;
 		}
 
 		/// <summary>
@@ -1582,7 +1627,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// An edge cell whose outside neighbour is driveable is a way in; one backed by cliff, water or the
 		/// map edge is wall we did not have to build.
 		/// </summary>
-		void BuildDoors(HashSet<CPos> theirs, HashSet<CPos> gate)
+		void BuildDoors(HashSet<CPos> theirs, List<CNSealableCorridor> chokepointCorridors)
 		{
 			var doorCells = new HashSet<CPos>();
 
@@ -1628,56 +1673,50 @@ namespace OpenRA.Mods.Common.Traits
 					territoryWall.Add(cell);
 			}
 
-			// Chokepoints standing on our own ground are doors in the line we would draw, whether or not
-			// they sit on the edge of the claim. A ramp through a cliff in the middle of held territory is
-			// exactly what a defence is anchored at, and it never shows up as a boundary cell because both
-			// of its sides belong to us.
-			//
-			// This is why doors are not derived from the claim's edge alone: the two claims tile the whole
-			// reachable map between them, so outside the edge there is only ever enemy ground or rock, and
-			// a gap in the terrain is by definition somewhere both sides are already ours.
-			// A gate cell the claim ran up against is a way out of this territory. It cannot be inside the
-			// claim - the walk was not allowed through it - so the test is adjacency, and that is exactly
-			// what makes these the boundary rather than something to be cut out of it afterwards.
-			var adjacentOnly = 0;
-			foreach (var cell in gate)
+			// Chokepoint corridors standing on our own ground are doors in the line we would draw, whether
+			// or not they sit on the edge of the claim. A ramp through a cliff in the middle of held
+			// territory is exactly what a defence is anchored at, and it never shows up as a boundary cell
+			// because both of its sides belong to us. The corridor already covers the chokepoint at full
+			// width - it is what gated the walk in RebuildTerritory - so touching it is adjacency against
+			// the whole gap, not just its coarse marker cell.
+			var chokepointGateCells = new HashSet<CPos>();
+			var candidates = new List<CNSealableCorridor>();
+			foreach (var corridor in chokepointCorridors)
 			{
-				var touches = false;
-				foreach (var dir in CVec.Directions)
-				{
-					if (!territory.Contains(cell + dir))
-						continue;
+				chokepointGateCells.UnionWith(corridor.Cells);
 
-					touches = true;
-					break;
+				var touches = false;
+				foreach (var cell in corridor.Cells)
+				{
+					foreach (var dir in CVec.Directions)
+					{
+						if (!territory.Contains(cell + dir))
+							continue;
+
+						touches = true;
+						break;
+					}
+
+					if (touches)
+						break;
 				}
 
-				if (!touches)
-					continue;
-
-				adjacentOnly++;
-				doorCells.Add(cell);
+				if (touches)
+					candidates.Add(corridor);
 			}
 
-			// A door is the span across the gap - cliff on one side, cliff on the other - not a blob of
-			// cells around the marker. Grouping neighbouring gate cells produced that: a lump nine wide
-			// sitting on a ramp, which is not a line anything can be built along. Deriving the span
-			// geometrically from the claim direction produced the next failure: the axis was noisy, so
-			// spans ran diagonally through open ground and sealed nothing.
-			//
-			// CNSealableCorridor already gets this right - it tries both axes, walks to the shoulder on
-			// each, requires the approach to be open on both sides, and keeps the narrower - so a door is
-			// looked up there instead of derived again by hand.
-			var runsFormed = 0;
-			var runsTooWide = 0;
-			var runsTooNarrow = 0;
+			var adjacentOnly = candidates.Count;
+
+			// Anything left in doorCells that is not part of a scanned chokepoint is an open edge nothing
+			// was recorded for - rare, since the two claims otherwise tile the whole reachable map between
+			// them, but resolved through the same lookup rather than left unclassified.
 			var runsNoCorridor = 0;
-			var covered = new HashSet<CPos>();
 			var snapRadius = Math.Max(0, Info.ChokepointSnapRadius);
 			var maxWidth = Math.Max(1, Info.MaxDoorWidth) + 1;
+			var seenCenters = new HashSet<CPos>(candidates.Select(c => c.Center));
 			foreach (var start in doorCells)
 			{
-				if (!covered.Add(start))
+				if (chokepointGateCells.Contains(start))
 					continue;
 
 				var corridor = FindNarrowestCrossing(start, snapRadius, maxWidth);
@@ -1690,9 +1729,41 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 				}
 
-				runsFormed++;
-				covered.UnionWith(corridor.Cells);
+				if (seenCenters.Add(corridor.Center))
+					candidates.Add(corridor);
+			}
 
+			// Doors that sit close together read as one way in to a human, not several lined up in a row -
+			// a gap scanned at a couple of slightly different snap points, or two real gaps a few cells
+			// apart. Widest first, so the one that actually leads somewhere is what survives the merge
+			// rather than whichever happened to be found first.
+			candidates.Sort((a, b) => b.Cells.Length.CompareTo(a.Cells.Length));
+			var accepted = new List<CNSealableCorridor>();
+			var mergeRadiusSq = Math.Max(0, Info.DoorMergeRadius) * Math.Max(0, Info.DoorMergeRadius);
+			var runsMerged = 0;
+			foreach (var corridor in candidates)
+			{
+				var mergedAway = false;
+				foreach (var kept in accepted)
+				{
+					if ((corridor.Center - kept.Center).LengthSquared <= mergeRadiusSq)
+					{
+						mergedAway = true;
+						break;
+					}
+				}
+
+				if (mergedAway)
+					runsMerged++;
+				else
+					accepted.Add(corridor);
+			}
+
+			var runsTooWide = 0;
+			var runsTooNarrow = 0;
+			var runsTooShallow = 0;
+			foreach (var corridor in accepted)
+			{
 				if (corridor.Cells.Length < Math.Max(1, Info.MinDoorWidth))
 				{
 					runsTooNarrow++;
@@ -1708,7 +1779,17 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 				}
 
-				doors.Add(MakeDoor(corridor.Cells.ToList()));
+				var door = MakeDoor(corridor.Cells.ToList());
+
+				// A pinch that opens onto almost nothing is a dead end, not a way in - the ground behind it
+				// has to be worth defending before it counts as one.
+				if (door.GroundBeyond < Math.Max(0, Info.MinDoorGroundBeyond))
+				{
+					runsTooShallow++;
+					continue;
+				}
+
+				doors.Add(door);
 			}
 
 			// Widest first: the door that lets the most through is the one a defence is built at.
@@ -1718,11 +1799,13 @@ namespace OpenRA.Mods.Common.Traits
 			// screen could only report the total. Which stage empties the list is not something to keep
 			// guessing at.
 			CNBotLog.Debug(
-				"{0} territory: {1} cells, {2} wall, {3} front, {4} horizon | {5} chokepoints, {6} touching this "
-				+ "territory | {7} gate cells -> {8} runs ({9} no corridor) -> {10} doors ({11} too wide, {12} too narrow)",
+				"{0} territory: {1} cells, {2} wall, {3} front, {4} horizon | {5} chokepoints, {6} corridors "
+				+ "touching this territory | {7} extra edge cells ({8} no corridor) -> {9} candidates -> "
+				+ "{10} merged away -> {11} doors ({12} too wide, {13} too narrow, {14} too shallow)",
 				player, territory.Count, territoryWall.Count, territoryFront.Count, horizon.Count,
 				chokepoints.Count, adjacentOnly,
-				doorCells.Count, runsFormed, runsNoCorridor, doors.Count, runsTooWide, runsTooNarrow);
+				doorCells.Count, runsNoCorridor, candidates.Count, runsMerged, doors.Count,
+				runsTooWide, runsTooNarrow, runsTooShallow);
 		}
 
 		CNTerritoryDoor MakeDoor(List<CPos> run)
