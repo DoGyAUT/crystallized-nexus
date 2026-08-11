@@ -1660,26 +1660,40 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// A door is the span across the gap - cliff on one side, cliff on the other - not a blob of
-			// cells around the marker. Grouping neighbouring gate cells produced the latter: a lump nine
-			// wide sitting on a ramp, which is not a line anything can be built along.
+			// cells around the marker. Grouping neighbouring gate cells produced that: a lump nine wide
+			// sitting on a ramp, which is not a line anything can be built along. Deriving the span
+			// geometrically from the claim direction produced the next failure: the axis was noisy, so
+			// spans ran diagonally through open ground and sealed nothing.
 			//
-			// So each gate cell is walked outward along the axis across the passage until terrain stops
-			// it. What comes back is the width of the gap and, at the same time, the seal used to measure
-			// what lies behind it.
+			// CNSealableCorridor already gets this right - it tries both axes, walks to the shoulder on
+			// each, requires the approach to be open on both sides, and keeps the narrower - so a door is
+			// looked up there instead of derived again by hand.
 			var runsFormed = 0;
 			var runsTooWide = 0;
 			var runsTooNarrow = 0;
+			var runsNoCorridor = 0;
 			var covered = new HashSet<CPos>();
+			var snapRadius = Math.Max(0, Info.ChokepointSnapRadius);
+			var maxWidth = Math.Max(1, Info.MaxDoorWidth) + 1;
 			foreach (var start in doorCells)
 			{
-				if (covered.Contains(start))
+				if (!covered.Add(start))
 					continue;
 
-				var span = SpanAcrossGap(start);
-				runsFormed++;
-				covered.UnionWith(span);
+				var corridor = FindNarrowestCrossing(start, snapRadius, maxWidth);
+				if (corridor == null)
+				{
+					// No thick shoulder within reach on either axis - nothing here actually funnels anything,
+					// so it is front rather than a gate that simply failed to resolve.
+					runsNoCorridor++;
+					territoryFront.Add(start);
+					continue;
+				}
 
-				if (span.Count < Math.Max(1, Info.MinDoorWidth))
+				runsFormed++;
+				covered.UnionWith(corridor.Cells);
+
+				if (corridor.Cells.Length < Math.Max(1, Info.MinDoorWidth))
 				{
 					runsTooNarrow++;
 					continue;
@@ -1687,14 +1701,14 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Too wide to be a door. Terrain is not funnelling anything through a gap this size, and
 				// no arrangement of turrets closes it - treat it as front and let an army hold it.
-				if (span.Count > Math.Max(1, Info.MaxDoorWidth))
+				if (corridor.Cells.Length > Math.Max(1, Info.MaxDoorWidth))
 				{
 					runsTooWide++;
-					territoryFront.AddRange(span);
+					territoryFront.AddRange(corridor.Cells);
 					continue;
 				}
 
-				doors.Add(MakeDoor(span));
+				doors.Add(MakeDoor(corridor.Cells.ToList()));
 			}
 
 			// Widest first: the door that lets the most through is the one a defence is built at.
@@ -1705,42 +1719,10 @@ namespace OpenRA.Mods.Common.Traits
 			// guessing at.
 			CNBotLog.Debug(
 				"{0} territory: {1} cells, {2} wall, {3} front, {4} horizon | {5} chokepoints, {6} touching this "
-				+ "territory | {7} runs -> {8} doors ({9} too wide, {10} too narrow)",
+				+ "territory | {7} gate cells -> {8} runs ({9} no corridor) -> {10} doors ({11} too wide, {12} too narrow)",
 				player, territory.Count, territoryWall.Count, territoryFront.Count, horizon.Count,
 				chokepoints.Count, adjacentOnly,
-				runsFormed, doors.Count, runsTooWide, runsTooNarrow);
-		}
-
-		/// <summary>
-		/// The gap a chokepoint sits in, wall to wall. Walks out from the cell along the axis across the
-		/// passage until terrain stops it in both directions, which is both the width of the door and the
-		/// line a defence would be built on.
-		/// </summary>
-		List<CPos> SpanAcrossGap(CPos cell)
-		{
-			// The passage runs perpendicular to the way out of the territory, so the span runs across
-			// that: along the axis the claim does NOT extend in.
-			var inward = CVec.Zero;
-			foreach (var dir in CVec.Directions)
-				if (territory.Contains(cell + dir))
-					inward += dir;
-
-			var across = Math.Abs(inward.X) < Math.Abs(inward.Y) ? new CVec(1, 0) : new CVec(0, 1);
-			var span = new List<CPos> { cell };
-
-			foreach (var sign in new[] { 1, -1 })
-			{
-				for (var k = 1; k <= Math.Max(1, Info.MaxDoorWidth) + 1; k++)
-				{
-					var c = cell + across * (sign * k);
-					if (!world.Map.Contains(c) || !IsPassable(c))
-						break;
-
-					span.Add(c);
-				}
-			}
-
-			return span;
+				doorCells.Count, runsFormed, runsNoCorridor, doors.Count, runsTooWide, runsTooNarrow);
 		}
 
 		CNTerritoryDoor MakeDoor(List<CPos> run)
