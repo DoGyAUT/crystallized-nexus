@@ -4,7 +4,9 @@ Status: detection validated visually (`/cntopo`, several iterations) and now dri
 placement (`EnableDoorDefense`, opt-in, on by default for the tested profiles in
 `ai/base-building.yaml`). A profile-selected kill zone behind each door is built too
 (`EnableDoorKillZone`: walls for Turtle/Tech, wider defense spread for everyone else) but stays off
-in yaml pending its first playtest. Region control, region roles and front squads are recorded
+in yaml pending its first playtest. A shared region graph (`CNRegion`) is built too, replacing the
+per-bot territory flood with a one-time, shared shape plus a periodic ownership tally - not yet
+visually confirmed via `/cntopo`. Region roles, saturation scoring and front squads are recorded
 below as future work, not started.
 
 ## The problem
@@ -135,25 +137,34 @@ Even with the leak fixed, a couple of genuinely separate gaps a handful of cells
 as one door to a human, not two. `DoorMergeRadius` (default 8) folds a candidate into a wider one
 found within that radius, kept widest-first so the one that actually leads somewhere survives.
 
-## Future: a control system, and regions that replace `CNBotBase`
+## A shared region graph, and the control system that gave it shape
 
-Not started. Recorded so the direction is not re-derived later.
+Shipped (`CNRegion`, on `CNSharedTopology`). Three real in-game observations this session all
+traced back to the same cause: a base built defense near itself while its own most important door
+sat far outside `MaximumDefenseRadius`; a refinery placed on a naturally defensible peninsula with
+no awareness the peninsula was one coherent, narrow-necked pocket; production dropped right next to
+a door because nothing placing it had any notion of "this spot belongs to a region, and that region
+has a shape." Every bot's territory used to be a full breadth-first race over the whole map,
+rebuilt from scratch per bot per refresh — doable for chokepoints because `CNSharedTopology`
+already scans them once and shares the result across every bot on the map+locomotor, but territory
+never did that: each bot flooded the same ground independently, and with more than two players a
+bot's "mine vs. everyone else" race could disagree at the edge between two *other* players, since
+neither side of that edge was this bot's own walk.
 
-Right now every bot's territory is a full breadth-first race over the whole map, rebuilt from
-scratch per bot per refresh. That is doable because chokepoints already give the terrain-only
-part of the answer for free — `CNSharedTopology` already scans them once and shares the result
-across every bot on the map+locomotor. Territory does not do this yet: each bot floods the same
-ground independently, and with more than two players a bot's "mine vs. everyone else" race can
-disagree at the edge between two *other* players, since neither side of that edge is this bot's
-own walk.
+The fix: a **region graph**, shared exactly like the chokepoint scan — the map cut once, inside the
+same `BuildOwnTopology()` pass, into the same bowls a territory claim finds today (an *unseeded*
+flood-fill using the same chokepoint-corridor barrier `RebuildTerritory` already uses), stable
+because it depends on terrain and doors, not on who owns what. `CNRegion` carries `Cells`,
+`BoundaryCells` (for drawing), `DoorCorridorIndices`, `AdjacentRegionIds` (falls out for free from
+which regions share a corridor), `ResourceCellCount`, and `BuildableCellCount` - facts every bot
+reads via `GetRegions()`/`GetRegionIdAt()`/`GetRegionOwner()`, none of it re-derived per bot.
 
-The next step this points at: a **region graph**, shared like the chokepoint scan — the map cut
-once into the same bowls a territory claim finds today, stable because it depends on terrain and
-doors, not on who owns what. Ownership then becomes a small per-region vote (whose buildings
-outweigh whose in that region) instead of a per-bot flood over the whole map, and it stays
-consistent for every player by construction instead of by two independent walks happening to
-agree. A region changes hands — is "conquered" — when the vote flips, which is the hook the doc's
-own open question about base clusters was pointing at:
+Ownership is a separate, cheap, periodically-refreshed tally on top of that shape rather than a
+per-bot flood: building majority per region, one full-map actor scan per
+`RegionOwnershipRefreshInterval`, coordinated so only one bot's tick does it
+(`TickRegionOwnershipRefresh`, `NextOwnershipRefreshTick` on the shared object) and every other bot
+just reads `RegionOwners` afterward. A region changes hands - is "conquered" - when the tally
+flips, which is the hook the doc's own open question about base clusters was pointing at:
 
 **`CNBotBase` (`CNBaseBuilderBotModule.cs`) is what a region should replace, not sit next to.**
 It already does two things a region graph would do better. Clustering: construction yards within
@@ -171,6 +182,16 @@ approximating with distance because the terrain-bounded version did not exist ye
 Past that: regions get assigned for secondary base / eco / defense / outpost / production, the
 same shape as the existing `CNBaseRole` enum. Whether that stays exactly those five names or
 grows is unresolved on purpose - the point recorded here is *replace*, not *add another one*.
+
+**Next, not yet built: saturation.** A bot should be able to ask "how used up is my own region" -
+enough resources left, enough buildable space left, doors defended well enough - the same three
+questions that decide "keep building here" versus "look at an adjacent region instead."
+`ResourceCellCount`/`BuildableCellCount` are the static capacity side of that question, already
+shipped; the used side (own harvester/refinery count against `ResourceCellCount`, own building
+footprint against `BuildableCellCount`, and a richer per-door defense count than the existing
+boolean `DoorHasNearbyDefense` - compared against a door's width/importance, not just "any") is
+bot-specific dynamic state and deliberately not part of the shared graph. This is the natural
+consumer once region roles exist, not before.
 
 ## A kill-zone behind each door: two modes, gated off by default
 

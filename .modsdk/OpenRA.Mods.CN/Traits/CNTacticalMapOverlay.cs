@@ -24,6 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly Color BridgeColor = Color.Cyan;
 		public readonly Color RampColor = Color.Yellow;
 		public readonly Color PassageColor = Color.Orange;
+		public readonly Color RegionUnclaimedColor = Color.Gray;
 
 		public override object Create(ActorInitializer init) { return new CNTacticalMapOverlay(this); }
 	}
@@ -104,6 +105,36 @@ namespace OpenRA.Mods.Common.Traits
 					yield return new CircleAnnotationRenderable(pos, WDist.FromCells(1), useful ? 2 : 1, color);
 					yield return new TextAnnotationRenderable(font, pos, 0, color,
 						$"{cp.Type.ToString()[0]} {cp.BaseWeight} (d{cp.Domain}){(useful ? "" : " x")}");
+				}
+			}
+
+			// The map's shape - computed once, shared, so any one ready module's view of it is everyone's
+			// view (unlike the per-player territories below). Boundary only, not every interior cell: a
+			// large region drawn cell-by-cell would be enormous on screen and pointless to look at - the
+			// point here is where the line runs and who, if anyone, currently holds the region it encloses.
+			var regionModule = moduleList.FirstOrDefault();
+			if (regionModule != null)
+			{
+				foreach (var region in regionModule.GetRegions())
+				{
+					var owner = regionModule.GetRegionOwner(region.Id);
+					var regionColor = owner != null ? Color.FromArgb(160, owner.Color) : info.RegionUnclaimedColor;
+
+					foreach (var cell in region.BoundaryCells)
+					{
+						if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+							continue;
+
+						yield return new CircleAnnotationRenderable(
+							self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 4, 1, regionColor);
+					}
+
+					if (region.Cells.Length == 0 || !visible.Contains((PPos)region.Cells[0].ToMPos(self.World.Map)))
+						continue;
+
+					yield return new TextAnnotationRenderable(font, self.World.Map.CenterOfCell(region.Cells[0]), 0,
+						regionColor, $"R{region.Id} {region.Size}c res{region.ResourceCellCount} build{region.BuildableCellCount}"
+						+ (owner != null ? $" {owner.PlayerName}" : ""));
 				}
 			}
 

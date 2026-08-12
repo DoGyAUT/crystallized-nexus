@@ -46,6 +46,57 @@ namespace OpenRA.Mods.Common.Traits
 		public CPos[] NodeCells = [];
 		public bool LastBridgeSignature;
 		public int Generation;
+
+		// The map's shape, cut once by the same chokepoints that gate the territory walk - not anyone's
+		// claim, a terrain fact every bot can read regardless of who (if anyone) owns it.
+		public readonly List<CNRegion> Regions = [];
+		public CellLayer<int> RegionIdByCell;
+
+		// Ownership is a separate, cheap, periodically-refreshed tally on top of the (rarely-changing)
+		// region shape - not something a bridge-change rebuild needs to touch, so it lives outside
+		// Generation. Parallel to Regions; null = unclaimed/contested. NextOwnershipRefreshTick
+		// coordinates so only one bot's tick performs the scan per interval (single-sim-thread, same
+		// assumption RebuildSharedOnBridgeChange already relies on).
+		public Player[] RegionOwners = [];
+		public int NextOwnershipRefreshTick;
+	}
+
+	/// <summary>
+	/// One cell of the map's shape: a connected pocket of ground bounded by chokepoints, independent of
+	/// who (if anyone) holds it. Computed once, shared - see <see cref="CNSharedTopology"/>.
+	/// </summary>
+	public sealed class CNRegion
+	{
+		public readonly int Id;
+		public readonly CPos[] Cells;
+
+		/// <summary>Indices into the shared chokepoint-corridor list for the doors bounding this region.</summary>
+		public readonly int[] DoorCorridorIndices;
+
+		public readonly int[] AdjacentRegionIds;
+
+		/// <summary>Cells carrying a resource type - a rough size of what this region's ground is worth.</summary>
+		public readonly int ResourceCellCount;
+
+		/// <summary>Passable, non-ramp cells - a rough size of how much of this region can be built on.</summary>
+		public readonly int BuildableCellCount;
+
+		/// <summary>Cells with a non-region neighbour (a door, a wall, the map edge) - the outline, for drawing.</summary>
+		public readonly CPos[] BoundaryCells;
+
+		public int Size => Cells.Length;
+
+		public CNRegion(int id, CPos[] cells, int[] doorCorridorIndices, int[] adjacentRegionIds,
+			int resourceCellCount, int buildableCellCount, CPos[] boundaryCells)
+		{
+			Id = id;
+			Cells = cells;
+			DoorCorridorIndices = doorCorridorIndices;
+			AdjacentRegionIds = adjacentRegionIds;
+			ResourceCellCount = resourceCellCount;
+			BuildableCellCount = buildableCellCount;
+			BoundaryCells = boundaryCells;
+		}
 	}
 
 	// A narrow chokepoint that can be plugged with a single axis-aligned wall line plus a matching gate.
@@ -215,6 +266,11 @@ namespace OpenRA.Mods.Common.Traits
 			"count having changed, so a settled game recomputes almost never.")]
 		public readonly int TerritoryRefreshInterval = 250;
 
+		[Desc("Ticks between region-ownership rescans. The region shape itself is computed once and shared;",
+			"only which player's buildings dominate each region is refreshed on a timer, coordinated across",
+			"bots via CNSharedTopology so only one of them does the scan per interval.")]
+		public readonly int RegionOwnershipRefreshInterval = 250;
+
 		[Desc("Cells counted behind a door before the measurement stops. A door opening onto more ground than",
 			"this is simply 'wide open' - the exact figure stops mattering well before the cap.")]
 		public readonly int DoorBeyondCellCap = 1200;
@@ -265,6 +321,12 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<CNChokepoint> chokepoints = [];
 		IReadOnlyDictionary<CPos, uint> abstractDomains;
 		CPos[] nodeCells = [];
+
+		// Region shape (Cells/DoorCorridorIndices/AdjacentRegionIds/counts) is small and copied per-instance
+		// like chokepoints; RegionIdByCell is heavy like Passability, so it is only ever referenced, never copied.
+		readonly List<CNRegion> regions = [];
+		CellLayer<int> regionIdByCell;
+		IResourceLayer resourceLayer;
 
 		// The terrain-only topology is built once per (world, locomotor) and shared across all bots. The first bot to
 		// build publishes here; the rest adopt it. Generation bumps on a (shared) bridge-change rebuild.
@@ -331,6 +393,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			pathFinder = world.WorldActor.TraitOrDefault<PathFinder>();
+			resourceLayer = world.WorldActor.TraitOrDefault<IResourceLayer>();
 
 			if (Info.TopologyLocomotors.Count > 0)
 				locomotor = world.WorldActor.TraitsImplementing<Locomotor>()
@@ -363,6 +426,7 @@ namespace OpenRA.Mods.Common.Traits
 			TickCorridorRefresh();
 			TickHighGroundRefresh();
 			TickTerritoryRefresh();
+			TickRegionOwnershipRefresh();
 
 			// Another bot rebuilt the shared topology (e.g. after a bridge change) -> adopt the newer version.
 			if (shared != null && shared.Generation != sharedGeneration)
@@ -422,6 +486,8 @@ namespace OpenRA.Mods.Common.Traits
 			abstractDomains = null;
 			nodeCells = [];
 			passability = null;
+			regions.Clear();
+			regionIdByCell = null;
 			shared = null;
 			sharedGeneration = -1;
 
@@ -489,6 +555,9 @@ namespace OpenRA.Mods.Common.Traits
 			chokepoints.AddRange(sh.Chokepoints);
 			bridgeWatchCells.Clear();
 			bridgeWatchCells.AddRange(sh.BridgeWatchCells);
+			regions.Clear();
+			regions.AddRange(sh.Regions);
+			regionIdByCell = sh.RegionIdByCell;
 			ResetPerBaseCaches();
 		}
 
@@ -500,9 +569,12 @@ namespace OpenRA.Mods.Common.Traits
 				AbstractDomains = abstractDomains,
 				NodeCells = nodeCells,
 				LastBridgeSignature = lastBridgeSignature,
+				RegionIdByCell = regionIdByCell,
 			};
 			sh.Chokepoints.AddRange(chokepoints);
 			sh.BridgeWatchCells.AddRange(bridgeWatchCells);
+			sh.Regions.AddRange(regions);
+			sh.RegionOwners = new Player[regions.Count];
 			return sh;
 		}
 
@@ -520,6 +592,16 @@ namespace OpenRA.Mods.Common.Traits
 			shared.Chokepoints.AddRange(chokepoints);
 			shared.BridgeWatchCells.Clear();
 			shared.BridgeWatchCells.AddRange(bridgeWatchCells);
+
+			// A bridge changing can split or merge regions (it changes which corridors resolve), so the
+			// shape has to be rebuilt alongside the chokepoints that gate it. Ownership is reset rather
+			// than carried over - the old region ids no longer mean anything.
+			shared.Regions.Clear();
+			shared.Regions.AddRange(regions);
+			shared.RegionIdByCell = regionIdByCell;
+			shared.RegionOwners = new Player[regions.Count];
+			shared.NextOwnershipRefreshTick = 0;
+
 			shared.Generation++;
 			sharedGeneration = shared.Generation;
 			ResetPerBaseCaches();
@@ -611,7 +693,135 @@ namespace OpenRA.Mods.Common.Traits
 
 			chokepoints.AddRange(byCell.Values);
 			lastBridgeSignature = CurrentBridgeSignature();
+
+			BuildRegions(domainNodeCount);
 			return true;
+		}
+
+		// The map's shape, cut by the same chokepoint corridors that gate the territory walk - computed
+		// once here (unseeded by any claim) so every bot reads the same regions regardless of who, if
+		// anyone, owns them. One flood-fill component per gap between corridors is one region; a corridor
+		// a region's flood-fill runs into (but cannot cross) is recorded as one of that region's doors, so
+		// adjacency between regions falls out for free from which ones share a corridor.
+		void BuildRegions(Dictionary<uint, int> domainNodeCount)
+		{
+			regions.Clear();
+			regionIdByCell = new CellLayer<int>(world.Map);
+			foreach (var c in world.Map.AllCells)
+				regionIdByCell[c] = -1;
+
+			var gate = new HashSet<CPos>();
+			var corridors = ResolveChokepointCorridors(gate);
+
+			var cellToCorridorIndex = new Dictionary<CPos, int>();
+			for (var i = 0; i < corridors.Count; i++)
+				foreach (var cell in corridors[i].Cells)
+					cellToCorridorIndex[cell] = i;
+
+			var minDomainNodes = Math.Max(1, Info.MinDomainNodes);
+			var visited = new HashSet<CPos>(gate);
+			var byCorridorIndex = new Dictionary<int, List<int>>();
+
+			foreach (var start in world.Map.AllCells)
+			{
+				if (!IsPassable(start) || !visited.Add(start))
+					continue;
+
+				// Tiny isolated pockets (a mesa top, an unreachable sliver) are not a tactically real
+				// region, same reasoning MinDomainNodes already applies to chokepoints in one.
+				if (domainNodeCount.TryGetValue(DomainOf(start), out var nodes) && nodes < minDomainNodes)
+					continue;
+
+				var id = regions.Count;
+				var cells = new List<CPos>();
+				var doorIndices = new HashSet<int>();
+				var resourceCells = 0;
+				var buildableCells = 0;
+				var queue = new Queue<CPos>();
+				queue.Enqueue(start);
+				cells.Add(start);
+
+				while (queue.Count > 0)
+				{
+					var cell = queue.Dequeue();
+					regionIdByCell[cell] = id;
+
+					if (resourceLayer != null && resourceLayer.GetResource(cell).Type != null)
+						resourceCells++;
+
+					if (world.Map.Ramp[cell] == 0)
+						buildableCells++;
+
+					foreach (var dir in CVec.Directions)
+					{
+						var next = cell + dir;
+						if (!world.Map.Contains(next))
+							continue;
+
+						if (gate.Contains(next))
+						{
+							if (cellToCorridorIndex.TryGetValue(next, out var corridorIndex))
+								doorIndices.Add(corridorIndex);
+							continue;
+						}
+
+						if (!IsPassable(next) || !visited.Add(next))
+							continue;
+
+						cells.Add(next);
+						queue.Enqueue(next);
+					}
+				}
+
+				foreach (var doorIndex in doorIndices)
+				{
+					if (!byCorridorIndex.TryGetValue(doorIndex, out var sharing))
+						byCorridorIndex[doorIndex] = sharing = [];
+
+					sharing.Add(id);
+				}
+
+				// A cell with any neighbour outside this region's own cell set is on the outline - a
+				// separate pass over the finished set rather than tracked during the flood, since a
+				// neighbour failing visited.Add there could mean either "already ours" or "someone else's
+				// region", and only this region's own finished cell set can tell the two apart.
+				var cellSet = new HashSet<CPos>(cells);
+				var boundary = new List<CPos>();
+				foreach (var cell in cells)
+				{
+					var isBoundary = false;
+					foreach (var dir in CVec.Directions)
+					{
+						if (world.Map.Contains(cell + dir) && cellSet.Contains(cell + dir))
+							continue;
+
+						isBoundary = true;
+						break;
+					}
+
+					if (isBoundary)
+						boundary.Add(cell);
+				}
+
+				regions.Add(new CNRegion(id, cells.ToArray(), doorIndices.ToArray(), [], resourceCells,
+					buildableCells, boundary.ToArray()));
+			}
+
+			// Adjacency falls out of which regions share a door corridor - fill it in now that every
+			// region's own doors are known.
+			for (var id = 0; id < regions.Count; id++)
+			{
+				var region = regions[id];
+				var adjacent = new HashSet<int>();
+				foreach (var doorIndex in region.DoorCorridorIndices)
+					if (byCorridorIndex.TryGetValue(doorIndex, out var sharing))
+						foreach (var otherId in sharing)
+							if (otherId != id)
+								adjacent.Add(otherId);
+
+				regions[id] = new CNRegion(id, region.Cells, region.DoorCorridorIndices, adjacent.ToArray(),
+					region.ResourceCellCount, region.BuildableCellCount, region.BoundaryCells);
+			}
 		}
 
 		// Directly scans the terrain for narrow separating passages: the narrowest cell of each bounded, thick-
@@ -1588,6 +1798,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>The ways into that ground. Everything else along its edge is terrain doing the work.</summary>
 		public IReadOnlyList<CNTerritoryDoor> GetTerritoryDoors() { EnsureBuilt(); return doors; }
 
+		/// <summary>The map's regions - a terrain fact computed once and shared, unowned by default. See <see cref="GetRegionOwner"/>.</summary>
+		public IReadOnlyList<CNRegion> GetRegions() { EnsureBuilt(); return regions; }
+
+		/// <summary>Region id at a cell, or -1 if it is a gate/chokepoint cell or outside any region.</summary>
+		public int GetRegionIdAt(CPos cell) => regionIdByCell != null && world.Map.Contains(cell) ? regionIdByCell[cell] : -1;
+
+		/// <summary>Whoever's buildings currently dominate a region, or null if unclaimed/contested/unknown.</summary>
+		public Player GetRegionOwner(int regionId) =>
+			shared?.RegionOwners is { } owners && regionId >= 0 && regionId < owners.Length ? owners[regionId] : null;
+
 		/// <summary>Edge cells backed by cliff, water or map edge - free wall, nothing to build there.</summary>
 		public IReadOnlyList<CPos> GetTerritoryWall() { EnsureBuilt(); return territoryWall; }
 
@@ -1624,6 +1844,44 @@ namespace OpenRA.Mods.Common.Traits
 			territoryLastEnemyCount = enemyCells.Count;
 
 			RebuildTerritory(enemyCells);
+		}
+
+		/// <summary>
+		/// Region ownership is a separate, cheap tally on top of the (rarely-changing) shared region
+		/// shape - unlike the territory walk, it does not re-derive anything per bot: whichever bot's tick
+		/// hits the shared refresh window does one pass over every building on the map and settles every
+		/// region's owner (whoever's buildings are the majority there) in one go, publishing it back onto
+		/// the shared object for every other bot to read.
+		/// </summary>
+		void TickRegionOwnershipRefresh()
+		{
+			if (shared == null || shared.Regions.Count == 0 || world.WorldTick < shared.NextOwnershipRefreshTick)
+				return;
+
+			// Claim the window immediately so two bots ticking in the same frame do not both redo the scan.
+			shared.NextOwnershipRefreshTick = world.WorldTick + Math.Max(1, Info.RegionOwnershipRefreshInterval);
+
+			var tally = new Dictionary<int, Dictionary<Player, int>>();
+			foreach (var a in world.Actors)
+			{
+				if (a.IsDead || !a.IsInWorld || !a.Info.HasTraitInfo<BuildingInfo>())
+					continue;
+
+				var regionId = GetRegionIdAt(a.Location);
+				if (regionId < 0)
+					continue;
+
+				if (!tally.TryGetValue(regionId, out var byPlayer))
+					tally[regionId] = byPlayer = [];
+
+				byPlayer[a.Owner] = byPlayer.GetValueOrDefault(a.Owner) + 1;
+			}
+
+			var owners = new Player[shared.Regions.Count];
+			foreach (var (regionId, byPlayer) in tally)
+				owners[regionId] = byPlayer.OrderByDescending(kv => kv.Value).First().Key;
+
+			shared.RegionOwners = owners;
 		}
 
 		/// <summary>
