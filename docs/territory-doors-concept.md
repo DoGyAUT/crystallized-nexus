@@ -154,9 +154,23 @@ neither side of that edge was this bot's own walk.
 The fix: a **region graph**, shared exactly like the chokepoint scan — the map cut once, inside the
 same `BuildOwnTopology()` pass, into the same bowls a territory claim finds today (an *unseeded*
 flood-fill using the same chokepoint-corridor barrier `RebuildTerritory` already uses), stable
-because it depends on terrain and doors, not on who owns what. `CNRegion` carries `Cells`,
-`BoundaryCells` (for drawing), `DoorCorridorIndices`, `AdjacentRegionIds` (falls out for free from
-which regions share a corridor), `ResourceCellCount`, and `BuildableCellCount` - facts every bot
+because it depends on terrain and doors, not on who owns what.
+
+**Height counts as a barrier too, not just chokepoints.** First `/cntopo` pass showed a region
+spanning both sides of a visible cliff — a ramp only resolves to a sealable-corridor gate cell when
+it happens to be the narrowest crossing nearby; a wide or gentle one otherwise let the flood walk
+straight through, so high ground and low ground read as one region despite looking clearly split.
+Fixed by adding every cliff ramp's *full* footprint (not just its two chokepoint endpoint markers)
+as an extra barrier for region-building specifically - height is a real separation even where
+nothing is narrow enough to wall, which the door/territory model never needed since defence doesn't
+care whether a gap is wide, only whether it is narrow enough to hold. This only changes region
+computation; `RebuildTerritory`'s own gate (and everything built on it - doors, kill zones) is
+untouched. Adjacency was generalised alongside it: two regions are neighbours if they share *any*
+barrier cell, not only ones that happen to carry a resolved door corridor.
+
+`CNRegion` carries `Cells`, `BoundaryCells` (for drawing), `DoorCorridorIndices`, `AdjacentRegionIds`
+(falls out for free from which regions share a barrier cell), `ResourceCellCount`, and
+`BuildableCellCount` - facts every bot
 reads via `GetRegions()`/`GetRegionIdAt()`/`GetRegionOwner()`, none of it re-derived per bot.
 
 Ownership is a separate, cheap, periodically-refreshed tally on top of that shape rather than a

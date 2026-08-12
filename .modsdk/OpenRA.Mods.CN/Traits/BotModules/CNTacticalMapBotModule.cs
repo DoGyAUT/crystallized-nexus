@@ -698,11 +698,17 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		// The map's shape, cut by the same chokepoint corridors that gate the territory walk - computed
-		// once here (unseeded by any claim) so every bot reads the same regions regardless of who, if
-		// anyone, owns them. One flood-fill component per gap between corridors is one region; a corridor
-		// a region's flood-fill runs into (but cannot cross) is recorded as one of that region's doors, so
-		// adjacency between regions falls out for free from which ones share a corridor.
+		// The map's shape, cut by the same chokepoint corridors that gate the territory walk PLUS every
+		// cliff ramp's full footprint - computed once here (unseeded by any claim) so every bot reads the
+		// same regions regardless of who, if anyone, owns them. A ramp only sealable-corridor-resolves to
+		// a narrow gate cell when it happens to be the tightest crossing nearby; a wide or gentle one
+		// otherwise let the flood walk straight through it, so a visible cliff with a walkable slope ended
+		// up inside one region instead of splitting high ground from low. The full ramp footprint (not
+		// just its two chokepoint marker endpoints) is barrier here regardless of whether it resolved to a
+		// sealable corridor, because height is a real separation even where nothing is narrow enough to
+		// wall. One flood-fill component per gap between barrier cells is one region; adjacency between
+		// regions falls out of which ones share a barrier cell, whether or not that cell also happens to
+		// carry a resolved door corridor.
 		void BuildRegions(Dictionary<uint, int> domainNodeCount)
 		{
 			regions.Clear();
@@ -718,9 +724,17 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var cell in corridors[i].Cells)
 					cellToCorridorIndex[cell] = i;
 
+			var rampCells = new HashSet<CPos>();
+			foreach (var c in world.Map.AllCells)
+				if (IsPassable(c) && IsCliffRamp(c))
+					rampCells.Add(c);
+
+			var barrier = new HashSet<CPos>(gate);
+			barrier.UnionWith(rampCells);
+
 			var minDomainNodes = Math.Max(1, Info.MinDomainNodes);
-			var visited = new HashSet<CPos>(gate);
-			var byCorridorIndex = new Dictionary<int, List<int>>();
+			var visited = new HashSet<CPos>(barrier);
+			var regionsTouchingBarrierCell = new Dictionary<CPos, List<int>>();
 
 			foreach (var start in world.Map.AllCells)
 			{
@@ -735,6 +749,7 @@ namespace OpenRA.Mods.Common.Traits
 				var id = regions.Count;
 				var cells = new List<CPos>();
 				var doorIndices = new HashSet<int>();
+				var touchedBarrierCells = new List<CPos>();
 				var resourceCells = 0;
 				var buildableCells = 0;
 				var queue = new Queue<CPos>();
@@ -758,10 +773,12 @@ namespace OpenRA.Mods.Common.Traits
 						if (!world.Map.Contains(next))
 							continue;
 
-						if (gate.Contains(next))
+						if (barrier.Contains(next))
 						{
 							if (cellToCorridorIndex.TryGetValue(next, out var corridorIndex))
 								doorIndices.Add(corridorIndex);
+
+							touchedBarrierCells.Add(next);
 							continue;
 						}
 
@@ -773,12 +790,13 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
-				foreach (var doorIndex in doorIndices)
+				foreach (var barrierCell in touchedBarrierCells)
 				{
-					if (!byCorridorIndex.TryGetValue(doorIndex, out var sharing))
-						byCorridorIndex[doorIndex] = sharing = [];
+					if (!regionsTouchingBarrierCell.TryGetValue(barrierCell, out var touching))
+						regionsTouchingBarrierCell[barrierCell] = touching = [];
 
-					sharing.Add(id);
+					if (!touching.Contains(id))
+						touching.Add(id);
 				}
 
 				// A cell with any neighbour outside this region's own cell set is on the outline - a
@@ -807,19 +825,31 @@ namespace OpenRA.Mods.Common.Traits
 					buildableCells, boundary.ToArray()));
 			}
 
-			// Adjacency falls out of which regions share a door corridor - fill it in now that every
-			// region's own doors are known.
+			// Adjacency falls out of which regions share a barrier cell - a resolved door corridor or an
+			// unresolved cliff ramp both count. One pass over the (small) barrier-cell map rather than one
+			// per region: most barrier cells touch exactly two regions, so this stays close to linear.
+			var adjacency = new Dictionary<int, HashSet<int>>();
+			foreach (var touching in regionsTouchingBarrierCell.Values)
+			{
+				if (touching.Count < 2)
+					continue;
+
+				foreach (var a in touching)
+				{
+					if (!adjacency.TryGetValue(a, out var set))
+						adjacency[a] = set = [];
+
+					foreach (var b in touching)
+						if (b != a)
+							set.Add(b);
+				}
+			}
+
 			for (var id = 0; id < regions.Count; id++)
 			{
 				var region = regions[id];
-				var adjacent = new HashSet<int>();
-				foreach (var doorIndex in region.DoorCorridorIndices)
-					if (byCorridorIndex.TryGetValue(doorIndex, out var sharing))
-						foreach (var otherId in sharing)
-							if (otherId != id)
-								adjacent.Add(otherId);
-
-				regions[id] = new CNRegion(id, region.Cells, region.DoorCorridorIndices, adjacent.ToArray(),
+				var adjacent = adjacency.TryGetValue(id, out var set) ? set.ToArray() : [];
+				regions[id] = new CNRegion(id, region.Cells, region.DoorCorridorIndices, adjacent,
 					region.ResourceCellCount, region.BuildableCellCount, region.BoundaryCells);
 			}
 		}
