@@ -2,9 +2,10 @@
 
 Status: detection validated visually (`/cntopo`, several iterations) and now drives defense
 placement (`EnableDoorDefense`, opt-in, on by default for the tested profiles in
-`ai/base-building.yaml`). A kill-zone perimeter behind each door is built too (`EnableDoorKillZone`)
-but stays off in yaml pending its own visual check. Region control, region roles and front squads
-are recorded below as future work, not started.
+`ai/base-building.yaml`). A profile-selected kill zone behind each door is built too
+(`EnableDoorKillZone`: walls for Turtle/Tech, wider defense spread for everyone else) but stays off
+in yaml pending its first playtest. Region control, region roles and front squads are recorded
+below as future work, not started.
 
 ## The problem
 
@@ -171,30 +172,39 @@ Past that: regions get assigned for secondary base / eco / defense / outpost / p
 same shape as the existing `CNBaseRole` enum. Whether that stays exactly those five names or
 grows is unresolved on purpose - the point recorded here is *replace*, not *add another one*.
 
-## A kill-zone perimeter around each door
+## A kill-zone behind each door: two modes, gated off by default
 
-Shipped, gated off by default. `GetDoorDefenseAnchors` already pulled placement toward a position
-behind a door facing its approach, but that was only ever a scoring bonus on top of the ordinary
-build-site search - it never laid out a shape.
+Shipped, `EnableDoorKillZone` still off in yaml. `GetDoorDefenseAnchors` already pulled placement
+toward a position behind a door facing its approach, but that was only ever a scoring bonus on top
+of the ordinary build-site search - it never laid out a shape, and never distinguished profiles.
 
-Shape chosen: a half-circle, not a rectangle - the user's own sketch of where a kill zone should
-sit, and simpler to get right than it sounds. `GetDoorKillZoneCells` (`CNTacticalMapBotModule.cs`)
-takes a half-annulus around `door.Center` (`Info.DoorKillZoneRadius`, default 7 - bigger than the
-3-cell `GetDoorDefenseAnchors` offset on purpose, so the anchor ends up inside the walled zone) via
-the engine's own `Map.FindTilesInAnnulus`, kept to the territory side with a half-plane filter
-against `Outward`. No new trigonometry, unlike the door span problem itself.
+Three rounds of feedback settled on two modes instead of one universal shape, chosen automatically
+by the active profile (`DoorKillZoneUsesWalls()`, same Adaptive-resolves-to-its-current-sub-profile
+pattern `ShouldSealChokepoints()` already uses):
 
-Wiring is a direct generalisation of `EnableChokepointSealing` /
-`ChooseChokepointWallLocation` (`CNBaseBuilderQueueManager.cs`) from `CNSealableCorridor` to
-`CNTerritoryDoor` - `ChooseDoorKillZoneWallLocation`, gated by `EnableDoorKillZone` /
-`DoorKillZoneProfiles` / `ShouldSealDoorKillZone()`, only walls a door once an own defence
-structure already stands within `DoorKillZoneRadius` of it (`DoorHasNearbyDefense`) - no point
-fortifying a position nothing defends yet. Deliberately no gate: the half-annulus is open on the
-door-facing side by construction, so a unit paths around either end instead of through one.
+- **C-mode** (Rush, Steamroller, Expansion, Adaptive resolving to one of those): no wall - the
+  half-annulus already built for the earlier single-shape version (`GetDoorKillZoneCells`,
+  `Info.DoorKillZoneRadius`, `Map.FindTilesInAnnulus` + a half-plane filter against `Outward`)
+  becomes extra anchor points instead, feeding the same `ChokepointDefenseAnchorWeight` falloff
+  `GetDoorDefenseAnchors` already uses - defense spreads across the arc as the nearest anchors fill
+  up, no new scoring code.
+- **L-mode** (Turtle, Tech): actually walls the zone, in two tiers. Tier 1 retreats to a genuinely
+  narrower natural pinch behind the door if one exists - found by calling `FindNarrowestCrossing`
+  (made public for this) from a few points stepping back along the door's approach axis, exactly as
+  `ResolveChokepointCorridors` already does from a scanned chokepoint cell. A found pinch is a real
+  `CNSealableCorridor`, so sealing it is a direct reuse of `ChokepointGateFootprint` and
+  `ChokepointCorridorIsWorthSealing` (both already generic over any corridor) - wall, gate,
+  orientation (3x1/1x3) and the "don't spam gates" cap all come from the same machinery
+  `EnableChokepointSealing` already has. This also solves a wall connecting cleanly to real terrain
+  for free: `FindNarrowestCrossing`'s own shoulder-walk already guarantees that. Tier 2, only when no
+  such pinch exists nearby, walls a simple fixed-radius box (two flanks and a back, door-facing side
+  open, reusing `PerimeterCells`) - accepted as a rare, lower-stakes fallback rather than something
+  needing its own terrain-seeking geometry.
 
-Two-step rollout, same as the doors themselves: the geometry and the `/cntopo` overlay ship
-unconditionally, so the half-circle can be eyeballed with zero behaviour change before anything
-gets built. `EnableDoorKillZone` stays off in `ai/base-building.yaml` until that check happens.
+Both tiers still require `DoorHasNearbyDefense` - a door is only worth fortifying once an own
+defence structure already stands within `DoorKillZoneRadius` of it (placed by `EnableDoorDefense`,
+which runs independently). Tier-1 gates share the existing `BasePerimeterMaxGateCount` cap with
+chokepoint-seal and base-perimeter gates rather than getting a separate budget.
 
 ## Future: region-aware front squads
 

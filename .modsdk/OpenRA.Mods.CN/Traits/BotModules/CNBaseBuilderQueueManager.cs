@@ -1207,11 +1207,13 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Build walls around protected structures, around the core base for defensive profiles, across
-			// chokepoints, or in a set-back band behind a territory door. Door kill zones build no gates.
+			// chokepoints, or (L-mode: Turtle/Tech) in a kill zone behind a territory door - which may
+			// also need a gate, when it retreated to a genuine fallback pinch instead of an open-ended box.
 			if (baseBuilder.Info.ProtectedByWalls.Count > 0 || baseBuilder.ShouldBuildBasePerimeterWalls()
 				|| baseBuilder.ShouldSealChokepoints() || baseBuilder.ShouldSealDoorKillZone())
 			{
-				if ((baseBuilder.ShouldBuildBasePerimeterWalls() || baseBuilder.ShouldSealChokepoints())
+				if ((baseBuilder.ShouldBuildBasePerimeterWalls() || baseBuilder.ShouldSealChokepoints()
+						|| (baseBuilder.ShouldSealDoorKillZone() && baseBuilder.DoorKillZoneUsesWalls()))
 					&& CountExistingAndQueuedGates() < baseBuilder.Info.BasePerimeterMaxGateCount)
 				{
 					foreach (var gate in buildableThings
@@ -3071,6 +3073,91 @@ namespace OpenRA.Mods.Common.Traits
 				&& (a.Location - door.Center).LengthSquared <= radiusSq);
 		}
 
+		// A door is only a bad line to hold if something narrower exists behind it - always search,
+		// only use the result if it is genuinely narrower than the door itself. No separate "is this
+		// door bad" threshold: a door that is already the narrowest thing around simply finds nothing
+		// better. Reuses FindNarrowestCrossing exactly as ResolveChokepointCorridors does, just searched
+		// from a point behind the door instead of at a scanned chokepoint cell.
+		CNSealableCorridor FindDoorFallbackCorridor(CNTerritoryDoor door, int maxDepth)
+		{
+			var tacticalMap = baseBuilder.TacticalMapModule;
+			var approach = CNTacticalMapBotModule.DoorApproachAxis(door);
+			var snapRadius = Math.Max(0, tacticalMap.Info.ChokepointSnapRadius);
+			var maxWidth = Math.Max(1, tacticalMap.Info.ChokepointSealMaxWidth);
+
+			CNSealableCorridor best = null;
+			for (var depth = 3; depth <= maxDepth; depth += 2)
+			{
+				var corridor = tacticalMap.FindNarrowestCrossing(door.Center - approach * depth, snapRadius, maxWidth);
+				if (corridor == null || corridor.Cells.Length >= door.Width)
+					continue;
+
+				if (best == null || corridor.Cells.Length < best.Cells.Length)
+					best = corridor;
+			}
+
+			return best;
+		}
+
+		// Fallback of the fallback: no natural pinch exists behind the door at all. Three sides of a
+		// fixed-radius box (two flanks and a back, door-facing side open) - simpler than tier 1's
+		// terrain-guaranteed corridor, accepted here as a rare, lower-stakes case rather than the common
+		// path, so it does not need a terrain-seeking walk of its own.
+		static IEnumerable<CPos> DoorKillZoneBoxWallCells(CNTerritoryDoor door, int radius)
+		{
+			const int Inset = 2;
+			if (radius <= Inset)
+				yield break;
+
+			var approach = CNTacticalMapBotModule.DoorApproachAxis(door);
+			int minX, maxX, minY, maxY;
+			bool excludeMaxX = false, excludeMinX = false, excludeMaxY = false, excludeMinY = false;
+
+			if (approach.X != 0)
+			{
+				minY = door.Center.Y - radius;
+				maxY = door.Center.Y + radius;
+				if (approach.X > 0)
+				{
+					minX = door.Center.X - radius;
+					maxX = door.Center.X - Inset;
+					excludeMaxX = true;
+				}
+				else
+				{
+					minX = door.Center.X + Inset;
+					maxX = door.Center.X + radius;
+					excludeMinX = true;
+				}
+			}
+			else
+			{
+				minX = door.Center.X - radius;
+				maxX = door.Center.X + radius;
+				if (approach.Y > 0)
+				{
+					minY = door.Center.Y - radius;
+					maxY = door.Center.Y - Inset;
+					excludeMaxY = true;
+				}
+				else
+				{
+					minY = door.Center.Y + Inset;
+					maxY = door.Center.Y + radius;
+					excludeMinY = true;
+				}
+			}
+
+			foreach (var cell in PerimeterCells(minX, maxX, minY, maxY))
+			{
+				if (excludeMaxX && cell.X == maxX) continue;
+				if (excludeMinX && cell.X == minX) continue;
+				if (excludeMaxY && cell.Y == maxY) continue;
+				if (excludeMinY && cell.Y == minY) continue;
+				yield return cell;
+			}
+		}
+
 		bool HasBlockingBuildingForChokepointSeal(CPos cell)
 		{
 			return world.ActorMap.GetActorsAt(cell)
@@ -3296,13 +3383,13 @@ namespace OpenRA.Mods.Common.Traits
 			return (null, null, 0);
 		}
 
-		// Wall a set-back band behind a territory door instead of sealing the door itself - the door stays
-		// passable, but the wall forces anything through it to cross open ground under fire, or go around
-		// its ends. No gate: GetDoorKillZoneCells is already only the half of the annulus behind the door,
-		// so the two ends are open by construction and a unit paths around either one.
+		// L-mode (Turtle/Tech) only: wall a territory door's kill zone instead of the door itself. Tier 1
+		// retreats to a narrower natural pinch behind the door if one exists (a genuine CNSealableCorridor,
+		// terrain-connected by FindNarrowestCrossing's own validation - reuses the chokepoint-seal wall
+		// body verbatim). Tier 2, only when no such pinch exists, walls a fixed-radius box instead.
 		(CPos? Location, CPos? BaseCenter, int Variant) ChooseDoorKillZoneWallLocation(ActorInfo actorInfo)
 		{
-			if (!baseBuilder.ShouldSealDoorKillZone() || baseBuilder.TacticalMapModule == null)
+			if (!baseBuilder.ShouldSealDoorKillZone() || !baseBuilder.DoorKillZoneUsesWalls() || baseBuilder.TacticalMapModule == null)
 				return (null, null, 0);
 
 			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
@@ -3310,13 +3397,32 @@ namespace OpenRA.Mods.Common.Traits
 				return (null, null, 0);
 
 			var baseCenter = baseBuilder.PrimaryBase.Center;
+			var radius = Math.Max(1, baseBuilder.TacticalMapModule.Info.DoorKillZoneRadius);
 			foreach (var door in baseBuilder.TacticalMapModule.GetTerritoryDoors()
 				.OrderBy(d => (d.Center - baseCenter).LengthSquared))
 			{
 				if (!DoorHasNearbyDefense(door))
 					continue;
 
-				var zoneCells = baseBuilder.TacticalMapModule.GetDoorKillZoneCells(door);
+				var fallback = FindDoorFallbackCorridor(door, radius);
+				if (fallback != null)
+				{
+					var gateFootprint = ChokepointGateFootprint(fallback);
+					if (gateFootprint != null && ChokepointCorridorIsWorthSealing(fallback, actorInfo, bi))
+					{
+						foreach (var cell in fallback.Cells
+							.Where(c => !gateFootprint.Contains(c)
+								&& world.Map.Contains(c)
+								&& !HasOwnActorAt(c, baseBuilder.Info.WallTypes) && !HasOwnActorAt(c, baseBuilder.Info.GateTypes)
+								&& !HasAnyBuildingAt(c)
+								&& world.CanPlaceBuilding(c, actorInfo, bi, null)
+								&& bi.IsCloseEnoughToBase(world, player, actorInfo, c))
+							.OrderBy(c => (c - fallback.Center).LengthSquared))
+							return (cell, baseCenter, 0);
+					}
+				}
+
+				var zoneCells = DoorKillZoneBoxWallCells(door, radius).ToList();
 				if (zoneCells.Count == 0)
 					continue;
 
@@ -3339,6 +3445,56 @@ namespace OpenRA.Mods.Common.Traits
 						&& world.CanPlaceBuilding(c, actorInfo, bi, null) && bi.IsCloseEnoughToBase(world, player, actorInfo, c))
 					.OrderBy(KillZoneWallScore))
 					return (cell, baseCenter, 0);
+			}
+
+			return (null, null, 0);
+		}
+
+		// Place a gate on a tier-1 fallback corridor, matching the wall line's orientation - direct reuse
+		// of ChooseChokepointGateLocation's body, sourced from FindDoorFallbackCorridor instead of
+		// GetSealableCorridors. Tier 2's box has no gate (open-ended by construction), so nothing to place
+		// when a door has no fallback pinch.
+		(CPos? Location, CPos? BaseCenter, int Variant) ChooseDoorKillZoneGateLocation(ActorInfo actorInfo)
+		{
+			if (!baseBuilder.ShouldSealDoorKillZone() || !baseBuilder.DoorKillZoneUsesWalls() || baseBuilder.TacticalMapModule == null)
+				return (null, null, 0);
+
+			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
+			if (bi == null)
+				return (null, null, 0);
+
+			var wallActorInfo = world.Map.Rules.Actors[baseBuilder.Info.WallTypes.First()];
+			var wallBuildingInfo = wallActorInfo.TraitInfoOrDefault<BuildingInfo>();
+			if (wallBuildingInfo == null)
+				return (null, null, 0);
+
+			var horizontal = bi.Dimensions.X > bi.Dimensions.Y;
+			var baseCenter = baseBuilder.PrimaryBase.Center;
+			var radius = Math.Max(1, baseBuilder.TacticalMapModule.Info.DoorKillZoneRadius);
+
+			foreach (var door in baseBuilder.TacticalMapModule.GetTerritoryDoors()
+				.OrderBy(d => (d.Center - baseCenter).LengthSquared))
+			{
+				if (!DoorHasNearbyDefense(door))
+					continue;
+
+				var fallback = FindDoorFallbackCorridor(door, radius);
+				if (fallback == null || fallback.WallRunsHorizontal != horizontal)
+					continue;
+
+				var footprint = ChokepointGateFootprint(fallback);
+				if (footprint == null || !ChokepointCorridorIsWorthSealing(fallback, wallActorInfo, wallBuildingInfo))
+					continue;
+
+				var topLeft = footprint[0];
+				if (footprint.Any(HasAnyBuildingAt))
+					continue;
+
+				if (!world.CanPlaceBuilding(topLeft, actorInfo, bi, null)
+					|| !bi.IsCloseEnoughToBase(world, player, actorInfo, topLeft))
+					continue;
+
+				return (topLeft, baseCenter, 0);
 			}
 
 			return (null, null, 0);
@@ -3495,6 +3651,10 @@ namespace OpenRA.Mods.Common.Traits
 			var (chokeLoc, chokeBase, chokeVar) = ChooseChokepointGateLocation(actorInfo);
 			if (chokeLoc != null)
 				return (chokeLoc, chokeBase, chokeVar);
+
+			var (killZoneGateLoc, killZoneGateBase, killZoneGateVar) = ChooseDoorKillZoneGateLocation(actorInfo);
+			if (killZoneGateLoc != null)
+				return (killZoneGateLoc, killZoneGateBase, killZoneGateVar);
 
 			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
 			if (bi == null || !baseBuilder.ShouldBuildBasePerimeterWalls())

@@ -1232,7 +1232,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Doors are axis-aligned corridors (see ResolveChokepointCorridors), so Outward - summed over every
 		// cell in the run in MakeDoor - stays dominated by one axis even though it is not unit length itself.
-		static CVec DoorApproachAxis(CNTerritoryDoor door) =>
+		public static CVec DoorApproachAxis(CNTerritoryDoor door) =>
 			Math.Abs(door.Outward.X) < Math.Abs(door.Outward.Y)
 				? new CVec(0, Math.Sign(door.Outward.Y))
 				: new CVec(Math.Sign(door.Outward.X), 0);
@@ -1500,7 +1500,8 @@ namespace OpenRA.Mods.Common.Traits
 		// Searches near the coarse chokepoint cell for the narrowest passable crossing that is a genuine bottleneck:
 		// bounded by thick (>=2 cell) impassable shoulders on both sides AND open along the approach axis.
 		// This stops a single rock in open ground (or a wide field) from being mistaken for a sealable chokepoint.
-		CNSealableCorridor FindNarrowestCrossing(CPos near, int snapRadius, int maxWidth)
+		// Public: also used to search for a narrower fallback pinch behind a door that is a poor line to hold.
+		public CNSealableCorridor FindNarrowestCrossing(CPos near, int snapRadius, int maxWidth)
 		{
 			CNSealableCorridor best = null;
 			var bestWidth = int.MaxValue;

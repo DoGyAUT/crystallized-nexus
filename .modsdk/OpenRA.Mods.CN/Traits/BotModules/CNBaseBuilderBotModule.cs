@@ -1294,6 +1294,17 @@ namespace OpenRA.Mods.Common.Traits
 			return Info.DoorKillZoneProfiles.Contains(profile.ToString());
 		}
 
+		// Which of the two door-kill-zone modes this bot's active profile uses. Turtle/Tech fortify with
+		// a wall; everything else just spreads defense wider instead (see EnsureFlankCache).
+		public bool DoorKillZoneUsesWalls()
+		{
+			var profile = ActiveProfile == BotProfile.Adaptive && profileModule != null
+				? profileModule.ActiveProfile
+				: ActiveProfile;
+
+			return profile == BotProfile.Turtle || profile == BotProfile.Tech;
+		}
+
 		int GetBudgetWeightedValue(FrozenDictionary<string, int> budgetValues, int fallback)
 		{
 			if (profileModule == null || budgetValues == null || budgetValues.Count == 0)
@@ -2608,6 +2619,13 @@ namespace OpenRA.Mods.Common.Traits
 			// pulls placement toward its center, not to a position actually behind it facing the approach.
 			if (Info.EnableDoorDefense)
 				cachedChokepointDefenseAnchors.AddRange(TacticalMapModule.GetDoorDefenseAnchors());
+
+			// C-mode kill zone: no wall (that is L-mode, Turtle/Tech - see DoorKillZoneUsesWalls), just a
+			// wider spread of anchor points along the same band a wall would have covered, so defense
+			// fans out across the arc instead of clustering on the tight 5-point line above.
+			if (ShouldSealDoorKillZone() && !DoorKillZoneUsesWalls())
+				foreach (var door in TacticalMapModule.GetTerritoryDoors())
+					cachedChokepointDefenseAnchors.AddRange(TacticalMapModule.GetDoorKillZoneCells(door));
 		}
 
 		// High-ground (height advantage / natural wall) bonus and sealed-flank (no enemy access) penalty.
