@@ -745,19 +745,27 @@ namespace OpenRA.Mods.Common.Traits
 			// couple of cells only its outermost columns qualify: the middle of the slope touches nothing
 			// impassable and was never barrier at all, which leaves a hole straight through the middle of
 			// the very thing being sealed - and the one-ring dilation below only ever covered a hole two
-			// cells across. A ramp is one connected run of walkable height transitions, bounded by the
-			// cliff it cuts through, so the flagged cells are grown across that run: the seal ends up the
-			// ramp's true width, however wide it is, while open bumpy ground stays untouched because no
-			// cliff seeds it in the first place.
-			var transitionCells = new HashSet<CPos>();
+			// cells across. A ramp is one connected run of walkable slope, bounded by the cliff it cuts
+			// through, so the flagged cells are grown across that run: the seal ends up the ramp's true
+			// width, however wide it is, while open bumpy ground stays untouched because no cliff seeds it
+			// in the first place.
+			// The run counts the engine's own slope tiles (Map.Ramp) as well as inferred height
+			// transitions: a very wide climb can flatten out in the middle, and a cell whose neighbours all
+			// sit at its own height is no transition, so an inferred-only run tears exactly where the ramp
+			// is widest - which is where they were reported leaking.
+			var slopeCells = new HashSet<CPos>();
 			var rampCells = new HashSet<CPos>();
 			foreach (var c in world.Map.AllCells)
 			{
-				if (!IsPassable(c) || !IsHeightTransition(c))
+				if (!IsPassable(c) || (!IsHeightTransition(c) && world.Map.Ramp[c] == 0))
 					continue;
 
-				transitionCells.Add(c);
-				if (IsCliffRamp(c))
+				slopeCells.Add(c);
+
+				// Seeded from the cliff, so a hillside nowhere near one is never barrier however much it
+				// slopes. Not IsCliffRamp itself: a slope tile beside a cliff should seed whether or not it
+				// also reads as a transition.
+				if (HasCliffAbove(c))
 					rampCells.Add(c);
 			}
 
@@ -768,7 +776,7 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var dir in CVec.Directions)
 				{
 					var next = cell + dir;
-					if (transitionCells.Contains(next) && rampCells.Add(next))
+					if (slopeCells.Contains(next) && rampCells.Add(next))
 						rampQueue.Enqueue(next);
 				}
 			}
@@ -1293,9 +1301,14 @@ namespace OpenRA.Mods.Common.Traits
 		// the ramp cuts through). This excludes gentle hills / bumpy open ground that merely vary in height.
 		bool IsCliffRamp(CPos cell)
 		{
-			if (!IsHeightTransition(cell))
-				return false;
+			return IsHeightTransition(cell) && HasCliffAbove(cell);
+		}
 
+		// The cliff-wall half of IsCliffRamp on its own: a higher, impassable neighbour. Split out because
+		// the region barrier seeds from slope tiles as well, not only from cells that read as a walkable
+		// height transition.
+		bool HasCliffAbove(CPos cell)
+		{
 			var h = world.Map.Height[cell];
 			foreach (var d in CVec.Directions)
 			{
