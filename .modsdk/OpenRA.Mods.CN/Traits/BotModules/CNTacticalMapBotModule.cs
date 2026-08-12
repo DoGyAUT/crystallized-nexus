@@ -755,25 +755,56 @@ namespace OpenRA.Mods.Common.Traits
 			// through, so the flagged cells are grown across that run: the seal ends up the ramp's true
 			// width, however wide it is, while open bumpy ground stays untouched because no cliff seeds it
 			// in the first place.
-			// The run counts the engine's own slope tiles (Map.Ramp) as well as inferred height
-			// transitions: a very wide climb can flatten out in the middle, and a cell whose neighbours all
-			// sit at its own height is no transition, so an inferred-only run tears exactly where the ramp
-			// is widest - which is where they were reported leaking.
+			// Map.Ramp was tried as part of this run and taken back out: on this tileset a great many
+			// ordinary ground tiles carry a nonzero ramp index, so the run was connected across most of the
+			// map and the seal carpeted open ground - see the terrain census logged below, which is what
+			// any further attempt here should be decided on rather than on what a ramp "ought" to look
+			// like.
 			var slopeCells = new HashSet<CPos>();
 			var rampCells = new HashSet<CPos>();
 			foreach (var c in world.Map.AllCells)
 			{
-				if (!IsPassable(c) || (!IsHeightTransition(c) && world.Map.Ramp[c] == 0))
+				if (!IsPassable(c) || !IsHeightTransition(c))
 					continue;
 
 				slopeCells.Add(c);
 
 				// Seeded from the cliff, so a hillside nowhere near one is never barrier however much it
-				// slopes. Not IsCliffRamp itself: a slope tile beside a cliff should seed whether or not it
-				// also reads as a transition.
+				// slopes.
 				if (HasCliffAbove(c))
 					rampCells.Add(c);
 			}
+
+			// What the map is actually made of, because three attempts at sealing ramps were each argued
+			// from a different guess about that and each was wrong in a different direction. Once per map,
+			// alongside the region census below.
+			var passableCells = 0;
+			var slopeTileCells = 0;
+			var transitionCells = 0;
+			var cliffAdjacentCells = 0;
+			var heightCensus = new Dictionary<byte, int>();
+			foreach (var c in world.Map.AllCells)
+			{
+				if (!IsPassable(c))
+					continue;
+
+				passableCells++;
+				var h = world.Map.Height[c];
+				heightCensus[h] = heightCensus.GetValueOrDefault(h) + 1;
+
+				if (world.Map.Ramp[c] != 0)
+					slopeTileCells++;
+
+				if (IsHeightTransition(c))
+					transitionCells++;
+
+				if (HasCliffAbove(c))
+					cliffAdjacentCells++;
+			}
+
+			CNBotLog.Debug("terrain: {0} passable, {1} slope tiles, {2} height transitions, {3} cliff-adjacent | heights {4}",
+				passableCells, slopeTileCells, transitionCells, cliffAdjacentCells,
+				string.Join(" ", heightCensus.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value}")));
 
 			// Bounded, because slope tiles are not rare on rolling terrain: their connected run reaches
 			// across half a map, and an unbounded growth swallowed it whole - the barrier covered open
