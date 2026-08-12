@@ -248,6 +248,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Merge chokepoints that end up within this many cells of each other (cuts duplicate markers/clutter).")]
 		public readonly int ChokepointMergeRadius = 5;
 
+		[Desc("How far (cells) a ramp seal may grow away from the cliff it is anchored at. A ramp is a cut",
+			"through a cliff and is at most about this wide; without a bound the run of slope tiles it grows",
+			"along is connected across half a rolling map and the seal swallows the map with it. Both edges",
+			"of a wide ramp seed the growth, so a ramp up to roughly twice this wide still closes.")]
+		public readonly int RampSealMaxSpread = 8;
+
 		[Desc("Regions smaller than this (cells) are merged into their larger neighbour by dropping the",
 			"barrier between them, repeated until no undersized region has anywhere left to merge into.",
 			"A chokepoint can be a perfectly genuine bottleneck and still be far too minor a wrinkle to",
@@ -769,15 +775,27 @@ namespace OpenRA.Mods.Common.Traits
 					rampCells.Add(c);
 			}
 
-			var rampQueue = new Queue<CPos>(rampCells);
+			// Bounded, because slope tiles are not rare on rolling terrain: their connected run reaches
+			// across half a map, and an unbounded growth swallowed it whole - the barrier covered open
+			// ground everywhere and left regions of one and two cells behind. A ramp is a cut through a
+			// cliff and is only so wide, and both of its edges seed, so the bound closes a ramp up to
+			// roughly twice RampSealMaxSpread across while leaving open hillside alone.
+			var maxSpread = Math.Max(1, Info.RampSealMaxSpread);
+			var rampQueue = new Queue<(CPos Cell, int Depth)>();
+			foreach (var seed in rampCells)
+				rampQueue.Enqueue((seed, 0));
+
 			while (rampQueue.Count > 0)
 			{
-				var cell = rampQueue.Dequeue();
+				var (cell, depth) = rampQueue.Dequeue();
+				if (depth >= maxSpread)
+					continue;
+
 				foreach (var dir in CVec.Directions)
 				{
 					var next = cell + dir;
 					if (slopeCells.Contains(next) && rampCells.Add(next))
-						rampQueue.Enqueue(next);
+						rampQueue.Enqueue((next, depth + 1));
 				}
 			}
 

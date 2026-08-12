@@ -225,6 +225,19 @@ untouched because no cliff seeds it in the first place. Region-only, like the ra
 are wrong here" so far has really been "the barrier has a hole here", and a hole is invisible from
 the region outlines alone — they simply run past it as if nothing were there.
 
+Two corrections followed from watching it, both from the same session:
+
+*Inferred height transitions are not enough.* `IsHeightTransition` needs a lower **and** a higher
+passable neighbour, so a wide climb that flattens out in the middle tears exactly where it is widest.
+`Map.Ramp` is the engine saying "this cell is a slope" outright, so the run counts those cells too.
+
+*But the run has to be bounded.* Slope tiles are not rare on rolling terrain — their connected run
+reaches across half a map, and growing along it without a limit swallowed the map: the barrier
+covered open ground everywhere and left regions of one and two cells behind. `RampSealMaxSpread`
+(default 8) caps how far a seal grows from the cliff that seeds it. A ramp is a cut through a cliff
+and is only so wide; both its edges seed, so a ramp up to roughly twice that wide still closes, while
+open hillside is left alone.
+
 **A chain of mini-regions along a coastline.** Regions of 15, 35 and 47 cells strung along one
 shoreline, each cut off by its own small `Passage`. Structurally the same problem the doors had
 (`DoorMergeRadius`'s target): a chokepoint can be a perfectly genuine bottleneck — it passed
