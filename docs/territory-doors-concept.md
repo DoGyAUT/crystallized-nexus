@@ -1,13 +1,15 @@
 # Territory and doors
 
 Status: detection validated visually (`/cntopo`, several iterations) and now drives defense
-placement (`EnableDoorDefense`, opt-in, on by default for the tested profiles in
-`ai/base-building.yaml`). A profile-selected kill zone behind each door is built too
-(`EnableDoorKillZone`: walls for Turtle/Tech, wider defense spread for everyone else) but stays off
-in yaml pending its first playtest. A shared region graph (`CNRegion`) is built too, replacing the
-per-bot territory flood with a one-time, shared shape plus a periodic ownership tally - not yet
-visually confirmed via `/cntopo`. Region roles, saturation scoring and front squads are recorded
-below as future work, not started.
+placement (`EnableDoorDefense`, opt-in, on for the tested profiles in `ai/base-building.yaml`). A
+profile-selected kill zone behind each door (`EnableDoorKillZone`: walls for Turtle/Tech, wider
+defense spread for everyone else) is on for its first real playtest. A shared region graph
+(`CNRegion`) replaces the per-bot territory flood with a one-time, shared shape plus a periodic
+ownership tally - visually confirmed, including a fix for ramps not registering as region
+boundaries. Its first real consumer, `EnableCoreRegionPlacement`, keeps ordinary building placement
+inside the bot's starting region instead of a plain search ring that doesn't know a door is in the
+way. Region roles, saturation scoring and front squads are recorded below as future work, not
+started.
 
 ## The problem
 
@@ -207,9 +209,37 @@ boolean `DoorHasNearbyDefense` - compared against a door's width/importance, not
 bot-specific dynamic state and deliberately not part of the shared graph. This is the natural
 consumer once region roles exist, not before.
 
-## A kill-zone behind each door: two modes, gated off by default
+## Core-region-aware placement: the first real consumer
 
-Shipped, `EnableDoorKillZone` still off in yaml. `GetDoorDefenseAnchors` already pulled placement
+Shipped (`EnableCoreRegionPlacement`, on in yaml). Ordinary building placement
+(`ChooseBuildLocationInBase` → `FindPos`/`TryFindPos`, `CNBaseBuilderQueueManager.cs`) picked
+candidates from a plain geometric ring around the base (`Map.FindTilesInAnnulus`) - confirmed by
+direct research to consult no region, territory or door concept at all. A ring doesn't know a door
+is in the way; it could offer a cell on the *other* side of a chokepoint just as easily as one in
+the region the base actually holds.
+
+Deliberately scoped to a first step, not every base: the candidate pool is filtered to the region
+containing `BaseOrigin` (the bot's actual starting position, stable regardless of role
+reassignment) only when the base being built for *is* the starting one
+(`targetBase.AnchorId == PrimaryBase.AnchorId` - `AnchorId`, not object identity, since
+`GetBases()`/`PrimaryBase` rebuild fresh instances every call). Filtered once, at the single point
+every layout (`Grid`, `BaseGrid`, `Compact`, ...) and every building type (tech, production,
+refineries, ordinary) already passes through - one change covers all of them. Falls back to the
+unrestricted pool whenever the filter would leave nothing to place on, so a base pushed toward its
+region's edge never silently stalls.
+
+What this does *not* yet do: it keeps buildings inside the right region, it does not push them
+away from a door within that region. That is the separate, already-diagnosed bug where
+`ChooseBuildLocationInBase`'s `isTech` branch is the only one that ever consults
+`ScoreTechPlacementSafety`/danger hotspots - `BuildingType.Production` (the observed case: a war
+factory built right next to a door) never does, tracked apart from this change. Nor does it apply
+to expansions/non-core bases, or reason about how much of the region is already used up
+(saturation, above) - both explicitly deferred to later, region-role-aware passes.
+
+## A kill-zone behind each door: two modes, on for its first playtest
+
+Shipped, `EnableDoorKillZone` on in yaml for the tested profiles - not yet observed building a wall
+in a real match. `GetDoorDefenseAnchors` already pulled placement
 toward a position behind a door facing its approach, but that was only ever a scoring bonus on top
 of the ordinary build-site search - it never laid out a shape, and never distinguished profiles.
 

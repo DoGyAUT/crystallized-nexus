@@ -1767,6 +1767,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (bi == null)
 				return (null, null, 0);
 
+			// Core-region placement: keep the candidate pool inside the region the bot's starting position
+			// is in, so it cannot spill across a door into a neighbouring region. AnchorId (not object
+			// identity - GetBases()/PrimaryBase rebuild fresh CNBotBase instances every call) is the stable
+			// way to tell "this is the starting base" already used elsewhere (baseRoleByAnchor).
+			var restrictToCoreRegion = baseBuilder.Info.EnableCoreRegionPlacement && baseBuilder.TacticalMapModule != null
+				&& targetBase.AnchorId == baseBuilder.PrimaryBase.AnchorId;
+			var coreRegionId = restrictToCoreRegion ? baseBuilder.TacticalMapModule.GetRegionIdAt(baseBuilder.BaseOrigin) : -1;
+			if (coreRegionId < 0)
+				restrictToCoreRegion = false;
+
 			// Determine layout for this building type
 			var layout = baseBuilder.Info.DefaultLayout;
 			var minSpacing = baseBuilder.Info.SameTypeMinSpacing;
@@ -2011,6 +2021,15 @@ namespace OpenRA.Mods.Common.Traits
 					var allCells = activeLayout == BaseBuildingLayout.Grid || activeLayout == BaseBuildingLayout.BaseGrid
 						? world.Map.FindTilesInAnnulus(center, minRange, maxRange)
 						: world.Map.FindTilesInAnnulus(center, minRange, maxRange).Take(FindPosLimit);
+
+					if (restrictToCoreRegion)
+					{
+						// A base near its own region's edge should still be able to build - fall back to the
+						// unrestricted pool rather than ever leaving placement with nothing to choose from.
+						var withinRegion = allCells.Where(c => baseBuilder.TacticalMapModule.GetRegionIdAt(c) == coreRegionId).ToList();
+						if (withinRegion.Count > 0)
+							allCells = withinRegion;
+					}
 
 					var sameTypeBuildings = playerBuildings
 						.Where(a => a.Info.Name == actorType)

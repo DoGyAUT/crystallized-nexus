@@ -285,6 +285,12 @@ namespace OpenRA.Mods.Common.Traits
 			"closest. Falls back to chokepoint hotspots when no territory door exists yet. Opt-in.")]
 		public readonly bool EnableDoorDefense = false;
 
+		[Desc("Keep ordinary building placement inside the bot's core region (the one its starting position",
+			"is in) instead of letting the search ring spill across a door into a neighbouring region. Falls",
+			"back to the unrestricted candidate pool if the region filter would leave nothing to place on -",
+			"a base near a region's edge still has to be able to build. Opt-in.")]
+		public readonly bool EnableCoreRegionPlacement = false;
+
 		[Desc("Locomotor names used by harvesters. When set, refinery placement filters out resource cells " +
 			"with no passable path, preventing refineries next to cliffs.")]
 		public readonly FrozenSet<string> HarvesterLocomotors = FrozenSet<string>.Empty;

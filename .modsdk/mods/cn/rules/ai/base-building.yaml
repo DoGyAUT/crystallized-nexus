@@ -102,6 +102,7 @@ Player:
 		DefenseOuterMinSpacing: 3
 		EnableDoorDefense: true
 		EnableDoorKillZone: true
+		EnableCoreRegionPlacement: true
 		EnableDefenseDangerMemory: true
 		DefenseDangerMemoryAttackWeight: 120
 		DefenseDangerMemoryBuildingAttackWeight: 160
