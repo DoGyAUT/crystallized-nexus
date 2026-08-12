@@ -248,6 +248,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Merge chokepoints that end up within this many cells of each other (cuts duplicate markers/clutter).")]
 		public readonly int ChokepointMergeRadius = 5;
 
+		[Desc("Regions smaller than this (cells) are merged into their larger neighbour by dropping the",
+			"barrier between them, repeated until no undersized region has anywhere left to merge into.",
+			"A chokepoint can be a perfectly genuine bottleneck and still be far too minor a wrinkle to",
+			"deserve a region of its own - a coastline pinched every few cells came out as a chain of",
+			"15/35/47-cell regions, which is not how anybody reads that ground. 0 disables merging.")]
+		public readonly int MinRegionSize = 60;
+
 		[Desc("Fallback minimum number of passable cells beyond a chokepoint before treating it as a real access.",
 			"Used only when no enemy buildings exist; otherwise the far side must contain an enemy building.")]
 		public readonly int MinimumChokepointBeyondCells = 96;
@@ -718,13 +725,14 @@ namespace OpenRA.Mods.Common.Traits
 		// wall. One flood-fill component per gap between barrier cells is one region; adjacency between
 		// regions falls out of which ones share a barrier cell, whether or not that cell also happens to
 		// carry a resolved door corridor.
+		//
+		// Not every barrier deserves to stand, though: a coastline pinched every few cells came out as a
+		// chain of 15/35/47-cell regions, which is not how anybody reads that ground. So the fill runs
+		// more than once - undersized regions merge by dropping the barrier piece between them and
+		// filling again (see MinRegionSize), which recomputes every outline, count and adjacency instead
+		// of patching finished records up by hand.
 		void BuildRegions(Dictionary<uint, int> domainNodeCount)
 		{
-			regions.Clear();
-			regionIdByCell = new CellLayer<int>(world.Map);
-			foreach (var c in world.Map.AllCells)
-				regionIdByCell[c] = -1;
-
 			var gate = new HashSet<CPos>();
 			var corridors = ResolveChokepointCorridors(gate);
 
@@ -765,25 +773,135 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			// The barrier is kept as individually droppable pieces - one per resolved corridor, one per
+			// chokepoint that never resolved to one, one per physical ramp - because merging undersized
+			// regions below works by dropping the piece that separates them and running the whole fill
+			// again, rather than by editing finished CNRegion records. Recomputing boundaries, adjacency
+			// and the resource/buildable counts by hand per merge is exactly the bespoke bookkeeping that
+			// re-deriving door geometry by hand already cost this feature five attempts.
+			var pieces = new List<HashSet<CPos>>();
+			foreach (var corridor in corridors)
+				pieces.Add([.. corridor.Cells]);
+
+			foreach (var cell in gate)
+				if (!cellToCorridorIndex.ContainsKey(cell))
+					pieces.Add([cell]);
+
 			// A one-cell-thin barrier line has two known ways to leak with 8-directional movement: the
 			// flood corner-cuts diagonally between two ramp cells that only touch corner-to-corner, and
-			// IsCliffRamp itself only flags cells with an immediately adjacent impassable neighbour, so the
-			// flat lead-in/lead-out cells at a ramp's very top and bottom (touching passable ground on
-			// every side) never get flagged at all - exactly where a region flowed straight through in the
+			// the flat lead-in/lead-out cells at a ramp's very top and bottom are not height transitions
+			// at all, so nothing above flags them - exactly where a region flowed straight through in the
 			// first /cntopo pass. Dilating by one ring closes both: thick enough that no diagonal gap fits,
-			// and wide enough to cover the ramp's open ends too.
-			var rampBarrier = new HashSet<CPos>(rampCells);
-			foreach (var cell in rampCells)
-				foreach (var dir in CVec.Directions)
+			// and wide enough to cover the ramp's open ends too. Per ramp rather than over one combined
+			// blob - same cells, but each physical ramp can then be dropped on its own.
+			var rampVisited = new HashSet<CPos>();
+			foreach (var start in rampCells)
+			{
+				if (!rampVisited.Add(start))
+					continue;
+
+				var component = ConnectedComponent(start, rampCells, rampVisited);
+				var piece = new HashSet<CPos>(component);
+				foreach (var cell in component)
+					foreach (var dir in CVec.Directions)
+					{
+						var n = cell + dir;
+						if (world.Map.Contains(n) && IsPassable(n))
+							piece.Add(n);
+					}
+
+				pieces.Add(piece);
+			}
+
+			var active = new bool[pieces.Count];
+			for (var i = 0; i < active.Length; i++)
+				active[i] = true;
+
+			var minRegionSize = Math.Max(0, Info.MinRegionSize);
+			var piecesDropped = 0;
+			var round = 0;
+
+			// Cheap insurance, not a tuning knob: dropping is monotone, so this terminates on its own -
+			// and it all happens once inside BuildOwnTopology, never per tick.
+			const int MaxMergeRounds = 10;
+
+			for (; ; round++)
+			{
+				var barrier = new HashSet<CPos>();
+				for (var i = 0; i < pieces.Count; i++)
+					if (active[i])
+						barrier.UnionWith(pieces[i]);
+
+				FloodRegions(barrier, cellToCorridorIndex, domainNodeCount);
+				regionBarrier = barrier;
+
+				if (minRegionSize == 0 || round >= MaxMergeRounds - 1)
+					break;
+
+				// A piece goes as soon as EITHER side of it is undersized: a 15-cell sliver beside a
+				// 5000-cell region should fold into it at once, not wait for the big one to look too
+				// small as well. An undersized pocket with nothing to merge into keeps its pieces and
+				// stays small, the same way MinDomainNodes leaves unreachable pockets alone.
+				var droppedThisRound = 0;
+				for (var i = 0; i < pieces.Count; i++)
 				{
-					var n = cell + dir;
-					if (world.Map.Contains(n) && IsPassable(n))
-						rampBarrier.Add(n);
+					if (!active[i] || !SeparatesUndersizedRegion(pieces[i], minRegionSize))
+						continue;
+
+					active[i] = false;
+					droppedThisRound++;
 				}
 
-			var barrier = new HashSet<CPos>(gate);
-			barrier.UnionWith(rampBarrier);
-			regionBarrier = barrier;
+				if (droppedThisRound == 0)
+					break;
+
+				piecesDropped += droppedThisRound;
+			}
+
+			CNBotLog.Debug("regions: {0} barrier pieces, {1} dropped over {2} rounds -> {3} regions (min size {4})",
+				pieces.Count, piecesDropped, round + 1, regions.Count, minRegionSize);
+		}
+
+		/// <summary>
+		/// Whether dropping this barrier piece would merge an undersized region into a neighbour. Read off
+		/// the finished fill rather than tracked during it: a piece is small, and what it separates is
+		/// simply whatever <see cref="regionIdByCell"/> says on either side of it.
+		/// </summary>
+		bool SeparatesUndersizedRegion(HashSet<CPos> piece, int minRegionSize)
+		{
+			var touching = new HashSet<int>();
+			foreach (var cell in piece)
+				foreach (var dir in CVec.Directions)
+				{
+					var id = GetRegionIdAt(cell + dir);
+					if (id >= 0)
+						touching.Add(id);
+				}
+
+			// Nothing on the far side to merge into - a piece against the map edge, or buried inside a
+			// wider barrier. Dropping it would gain nothing.
+			if (touching.Count < 2)
+				return false;
+
+			foreach (var id in touching)
+				if (regions[id].Size < minRegionSize)
+					return true;
+
+			return false;
+		}
+
+		/// <summary>
+		/// One flood-fill pass over the map with the given barrier: every gap between barrier cells
+		/// becomes one region, with its outline, adjacency and counts derived fresh. Called repeatedly by
+		/// <see cref="BuildRegions"/> with a shrinking barrier, so everything a merge would otherwise have
+		/// to patch up by hand is simply recomputed instead.
+		/// </summary>
+		void FloodRegions(HashSet<CPos> barrier, Dictionary<CPos, int> cellToCorridorIndex, Dictionary<uint, int> domainNodeCount)
+		{
+			regions.Clear();
+			regionIdByCell = new CellLayer<int>(world.Map);
+			foreach (var c in world.Map.AllCells)
+				regionIdByCell[c] = -1;
 
 			var minDomainNodes = Math.Max(1, Info.MinDomainNodes);
 			var visited = new HashSet<CPos>(barrier);

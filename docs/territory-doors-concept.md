@@ -209,6 +209,45 @@ boolean `DoorHasNearbyDefense` - compared against a door's width/importance, not
 bot-specific dynamic state and deliberately not part of the shared graph. This is the natural
 consumer once region roles exist, not before.
 
+## Two things the first region cut got wrong, and how they were closed
+
+**Wide ramps were only sealed at their edges.** `IsCliffRamp` flags a cell only when a cliff is
+*immediately* beside it, so on a ramp more than a couple of cells wide only the outermost columns
+qualified — the middle of the slope touches nothing impassable and was never barrier at all. The
+one-ring dilation added afterwards can close a hole two cells across and no more, so anything wider
+still let the flood walk straight up. A ramp is one connected run of walkable height transitions,
+bounded by the cliff it cuts through, so the cliff-flagged cells are now grown across that run before
+dilation: the seal ends up the ramp's true width, whatever that is, while open bumpy ground stays
+untouched because no cliff seeds it in the first place. Region-only, like the ramp barrier itself —
+`ScanRampEndpoints` keeps its own scan and its chokepoint markers are unchanged.
+
+**The barrier is now drawn by `/cntopo`** (`RegionBarrier` on `CNSharedTopology`). Every "the regions
+are wrong here" so far has really been "the barrier has a hole here", and a hole is invisible from
+the region outlines alone — they simply run past it as if nothing were there.
+
+**A chain of mini-regions along a coastline.** Regions of 15, 35 and 47 cells strung along one
+shoreline, each cut off by its own small `Passage`. Structurally the same problem the doors had
+(`DoorMergeRadius`'s target): a chokepoint can be a perfectly genuine bottleneck — it passed
+`MinPassageSideCells` to exist at all — and still be far too minor a wrinkle to deserve a region of
+its own. `MinRegionSize` (default 60) merges these: the barrier is built as individually droppable
+pieces (one per resolved corridor, one per unresolved chokepoint cell, one per physical ramp), and a
+piece separating an undersized region is dropped and the whole fill run again, up to ten rounds.
+Dropping is monotone, so it terminates by itself; the cap is insurance, and it all happens once
+inside `BuildOwnTopology`, never per tick.
+
+A piece goes as soon as *either* side of it is undersized — a 15-cell sliver beside a 5000-cell
+region should fold in at once rather than wait for the big one to look too small as well. An
+undersized pocket with nothing to merge into keeps its pieces and stays small, the same way
+`MinDomainNodes` leaves unreachable pockets alone. Deliberately *not* a post-hoc edit of finished
+`CNRegion` records: recomputing boundaries, adjacency and the resource/buildable counts by hand per
+merge is the bespoke bookkeeping that re-deriving door geometry by hand already cost this feature
+five attempts. Re-running the fill recomputes all of it for free. One `CNBotLog.Debug` line reports
+pieces, drops, rounds and the resulting region count.
+
+Known consequence, accepted: a genuinely small plateau (under `MinRegionSize`) merges back into the
+low ground its ramp separates it from. It is small enough not to be a place in its own right, which
+is exactly what the threshold is claiming.
+
 ## Core-region-aware placement: the first real consumer
 
 Shipped (`EnableCoreRegionPlacement`, on in yaml). Ordinary building placement
