@@ -1838,6 +1838,13 @@ namespace OpenRA.Mods.Common.Traits
 		CPos? territoryLastBaseRef;
 		int territoryLastEnemyCount = -1;
 
+		// Which measurement answered "how much ground does this door open onto" - counted per rebuild and
+		// reported in the funnel log, for the same reason every other stage of that funnel is: a door
+		// inside our own ground cannot be measured the normal way, and which fallback answered for it is
+		// not something to work out from a single number on the overlay.
+		int doorsMeasuredByRegion;
+		int doorsMeasuredByPinch;
+
 		/// <summary>Ground this player holds: closer to its own buildings than to any known enemy one.</summary>
 		public IReadOnlyCollection<CPos> GetTerritory() { EnsureBuilt(); return territory; }
 
@@ -2063,6 +2070,8 @@ namespace OpenRA.Mods.Common.Traits
 		void BuildDoors(HashSet<CPos> theirs, List<CNSealableCorridor> chokepointCorridors)
 		{
 			var doorCells = new HashSet<CPos>();
+			doorsMeasuredByRegion = 0;
+			doorsMeasuredByPinch = 0;
 
 			foreach (var cell in territory)
 			{
@@ -2234,11 +2243,13 @@ namespace OpenRA.Mods.Common.Traits
 			CNBotLog.Debug(
 				"{0} territory: {1} cells, {2} wall, {3} front, {4} horizon | {5} chokepoints, {6} corridors "
 				+ "touching this territory | {7} extra edge cells ({8} no corridor) -> {9} candidates -> "
-				+ "{10} merged away -> {11} doors ({12} too wide, {13} too narrow, {14} too shallow)",
+				+ "{10} merged away -> {11} doors ({12} too wide, {13} too narrow, {14} too shallow) | "
+				+ "beyond: {15} by region, {16} by pinch",
 				player, territory.Count, territoryWall.Count, territoryFront.Count, horizon.Count,
 				chokepoints.Count, adjacentOnly,
 				doorCells.Count, runsNoCorridor, candidates.Count, runsMerged, doors.Count,
-				runsTooWide, runsTooNarrow, runsTooShallow);
+				runsTooWide, runsTooNarrow, runsTooShallow,
+				doorsMeasuredByRegion, doorsMeasuredByPinch);
 		}
 
 		CNTerritoryDoor MakeDoor(List<CPos> run)
@@ -2281,11 +2292,24 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Measured from the ground just outside where there is any. That can come to nothing - every
-			// candidate already inside the span or the claim, which is what produced "beyond 0" - so the
-			// direction-based seal is the fallback rather than only the no-outside case.
+			// candidate already inside the span or the claim, which is what produced "beyond 0" - and a
+			// door standing inside our own ground is exactly that case. The regions know what such a door
+			// separates without any flooding, so they are asked before falling back to sealing a guessed
+			// axis by hand.
 			var beyond = outside.Count > 0 ? GroundBeyondDoor(run, outside) : 0;
 			if (beyond == 0)
+			{
+				beyond = GroundBeyondRegions(run);
+				if (beyond > 0)
+					doorsMeasuredByRegion++;
+			}
+
+			if (beyond == 0)
+			{
 				beyond = GroundBeyondPinch(center, run);
+				if (beyond > 0)
+					doorsMeasuredByPinch++;
+			}
 
 			return new CNTerritoryDoor(center, run.ToArray(), outward, beyond);
 		}
@@ -2325,9 +2349,84 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Ground behind a door read off the shared region graph rather than flooded for. A door's cells
+		/// are a region barrier by construction - <see cref="BuildRegions"/> cuts the map on exactly the
+		/// resolved chokepoint corridors doors are made of - so the regions standing against its far side
+		/// already know their own size, and nothing has to be walked or sealed by hand. Returns 0 when the
+		/// graph cannot answer (the door separates nothing, or our own side of it cannot be identified),
+		/// leaving the caller its old fallback.
+		/// </summary>
+		int GroundBeyondRegions(List<CPos> run)
+		{
+			if (regionIdByCell == null || regions.Count == 0)
+				return 0;
+
+			var nearId = NearestRegionId(territoryLastBaseRef ?? run[0]);
+			if (nearId < 0)
+				return 0;
+
+			// Two cells out, not one: a ramp's barrier is dilated by a ring in BuildRegions, so the cells
+			// immediately beside a ramp door belong to no region at all.
+			var beyondIds = new HashSet<int>();
+			foreach (var cell in run)
+			{
+				foreach (var neighbour in world.Map.FindTilesInCircle(cell, 2))
+				{
+					var id = GetRegionIdAt(neighbour);
+					if (id >= 0 && id != nearId)
+						beyondIds.Add(id);
+				}
+			}
+
+			if (beyondIds.Count == 0)
+				return 0;
+
+			// Everything the far side leads on to in turn, with our own region held shut: a door onto a
+			// small plateau that itself opens onto the rest of the map is a way in, not a pocket. Capped
+			// like the floods are - past a point the answer is simply "wide open".
+			var cap = Math.Max(1, Info.DoorBeyondCellCap);
+			var visited = new HashSet<int>(beyondIds) { nearId };
+			var queue = new Queue<int>(beyondIds);
+			var count = 0;
+			while (queue.Count > 0 && count < cap)
+			{
+				var region = regions[queue.Dequeue()];
+				count += region.Size;
+
+				foreach (var adjacent in region.AdjacentRegionIds)
+					if (visited.Add(adjacent))
+						queue.Enqueue(adjacent);
+			}
+
+			return Math.Min(count, cap);
+		}
+
+		/// <summary>
+		/// The region at a cell, or the nearest one a couple of cells out. A base reference can sit on a
+		/// gate or ramp cell, which belongs to no region at all.
+		/// </summary>
+		int NearestRegionId(CPos cell)
+		{
+			var id = GetRegionIdAt(cell);
+			if (id >= 0)
+				return id;
+
+			foreach (var near in world.Map.FindTilesInCircle(cell, 3))
+			{
+				id = GetRegionIdAt(near);
+				if (id >= 0)
+					return id;
+			}
+
+			return -1;
+		}
+
+		/// <summary>
 		/// Ground behind a gap that sits inside our own territory, where "behind" has to be worked out
 		/// rather than read off the claim. The pinch is sealed across its narrow axis - the same barrier
-		/// the chokepoint scan builds - and the flood starts on the side away from the base.
+		/// the chokepoint scan builds - and the flood starts on the side away from the base. Last resort,
+		/// for a door the region graph cannot place: it guesses the axis from the base direction, so a
+		/// wide feature can end up sealed the wrong way round.
 		/// </summary>
 		int GroundBeyondPinch(CPos center, List<CPos> run)
 		{

@@ -236,6 +236,39 @@ factory built right next to a door) never does, tracked apart from this change. 
 to expansions/non-core bases, or reason about how much of the region is already used up
 (saturation, above) - both explicitly deferred to later, region-role-aware passes.
 
+## Doors inside your own ground: measured by region, not by a guessed seal
+
+Shipped (`GroundBeyondRegions`, `CNTacticalMapBotModule.cs`). Step 4 of the algorithm measures how
+much ground a door opens onto by flooding outward from the cells just *outside* the claim, with the
+door sealed. A door standing in the middle of held territory has no such cells — both of its sides
+are already ours — so `beyond` came back 0 and fell through to `GroundBeyondPinch`, which builds its
+own sideways barrier out to a fixed `PinchBarrierReach = 16` and floods from two seed cells chosen
+by the direction from the base. That guesses both the axis and the side. Live `debug.log` on a
+plateau with a single approach showed the result: the pinch's own barrier can run across the
+plateau it is supposed to be measuring, or seed on the base side, and the door then failed
+`MinDoorGroundBeyond` as "too shallow" — a ramp any human reads as *the* way up.
+
+The region graph already knows the answer without flooding anything. A door's cells are a region
+barrier by construction: `BuildRegions` cuts the map on exactly the resolved chokepoint corridors
+doors are made of, so the regions standing against a door's far side are sitting right there, each
+carrying its own `Size`. `GroundBeyondRegions` takes the region holding the base reference as "our
+side", collects the region ids within two cells of the door's run (two, not one: a ramp's barrier is
+dilated by a ring, so its immediate neighbours belong to no region at all), and sums those regions
+plus everything they lead on to in turn with our own region held shut — a door onto a small plateau
+that itself opens onto the rest of the map is a way in, not a pocket. Same cap
+(`DoorBeyondCellCap`), same unit (cells), so the existing `MinDoorGroundBeyond` threshold and the
+`GetDoorHotspots` weighting needed no re-tuning.
+
+Deliberately wired as a *fallback*, not a replacement: outer doors keep the flood measurement that
+was already validated by eye, and `GroundBeyondPinch` stays as the last resort for a door that sits
+on no region barrier at all (a `FindNarrowestCrossing` candidate in the middle of one region). The
+funnel debug line reports how many doors each fallback answered for, for the same reason every other
+stage of it is reported — a single number on the overlay cannot say which path produced it.
+
+Known and accepted: where the far side loops back around into our own ground, the region walk runs
+around the map and hits the cap, so the door reads "wide open". `GroundBeyondDoor` has always
+behaved that way too, and for a door you can genuinely be walked in through it is the right answer.
+
 ## A kill-zone behind each door: two modes, on for its first playtest
 
 Shipped, `EnableDoorKillZone` on in yaml for the tested profiles - not yet observed building a wall
