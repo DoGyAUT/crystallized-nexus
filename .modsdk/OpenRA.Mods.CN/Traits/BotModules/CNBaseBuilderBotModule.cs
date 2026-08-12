@@ -291,6 +291,15 @@ namespace OpenRA.Mods.Common.Traits
 			"a base near a region's edge still has to be able to build. Opt-in.")]
 		public readonly bool EnableCoreRegionPlacement = false;
 
+		[Desc("Consider only resource cells lying in the same region as the base a refinery is being built",
+			"for, and keep the refinery itself in that region. Refinery placement otherwise picks its field",
+			"out of a plain radius ring, which happily reaches across a cliff or a door into ground the",
+			"harvesters have to drive the long way round to. With this on, a region holding a single field",
+			"gets its refineries stacked at that field - there is nowhere else in the region worth putting",
+			"one - instead of the search wandering off to the next field over. Falls back to the",
+			"unrestricted cells if the filter would leave nothing.")]
+		public readonly bool EnableRegionRefineryPlacement = false;
+
 		[Desc("Locomotor names used by harvesters. When set, refinery placement filters out resource cells " +
 			"with no passable path, preventing refineries next to cliffs.")]
 		public readonly FrozenSet<string> HarvesterLocomotors = FrozenSet<string>.Empty;

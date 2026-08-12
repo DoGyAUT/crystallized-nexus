@@ -494,6 +494,21 @@ namespace OpenRA.Mods.Common.Traits
 			return fieldCells;
 		}
 
+		/// <summary>
+		/// Whether a cell belongs to a region other than the one refinery placement is confined to. Cells
+		/// that belong to no region at all (a chokepoint corridor, the foot of a cliff step) pass: they are
+		/// the seam between regions rather than the far side of one, and rejecting them would refuse
+		/// perfectly good ground wherever a field runs up against a barrier.
+		/// </summary>
+		bool IsInForeignRegion(CPos cell, int regionId)
+		{
+			if (regionId < 0 || baseBuilder.TacticalMapModule == null)
+				return false;
+
+			var cellRegion = baseBuilder.TacticalMapModule.GetRegionIdAt(cell);
+			return cellRegion >= 0 && cellRegion != regionId;
+		}
+
 		CPos[] SelectRefineryResourceCells(IReadOnlyList<CPos> resources, CPos baseLoc, CPos? existingRefineryLoc = null, CPos? requestedResourceLoc = null)
 		{
 			var maxChecks = Math.Max(baseBuilder.Info.MaxResourceCellsToCheck, 1);
@@ -1051,6 +1066,24 @@ namespace OpenRA.Mods.Common.Traits
 				nearbyResources = nearbyResources.Where(c => CountPassableOrthogonalNeighbors(c) >= 3);
 
 			var nearbyResourceList = nearbyResources.ToList();
+
+			// Same region restriction the placement itself applies, so this pre-flight cannot answer "yes,
+			// there is a field" about ground placement will then refuse - that answer costs a queued
+			// refinery, a failed placement and a retry cooldown every time round.
+			if (baseBuilder.Info.EnableRegionRefineryPlacement && baseBuilder.TacticalMapModule != null && nearbyResourceList.Count > 0)
+			{
+				var regionId = baseBuilder.TacticalMapModule.GetRegionIdAt(baseCenter);
+				if (regionId >= 0)
+				{
+					var inRegion = nearbyResourceList
+						.Where(c => baseBuilder.TacticalMapModule.GetRegionIdAt(c) == regionId)
+						.ToList();
+
+					if (inRegion.Count > 0)
+						nearbyResourceList = inRegion;
+				}
+			}
+
 			if (nearbyResourceList.Count == 0)
 				return false;
 
@@ -2652,6 +2685,45 @@ namespace OpenRA.Mods.Common.Traits
 						if (baseBuilder.HarvesterLocomotorsList.Length > 0)
 							nearbyResources = nearbyResources.Where(c => CountPassableOrthogonalNeighbors(c) >= 3).ToArray();
 
+						// The ring the cells came from is geometry alone: it reaches across a cliff or a door
+						// just as readily as into the ground the base actually sits on, and reachability
+						// filtering above only asks whether a path exists, not whether it is a sane one to
+						// drive. Restricting the cells to the base's own region answers "which fields are
+						// mine to work" the way the map does. It also settles how many refineries a field
+						// gets without a rule for it: a region with one field has nowhere else to put one,
+						// so they stack there instead of the search wandering to the next field over.
+						var refineryRegionId = -1;
+						if (baseBuilder.Info.EnableRegionRefineryPlacement && baseBuilder.TacticalMapModule != null && nearbyResources.Length > 0)
+						{
+							refineryRegionId = baseBuilder.TacticalMapModule.GetRegionIdAt(resourceBaseCenter);
+							if (refineryRegionId < 0)
+								refineryRegionId = baseBuilder.TacticalMapModule.GetRegionIdAt(targetBase.Center);
+
+							if (refineryRegionId >= 0)
+							{
+								var inRegion = nearbyResources
+									.Where(c => baseBuilder.TacticalMapModule.GetRegionIdAt(c) == refineryRegionId)
+									.ToArray();
+
+								// A base whose region genuinely holds no resources still has to be able to
+								// build a refinery somewhere - the same fallback ordinary placement makes.
+								if (inRegion.Length > 0)
+								{
+									if (inRegion.Length != nearbyResources.Length)
+										CNBotLog.Debug("{0} refinery: region {1} holds {2} of {3} nearby resource cells",
+											player, refineryRegionId, inRegion.Length, nearbyResources.Length);
+
+									nearbyResources = inRegion;
+								}
+								else
+								{
+									CNBotLog.Debug("{0} refinery: region {1} holds no resource cells, falling back to the ring",
+										player, refineryRegionId);
+									refineryRegionId = -1;
+								}
+							}
+						}
+
 						// Find the closest refinery we have if we have any when not failing to place for the first time
 						var closestRefinery = failCount <= 0
 							? baseBuilder.RefineryBuildings.Actors.Where(a => !a.IsDead)?.ClosestToIgnoringPath(world.Map.CenterOfCell(resourceBaseCenter))
@@ -2718,6 +2790,9 @@ namespace OpenRA.Mods.Common.Traits
 							foreach (var loc in candidateCells)
 							{
 								if (!RespectsGeneralBuildingSpacing(loc, bi))
+									continue;
+
+								if (IsInForeignRegion(loc, refineryRegionId))
 									continue;
 
 								if (baseBuilder.PathFinder != null && baseBuilder.HarvesterLocomotorsList.Length > 0)
@@ -2858,6 +2933,9 @@ namespace OpenRA.Mods.Common.Traits
 							foreach (var loc in candidatesRelaxed)
 							{
 								if (!RespectsGeneralBuildingSpacing(loc, bi))
+									continue;
+
+								if (IsInForeignRegion(loc, refineryRegionId))
 									continue;
 
 								if (baseBuilder.PathFinder != null && baseBuilder.HarvesterLocomotorsList.Length > 0)

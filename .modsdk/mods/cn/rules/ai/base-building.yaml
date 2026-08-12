@@ -103,6 +103,7 @@ Player:
 		EnableDoorDefense: true
 		EnableDoorKillZone: true
 		EnableCoreRegionPlacement: true
+		EnableRegionRefineryPlacement: true
 		EnableDefenseDangerMemory: true
 		DefenseDangerMemoryAttackWeight: 120
 		DefenseDangerMemoryBuildingAttackWeight: 160
