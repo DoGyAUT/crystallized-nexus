@@ -25,6 +25,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly Color RampColor = Color.Yellow;
 		public readonly Color PassageColor = Color.Orange;
 		public readonly Color RegionUnclaimedColor = Color.Gray;
+		public readonly Color RegionBarrierColor = Color.OrangeRed;
 
 		public override object Create(ActorInitializer init) { return new CNTacticalMapOverlay(this); }
 	}
@@ -115,6 +116,18 @@ namespace OpenRA.Mods.Common.Traits
 			var regionModule = moduleList.FirstOrDefault();
 			if (regionModule != null)
 			{
+				// What the cut ran along. Drawn because every "the regions are wrong here" so far has
+				// really been "the barrier has a hole here", and a hole is invisible from the outlines
+				// alone - they just run past it as if nothing were there.
+				foreach (var cell in regionModule.RegionBarrierForOverlay())
+				{
+					if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+						continue;
+
+					yield return new CircleAnnotationRenderable(
+						self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 5, 1, info.RegionBarrierColor);
+				}
+
 				foreach (var region in regionModule.GetRegions())
 				{
 					var owner = regionModule.GetRegionOwner(region.Id);
