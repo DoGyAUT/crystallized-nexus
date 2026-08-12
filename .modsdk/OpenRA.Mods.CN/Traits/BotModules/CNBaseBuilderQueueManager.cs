@@ -64,6 +64,11 @@ namespace OpenRA.Mods.Common.Traits
 		int defensePlacementAttempt;
 		int refineryPlacementCooldownTicks;
 		int defensePlacementCooldownTicks;
+
+		// The region cap is asked once per candidate resource cell, so what it reports is deduplicated
+		// down to "this changed" rather than logged every time it says no.
+		int lastCappedRegionId = -1;
+		int lastCappedTotal = -1;
 		CPos? baseCenterKeepsFailing = null;
 
 		bool itemQueuedThisTick = false;
@@ -525,7 +530,27 @@ namespace OpenRA.Mods.Common.Traits
 			var pending = baseBuilder.RequestedRefineries.Values.Count(req =>
 				baseBuilder.TacticalMapModule.GetRegionIdAt(req.ResourceLoc) == regionId);
 
-			return built + pending >= cap;
+			// And the ones on the production line right now. A bot with four construction yards runs four
+			// of these decisions independently, and each one that only counted finished buildings saw the
+			// same "still room for one" and started another - which is how a target of four ends up as
+			// seven standing refineries. They have no location yet, so they count against whichever region
+			// is asking: the conservative reading, and very nearly always the right one, since a refinery
+			// under construction is being built for the region that just decided it wanted one.
+			var producing = 0;
+			foreach (var refineryType in baseBuilder.Info.RefineryTypes)
+				if (baseBuilder.BuildingsBeingProduced.TryGetValue(refineryType, out var count))
+					producing += count;
+
+			var total = built + pending + producing;
+			if (total >= cap && (regionId != lastCappedRegionId || total != lastCappedTotal))
+			{
+				lastCappedRegionId = regionId;
+				lastCappedTotal = total;
+				CNBotLog.Debug("{0} refinery: region {1} capped at {2} ({3} resource cells / {4}) - {5} built, {6} requested, {7} producing",
+					player, regionId, cap, resourceCells, perRefinery, built, pending, producing);
+			}
+
+			return total >= cap;
 		}
 
 		/// <summary>
