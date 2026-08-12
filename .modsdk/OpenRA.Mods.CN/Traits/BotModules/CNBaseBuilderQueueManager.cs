@@ -554,6 +554,23 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Whether every cell a building would occupy stays out of any other region. Anchoring on the last
+		/// cell inside a region still lays most of a 4x3 building across the boundary, so the footprint is
+		/// what has to be asked about, not the origin.
+		/// </summary>
+		bool FootprintStaysInRegion(CPos cell, BuildingInfo buildingInfo, int regionId)
+		{
+			if (regionId < 0 || buildingInfo == null || baseBuilder.TacticalMapModule == null)
+				return true;
+
+			foreach (var tile in buildingInfo.Tiles(cell))
+				if (IsInForeignRegion(tile, regionId))
+					return false;
+
+			return true;
+		}
+
+		/// <summary>
 		/// Whether a cell belongs to a region other than the one refinery placement is confined to. Cells
 		/// that belong to no region at all (a chokepoint corridor, the foot of a cliff step) pass: they are
 		/// the seam between regions rather than the far side of one, and rejecting them would refuse
@@ -1871,11 +1888,22 @@ namespace OpenRA.Mods.Common.Traits
 			// is in, so it cannot spill across a door into a neighbouring region. AnchorId (not object
 			// identity - GetBases()/PrimaryBase rebuild fresh CNBotBase instances every call) is the stable
 			// way to tell "this is the starting base" already used elsewhere (baseRoleByAnchor).
-			var restrictToCoreRegion = baseBuilder.Info.EnableCoreRegionPlacement && baseBuilder.TacticalMapModule != null
-				&& targetBase.AnchorId == baseBuilder.PrimaryBase.AnchorId;
-			var coreRegionId = restrictToCoreRegion ? baseBuilder.TacticalMapModule.GetRegionIdAt(baseBuilder.BaseOrigin) : -1;
-			if (coreRegionId < 0)
-				restrictToCoreRegion = false;
+			// Every base is held to its own region, not just the starting one. Confining only the primary
+			// base left every expansion free to build across whatever boundary it stood near, which is
+			// most of what "the base spills over" looks like on screen. The starting base still measures
+			// from BaseOrigin (stable regardless of which buildings currently exist); any other base
+			// measures from its own centre.
+			var restrictToCoreRegion = baseBuilder.Info.EnableCoreRegionPlacement && baseBuilder.TacticalMapModule != null;
+			var coreRegionId = -1;
+			if (restrictToCoreRegion)
+			{
+				coreRegionId = targetBase.AnchorId == baseBuilder.PrimaryBase.AnchorId
+					? baseBuilder.TacticalMapModule.GetRegionIdAt(baseBuilder.BaseOrigin)
+					: baseBuilder.TacticalMapModule.GetRegionIdAt(targetBase.Center);
+
+				if (coreRegionId < 0)
+					restrictToCoreRegion = false;
+			}
 
 			// Determine layout for this building type
 			var layout = baseBuilder.Info.DefaultLayout;
@@ -2124,9 +2152,18 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (restrictToCoreRegion)
 					{
+						// The whole footprint, not just the cell the building is anchored at: a 4x3 refinery
+						// pinned to the last cell inside a region still lays two thirds of itself across the
+						// boundary, which is exactly what "it overlaps" looks like from above. Origin first
+						// because it is one lookup and throws out most of the ring before the footprint of
+						// what survives is walked.
 						// A base near its own region's edge should still be able to build - fall back to the
 						// unrestricted pool rather than ever leaving placement with nothing to choose from.
-						var withinRegion = allCells.Where(c => baseBuilder.TacticalMapModule.GetRegionIdAt(c) == coreRegionId).ToList();
+						var withinRegion = allCells
+							.Where(c => baseBuilder.TacticalMapModule.GetRegionIdAt(c) == coreRegionId
+								&& FootprintStaysInRegion(c, vbi, coreRegionId))
+							.ToList();
+
 						if (withinRegion.Count > 0)
 							allCells = withinRegion;
 					}
@@ -2865,7 +2902,7 @@ namespace OpenRA.Mods.Common.Traits
 								if (!RespectsGeneralBuildingSpacing(loc, bi))
 									continue;
 
-								if (IsInForeignRegion(loc, refineryRegionId))
+								if (!FootprintStaysInRegion(loc, bi, refineryRegionId))
 									continue;
 
 								if (baseBuilder.PathFinder != null && baseBuilder.HarvesterLocomotorsList.Length > 0)
@@ -3008,7 +3045,7 @@ namespace OpenRA.Mods.Common.Traits
 								if (!RespectsGeneralBuildingSpacing(loc, bi))
 									continue;
 
-								if (IsInForeignRegion(loc, refineryRegionId))
+								if (!FootprintStaysInRegion(loc, bi, refineryRegionId))
 									continue;
 
 								if (baseBuilder.PathFinder != null && baseBuilder.HarvesterLocomotorsList.Length > 0)
