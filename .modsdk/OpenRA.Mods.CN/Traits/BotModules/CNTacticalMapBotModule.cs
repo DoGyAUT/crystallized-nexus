@@ -1999,6 +1999,7 @@ namespace OpenRA.Mods.Common.Traits
 		// not something to work out from a single number on the overlay.
 		int doorsMeasuredByRegion;
 		int doorsMeasuredByPinch;
+		int doorsUnmeasured;
 
 		/// <summary>Ground this player holds: closer to its own buildings than to any known enemy one.</summary>
 		public IReadOnlyCollection<CPos> GetTerritory() { EnsureBuilt(); return territory; }
@@ -2228,6 +2229,7 @@ namespace OpenRA.Mods.Common.Traits
 			var doorCells = new HashSet<CPos>();
 			doorsMeasuredByRegion = 0;
 			doorsMeasuredByPinch = 0;
+			doorsUnmeasured = 0;
 
 			foreach (var cell in territory)
 			{
@@ -2400,12 +2402,12 @@ namespace OpenRA.Mods.Common.Traits
 				"{0} territory: {1} cells, {2} wall, {3} front, {4} horizon | {5} chokepoints, {6} corridors "
 				+ "touching this territory | {7} extra edge cells ({8} no corridor) -> {9} candidates -> "
 				+ "{10} merged away -> {11} doors ({12} too wide, {13} too narrow, {14} too shallow) | "
-				+ "beyond: {15} by region, {16} by pinch",
+				+ "beyond: {15} by region, {16} by pinch, {17} nothing answered",
 				player, territory.Count, territoryWall.Count, territoryFront.Count, horizon.Count,
 				chokepoints.Count, adjacentOnly,
 				doorCells.Count, runsNoCorridor, candidates.Count, runsMerged, doors.Count,
 				runsTooWide, runsTooNarrow, runsTooShallow,
-				doorsMeasuredByRegion, doorsMeasuredByPinch);
+				doorsMeasuredByRegion, doorsMeasuredByPinch, doorsUnmeasured);
 		}
 
 		CNTerritoryDoor MakeDoor(List<CPos> run)
@@ -2465,6 +2467,8 @@ namespace OpenRA.Mods.Common.Traits
 				beyond = GroundBeyondPinch(center, run);
 				if (beyond > 0)
 					doorsMeasuredByPinch++;
+				else
+					doorsUnmeasured++;
 			}
 
 			return new CNTerritoryDoor(center, run.ToArray(), outward, beyond);
