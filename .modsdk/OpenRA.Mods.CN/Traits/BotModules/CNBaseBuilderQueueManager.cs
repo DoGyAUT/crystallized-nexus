@@ -495,6 +495,40 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Whether a region already holds as many refineries as its ground can feed. The per-indice limits
+		/// cannot answer this: an indice is a raster square rather than a field, so one 153-cell field
+		/// spread over four of them permits eight refineries by that rule alone. A region counts its
+		/// resource cells once, whatever the raster does with them.
+		/// </summary>
+		bool RegionRefineryCapacityReached(int regionId)
+		{
+			var perRefinery = baseBuilder.Info.ResourceCellsPerRegionRefinery;
+			if (regionId < 0 || perRefinery <= 0 || baseBuilder.TacticalMapModule == null)
+				return false;
+
+			var regions = baseBuilder.TacticalMapModule.GetRegions();
+			if (regionId >= regions.Count)
+				return false;
+
+			// No resources surveyed here at all: the region says nothing about how many refineries belong
+			// in it, so leave the decision to the field-level rules rather than capping at zero.
+			var resourceCells = regions[regionId].ResourceCellCount;
+			if (resourceCells <= 0)
+				return false;
+
+			var cap = (resourceCells + perRefinery - 1) / perRefinery;
+			var built = baseBuilder.RefineryBuildings.Actors.Count(a => !a.IsDead
+				&& baseBuilder.TacticalMapModule.GetRegionIdAt(a.Location) == regionId);
+
+			// Requested-but-not-yet-built ones count too, or the cap is only enforced once the queue has
+			// already overshot it.
+			var pending = baseBuilder.RequestedRefineries.Values.Count(req =>
+				baseBuilder.TacticalMapModule.GetRegionIdAt(req.ResourceLoc) == regionId);
+
+			return built + pending >= cap;
+		}
+
+		/// <summary>
 		/// Whether a cell belongs to a region other than the one refinery placement is confined to. Cells
 		/// that belong to no region at all (a chokepoint corridor, the foot of a cliff step) pass: they are
 		/// the seam between regions rather than the far side of one, and rejecting them would refuse
@@ -1083,6 +1117,14 @@ namespace OpenRA.Mods.Common.Traits
 						nearbyResourceList = inRegion;
 				}
 			}
+
+			// Whatever is left, drop the fields whose region is already as densely refined as its ground
+			// supports - otherwise this reports a viable field, the refinery is queued, and placement
+			// refuses it on the same grounds a moment later.
+			if (baseBuilder.TacticalMapModule != null)
+				nearbyResourceList = nearbyResourceList
+					.Where(c => !RegionRefineryCapacityReached(baseBuilder.TacticalMapModule.GetRegionIdAt(c)))
+					.ToList();
 
 			if (nearbyResourceList.Count == 0)
 				return false;
@@ -2746,6 +2788,12 @@ namespace OpenRA.Mods.Common.Traits
 
 						foreach (var r in resourcesShouldCheck)
 						{
+							// Asked per field rather than once for the base's own region, so it still holds
+							// when the region filter above fell back to the plain ring.
+							if (baseBuilder.TacticalMapModule != null
+								&& RegionRefineryCapacityReached(baseBuilder.TacticalMapModule.GetRegionIdAt(r)))
+								continue;
+
 							if (baseBuilder.ResourceMapModule != null)
 							{
 								var resourceIndice = baseBuilder.ResourceMapModule.FindClosestIndiceFromCPos(r);

@@ -300,6 +300,15 @@ namespace OpenRA.Mods.Common.Traits
 			"unrestricted cells if the filter would leave nothing.")]
 		public readonly bool EnableRegionRefineryPlacement = false;
 
+		[Desc("Cells of resource in a region per refinery built there: the region's own ResourceCellCount",
+			"divided by this, rounded up, is the cap. The per-indice limits cannot answer this question -",
+			"an indice is a raster square, not a field, so a single 153-cell field spread across four of",
+			"them permits eight refineries by that rule alone, which is how one field ends up with five",
+			"sitting on it. Counted per region rather than globally, so expanding into another region still",
+			"raises the ceiling. Reads the region's resource count as surveyed at map load, so it is a",
+			"capacity figure, not a live one. 0 disables the cap.")]
+		public readonly int ResourceCellsPerRegionRefinery = 0;
+
 		[Desc("Locomotor names used by harvesters. When set, refinery placement filters out resource cells " +
 			"with no passable path, preventing refineries next to cliffs.")]
 		public readonly FrozenSet<string> HarvesterLocomotors = FrozenSet<string>.Empty;
