@@ -246,6 +246,11 @@ namespace OpenRA.Mods.Common.Traits
 			"both feed the same score.")]
 		public readonly int DoorDefenseWeight = 200;
 
+		[Desc("How far behind a door (cells, opposite Outward) the kill-zone wall band sits. Bigger than the",
+			"3-cell GetDoorDefenseAnchors offset on purpose, so the already-anchored defence ends up INSIDE",
+			"the walled zone, not sitting on its edge.")]
+		public readonly int DoorKillZoneRadius = 7;
+
 		public override object Create(ActorInitializer init) { return new CNTacticalMapBotModule(init.Self, this); }
 	}
 
@@ -1214,13 +1219,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (door.Outward == CVec.Zero)
 					continue;
 
-				// Doors are axis-aligned corridors (see ResolveChokepointCorridors), so Outward - summed over
-				// every cell in the run in MakeDoor - stays dominated by one axis even though it is not unit
-				// length itself.
-				var approach = Math.Abs(door.Outward.X) < Math.Abs(door.Outward.Y)
-					? new CVec(0, Math.Sign(door.Outward.Y))
-					: new CVec(Math.Sign(door.Outward.X), 0);
-
+				var approach = DoorApproachAxis(door);
 				var lateral = new CVec(-approach.Y, approach.X);
 				var behind = door.Center - approach * 3; // same offset GetChokepointDefenseAnchors uses
 
@@ -1229,6 +1228,42 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return anchors;
+		}
+
+		// Doors are axis-aligned corridors (see ResolveChokepointCorridors), so Outward - summed over every
+		// cell in the run in MakeDoor - stays dominated by one axis even though it is not unit length itself.
+		static CVec DoorApproachAxis(CNTerritoryDoor door) =>
+			Math.Abs(door.Outward.X) < Math.Abs(door.Outward.Y)
+				? new CVec(0, Math.Sign(door.Outward.Y))
+				: new CVec(Math.Sign(door.Outward.X), 0);
+
+		/// <summary>
+		/// A band of cells behind a territory door - candidate wall cells for a set-back "kill zone", as
+		/// opposed to sealing the door itself. Half of an annulus centered on the door, kept only on the
+		/// territory side (opposite Outward) so the door stays passable and the zone's open side faces it.
+		/// No radius parameter - always Info.DoorKillZoneRadius, so wall placement and the debug overlay can
+		/// never disagree on which radius is in play.
+		/// </summary>
+		public IReadOnlyList<CPos> GetDoorKillZoneCells(CNTerritoryDoor door)
+		{
+			var radius = Math.Max(1, Info.DoorKillZoneRadius);
+			if (door.Outward == CVec.Zero)
+				return [];
+
+			var approach = DoorApproachAxis(door);
+			var band = Math.Min(radius - 1, 2);
+			var cells = new List<CPos>();
+			foreach (var cell in world.Map.FindTilesInAnnulus(door.Center, radius - band, radius))
+			{
+				var delta = cell - door.Center;
+				var behind = approach.X != 0
+					? Math.Sign(delta.X) != Math.Sign(approach.X)
+					: Math.Sign(delta.Y) != Math.Sign(approach.Y);
+				if (behind)
+					cells.Add(cell);
+			}
+
+			return cells;
 		}
 
 		/// <summary>Bearings (from reference) toward each reachable access point, for the sealed-flank penalty.</summary>

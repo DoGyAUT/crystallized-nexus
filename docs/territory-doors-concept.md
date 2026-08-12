@@ -2,8 +2,9 @@
 
 Status: detection validated visually (`/cntopo`, several iterations) and now drives defense
 placement (`EnableDoorDefense`, opt-in, on by default for the tested profiles in
-`ai/base-building.yaml`). Region control, region roles, kill-zone perimeters and front squads are
-recorded below as future work, not started.
+`ai/base-building.yaml`). A kill-zone perimeter behind each door is built too (`EnableDoorKillZone`)
+but stays off in yaml pending its own visual check. Region control, region roles and front squads
+are recorded below as future work, not started.
 
 ## The problem
 
@@ -170,19 +171,30 @@ Past that: regions get assigned for secondary base / eco / defense / outpost / p
 same shape as the existing `CNBaseRole` enum. Whether that stays exactly those five names or
 grows is unresolved on purpose - the point recorded here is *replace*, not *add another one*.
 
-## Future: a kill-zone perimeter around each door
+## A kill-zone perimeter around each door
 
-Not started. `GetDoorDefenseAnchors` pulls placement toward a position behind a door facing its
-approach, but that is still just a scoring bonus on top of the ordinary build-site search - it
-does not lay out a shape.
+Shipped, gated off by default. `GetDoorDefenseAnchors` already pulled placement toward a position
+behind a door facing its approach, but that was only ever a scoring bonus on top of the ordinary
+build-site search - it never laid out a shape.
 
-The idea: a perimeter zone around each door - rectangle or half-circle, still undecided - that a
-bot can wall off (profile-gated, not every profile should spend on this) with defense placed
-behind it. This is a generalisation of the existing `EnableChokepointSealing` /
-`ChooseChokepointWallLocation` / `ChooseChokepointGateLocation` feature
-(`CNBaseBuilderQueueManager.cs`) from `CNSealableCorridor` to `CNTerritoryDoor` - the same
-relationship the doors themselves have to the six old hotspots: a wider, better-founded version of
-something that already works, not a new concept sitting next to it.
+Shape chosen: a half-circle, not a rectangle - the user's own sketch of where a kill zone should
+sit, and simpler to get right than it sounds. `GetDoorKillZoneCells` (`CNTacticalMapBotModule.cs`)
+takes a half-annulus around `door.Center` (`Info.DoorKillZoneRadius`, default 7 - bigger than the
+3-cell `GetDoorDefenseAnchors` offset on purpose, so the anchor ends up inside the walled zone) via
+the engine's own `Map.FindTilesInAnnulus`, kept to the territory side with a half-plane filter
+against `Outward`. No new trigonometry, unlike the door span problem itself.
+
+Wiring is a direct generalisation of `EnableChokepointSealing` /
+`ChooseChokepointWallLocation` (`CNBaseBuilderQueueManager.cs`) from `CNSealableCorridor` to
+`CNTerritoryDoor` - `ChooseDoorKillZoneWallLocation`, gated by `EnableDoorKillZone` /
+`DoorKillZoneProfiles` / `ShouldSealDoorKillZone()`, only walls a door once an own defence
+structure already stands within `DoorKillZoneRadius` of it (`DoorHasNearbyDefense`) - no point
+fortifying a position nothing defends yet. Deliberately no gate: the half-annulus is open on the
+door-facing side by construction, so a unit paths around either end instead of through one.
+
+Two-step rollout, same as the doors themselves: the geometry and the `/cntopo` overlay ship
+unconditionally, so the half-circle can be eyeballed with zero behaviour change before anything
+gets built. `EnableDoorKillZone` stays off in `ai/base-building.yaml` until that check happens.
 
 ## Future: region-aware front squads
 

@@ -145,6 +145,10 @@ namespace OpenRA.Mods.Common.Traits
 						self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 2, 1, frontColor);
 				}
 
+				// Set-back wall band a kill-zone would be built on - lighter than the door itself, since it
+				// is context for the shape, not yet something that exists unless EnableDoorKillZone builds it.
+				var killZoneColor = Color.FromArgb(140, owner.Color);
+
 				foreach (var door in module.DoorsForOverlay())
 				{
 					foreach (var cell in door.Cells)
@@ -154,6 +158,15 @@ namespace OpenRA.Mods.Common.Traits
 
 						yield return new CircleAnnotationRenderable(
 							self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 2, 2, doorColor);
+					}
+
+					foreach (var cell in module.GetDoorKillZoneCells(door))
+					{
+						if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+							continue;
+
+						yield return new CircleAnnotationRenderable(
+							self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 3, 1, killZoneColor);
 					}
 
 					if (!visible.Contains((PPos)door.Center.ToMPos(self.World.Map)))

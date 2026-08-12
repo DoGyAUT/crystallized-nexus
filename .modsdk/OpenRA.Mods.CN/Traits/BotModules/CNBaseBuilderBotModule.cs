@@ -269,6 +269,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Bot profiles that seal chokepoints when EnableChokepointSealing is set. Empty = all profiles.")]
 		public readonly FrozenSet<string> ChokepointSealProfiles = FrozenSet<string>.Empty;
 
+		[Desc("Wall off a set-back perimeter behind a territory door instead of sealing the door itself - the",
+			"door stays passable, but anything through it now has to cross open ground under fire before",
+			"reaching the base, or go the long way around the wall's ends. A generalisation of",
+			"EnableChokepointSealing (which blocks the gap outright) to CNTerritoryDoor. Opt-in.")]
+		public readonly bool EnableDoorKillZone = false;
+
+		[Desc("Bot profiles that build a door kill-zone when EnableDoorKillZone is set. Empty = all profiles.")]
+		public readonly FrozenSet<string> DoorKillZoneProfiles = FrozenSet<string>.Empty;
+
 		[Desc("Score defense placement against territory doors (the handful of real ways into the player's",
 			"claimed ground) instead of the six chokepoints nearest each base. That per-base re-ranking is",
 			"what scattered a seven-base bot's defenses over seven neighbourhoods - doors are shared across",
@@ -1267,6 +1276,22 @@ namespace OpenRA.Mods.Common.Traits
 				: ActiveProfile;
 
 			return Info.ChokepointSealProfiles.Contains(profile.ToString());
+		}
+
+		public bool ShouldSealDoorKillZone()
+		{
+			if (!Info.EnableDoorKillZone || TacticalMapModule == null
+				|| Info.WallTypes.Count == 0)
+				return false;
+
+			if (Info.DoorKillZoneProfiles.Count == 0)
+				return true;
+
+			var profile = ActiveProfile == BotProfile.Adaptive && profileModule != null
+				? profileModule.ActiveProfile
+				: ActiveProfile;
+
+			return Info.DoorKillZoneProfiles.Contains(profile.ToString());
 		}
 
 		int GetBudgetWeightedValue(FrozenDictionary<string, int> budgetValues, int fallback)

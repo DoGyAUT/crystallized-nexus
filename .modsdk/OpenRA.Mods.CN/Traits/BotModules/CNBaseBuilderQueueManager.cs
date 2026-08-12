@@ -1206,8 +1206,10 @@ namespace OpenRA.Mods.Common.Traits
 				baseBuilder.RefineryExpansionBlocked = false;
 			}
 
-			// Build walls around protected structures, around the core base for defensive profiles, or across chokepoints.
-			if (baseBuilder.Info.ProtectedByWalls.Count > 0 || baseBuilder.ShouldBuildBasePerimeterWalls() || baseBuilder.ShouldSealChokepoints())
+			// Build walls around protected structures, around the core base for defensive profiles, across
+			// chokepoints, or in a set-back band behind a territory door. Door kill zones build no gates.
+			if (baseBuilder.Info.ProtectedByWalls.Count > 0 || baseBuilder.ShouldBuildBasePerimeterWalls()
+				|| baseBuilder.ShouldSealChokepoints() || baseBuilder.ShouldSealDoorKillZone())
 			{
 				if ((baseBuilder.ShouldBuildBasePerimeterWalls() || baseBuilder.ShouldSealChokepoints())
 					&& CountExistingAndQueuedGates() < baseBuilder.Info.BasePerimeterMaxGateCount)
@@ -3057,6 +3059,18 @@ namespace OpenRA.Mods.Common.Traits
 				.Any(a => !a.IsDead && a.Info.HasTraitInfo<BuildingInfo>());
 		}
 
+		// No point fortifying a door nothing defends yet - the door-defense-placement phase should already
+		// have anchored a turret within DoorKillZoneRadius by the time this fires (7 cells > the 3-cell
+		// GetDoorDefenseAnchors offset).
+		bool DoorHasNearbyDefense(CNTerritoryDoor door)
+		{
+			var radius = Math.Max(1, baseBuilder.TacticalMapModule.Info.DoorKillZoneRadius);
+			var radiusSq = (long)radius * radius;
+			return world.Actors.Any(a => !a.IsDead && a.IsInWorld && a.Owner == player
+				&& baseBuilder.Info.DefenseTypes.Contains(a.Info.Name)
+				&& (a.Location - door.Center).LengthSquared <= radiusSq);
+		}
+
 		bool HasBlockingBuildingForChokepointSeal(CPos cell)
 		{
 			return world.ActorMap.GetActorsAt(cell)
@@ -3282,6 +3296,54 @@ namespace OpenRA.Mods.Common.Traits
 			return (null, null, 0);
 		}
 
+		// Wall a set-back band behind a territory door instead of sealing the door itself - the door stays
+		// passable, but the wall forces anything through it to cross open ground under fire, or go around
+		// its ends. No gate: GetDoorKillZoneCells is already only the half of the annulus behind the door,
+		// so the two ends are open by construction and a unit paths around either one.
+		(CPos? Location, CPos? BaseCenter, int Variant) ChooseDoorKillZoneWallLocation(ActorInfo actorInfo)
+		{
+			if (!baseBuilder.ShouldSealDoorKillZone() || baseBuilder.TacticalMapModule == null)
+				return (null, null, 0);
+
+			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
+			if (bi == null)
+				return (null, null, 0);
+
+			var baseCenter = baseBuilder.PrimaryBase.Center;
+			foreach (var door in baseBuilder.TacticalMapModule.GetTerritoryDoors()
+				.OrderBy(d => (d.Center - baseCenter).LengthSquared))
+			{
+				if (!DoorHasNearbyDefense(door))
+					continue;
+
+				var zoneCells = baseBuilder.TacticalMapModule.GetDoorKillZoneCells(door);
+				if (zoneCells.Count == 0)
+					continue;
+
+				var existingWalls = new HashSet<CPos>(zoneCells.Where(c => HasOwnActorAt(c, baseBuilder.Info.WallTypes)));
+
+				int KillZoneWallScore(CPos cell)
+				{
+					var score = 0;
+					if (existingWalls.Contains(cell + new CVec(1, 0))) score -= 80;
+					if (existingWalls.Contains(cell + new CVec(-1, 0))) score -= 80;
+					if (existingWalls.Contains(cell + new CVec(0, 1))) score -= 80;
+					if (existingWalls.Contains(cell + new CVec(0, -1))) score -= 80;
+					return score;
+				}
+
+				var resourceAvoidanceRadius = Math.Max(0, baseBuilder.Info.BasePerimeterResourceAvoidanceRadius);
+				foreach (var cell in zoneCells
+					.Where(c => world.Map.Contains(c) && !existingWalls.Contains(c)
+						&& !HasNearbyValuableResource(c, resourceAvoidanceRadius) && !HasAnyBuildingAt(c)
+						&& world.CanPlaceBuilding(c, actorInfo, bi, null) && bi.IsCloseEnoughToBase(world, player, actorInfo, c))
+					.OrderBy(KillZoneWallScore))
+					return (cell, baseCenter, 0);
+			}
+
+			return (null, null, 0);
+		}
+
 		// Place a single gate at the center of a sealed chokepoint, matching the wall line's orientation.
 		(CPos? Location, CPos? BaseCenter, int Variant) ChooseChokepointGateLocation(ActorInfo actorInfo)
 		{
@@ -3335,6 +3397,10 @@ namespace OpenRA.Mods.Common.Traits
 			var (chokeLoc, chokeBase, chokeVar) = ChooseChokepointWallLocation(actorInfo);
 			if (chokeLoc != null)
 				return (chokeLoc, chokeBase, chokeVar);
+
+			var (killZoneLoc, killZoneBase, killZoneVar) = ChooseDoorKillZoneWallLocation(actorInfo);
+			if (killZoneLoc != null)
+				return (killZoneLoc, killZoneBase, killZoneVar);
 
 			var bi = actorInfo.TraitInfoOrDefault<BuildingInfo>();
 
