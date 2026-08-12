@@ -729,8 +729,24 @@ namespace OpenRA.Mods.Common.Traits
 				if (IsPassable(c) && IsCliffRamp(c))
 					rampCells.Add(c);
 
+			// A one-cell-thin barrier line has two known ways to leak with 8-directional movement: the
+			// flood corner-cuts diagonally between two ramp cells that only touch corner-to-corner, and
+			// IsCliffRamp itself only flags cells with an immediately adjacent impassable neighbour, so the
+			// flat lead-in/lead-out cells at a ramp's very top and bottom (touching passable ground on
+			// every side) never get flagged at all - exactly where a region flowed straight through in the
+			// first /cntopo pass. Dilating by one ring closes both: thick enough that no diagonal gap fits,
+			// and wide enough to cover the ramp's open ends too.
+			var rampBarrier = new HashSet<CPos>(rampCells);
+			foreach (var cell in rampCells)
+				foreach (var dir in CVec.Directions)
+				{
+					var n = cell + dir;
+					if (world.Map.Contains(n) && IsPassable(n))
+						rampBarrier.Add(n);
+				}
+
 			var barrier = new HashSet<CPos>(gate);
-			barrier.UnionWith(rampCells);
+			barrier.UnionWith(rampBarrier);
 
 			var minDomainNodes = Math.Max(1, Info.MinDomainNodes);
 			var visited = new HashSet<CPos>(barrier);
