@@ -787,13 +787,18 @@ namespace OpenRA.Mods.Common.Traits
 			// again, rather than by editing finished CNRegion records. Recomputing boundaries, adjacency
 			// and the resource/buildable counts by hand per merge is exactly the bespoke bookkeeping that
 			// re-deriving door geometry by hand already cost this feature five attempts.
-			var pieces = new List<HashSet<CPos>>();
+			// Droppable says whether the merge below may give a piece up. Corridors and chokepoint cells
+			// may: a bottleneck can be too minor a wrinkle to deserve a region. A ramp may not - dropping
+			// it merges high ground into low ground, which is the one separation the whole ramp barrier
+			// exists for, and a small plateau is still a place in its own right rather than part of the
+			// ground below it.
+			var pieces = new List<(HashSet<CPos> Cells, bool Droppable)>();
 			foreach (var corridor in corridors)
-				pieces.Add([.. corridor.Cells]);
+				pieces.Add(([.. corridor.Cells], true));
 
 			foreach (var cell in gate)
 				if (!cellToCorridorIndex.ContainsKey(cell))
-					pieces.Add([cell]);
+					pieces.Add(([cell], true));
 
 			// A one-cell-thin barrier line has two known ways to leak with 8-directional movement: the
 			// flood corner-cuts diagonally between two ramp cells that only touch corner-to-corner, and
@@ -803,6 +808,7 @@ namespace OpenRA.Mods.Common.Traits
 			// and wide enough to cover the ramp's open ends too. Per ramp rather than over one combined
 			// blob - same cells, but each physical ramp can then be dropped on its own.
 			var rampVisited = new HashSet<CPos>();
+			var rampPieces = 0;
 			foreach (var start in rampCells)
 			{
 				if (!rampVisited.Add(start))
@@ -818,7 +824,8 @@ namespace OpenRA.Mods.Common.Traits
 							piece.Add(n);
 					}
 
-				pieces.Add(piece);
+				pieces.Add((piece, false));
+				rampPieces++;
 			}
 
 			var active = new bool[pieces.Count];
@@ -838,7 +845,7 @@ namespace OpenRA.Mods.Common.Traits
 				var barrier = new HashSet<CPos>();
 				for (var i = 0; i < pieces.Count; i++)
 					if (active[i])
-						barrier.UnionWith(pieces[i]);
+						barrier.UnionWith(pieces[i].Cells);
 
 				FloodRegions(barrier, cellToCorridorIndex, domainNodeCount);
 				regionBarrier = barrier;
@@ -853,7 +860,7 @@ namespace OpenRA.Mods.Common.Traits
 				var droppedThisRound = 0;
 				for (var i = 0; i < pieces.Count; i++)
 				{
-					if (!active[i] || !SeparatesUndersizedRegion(pieces[i], minRegionSize))
+					if (!active[i] || !pieces[i].Droppable || !SeparatesUndersizedRegion(pieces[i].Cells, minRegionSize))
 						continue;
 
 					active[i] = false;
@@ -866,8 +873,10 @@ namespace OpenRA.Mods.Common.Traits
 				piecesDropped += droppedThisRound;
 			}
 
-			CNBotLog.Debug("regions: {0} barrier pieces, {1} dropped over {2} rounds -> {3} regions (min size {4})",
-				pieces.Count, piecesDropped, round + 1, regions.Count, minRegionSize);
+			CNBotLog.Debug(
+				"regions: {0} barrier pieces ({1} ramps, {2} ramp cells, kept whatever happens), {3} dropped "
+				+ "over {4} rounds -> {5} regions (min size {6})",
+				pieces.Count, rampPieces, rampCells.Count, piecesDropped, round + 1, regions.Count, minRegionSize);
 		}
 
 		/// <summary>

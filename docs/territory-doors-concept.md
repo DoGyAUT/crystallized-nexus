@@ -244,9 +244,18 @@ merge is the bespoke bookkeeping that re-deriving door geometry by hand already 
 five attempts. Re-running the fill recomputes all of it for free. One `CNBotLog.Debug` line reports
 pieces, drops, rounds and the resulting region count.
 
-Known consequence, accepted: a genuinely small plateau (under `MinRegionSize`) merges back into the
-low ground its ramp separates it from. It is small enough not to be a place in its own right, which
-is exactly what the threshold is claiming.
+**Ramp pieces are exempt from the merge**, decided against the first version of it after the log came
+back with `82 of 114 pieces dropped -> 12 regions`: the merge was eating the ramp seals it had just
+taken two fixes to get right, and the overlay showed a single barrier cell where a wide ramp's band
+should be. Dropping a ramp merges high ground into low ground — the one separation the ramp barrier
+exists for — and a small plateau is still a place in its own right rather than part of the ground
+below it. Corridors and chokepoint cells stay droppable; those are the wrinkles the threshold is
+actually aimed at.
+
+Worth knowing about the merge in general: it evaluates against the *current*, still-fragmented fill,
+so most drops happen in round one when nearly every piece touches something small. That cascade is
+what folds a chain of slivers into one region in three rounds, and it is also why the exemption
+above matters — anything that must survive has to be exempt, not merely large-sided.
 
 ## Core-region-aware placement: the first real consumer
 
