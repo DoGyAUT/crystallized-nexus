@@ -175,6 +175,13 @@ Player:
 		MaxConcurrentMcvCounts:
 			Expansion: 3
 			Steamroller: 2
+		# A construction yard buys a build site and no build throughput - one building queue is shared by
+		# all of them - so spreading before a region is finished just makes every site grow slower and
+		# leaves the newest ones bare. One region at a time; Expansion, whose whole idea is the land grab,
+		# gets two.
+		MaxRegionsUnderDevelopment: 1
+		MaxRegionsUnderDevelopmentCounts:
+			Expansion: 2
 		BuildAdditionalMCVCashAmount: 9000
 		BuildAdditionalMCVCashAmounts:
 			Turtle: 12000

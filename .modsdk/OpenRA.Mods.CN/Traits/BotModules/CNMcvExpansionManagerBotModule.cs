@@ -61,6 +61,20 @@ namespace OpenRA.Mods.Common.Traits
 			"than it seeds runs its owner dry all the same.")]
 		public readonly int StarvationRespawningPercent = 50;
 
+		[Desc("Own buildings a held region needs before it counts as established rather than as a building " +
+			"site still being worked on.")]
+		public readonly int RegionDevelopedBuildings = 8;
+
+		[Desc("How many of the bot's regions may be under development at once. A construction yard adds a " +
+			"build site and no build throughput whatever - the player has one building queue, so nine " +
+			"yards share the same one building at a time, each grows nine times slower, and the ones " +
+			"founded last simply stay bare. Holding this at one makes a bot finish a region before it " +
+			"opens the next. 0 disables the gate. Starvation skips it, like it skips the cash bar.")]
+		public readonly int MaxRegionsUnderDevelopment = 1;
+
+		[Desc("Per-profile override of " + nameof(MaxRegionsUnderDevelopment) + ".")]
+		public readonly FrozenDictionary<string, int> MaxRegionsUnderDevelopmentCounts = null;
+
 		[Desc("Extra construction yards a starving bot may found beyond its configured ceiling. Bounded " +
 			"rather than unlimited: a profile set to two yards should not grow without end, but it must " +
 			"not be trapped on a dead field either.")]
@@ -1206,6 +1220,11 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.MaxConcurrentMcvCounts.TryGetValue(profileKey, out var profileConcurrent)
 				? profileConcurrent : Info.MaxConcurrentMcvs;
 
+			var maxRegionsUnderDevelopment = profileKey != null
+				&& Info.MaxRegionsUnderDevelopmentCounts != null
+				&& Info.MaxRegionsUnderDevelopmentCounts.TryGetValue(profileKey, out var profileRegions)
+				? profileRegions : Info.MaxRegionsUnderDevelopment;
+
 			// With no construction yard the bot is rebuilding its base and one spare MCV is all that
 			// helps. With one, the cap is how many expansions may be under way at once — at 1 (the
 			// default, and the old hardcoded behaviour) every expansion waits for the previous MCV to
@@ -1237,6 +1256,31 @@ namespace OpenRA.Mods.Common.Traits
 			// Replacing a lost base is unconditional; expanding beyond the minimum needs a reason.
 			if (conyardNum + mcvNum >= Info.MinimumConstructionYardCount)
 			{
+				// Finish a region before opening the next. A construction yard buys a build SITE and no
+				// build throughput whatever - the player has one building queue, so nine yards share the
+				// same one-building-at-a-time, each grows nine times slower, and the ones founded last stay
+				// bare. Seen directly in a played match: an Expansion bot holding nine yards, two of its
+				// regions carrying a single building each.
+				// Counted per region rather than per base because a region is the thing being developed -
+				// two construction yards in one pocket are one building site, not two.
+				// Starvation skips this the same way it skips the cash bar: a bot that cannot develop what
+				// it holds because the ground under it is dead has to be allowed to go where it is not.
+				if (!starving && maxRegionsUnderDevelopment > 0 && regionManagerModule != null && regionManagerModule.Ready)
+				{
+					var underDevelopment = 0;
+					foreach (var state in regionManagerModule.GetRegionStates())
+						if (state.Claimed && state.OwnBuildings < Math.Max(1, Info.RegionDevelopedBuildings))
+							underDevelopment++;
+
+					if (underDevelopment >= maxRegionsUnderDevelopment)
+					{
+						CNBotLog.Debug("{0} expansion held: {1} region(s) still under development, max {2}",
+							player, underDevelopment, maxRegionsUnderDevelopment);
+
+						return;
+					}
+				}
+
 				var cash = playerResources.GetCashAndResources();
 				var richEnough = cash >= buildCashAmount;
 				var opportunity = Info.EnableOpportunityExpansion
