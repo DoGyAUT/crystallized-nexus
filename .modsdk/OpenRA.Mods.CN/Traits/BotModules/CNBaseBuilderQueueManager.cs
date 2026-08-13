@@ -554,6 +554,41 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// The resource cells a region holds, for the case where the search ring around the base found none
+		/// of them - the field is simply further out than the build radius the ring is drawn with. Applies
+		/// the same filters that pass does (valuable types, not cliff-locked, reachable by a harvester), so
+		/// the widened set is no less vetted than the one it replaces; it just is not bounded by a circle.
+		/// </summary>
+		CPos[] RegionResourceCells(int regionId, CPos from)
+		{
+			if (baseBuilder.TacticalMapModule == null || resourceLayer == null)
+				return [];
+
+			var regions = baseBuilder.TacticalMapModule.GetRegions();
+			if (regionId < 0 || regionId >= regions.Count || regions[regionId].ResourceCellCount <= 0)
+				return [];
+
+			// Bounded before the reachability test, which is the only expensive part here. The cells are
+			// ordered by how far they sit from the base first, so what gets cut is the far end of a field
+			// that the drive-length scoring below would have thrown out anyway.
+			const int ScanLimit = 128;
+
+			var cells = regions[regionId].Cells
+				.Where(c => (baseBuilder.ResourceMapModule != null
+						? baseBuilder.ResourceMapModule.Info.ValuableResourceTypes.Contains(resourceLayer.GetResource(c).Type)
+						: resourceLayer.GetResource(c).Type != null)
+					&& (baseBuilder.HarvesterLocomotorsList.Length == 0 || CountPassableOrthogonalNeighbors(c) >= 3))
+				.OrderBy(c => (c - from).LengthSquared)
+				.Take(ScanLimit);
+
+			if (baseBuilder.PathFinder != null && baseBuilder.HarvesterLocomotorsList.Length > 0)
+				cells = cells.Where(c => baseBuilder.HarvesterLocomotorsList.All(l =>
+					baseBuilder.PathFinder.PathMightExistForLocomotorBlockedByImmovable(l, from, c)));
+
+			return cells.ToArray();
+		}
+
+		/// <summary>
 		/// Whether every cell a building would occupy stays out of any other region. Anchoring on the last
 		/// cell inside a region still lays most of a 4x3 building across the boundary, so the footprint is
 		/// what has to be asked about, not the origin.
@@ -2821,9 +2856,32 @@ namespace OpenRA.Mods.Common.Traits
 								}
 								else
 								{
-									CNBotLog.Debug("{0} refinery: region {1} holds no resource cells, falling back to the ring",
-										player, refineryRegionId);
-									refineryRegionId = -1;
+									// "No resource cell in the ring" is not the same statement as "no resource
+									// cell in this region", and the old branch treated it as one: it gave the
+									// region rule up entirely, which also switches FootprintStaysInRegion off
+									// (regionId < 0 returns true for everything). From there a straight-line-near
+									// field on the far side of a cliff - another region - wins on distance.
+									// Observed in play: a refinery built against the cliff below the blue field
+									// on the terrace above, while its own region's tiberium sat further down,
+									// outside the build radius the ring is drawn with.
+									// The region graph already knows whether the region has resources at all, so
+									// widen the search to its own cells instead of dropping the rule. Only a
+									// region that genuinely holds nothing falls back to the ring.
+									var widened = RegionResourceCells(refineryRegionId, resourceBaseCenter);
+									if (widened.Length > 0)
+									{
+										CNBotLog.Debug(
+											"{0} refinery: region {1} has no resource cell in the ring, widened to {2} of its own",
+											player, refineryRegionId, widened.Length);
+
+										nearbyResources = widened;
+									}
+									else
+									{
+										CNBotLog.Debug("{0} refinery: region {1} holds no resource cells, falling back to the ring",
+											player, refineryRegionId);
+										refineryRegionId = -1;
+									}
 								}
 							}
 						}
