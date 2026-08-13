@@ -239,8 +239,30 @@ rock outcrops are everywhere.
 levels rather than on ramp shapes: a passable cell with a higher passable neighbour is barrier, which
 guarantees nothing walks between levels without standing on it and makes every region uniform in
 height. Clean rule, too much barrier in practice; the cliff-seeded version was preferred as good
-enough for now. Kept in history rather than deleted, since the argument for it still holds if
-region-per-level ever becomes the thing that is wanted.
+enough for now.
+
+**Tried a second time (`469cf21`) and rejected again (`fa1b628`) — do not attempt a third.** The
+argument for retrying was that the first rejection had been an artifact of the batch-drop merge bug
+(fixed in `6da082c`), so over-cutting was now recoverable while under-cutting was not. That argument
+was wrong, and the census on this page already said so: *5090 slope tiles, a fifth of the map*. That
+number was read as the case against `Map.Ramp` and it is equally the case against a level-stated
+rule — this terrain is not three clean plateaus with cliffs between them, it carries gentle height
+variation across open ground, so "a cell with a higher passable neighbour" flags open field.
+
+Both failure modes appeared in the same match, which is the useful part of the record:
+
+- 3953 cells flagged (against 359 for the cliff-seeded version), and then **20 of 23 height-step
+  pieces dropped by the merge** — the intermediate bands of a wide climb are narrow strips, the fill
+  reads them as confetti, and the `TinySliverCells` exception gives the *step* up to clean them.
+  High and low ground re-merged anyway, so the flagged cells bought nothing.
+- Confetti visible on screen regardless: `R17 38c res0 build38`, thirty-eight cells of flat ground
+  fenced off by barrier.
+
+The conclusion this leaves is a change of venue, not another rule. The symptom that started it is a
+bot placing a building across a cliff edge; that is a placement question, and a placement rule
+(reject a footprint spanning height levels, or one whose height differs from its base's) needs no
+correct region shape at all. Three attempts have now failed to get height into the region graph;
+the fourth should not be one.
 
 *The census is what the next attempt should start from.* `BuildRegions` logs, once per map:
 
