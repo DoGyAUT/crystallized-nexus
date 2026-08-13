@@ -85,6 +85,12 @@ namespace OpenRA.Mods.Common.Traits
 				.Distinct()
 				.ToList();
 
+			// Per-bot readings of that shared shape: who holds what, and what they think it is for.
+			var regionManagers = self.World.Players
+				.Select(p => p.PlayerActor.TraitsImplementing<CNRegionManagerBotModule>().FirstOrDefault(m => m.IsTraitEnabled()))
+				.Where(m => m != null && m.Ready)
+				.ToList();
+
 			// Cells the bots actually act on (reachable + lead somewhere). Everything else is detected-but-filtered.
 			var usefulCells = new HashSet<CPos>();
 			foreach (var module in moduleList)
@@ -145,9 +151,24 @@ namespace OpenRA.Mods.Common.Traits
 					if (region.Cells.Length == 0 || !visible.Contains((PPos)region.Cells[0].ToMPos(self.World.Map)))
 						continue;
 
+					// What the region IS comes from the shared graph; what any one bot MAKES of it comes from
+					// its own region manager, so the two are read separately and the second is appended only
+					// where a bot actually holds the region. Without the scores on screen the roles are
+					// unarguable - "why is that the economy region" has no answer from the label alone.
+					var claim = regionManagers
+						.Select(m => m.GetRegionState(region.Id))
+						.FirstOrDefault(s => s != null && s.Claimed);
+
+					var label = $"R{region.Id} {region.Size}c res{region.ResourceCellCount} build{region.BuildableCellCount}"
+						+ (owner != null ? $" {owner.PlayerName}" : "");
+
+					if (claim != null)
+						label += $"\n{claim.Role} v{claim.Value} (res{claim.ResourceScore} spc{claim.SpaceScore} sec{claim.SecurityScore})"
+							+ $"\n{claim.Connections} conn, {claim.SealableDoors} doors w{claim.DoorWidthTotal}"
+							+ (claim.BordersEnemy ? ", front" : "");
+
 					yield return new TextAnnotationRenderable(font, self.World.Map.CenterOfCell(region.Cells[0]), 0,
-						regionColor, $"R{region.Id} {region.Size}c res{region.ResourceCellCount} build{region.BuildableCellCount}"
-						+ (owner != null ? $" {owner.PlayerName}" : ""));
+						regionColor, label);
 				}
 			}
 
