@@ -52,6 +52,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly List<CNRegion> Regions = [];
 		public CellLayer<int> RegionIdByCell;
 
+		// The corridors CNRegion.DoorCorridorIndices index into. Kept because the indices are otherwise
+		// unreadable: the list was local to BuildRegions and thrown away, so a region could say it had
+		// three doors and nothing could ask how wide any of them was.
+		public readonly List<CNSealableCorridor> RegionDoorCorridors = [];
+
 		// What the cut actually ran along: resolved chokepoint corridors plus cliff ramps. Kept because
 		// "the regions are wrong here" always turns out to mean "the barrier has a hole here", and a hole
 		// is not visible from the region outlines alone - they simply run past it.
@@ -343,6 +348,7 @@ namespace OpenRA.Mods.Common.Traits
 		// Region shape (Cells/DoorCorridorIndices/AdjacentRegionIds/counts) is small and copied per-instance
 		// like chokepoints; RegionIdByCell is heavy like Passability, so it is only ever referenced, never copied.
 		readonly List<CNRegion> regions = [];
+		readonly List<CNSealableCorridor> regionDoorCorridors = [];
 		CellLayer<int> regionIdByCell;
 		HashSet<CPos> regionBarrier = [];
 		IResourceLayer resourceLayer;
@@ -506,6 +512,7 @@ namespace OpenRA.Mods.Common.Traits
 			nodeCells = [];
 			passability = null;
 			regions.Clear();
+			regionDoorCorridors.Clear();
 			regionIdByCell = null;
 			shared = null;
 			sharedGeneration = -1;
@@ -576,6 +583,8 @@ namespace OpenRA.Mods.Common.Traits
 			bridgeWatchCells.AddRange(sh.BridgeWatchCells);
 			regions.Clear();
 			regions.AddRange(sh.Regions);
+			regionDoorCorridors.Clear();
+			regionDoorCorridors.AddRange(sh.RegionDoorCorridors);
 			regionIdByCell = sh.RegionIdByCell;
 			regionBarrier = sh.RegionBarrier;
 			ResetPerBaseCaches();
@@ -595,6 +604,7 @@ namespace OpenRA.Mods.Common.Traits
 			sh.Chokepoints.AddRange(chokepoints);
 			sh.BridgeWatchCells.AddRange(bridgeWatchCells);
 			sh.Regions.AddRange(regions);
+			sh.RegionDoorCorridors.AddRange(regionDoorCorridors);
 			sh.RegionOwners = new Player[regions.Count];
 			return sh;
 		}
@@ -619,6 +629,8 @@ namespace OpenRA.Mods.Common.Traits
 			// than carried over - the old region ids no longer mean anything.
 			shared.Regions.Clear();
 			shared.Regions.AddRange(regions);
+			shared.RegionDoorCorridors.Clear();
+			shared.RegionDoorCorridors.AddRange(regionDoorCorridors);
 			shared.RegionIdByCell = regionIdByCell;
 			shared.RegionBarrier = regionBarrier;
 			shared.RegionOwners = new Player[regions.Count];
@@ -741,6 +753,12 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var gate = new HashSet<CPos>();
 			var corridors = ResolveChokepointCorridors(gate);
+
+			// Kept for the whole run, not just for cellToCorridorIndex below: DoorCorridorIndices on every
+			// finished region points in here, and the merge only ever drops barrier pieces - it never
+			// renumbers this list - so the indices stay valid however many rounds the fill takes.
+			regionDoorCorridors.Clear();
+			regionDoorCorridors.AddRange(corridors);
 
 			var cellToCorridorIndex = new Dictionary<CPos, int>();
 			for (var i = 0; i < corridors.Count; i++)
@@ -2081,8 +2099,26 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>The map's regions - a terrain fact computed once and shared, unowned by default. See <see cref="GetRegionOwner"/>.</summary>
 		public IReadOnlyList<CNRegion> GetRegions() { EnsureBuilt(); return regions; }
 
+		/// <summary>
+		/// Bumped whenever the map is re-cut (a bridge falling can split or merge regions). Region ids are
+		/// positions in <see cref="GetRegions"/>, so anything remembering something per id has to drop it
+		/// when this changes - after a re-cut nothing says id 4 is the same ground it was.
+		/// </summary>
+		public int RegionGeneration => shared?.Generation ?? 0;
+
 		/// <summary>Region id at a cell, or -1 if it is a gate/chokepoint cell or outside any region.</summary>
 		public int GetRegionIdAt(CPos cell) => regionIdByCell != null && world.Map.Contains(cell) ? regionIdByCell[cell] : -1;
+
+		/// <summary>
+		/// The corridor a region's <see cref="CNRegion.DoorCorridorIndices"/> entry names, or null when the
+		/// index does not resolve. This is how a region's doors get a width: the region itself only carries
+		/// the indices.
+		/// </summary>
+		public CNSealableCorridor GetRegionDoorCorridor(int corridorIndex)
+		{
+			EnsureBuilt();
+			return corridorIndex >= 0 && corridorIndex < regionDoorCorridors.Count ? regionDoorCorridors[corridorIndex] : null;
+		}
 
 		/// <summary>Whoever's buildings currently dominate a region, or null if unclaimed/contested/unknown.</summary>
 		public Player GetRegionOwner(int regionId) =>
