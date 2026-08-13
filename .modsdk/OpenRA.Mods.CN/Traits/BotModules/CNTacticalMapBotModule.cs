@@ -904,8 +904,11 @@ namespace OpenRA.Mods.Common.Traits
 			var round = 0;
 
 			// Cheap insurance, not a tuning knob: dropping is monotone, so this terminates on its own -
-			// and it all happens once inside BuildOwnTopology, never per tick.
-			const int MaxMergeRounds = 10;
+			// and it all happens once inside BuildOwnTopology, never per tick. One piece goes per round
+			// now, so the ceiling has to be the number of droppable pieces rather than a flat ten, which
+			// would have stopped the merge a tenth of the way through. Each extra round is one more
+			// full-map fill, paid once at map load.
+			var maxMergeRounds = pieces.Count + 1;
 
 			for (; ; round++)
 			{
@@ -917,27 +920,37 @@ namespace OpenRA.Mods.Common.Traits
 				FloodRegions(barrier, cellToCorridorIndex, domainNodeCount);
 				regionBarrier = barrier;
 
-				if (minRegionSize == 0 || round >= MaxMergeRounds - 1)
+				if (minRegionSize == 0 || round >= maxMergeRounds - 1)
 					break;
 
-				// A piece goes as soon as EITHER side of it is undersized: a 15-cell sliver beside a
-				// 5000-cell region should fold into it at once, not wait for the big one to look too
-				// small as well. An undersized pocket with nothing to merge into keeps its pieces and
-				// stays small, the same way MinDomainNodes leaves unreachable pockets alone.
-				var droppedThisRound = 0;
+				// One piece per round - the one holding the smallest undersized region apart - and the fill
+				// is re-run before the next one is chosen. Dropping every qualifying piece at once measured
+				// them all against a fill that was still cut by pieces about to be dropped themselves: a
+				// side reads undersized only because its neighbours have not been merged into it yet, the
+				// piece goes on that reading, and dropping is monotone so it never comes back. A played map
+				// lost 67 of 120 pieces that way and ended up with passages that separated nothing.
+				// An undersized pocket with nothing to merge into keeps its pieces and stays small, the
+				// same way MinDomainNodes leaves unreachable pockets alone.
+				var worst = -1;
+				var worstSize = int.MaxValue;
 				for (var i = 0; i < pieces.Count; i++)
 				{
-					if (!active[i] || !pieces[i].Droppable || !SeparatesUndersizedRegion(pieces[i].Cells, minRegionSize))
+					if (!active[i] || !pieces[i].Droppable)
 						continue;
 
-					active[i] = false;
-					droppedThisRound++;
+					var separated = SmallestSeparatedRegionSize(pieces[i].Cells);
+					if (separated >= minRegionSize || separated >= worstSize)
+						continue;
+
+					worstSize = separated;
+					worst = i;
 				}
 
-				if (droppedThisRound == 0)
+				if (worst < 0)
 					break;
 
-				piecesDropped += droppedThisRound;
+				active[worst] = false;
+				piecesDropped++;
 			}
 
 			CNBotLog.Debug(
@@ -947,11 +960,17 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Whether dropping this barrier piece would merge an undersized region into a neighbour. Read off
-		/// the finished fill rather than tracked during it: a piece is small, and what it separates is
-		/// simply whatever <see cref="regionIdByCell"/> says on either side of it.
+		/// The size of the smallest region this barrier piece holds apart, or <see cref="int.MaxValue"/>
+		/// when it holds nothing apart at all. Read off the finished fill rather than tracked during it: a
+		/// piece is small, and what it separates is simply whatever <see cref="regionIdByCell"/> says on
+		/// either side of it.
+		/// <para>
+		/// A size rather than a yes/no, so the merge can drop the worst offender first and re-measure,
+		/// instead of dropping everything that looks undersized in one pass against a fill that is still
+		/// cut by the pieces it is about to drop.
+		/// </para>
 		/// </summary>
-		bool SeparatesUndersizedRegion(HashSet<CPos> piece, int minRegionSize)
+		int SmallestSeparatedRegionSize(HashSet<CPos> piece)
 		{
 			var touching = new HashSet<int>();
 			foreach (var cell in piece)
@@ -965,13 +984,13 @@ namespace OpenRA.Mods.Common.Traits
 			// Nothing on the far side to merge into - a piece against the map edge, or buried inside a
 			// wider barrier. Dropping it would gain nothing.
 			if (touching.Count < 2)
-				return false;
+				return int.MaxValue;
 
+			var smallest = int.MaxValue;
 			foreach (var id in touching)
-				if (regions[id].Size < minRegionSize)
-					return true;
+				smallest = Math.Min(smallest, regions[id].Size);
 
-			return false;
+			return smallest;
 		}
 
 		/// <summary>
