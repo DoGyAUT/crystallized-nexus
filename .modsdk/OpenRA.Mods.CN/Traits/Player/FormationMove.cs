@@ -53,6 +53,13 @@ namespace OpenRA.Mods.CN.Traits
 			"Use this in Mobile.ImmovableCondition to prevent friendly nudge displacement.")]
 		public readonly string HoldPositionCondition = "formation-move-locked";
 
+		[Desc("Whether bot-issued orders are put into formation as well. Off, because the formation is",
+			"built from World.Selection - the LOCAL player's selection - which a bot never populates: for",
+			"a bot's units the group comes back empty, so the work is done for nothing, and reading a",
+			"client-side selection while resolving an order a bot issued is not a thing to rely on either.",
+			"Bots keep their squads together through the squad states instead.")]
+		public readonly bool ApplyToBots = false;
+
 		public override object Create(ActorInitializer init) { return new FormationMove(init.Self, this); }
 	}
 
@@ -92,6 +99,9 @@ namespace OpenRA.Mods.CN.Traits
 			if (order is not FormationMoveOrderTargeter)
 				return null;
 
+			if (!info.ApplyToBots && self.Owner.IsBot)
+				return null;
+
 			if (!target.IsValidFor(self))
 				return null;
 
@@ -110,6 +120,11 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			if (!info.ValidOrders.Contains(order.OrderString)) return;
 			if (!order.Target.IsValidFor(self)) return;
+
+			// This is the path a bot's orders take - IIssueOrder is the player's order generator, while
+			// squads issue Move and AttackMove straight through, grouped. Left applying to them, every
+			// bot move order went looking for a formation group in the local player's selection.
+			if (!info.ApplyToBots && self.Owner.IsBot) return;
 
 			RevokeHoldPosition(self);
 
