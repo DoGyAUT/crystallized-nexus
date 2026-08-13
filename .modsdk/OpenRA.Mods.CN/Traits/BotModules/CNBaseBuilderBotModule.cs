@@ -3167,6 +3167,18 @@ namespace OpenRA.Mods.Common.Traits
 			var supportedCapacity = GetSupportedRefineryCapacity();
 			target = Math.Min(target, supportedCapacity);
 
+			// And against what the ground the bot actually holds can feed. The capacity above sums per
+			// indice, and an indice is a raster square rather than a field, so one field crossing four of
+			// them is counted four times over: a played match had it saying 8 where the regions said 3.
+			// Placement has been refusing the surplus on exactly these grounds for a while
+			// (RegionRefineryCapacityReached), which is worse than not wanting them in the first place -
+			// the bot kept queuing refineries and they ended up wherever placement would still take them.
+			// Skipped entirely when the region graph has nothing to say (-1) or holds no resources at all
+			// (0), and the minimum below still wins, so a bot can never be starved down by this.
+			var regionCapacity = GetRegionRefineryCapacity();
+			if (regionCapacity > 0)
+				target = Math.Min(target, regionCapacity);
+
 			return Math.Max(activeMinRefinery, target);
 		}
 
@@ -3425,10 +3437,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// The refinery ceiling the region graph implies: every region this bot holds, each capped by its
 		/// own resource cells at <see cref="CNBaseBuilderBotModuleInfo.ResourceCellsPerRegionRefinery"/>.
 		/// <para>
-		/// Diagnostic for now, deliberately not wired into <see cref="GetTargetRefineryCount"/>: the same
-		/// per-region rule already gates placement, and making it the target as well is a real behaviour
-		/// change that should be argued from what the two numbers actually look like on a played map rather
-		/// than from the reasoning alone.
+		/// Clamps <see cref="GetTargetRefineryCount"/> alongside the indice-summed capacity, which was held
+		/// back until a played map showed what the two actually look like side by side: 8 from the indices
+		/// against 3 from the regions for the same bot. The per-region rule already gated placement, so the
+		/// bot was wanting refineries the ground could not feed and then putting them wherever placement
+		/// would still take them.
 		/// </para>
 		/// Returns -1 when the region graph or the region manager has nothing to say yet, which the log
 		/// prints as "n/a" rather than as a ceiling of zero.
