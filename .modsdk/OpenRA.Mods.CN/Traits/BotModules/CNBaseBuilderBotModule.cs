@@ -3769,8 +3769,31 @@ namespace OpenRA.Mods.Common.Traits
 		int GetCheapestBuildableRefineryCost(ILookup<string, ProductionQueue> queuesByCategory)
 			=> GetCheapestBuildableActorCost(Info.RefineryTypes, queuesByCategory);
 
-		bool HasQueuedOrProducingRefinery(ILookup<string, ProductionQueue> queuesByCategory)
-			=> HasQueuedOrProducingActor(Info.RefineryTypes, queuesByCategory);
+		/// <summary>
+		/// What is still owed on the cheapest refinery already on the production line, or -1 when none is.
+		/// A stalled item has been part-paid, so the shortfall that matters is the rest of it rather than
+		/// the price of starting over.
+		/// </summary>
+		int GetQueuedRefineryRemainingCost(ILookup<string, ProductionQueue> queuesByCategory)
+		{
+			if (Info.RefineryTypes.Count == 0)
+				return -1;
+
+			var best = -1;
+			foreach (var queue in queuesByCategory.SelectMany(q => q))
+			{
+				foreach (var item in queue.AllQueued())
+				{
+					if (!Info.RefineryTypes.Contains(item.Item))
+						continue;
+
+					if (best < 0 || item.RemainingCost < best)
+						best = item.RemainingCost;
+				}
+			}
+
+			return best;
+		}
 
 		static int GetCheapestBuildableActorCost(IReadOnlyCollection<string> types, ILookup<string, ProductionQueue> queuesByCategory)
 		{
@@ -3902,17 +3925,26 @@ namespace OpenRA.Mods.Common.Traits
 			if (AIUtils.CountActorByCommonName(RefineryBuildings) > 0)
 				return false;
 
-			if (RequestedRefineries.Count > 0 || HasQueuedOrProducingRefinery(queuesByCategory))
-				return false;
-
 			if (AIUtils.CountActorByCommonName(ConstructionYardBuildings) <= 0)
 				return false;
 
-			var refineryCost = GetCheapestBuildableRefineryCost(queuesByCategory);
-			if (refineryCost <= 0)
+			var cash = PlayerResources.GetCashAndResources();
+
+			// A refinery already on the line used to end this outright - one is coming, nothing to do. It
+			// is not coming: a building under construction draws its cash as it goes, so with no income and
+			// an empty bank the queue item simply stalls, and the bot sits on a half-built refinery for the
+			// rest of the match. That is the reported state exactly - every refinery destroyed, one in
+			// production, no money.
+			// So a queued refinery only ends this while it can still be paid for. What has to be raised is
+			// then the REMAINder of its cost, not the price of a fresh one: most of it may already be paid.
+			var remaining = GetQueuedRefineryRemainingCost(queuesByCategory);
+			var queued = remaining >= 0 || RequestedRefineries.Count > 0;
+			if (queued && (remaining < 0 || remaining <= cash))
 				return false;
 
-			var cash = PlayerResources.GetCashAndResources();
+			var refineryCost = remaining >= 0 ? remaining : GetCheapestBuildableRefineryCost(queuesByCategory);
+			if (refineryCost <= 0)
+				return false;
 			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
 				return false;
 
