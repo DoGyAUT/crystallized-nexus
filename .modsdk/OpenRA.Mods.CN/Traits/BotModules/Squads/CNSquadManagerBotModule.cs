@@ -313,6 +313,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"march past the objective to gather behind it.")]
 		public readonly int ApproachMaxDetourPercent = 40;
 
+		[Desc("The same allowance, applied when the candidates are the doors of the target's own region " +
+			"rather than chokepoints near it. Deliberately far larger: a door is not a detour, it is the " +
+			"way in, and a door off to one side is exactly the back way an attack should prefer. The tight " +
+			"chokepoint figure rejected every door found in a played match - the funnel line read '1 region " +
+			"doors, 1 within 40 cells of target, 0 within detour' four times over. Still bounded rather " +
+			"than dropped, so a door on the far side of the objective cannot pull the wave past it.")]
+		public readonly int ApproachDoorMaxDetourPercent = 150;
+
 		[Desc("Cells short of the chosen way in that the squads actually gather. A chokepoint is narrow by " +
 			"definition, and assembling inside one bunches the squad up where it is easiest to shell.")]
 		public readonly int ApproachStandOffCells = 6;
@@ -2970,7 +2978,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var reach = WDist.FromCells(Math.Max(1, Info.ApproachSearchRadiusCells));
 			var reachSq = (long)reach.Length * reach.Length;
-			var maxRouteLength = directLength + directLength * Math.Max(0, Info.ApproachMaxDetourPercent) / 100;
+
+			// Which allowance applies depends on what the candidates are. A chokepoint near the objective is
+			// one of many and most are irrelevant, so it has to earn the detour; a door of the target's own
+			// region is the entrance, and the one off to the side is the back way in that this is for.
+			var detourPercent = doors.Count > 0 ? Info.ApproachDoorMaxDetourPercent : Info.ApproachMaxDetourPercent;
+			var maxRouteLength = directLength + directLength * Math.Max(0, detourPercent) / 100;
 
 			CPos? best = null;
 			var bestThreat = int.MaxValue;
