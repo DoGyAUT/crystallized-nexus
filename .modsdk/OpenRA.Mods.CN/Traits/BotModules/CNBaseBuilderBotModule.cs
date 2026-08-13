@@ -2033,8 +2033,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.ProductionTypes.Contains(actorType) || Info.NavalProductionTypes.Contains(actorType))
 				return CNBaseRole.Military;
 
+			// Tech belongs at the Core - except the kinds that earn their keep by covering ground. Those
+			// reach this method at all only because they skip the tech branch in GetOrderedBasesForBuilding
+			// on purpose, so that they spread across the bases that have none; handing them a Core
+			// preference here pulled them straight back to the spawn and undid it.
 			if (Info.TechTypes.Contains(actorType))
-				return CNBaseRole.Core;
+				return Info.DistributedTechTypes.Contains(actorType) ? null : CNBaseRole.Core;
 
 			return null;
 		}
@@ -2177,6 +2181,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.TechTypes.Contains(actorType) && !Info.DistributedTechTypes.Contains(actorType))
 				return bases
 					.OrderByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
+
+					// The Core base before the nearest one. Distance to BaseOrigin is the last radius in
+					// here standing in for "the main base", and it stops being that the moment the bot is
+					// driven off its start: the spawn point keeps attracting tech while the base that is
+					// meant to hold it sits elsewhere. Core now names a region, so ask for it directly and
+					// keep the distance only as the tiebreak it always was.
+					.ThenByDescending(b => b.Role == CNBaseRole.Core)
 					.ThenBy(b => (b.Center - BaseOrigin).LengthSquared)
 					.ToList();
 
