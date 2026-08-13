@@ -861,6 +861,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var minRegionSize = Math.Max(0, Info.MinRegionSize);
 			var piecesDropped = 0;
+			var stepsDropped = 0;
 			var round = 0;
 
 			// Cheap insurance, not a tuning knob: dropping is monotone, so this terminates on its own -
@@ -920,12 +921,20 @@ namespace OpenRA.Mods.Common.Traits
 
 				active[worst] = false;
 				piecesDropped++;
+
+				// Split by kind, because the totals cannot answer the one question that decides whether
+				// the height cut did anything: a dropped height step merges high ground back into low,
+				// which is the single separation the whole cut exists for. Thirty-odd drops of corridors
+				// is housekeeping; one dropped step is the plateau bug coming back.
+				if (!pieces[worst].Droppable)
+					stepsDropped++;
 			}
 
 			CNBotLog.Debug(
 				"regions: {0} barrier pieces ({1} height steps, {2} step cells, kept unless they only wall "
-				+ "off a sliver), {3} dropped over {4} rounds -> {5} regions (min size {6})",
-				pieces.Count, rampPieces, rampCells.Count, piecesDropped, round + 1, regions.Count, minRegionSize);
+				+ "off a sliver), {3} dropped over {4} rounds ({5} of them height steps) -> {6} regions (min size {7})",
+				pieces.Count, rampPieces, rampCells.Count, piecesDropped, round + 1, stepsDropped,
+				regions.Count, minRegionSize);
 		}
 
 		/// <summary>
