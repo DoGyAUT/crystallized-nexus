@@ -50,7 +50,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (mgr.IsWaveLaunched && mgr.WaveParticipants.Contains(squad))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad,
-					new CNWaveMoveToRallyState(mgr.WaveRallyCell, mgr.WaveTarget));
+					new CNWaveMoveToRallyState(mgr.WaveRallyCell, mgr.WaveTarget, mgr.WaveEntryCell));
 				return;
 			}
 
@@ -162,16 +162,27 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		const int MaxNoProgressTicks = 225;
 		const int MinProgressDistance = 512;
 		readonly CPos rallyCell;
+
+		// Where the wave closes up again once through the passage it gathered in front of, or null when
+		// this is already that second stage - or when it never had a passage to go through at all.
+		readonly CPos? nextCell;
+
+		// The pinned way round belongs to the march out, not to the short step through the passage that
+		// follows it - replaying it there would send the wave back out and round again.
+		readonly bool followRoute;
+
 		Actor waveTarget;
 		WPos rallyPos;
 		int stagingStartTick;
 		int lastProgressTick;
 		long lastDistanceSq;
 
-		public CNWaveMoveToRallyState(CPos rallyCell, Actor waveTarget)
+		public CNWaveMoveToRallyState(CPos rallyCell, Actor waveTarget, CPos? nextCell = null, bool followRoute = true)
 		{
 			this.rallyCell = rallyCell;
 			this.waveTarget = waveTarget;
+			this.nextCell = nextCell;
+			this.followRoute = followRoute;
 		}
 
 		public void Activate(CNSquad squad)
@@ -185,9 +196,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.SetActorToTarget(waveTarget);
 
 			var orderName = CNSquadHelper.GetMovementOrderName(squad);
-			var target = Target.FromCell(squad.World, rallyCell);
-			squad.Bot.QueueOrder(new Order(orderName, null, target, false,
-				groupedActors: squad.OrderableUnits.ToArray()));
+			var units = squad.OrderableUnits.ToArray();
+
+			// Pinned corners first, then the gathering point. Left to itself the pathfinder takes the
+			// shortest line to the rally, and for a flanking door that line runs in through the near
+			// entrance and straight across the base the wave is going round to flank. The waypoints only
+			// exist when the manager found a way round; otherwise this is the single move it always was.
+			var route = followRoute ? squad.SquadManager.WaveRoute : [];
+			var queued = false;
+			foreach (var waypoint in route)
+			{
+				squad.Bot.QueueOrder(new Order(orderName, null, Target.FromCell(squad.World, waypoint), queued,
+					groupedActors: units));
+
+				queued = true;
+			}
+
+			squad.Bot.QueueOrder(new Order(orderName, null, Target.FromCell(squad.World, rallyCell), queued,
+				groupedActors: units));
 		}
 
 		public void Tick(CNSquad squad)
@@ -253,6 +279,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				if (nearbyEnemy == null && waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld)
 					squad.SetActorToTarget(waveTarget);
+
+				// Second stage: through the passage, then close up again on its far side before the run-in.
+				// Without it the passage was only a meeting point - released here, every squad attack-moves
+				// at the objective and the pathfinder takes whatever entrance is shortest from where it
+				// stands, which is how an army gathered at one door and then filed in through another.
+				// Skipped when something is already shooting at us: a wave under fire has to fight where it
+				// stands, not march to a waypoint.
+				if (nextCell != null && nearbyEnemy == null)
+				{
+					squad.FuzzyStateMachine.ChangeState(squad,
+						new CNWaveMoveToRallyState(nextCell.Value, waveTarget, null, followRoute: false));
+					return;
+				}
 
 				squad.SquadManager.InitializeSquadStateForRole(squad);
 			}
