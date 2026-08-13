@@ -2392,7 +2392,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				usable ? approach.Value.ToString() : "none", approachThreat,
 				GetDefenseThreatAt(target.CenterPosition, victim), knownEnemyDefenses.Count);
 
-			if (usable && approachThreat < directThreat)
+			// A tie goes to the door. Requiring it to be strictly colder meant it almost never won: both
+			// figures are usually zero, because the rally deliberately sits AttackWaveStagingProgressPercent
+			// short of the target and therefore outside defensive range - the log line above was added to
+			// show exactly that. So the door lost by drawing, every time.
+			//
+			// And a draw is not a reason to prefer the straight line. A point on the line from base to
+			// target is an arbitrary spot in the open; a door is a defined place with terrain on both
+			// flanks, which is where a wave should form up if it is going in that way at all. It is already
+			// on the route, since the detour bound rejected anything that was not, and StandOffCell has
+			// stepped it back from the passage so the squad forms in front of the door rather than bunching
+			// inside the narrowest ground it could pick.
+			if (usable && approachThreat <= directThreat)
 				return approach.Value;
 
 			return cell;
