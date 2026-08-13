@@ -541,6 +541,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		const int MaxTrackedAttackers = 4;
 		const int MaxRespondToAttackCooldown = 30;
 
+		// Cap on the approach distance flood (see BuildApproachDistances). Bounded well below the harvester
+		// flood's 30000: a run-in past the detour allowance is rejected anyway, so ground beyond it never
+		// needs a distance. Keeps a burst of bots forming waves in the same frame from each walking the
+		// whole map.
+		const int MaxApproachFloodCells = 6000;
+
 		public readonly World World;
 		public readonly Player Player;
 		public new readonly CNSquadManagerBotModuleInfo Info;
@@ -2383,10 +2389,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// two points that are cold by construction.
 			var approach = PickApproachCell(target, victim);
 			var usable = approach != null && World.Map.Contains(approach.Value);
-			var approachThreat = usable
-				? GetDefenseThreatAlong(World.Map.CenterOfCell(approach.Value), target.CenterPosition, victim)
-				: -1;
-			var directThreat = GetDefenseThreatAlong(World.Map.CenterOfCell(cell), target.CenterPosition, victim);
+
+			// Both measured along the ground now, so the comparison is between two routes a squad could
+			// actually walk. Measured on the line, the direct rally won whenever anything was known: its
+			// line cut through the terrain beside the objective's only entrance, where nothing is built
+			// because nothing can pass, and read as the coldest way in.
+			var approachThreat = usable ? GetDefenseThreatAlongRoute(approach.Value, target, victim) : -1;
+			var directThreat = GetDefenseThreatAlongRoute(cell, target, victim);
 
 			// Logged unconditionally, and with more than the two staging cells, because the first version
 			// of this line could not distinguish the three ways it fails: no candidate found at all, an
@@ -2947,6 +2956,127 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return total;
 		}
 
+		// Distance field for measuring a run-in along the ground rather than through it. Flooded outward
+		// from the objective once and read back per candidate, which is the pattern BuildHarvesterDistances
+		// already established here for the same reason: an A* per candidate is hundreds of searches per
+		// decision, and the answer wanted is a property of the map, not of which candidate is asking.
+		// Cached per (tick, origin) because every candidate in one decision shares the same objective.
+		readonly Dictionary<CPos, int> approachDistances = [];
+		CPos approachDistanceOrigin;
+		int approachDistanceTick = -1;
+
+		void BuildApproachDistances(CPos origin)
+		{
+			if (approachDistanceTick == World.WorldTick && approachDistanceOrigin == origin)
+				return;
+
+			approachDistanceTick = World.WorldTick;
+			approachDistanceOrigin = origin;
+			approachDistances.Clear();
+
+			if (tacticalMap == null || !World.Map.Contains(origin))
+				return;
+
+			// Seeded from the objective's own cell where it is passable, and from its neighbours where it
+			// is not - a target is usually a building, and whether the cell under it can be driven on says
+			// nothing about whether the ground around it can.
+			var queue = new Queue<CPos>();
+			if (tacticalMap.IsPassableCell(origin))
+			{
+				approachDistances[origin] = 0;
+				queue.Enqueue(origin);
+			}
+			else
+			{
+				foreach (var dir in CVec.Directions)
+				{
+					var seed = origin + dir;
+					if (!tacticalMap.IsPassableCell(seed) || approachDistances.ContainsKey(seed))
+						continue;
+
+					approachDistances[seed] = 1;
+					queue.Enqueue(seed);
+				}
+			}
+
+			while (queue.Count > 0 && approachDistances.Count < MaxApproachFloodCells)
+			{
+				var cell = queue.Dequeue();
+				var next = approachDistances[cell] + 1;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var step = cell + dir;
+					if (approachDistances.ContainsKey(step) || !tacticalMap.IsPassableCell(step))
+						continue;
+
+					approachDistances[step] = next;
+					queue.Enqueue(step);
+				}
+			}
+		}
+
+		/// <summary>
+		/// The defensive fire a squad would take on the way from <paramref name="from"/> to
+		/// <paramref name="target"/>, measured along the ground it would actually cross.
+		/// <para>
+		/// <see cref="GetDefenseThreatAlong"/> samples the straight line, and a straight line is not a
+		/// route: where the objective's region has one entrance, the line runs through the cliff beside it,
+		/// finds no turrets there, and reports a way in that no ground unit can take as the safest of all.
+		/// A played match showed the consequence - every door candidate measured several times hotter than
+		/// the line it was compared against, so the door lost every time defences were known at all.
+		/// </para>
+		/// Falls back to the straight line when the objective cannot be reached on foot from here at all,
+		/// which is the honest answer for air squads and for a target across water.
+		/// </summary>
+		int GetDefenseThreatAlongRoute(CPos from, Actor target, ActorInfo victim)
+		{
+			if (victim == null)
+				return 0;
+
+			BuildApproachDistances(target.Location);
+
+			if (!approachDistances.TryGetValue(from, out var distance) || distance <= 0)
+				return GetDefenseThreatAlong(World.Map.CenterOfCell(from), target.CenterPosition, victim);
+
+			// Walking the field downhill reconstructs a shortest route without a second search: every step
+			// goes to a neighbour strictly closer to the objective, and one exists by construction until
+			// the objective is reached.
+			var route = new List<CPos>(distance + 1) { from };
+			var cell = from;
+			while (distance > 0)
+			{
+				var moved = false;
+				foreach (var dir in CVec.Directions)
+				{
+					var step = cell + dir;
+					if (!approachDistances.TryGetValue(step, out var stepDistance) || stepDistance >= distance)
+						continue;
+
+					cell = step;
+					distance = stepDistance;
+					route.Add(cell);
+					moved = true;
+					break;
+				}
+
+				if (!moved)
+					break;
+			}
+
+			// The same sample budget the straight-line version spends, so the two remain comparable where
+			// both are used; only where the samples sit changes.
+			var samples = Math.Max(1, Info.ApproachThreatSamples);
+			var total = 0;
+			for (var i = 1; i <= samples; i++)
+			{
+				var index = (int)((long)(route.Count - 1) * i / samples);
+				total += GetDefenseThreatAt(World.Map.CenterOfCell(route[index]), victim);
+			}
+
+			return total;
+		}
+
 		/// <summary>
 		/// The most lightly defended chokepoint within reach of <paramref name="target"/>, or null when
 		/// the tactical map has nothing to offer — in which case the caller stays on the direct line.
@@ -3011,7 +3141,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				// was hotter than simply walking up the straight line ten times, against three where
 				// it was genuinely better. A chokepoint can be perfectly quiet and still open onto the
 				// muzzle of everything behind it - which is, after all, what a chokepoint is for.
-				var threat = GetDefenseThreatAlong(pos, target.CenterPosition, victim);
+				var threat = GetDefenseThreatAlongRoute(candidate, target, victim);
 				if (threat >= bestThreat)
 					continue;
 

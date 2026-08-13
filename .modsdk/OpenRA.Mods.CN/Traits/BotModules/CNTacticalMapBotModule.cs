@@ -2160,6 +2160,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public int RegionGeneration => shared?.Generation ?? 0;
 
+		/// <summary>
+		/// Whether ground units can cross a cell, by the same locomotor the chokepoints, doors and regions
+		/// were all scanned with. Exposed so a caller can walk the map the way this module's own answers
+		/// were derived, instead of picking a second locomotor and quietly disagreeing with them.
+		/// </summary>
+		public bool IsPassableCell(CPos cell) { EnsureBuilt(); return IsPassable(cell); }
+
 		/// <summary>Region id at a cell, or -1 if it is a gate/chokepoint cell or outside any region.</summary>
 		public int GetRegionIdAt(CPos cell) => regionIdByCell != null && world.Map.Contains(cell) ? regionIdByCell[cell] : -1;
 
