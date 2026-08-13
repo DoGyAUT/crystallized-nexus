@@ -115,6 +115,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Security lost per cell of total sealable-door width. A wide door is a worse door.")]
 		public readonly int DoorWidthSecurityPenalty = 3;
 
+		[Desc("Total penalty at which a region scores 50 for security. The score falls off by halves from",
+			"there rather than subtracting the penalty outright: a straight subtraction floors every region",
+			"with more than a couple of doors at zero, and a score reading 0 for both a moderately open",
+			"region and a hopeless one cannot rank the two - which is the only job this number has.")]
+		public readonly int SecurityHalfScorePenalty = 60;
+
 		[Desc("Weight of the resource score in a region's overall value.")]
 		public readonly int ResourceValueWeight = 100;
 
@@ -310,7 +316,14 @@ namespace OpenRA.Mods.Common.Traits
 				var penalty = state.Connections * Math.Max(0, Info.ConnectionSecurityPenalty)
 					+ widthTotal * Math.Max(0, Info.DoorWidthSecurityPenalty);
 
-				state.SecurityScore = Math.Clamp(100 - penalty, 0, 100);
+				// Halving, not subtracting. Subtracting the penalty from 100 put every region with more than
+				// a couple of doors on the floor: a played map scored a 3-connection region with 22 cells of
+				// door and another with 49 both at exactly 0, which says they are equally defensible and they
+				// are not. This keeps the whole range in play - a sealed pocket still reads 100, and the two
+				// above separate to roughly 37 and 25 - while never quite reaching zero, because "no way in
+				// at all" and "many wide ways in" should not meet at the same number from opposite ends.
+				var half = Math.Max(1, Info.SecurityHalfScorePenalty);
+				state.SecurityScore = 100 * half / (half + penalty);
 
 				state.Value = totalWeight <= 0
 					? 0
