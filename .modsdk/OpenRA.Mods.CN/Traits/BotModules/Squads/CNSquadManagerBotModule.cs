@@ -325,6 +325,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"definition, and assembling inside one bunches the squad up where it is easiest to shell.")]
 		public readonly int ApproachStandOffCells = 6;
 
+		[Desc("How many waypoints the march to the gathering point is pinned to when that march would " +
+			"otherwise cross the objective's own region. A wave sent to a flanking door was routed by the " +
+			"plain pathfinder, which took the shortest line: in through the near entrance, across the " +
+			"enemy base, and out to the far door - the very base it was going round to flank. Pinning a " +
+			"few corners of the way round is enough; every cell would be hundreds of queued orders. " +
+			"0 disables the routing and the pathfinder decides as before.")]
+		public readonly int WaveRouteWaypoints = 4;
+
 		[Desc("How many points along the run-in are sampled when weighing one approach against another. " +
 			"Emplacements cover approaches rather than the buildings behind them, so the fire is on the " +
 			"stretch between the gathering point and the objective and has to be summed along it.")]
@@ -636,6 +644,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public bool IsWaveLaunched { get; private set; }
 		public Actor WaveTarget { get; private set; }
 		public CPos WaveRallyCell { get; private set; }
+
+		/// <summary>Where the wave closes up again once through the passage it gathered at, or null when it has none.</summary>
+		public CPos? WaveEntryCell { get; private set; }
+
+		/// <summary>Corners the march to the gathering point is pinned to so it goes round the objective rather than through it.</summary>
+		public readonly List<CPos> WaveRoute = [];
 		public readonly HashSet<CNSquad> WaveParticipants = [];
 
 		public bool IsWaveEligible(CNSquadType type) => waveEligibleRoleSet.Contains(type);
@@ -2035,7 +2049,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return threshold;
 
 			var cut = threshold * Info.EconomyOverflowWaveMinReadyCutPct * milli / (100 * 1000);
-			return Math.Max(1, threshold - cut);
+
+			// Never below the profile's own AttackWaveMinReadySquads. The cut exists so a bot with money
+			// to burn attacks more often, and cutting the growth it has accumulated serves that; cutting
+			// through the floor its profile was written with does not. A played match caught it: a
+			// Steamroller configured for three squads launched with two, six units, which then spent the
+			// full 1800-tick attack budget achieving nothing. Being rich should make a wave arrive sooner,
+			// not make it too small to matter.
+			var floor = Math.Max(1, Info.AttackWaveMinReadySquads);
+			return Math.Max(floor, threshold - cut);
 		}
 
 		public double GetAttackFuzzyBoost()
@@ -2124,10 +2146,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					break;
 			}
 
-			var rally = ComputeRallyCell(target, victim);
+			var (rally, entry) = ComputeRallyCell(target, victim);
 
 			WaveTarget = target;
 			WaveRallyCell = rally;
+			WaveEntryCell = entry;
+
+			// Only worth routing when the way in is a flank: a rally reached without touching the
+			// objective's region already goes round by itself, and the pathfinder is better at the detail
+			// than a handful of pinned corners would be.
+			WaveRoute.Clear();
+			if (Info.WaveRouteWaypoints > 0 && tacticalMap != null)
+			{
+				var from = GetRandomBaseCenter();
+				var targetRegion = tacticalMap.GetRegionIdAt(target.Location);
+				if (targetRegion >= 0 && tacticalMap.GetRegionIdAt(from) != targetRegion)
+					WaveRoute.AddRange(BuildSafeRouteTo(from, rally, targetRegion));
+			}
+
 			WaveParticipants.Clear();
 			foreach (var s in participants)
 				WaveParticipants.Add(s);
@@ -2141,9 +2177,114 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			waveReleaseUnits = 0;
 
 			CNBotLog.Debug("{0} wave launched: {1} squads, {2} units, target {3} at {4}, rally {5}",
-				Player, waveLaunchSquads, waveLaunchUnits, target.Info.Name, target.Location, rally);
+				Player, waveLaunchSquads, waveLaunchUnits, target.Info.Name, target.Location,
+				entry != null ? $"{rally} then {entry}" : rally.ToString());
+
+			if (WaveRoute.Count > 0)
+				CNBotLog.Debug("{0} wave route: {1} waypoints around region {2} to {3}",
+					Player, WaveRoute.Count, tacticalMap.GetRegionIdAt(target.Location), rally);
 
 			return true;
+		}
+
+		// Distances to the gathering point that never set foot in the objective's own region. The march to
+		// a flanking door was being routed by the plain pathfinder, which quite reasonably took the
+		// shortest line - straight in through the near entrance, across the enemy base, and out to the far
+		// door. Walling the objective's region off and flooding from the rally gives the way round instead,
+		// and walking it downhill from our own ground reconstructs it without a second search.
+		readonly Dictionary<CPos, int> safeRouteDistances = [];
+		CPos safeRouteOrigin;
+		int safeRouteBlockedRegion = -2;
+		int safeRouteTick = -1;
+
+		void BuildSafeRouteDistances(CPos rally, int blockedRegionId)
+		{
+			if (safeRouteTick == World.WorldTick && safeRouteOrigin == rally && safeRouteBlockedRegion == blockedRegionId)
+				return;
+
+			safeRouteTick = World.WorldTick;
+			safeRouteOrigin = rally;
+			safeRouteBlockedRegion = blockedRegionId;
+			safeRouteDistances.Clear();
+
+			if (tacticalMap == null || !World.Map.Contains(rally))
+				return;
+
+			var queue = new Queue<CPos>();
+			foreach (var seed in World.Map.FindTilesInCircle(rally, 2))
+			{
+				if (!tacticalMap.IsPassableCell(seed) || safeRouteDistances.ContainsKey(seed))
+					continue;
+
+				safeRouteDistances[seed] = 0;
+				queue.Enqueue(seed);
+			}
+
+			while (queue.Count > 0 && safeRouteDistances.Count < MaxApproachFloodCells)
+			{
+				var cell = queue.Dequeue();
+				var next = safeRouteDistances[cell] + 1;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var step = cell + dir;
+					if (safeRouteDistances.ContainsKey(step) || !tacticalMap.IsPassableCell(step))
+						continue;
+
+					// The objective's region is the wall. Everything reached from here is ground the wave
+					// can cross without walking into the base it is trying to flank.
+					if (blockedRegionId >= 0 && tacticalMap.GetRegionIdAt(step) == blockedRegionId)
+						continue;
+
+					safeRouteDistances[step] = next;
+					queue.Enqueue(step);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Waypoints from <paramref name="from"/> to the wave's gathering point that keep out of the
+		/// objective's region, or an empty list when no such way exists - in which case the wave marches
+		/// the way it always did and the pathfinder decides.
+		/// </summary>
+		List<CPos> BuildSafeRouteTo(CPos from, CPos rally, int blockedRegionId)
+		{
+			var route = new List<CPos>();
+			BuildSafeRouteDistances(rally, blockedRegionId);
+
+			if (!safeRouteDistances.TryGetValue(from, out var distance))
+				return route;
+
+			var cell = from;
+			var guard = distance + 8;
+			while (distance > 0 && guard-- > 0)
+			{
+				var moved = false;
+				foreach (var dir in CVec.Directions)
+				{
+					var step = cell + dir;
+					if (!safeRouteDistances.TryGetValue(step, out var stepDistance) || stepDistance >= distance)
+						continue;
+
+					cell = step;
+					distance = stepDistance;
+					route.Add(cell);
+					moved = true;
+					break;
+				}
+
+				if (!moved)
+					break;
+			}
+
+			// Thinned to a handful of orders. Every cell of the run would be hundreds of queued moves for
+			// one march; what matters is that the corners are pinned, not that every step is.
+			var spacing = Math.Max(1, route.Count / Math.Max(1, Info.WaveRouteWaypoints));
+			var thinned = new List<CPos>();
+			for (var i = spacing; i < route.Count; i += spacing)
+				thinned.Add(route[i]);
+
+			return thinned;
 		}
 
 		/// <summary>Squads still valid in the active wave, and the units in them.</summary>
@@ -2406,7 +2547,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return buildings.Count > 0 ? buildings[World.LocalRandom.Next(buildings.Count)] : null;
 		}
 
-		CPos ComputeRallyCell(Actor target, ActorInfo victim)
+		/// <summary>
+		/// Where a wave gathers, and - when it is going in through a passage - where it regroups once
+		/// through it. The second cell is what stops the passage being a mere meeting point: released at
+		/// the door, every squad simply attack-moved at the objective and the pathfinder was free to walk
+		/// them right back around to whatever entrance was shortest, which a played match showed plainly -
+		/// an army gathered at the northern door and then filed in through the southern one, straight
+		/// across the base. Made a waypoint instead, the door is the way in rather than a rendezvous.
+		/// </summary>
+		(CPos Rally, CPos? Entry) ComputeRallyCell(Actor target, ActorInfo victim)
 		{
 			var ownCell = GetRandomBaseCenter();
 			var ownPos = World.Map.CenterOfCell(ownCell);
@@ -2417,7 +2566,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			// Degenerate case (own base ≈ target). Fall back to enemy cell.
 			if (deltaLen < 1024)
-				return World.Map.CellContaining(enemyPos);
+				return (World.Map.CellContaining(enemyPos), null);
 
 			// How far short of the target the wave gathers. Taking a share of the run rather than a
 			// fixed number of cells is what makes this map-independent: a flat offset meant "half the
@@ -2468,7 +2617,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// closer to the objective look hotter, because all of its samples land in the defended stretch.
 			// The door is where a wave should form up if it is going in that way; which door is a question
 			// for PickApproachCell, and it is the only place a threat figure decides anything now.
-			var approachThreat = usable ? GetDefenseThreatAlongRoute(approach.Value, target, victim) : -1;
+			// Gather short of the passage, never inside it: a way in is narrow by definition, and forming
+			// up in one bunches the squad exactly where it is easiest to shell.
+			var rallyAtWayIn = usable
+				? StandOffCell(approach.Value, ownPos, Info.ApproachStandOffCells)
+				: cell;
+
+			var approachThreat = usable ? GetDefenseThreatAlongRoute(rallyAtWayIn, target, victim) : -1;
 			var directThreat = GetDefenseThreatAlongRoute(cell, target, victim);
 
 			// Logged unconditionally, and with more than the two staging cells, because the first version
@@ -2480,25 +2635,32 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			CNBotLog.Debug(
 				"{0} wave rally: direct {1} (threat {2}) vs approach {3} (threat {4}); target threat {5}, defences known {6}",
 				Player, cell, directThreat,
-				usable ? approach.Value.ToString() : "none", approachThreat,
+				usable ? rallyAtWayIn.ToString() : "none", approachThreat,
 				GetDefenseThreatAt(target.CenterPosition, victim), knownEnemyDefenses.Count);
 
 			// The door, whenever there is one. A point on the line from base to target is an arbitrary spot
-			// in the open; a door is a defined place with terrain on both flanks, already on the route
-			// (the detour bound rejected anything that was not) and already stepped back from the passage
-			// by StandOffCell, so the wave forms in front of the door rather than bunching inside the
-			// narrowest ground it could have picked. The wave then holds there until
-			// EnoughWaveParticipantsArrived says it is complete, which is the whole point of gathering at
-			// a place rather than at a coordinate.
+			// in the open; a door is a defined place with terrain on both flanks, already on the route (the
+			// detour bound rejected anything that was not). The wave holds in front of it until
+			// EnoughWaveParticipantsArrived says it is complete - the whole point of gathering at a place
+			// rather than at a coordinate.
 			// A door needs no justification: it is the way into the objective's region, both routes run
-			// through it anyway, and forming up in front of it is the point. A chokepoint that merely lies
-			// near the target is a different claim - there may well be another way in - so it still has to
-			// be no worse than the line, the way every candidate had to be before doors existed. On open
-			// ground neither is available and this falls through to the line untouched.
+			// through it anyway. A chokepoint that merely lies near the target is a different claim - there
+			// may well be another way in - so it still has to be no worse than the line, the way every
+			// candidate had to be before doors existed. On open ground neither is available and this falls
+			// through to the line untouched.
 			if (usable && (approachIsDoor || approachThreat <= directThreat))
-				return approach.Value;
+			{
+				// And the far side of it, as the second stage. Without this the passage is only a meeting
+				// point: released, each squad attack-moves at the objective and the pathfinder takes
+				// whatever entrance is shortest from where it happens to stand - which is how an army
+				// gathered at the northern door and then filed in through the southern one, across the
+				// whole base. Stepping on toward the objective by the same offset the rally stepped back
+				// makes the door a waypoint, and gives the wave a second place to close up once through.
+				var entry = StandOffCell(approach.Value, target.CenterPosition, Info.ApproachStandOffCells);
+				return (rallyAtWayIn, World.Map.Contains(entry) ? entry : null);
+			}
 
-			return cell;
+			return (cell, null);
 		}
 
 		public CNSquad RegisterSquad(
@@ -3262,12 +3424,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					inRadius, Info.ApproachSearchRadiusCells, withinDetour,
 					directLength / 1024, maxRouteLength / 1024);
 
-			if (best == null)
-				return null;
-
-			// Gather short of the passage rather than inside it. A chokepoint is by definition narrow;
-			// assembling a squad in one bunches it up exactly where it is easiest to shell.
-			return StandOffCell(best.Value, basePos, Info.ApproachStandOffCells);
+			// The way in itself, not a point beside it. The caller needs the passage to work out both where
+			// to gather in front of it and where to regroup once through, and only it knows which end is
+			// which - stepping back from here toward the base, or on toward the objective.
+			return best;
 		}
 
 		/// <summary>Steps back from <paramref name="cell"/> toward <paramref name="towards"/>.</summary>
