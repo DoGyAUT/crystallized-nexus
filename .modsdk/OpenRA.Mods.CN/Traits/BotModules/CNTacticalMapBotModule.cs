@@ -325,6 +325,12 @@ namespace OpenRA.Mods.Common.Traits
 			"both feed the same score.")]
 		public readonly int DoorDefenseWeight = 200;
 
+		[Desc("Cells of door width that one defence structure is taken to cover. A door counts as held once",
+			"1 + Width/this many stand near it, so a wide gap asks for more than a narrow one instead of",
+			"both being answered by the single turret the old boolean check was satisfied with. Its weight",
+			"falls off as that count is filled, which is what moves the budget on to the next door.")]
+		public readonly int DoorCellsPerDefense = 4;
+
 		[Desc("How far behind a door (cells, opposite Outward) the kill-zone wall band sits. Bigger than the",
 			"3-cell GetDoorDefenseAnchors offset on purpose, so the already-anchored defence ends up INSIDE",
 			"the walled zone, not sitting on its edge.")]
@@ -1702,7 +1708,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// belong to whichever base happens to be nearest it, and re-ranking the same small door list by
 		/// distance to each base in turn is exactly the per-base scatter this was built to stop.
 		/// </summary>
-		public IReadOnlyList<CNBaseBuilderBotModule.DefensePlacementThreat> GetDoorHotspots()
+		/// <param name="coverage">
+		/// How many of the bot's own defence structures already cover a door, or null to weight purely by
+		/// what lies behind it. Supplied by the caller rather than read here, because which actor types
+		/// count as defence is the base builder's business and this module has no notion of it.
+		/// </param>
+		public IReadOnlyList<CNBaseBuilderBotModule.DefensePlacementThreat> GetDoorHotspots(
+			Func<CNTerritoryDoor, int> coverage = null)
 		{
 			var territoryDoors = GetTerritoryDoors();
 			if (territoryDoors.Count == 0)
@@ -1720,6 +1732,22 @@ namespace OpenRA.Mods.Common.Traits
 					var weight = minBeyond >= cap
 						? ceiling
 						: floor + (ceiling - floor) * (beyond - minBeyond) / (cap - minBeyond);
+
+					// Ground behind the door says how much it is worth holding; it says nothing about
+					// whether it is already held. Without this the weight never moves, so the widest door
+					// keeps winning the budget after it is covered and the second one never gets a turret -
+					// the defence piles up in one place instead of closing the line, which is the same
+					// failure this whole feature was built to end, one level in.
+					// Need scales with width, because a fifteen-cell gap is not held by what holds a four-
+					// cell one. A fully covered door falls to zero and drops out of the ranking until
+					// something is lost there.
+					if (coverage != null)
+					{
+						var required = 1 + d.Width / Math.Max(1, Info.DoorCellsPerDefense);
+						var covered = Math.Clamp(coverage(d), 0, required);
+						weight = weight * (required - covered) / required;
+					}
+
 					return new CNBaseBuilderBotModule.DefensePlacementThreat(d.Center, weight);
 				})
 				.ToArray();

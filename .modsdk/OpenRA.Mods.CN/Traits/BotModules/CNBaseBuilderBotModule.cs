@@ -299,6 +299,10 @@ namespace OpenRA.Mods.Common.Traits
 			"plateau reached only through a door falls outside it. Same graceful fallback as above. Opt-in.")]
 		public readonly bool EnableTerritoryPlacement = false;
 
+		[Desc("Cells around a territory door within which an own defence structure counts as covering it.",
+			"Feeds the coverage falloff that moves the defence budget from a filled door to an empty one.")]
+		public readonly int DoorCoverageRadius = 8;
+
 		[Desc("Consider only resource cells lying in the same region as the base a refinery is being built",
 			"for, and keep the refinery itself in that region. Refinery placement otherwise picks its field",
 			"out of a plain radius ring, which happily reaches across a cliff or a door into ground the",
@@ -2225,6 +2229,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly ActorIndex.OwnerAndNamesAndTrait<BuildingInfo> powerBuildings;
 		public readonly ActorIndex.OwnerAndNamesAndTrait<BuildingInfo> ConstructionYardBuildings;
 		public readonly ActorIndex.OwnerAndNamesAndTrait<BuildingInfo> ProductionBuildings;
+		public readonly ActorIndex.OwnerAndNamesAndTrait<BuildingInfo> DefenseBuildings;
 
 		public CNBaseBuilderBotModule(Actor self, CNBaseBuilderBotModuleInfo info)
 			: base(info)
@@ -2236,6 +2241,7 @@ namespace OpenRA.Mods.Common.Traits
 			powerBuildings = new ActorIndex.OwnerAndNamesAndTrait<BuildingInfo>(world, info.PowerTypes, player);
 			ConstructionYardBuildings = new ActorIndex.OwnerAndNamesAndTrait<BuildingInfo>(world, info.ConstructionYardTypes, player);
 			ProductionBuildings = new ActorIndex.OwnerAndNamesAndTrait<BuildingInfo>(world, info.ProductionTypes, player);
+			DefenseBuildings = new ActorIndex.OwnerAndNamesAndTrait<BuildingInfo>(world, info.DefenseTypes, player);
 		}
 
 		protected override void Created(Actor self)
@@ -2608,12 +2614,30 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (Info.EnableDoorDefense)
 			{
-				var doors = TacticalMapModule.GetDoorHotspots();
+				var doors = TacticalMapModule.GetDoorHotspots(CountDefensesCovering);
 				if (doors.Count > 0)
 					return doors;
 			}
 
 			return TacticalMapModule.GetTopologyHotspots(reference);
+		}
+
+		/// <summary>
+		/// How many of this bot's defence structures stand close enough to a door to be holding it. Counted
+		/// rather than merely detected: the weight a door carries has to fall as it fills up, or the widest
+		/// one keeps winning the budget long after it is covered and the next door never gets anything.
+		/// </summary>
+		int CountDefensesCovering(CNTerritoryDoor door)
+		{
+			var radius = Math.Max(1, Info.DoorCoverageRadius);
+			var radiusSq = (long)radius * radius;
+
+			var count = 0;
+			foreach (var defense in DefenseBuildings.Actors)
+				if (!defense.IsDead && defense.IsInWorld && (defense.Location - door.Center).LengthSquared <= radiusSq)
+					count++;
+
+			return count;
 		}
 
 		public CPos? GetBestDefenseHotspot(CPos reference, DefenseRole role = DefenseRole.Default)
@@ -4076,6 +4100,7 @@ namespace OpenRA.Mods.Common.Traits
 			powerBuildings.Dispose();
 			ConstructionYardBuildings.Dispose();
 			ProductionBuildings.Dispose();
+			DefenseBuildings.Dispose();
 		}
 
 		void IBotSuggestRefineryProduction.RequestLocation(CPos refineryLocation, CPos conyardLocation, Actor expandActor)
