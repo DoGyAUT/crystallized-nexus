@@ -2509,7 +2509,7 @@ namespace OpenRA.Mods.Common.Traits
 				"{0} territory: {1} cells, {2} wall, {3} front, {4} horizon | {5} chokepoints, {6} corridors "
 				+ "touching this territory | {7} extra edge cells ({8} no corridor) -> {9} candidates -> "
 				+ "{10} merged away -> {11} doors ({12} too wide, {13} too narrow, {14} too shallow) | "
-				+ "beyond: {15} by region, {16} by pinch, {17} nothing answered",
+				+ "beyond: {15} raised by region, {16} by pinch, {17} nothing answered",
 				player, territory.Count, territoryWall.Count, territoryFront.Count, horizon.Count,
 				chokepoints.Count, adjacentOnly,
 				doorCells.Count, runsNoCorridor, candidates.Count, runsMerged, doors.Count,
@@ -2561,20 +2561,36 @@ namespace OpenRA.Mods.Common.Traits
 			// door standing inside our own ground is exactly that case. The regions know what such a door
 			// separates without any flooding, so they are asked before falling back to sealing a guessed
 			// axis by hand.
+			// Gated on "would this answer keep the door" rather than on "is this answer exactly zero".
+			// Zero never occurred in practice: a door standing inside our own claim has almost all of its
+			// far side already ours, so the flood comes back small - twenty, forty - which is not zero, so
+			// neither fallback ran, and the door then died at MinDoorGroundBeyond as too shallow. A played
+			// match measured "0 by region" for every bot on the map while ten of one bot's doors were
+			// dropped that way, which is the whole case GroundBeyondRegions was written for going unasked.
+			// The best answer wins, so a door can only gain ground here, never lose it: anything the flood
+			// already measured above the bar keeps exactly the number that was validated by eye.
+			var minBeyond = Math.Max(0, Info.MinDoorGroundBeyond);
 			var beyond = outside.Count > 0 ? GroundBeyondDoor(run, outside) : 0;
-			if (beyond == 0)
+
+			if (beyond < minBeyond)
 			{
-				beyond = GroundBeyondRegions(run);
-				if (beyond > 0)
+				var byRegion = GroundBeyondRegions(run);
+				if (byRegion > beyond)
+				{
+					beyond = byRegion;
 					doorsMeasuredByRegion++;
+				}
 			}
 
-			if (beyond == 0)
+			if (beyond < minBeyond)
 			{
-				beyond = GroundBeyondPinch(center, run);
-				if (beyond > 0)
+				var byPinch = GroundBeyondPinch(center, run);
+				if (byPinch > beyond)
+				{
+					beyond = byPinch;
 					doorsMeasuredByPinch++;
-				else
+				}
+				else if (beyond == 0)
 					doorsUnmeasured++;
 			}
 
