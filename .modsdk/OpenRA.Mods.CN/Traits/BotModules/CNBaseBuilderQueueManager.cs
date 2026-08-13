@@ -1929,6 +1929,8 @@ namespace OpenRA.Mods.Common.Traits
 			// from BaseOrigin (stable regardless of which buildings currently exist); any other base
 			// measures from its own centre.
 			var restrictToCoreRegion = baseBuilder.Info.EnableCoreRegionPlacement && baseBuilder.TacticalMapModule != null;
+			var restrictToTerritory = baseBuilder.Info.EnableTerritoryPlacement && baseBuilder.TacticalMapModule != null
+				&& baseBuilder.TacticalMapModule.TopologyReady;
 			var coreRegionId = -1;
 			if (restrictToCoreRegion)
 			{
@@ -2201,6 +2203,24 @@ namespace OpenRA.Mods.Common.Traits
 
 						if (withinRegion.Count > 0)
 							allCells = withinRegion;
+					}
+
+					// And inside the ground this bot actually holds. The region filter above answers "which
+					// pocket of the map is this base in"; it cannot answer "is this spot behind my own line",
+					// because a region reaches as far as the terrain does whether or not the bot holds it.
+					// That is what let bases creep up onto the terrace above a cliff: legitimate ground,
+					// reachable, in a region the base is also in - and on the wrong side of the way in.
+					// The claim stops at the resolved chokepoint corridors, so a plateau reached only through
+					// a door is outside it. Whole footprint, same as the region test, and the same graceful
+					// fallback: a base whose claim has not caught up must still be able to build.
+					if (restrictToTerritory)
+					{
+						var withinTerritory = allCells
+							.Where(c => vbi.Tiles(c).All(baseBuilder.TacticalMapModule.IsInTerritory))
+							.ToList();
+
+						if (withinTerritory.Count > 0)
+							allCells = withinTerritory;
 					}
 
 					var sameTypeBuildings = playerBuildings

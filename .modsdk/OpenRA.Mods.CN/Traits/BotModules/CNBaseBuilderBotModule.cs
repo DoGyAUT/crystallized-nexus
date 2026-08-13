@@ -291,6 +291,14 @@ namespace OpenRA.Mods.Common.Traits
 			"a base near a region's edge still has to be able to build. Opt-in.")]
 		public readonly bool EnableCoreRegionPlacement = false;
 
+		[Desc("Keep ordinary building placement inside the ground the bot actually holds. The region filter",
+			"above answers which pocket of the map a base is in; it cannot answer whether a spot is behind",
+			"the bot's own line, because a region reaches as far as the terrain does regardless of who holds",
+			"it - which is how bases creep onto the terrace above a cliff, on legitimate ground that happens",
+			"to be on the wrong side of the way in. The claim stops at resolved chokepoint corridors, so a",
+			"plateau reached only through a door falls outside it. Same graceful fallback as above. Opt-in.")]
+		public readonly bool EnableTerritoryPlacement = false;
+
 		[Desc("Consider only resource cells lying in the same region as the base a refinery is being built",
 			"for, and keep the refinery itself in that region. Refinery placement otherwise picks its field",
 			"out of a plain radius ring, which happily reaches across a cliff or a door into ground the",

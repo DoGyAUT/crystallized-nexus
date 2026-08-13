@@ -2112,6 +2112,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Ground this player holds: closer to its own buildings than to any known enemy one.</summary>
 		public IReadOnlyCollection<CPos> GetTerritory() { EnsureBuilt(); return territory; }
 
+		/// <summary>
+		/// Whether a cell is inside this player's claim. Separate from <see cref="GetTerritory"/> because
+		/// the collection it hands back is read as an interface, and a caller testing thousands of
+		/// candidate cells against it would walk the whole claim per cell instead of hashing once.
+		/// </summary>
+		public bool IsInTerritory(CPos cell) { EnsureBuilt(); return territory.Contains(cell); }
+
 		/// <summary>The ways into that ground. Everything else along its edge is terrain doing the work.</summary>
 		public IReadOnlyList<CNTerritoryDoor> GetTerritoryDoors() { EnsureBuilt(); return doors; }
 

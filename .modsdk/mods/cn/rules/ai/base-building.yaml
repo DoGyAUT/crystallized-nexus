@@ -110,6 +110,7 @@ Player:
 		EnableDoorDefense: true
 		EnableDoorKillZone: true
 		EnableCoreRegionPlacement: true
+		EnableTerritoryPlacement: true
 		EnableRegionRefineryPlacement: true
 		ResourceCellsPerRegionRefinery: 50
 		EnableDefenseDangerMemory: true
