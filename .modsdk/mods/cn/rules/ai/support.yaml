@@ -142,7 +142,11 @@ Player:
 			TickTank:
 				ActorTypes: ttnk
 				Mode: Stats
-				DeployRange: 6
+				# Deploying is worth an armour bonus, so a tick tank should be dug in whenever something is
+				# in reach - SafeRange is already 0, so closeness never drives it back up. Raised from 6 to
+				# 8 only so the deploy animation has time to finish before contact rather than starting as
+				# the enemy arrives.
+				DeployRange: 8
 				SafeRange: 0
 				DeployCooldown: 150
 			EMP:

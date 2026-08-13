@@ -77,6 +77,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Whether the region has as many of our buildings as its ground is taken to hold.</summary>
 		public bool IsFull => BuildingCapacity > 0 && OwnBuildings >= BuildingCapacity;
 
+		/// <summary>Most buildings we have ever had here, and when that last went up. A region that has
+		/// stopped growing is finished with, whether or not it ever reached a target count.</summary>
+		public int PeakBuildings;
+		public int LastGrowthTick;
+
 		public int Connections;
 		public int SealableDoors;
 		public int DoorWidthTotal;
@@ -146,6 +151,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("A held region at most this many cells across is an Outpost regardless of what else it scores:",
 			"there is not enough ground in it to be anything else.")]
 		public readonly int OutpostMaximumRegionSize = 400;
+
+		[Desc("Ticks without a new building after which a region counts as finished being built up, whatever",
+			"its building count. Without this a region too small to reach the target count would block",
+			"expansion for the rest of the match - an outpost with room for three never reaches eight.")]
+		public readonly int RegionDevelopmentStallTicks = 3000;
 
 		[Desc("Buildable cells a region needs per building it is considered able to hold. A region that has",
 			"reached its capacity is full, and the base builder prefers to build anywhere else - which is",
@@ -258,6 +268,15 @@ namespace OpenRA.Mods.Common.Traits
 					states[regionId].OwnConstructionYards++;
 					homeOrigin ??= actor.Location;
 				}
+			}
+
+			foreach (var state in states)
+			{
+				if (state.OwnBuildings <= state.PeakBuildings)
+					continue;
+
+				state.PeakBuildings = state.OwnBuildings;
+				state.LastGrowthTick = world.WorldTick;
 			}
 
 			var claimMinimum = Info.ClaimMinimumBuildings;
@@ -492,6 +511,28 @@ namespace OpenRA.Mods.Common.Traits
 					+ (s.OwnBuildings > 0 ? $" ({s.BuildableCells / s.OwnBuildings}c per b)" : "")
 					+ (s.BuildingCapacity > 0 ? $", cap {s.BuildingCapacity}{(s.IsFull ? " FULL" : "")}" : "")
 					+ (s.BordersEnemy ? ", enemy adj" : "") + ")")));
+		}
+
+		/// <summary>
+		/// Whether a region is still being built up, as opposed to finished with. Finished means one of
+		/// three things, and the last two matter as much as the first: it has reached
+		/// <paramref name="developedBuildings"/>, its ground is full, or it has simply stopped growing.
+		/// <para>
+		/// Without that last clause a small region deadlocks expansion outright - an outpost with room for
+		/// three buildings never reaches a target of eight, so it counts as under development for the rest
+		/// of the match and nothing new is ever founded.
+		/// </para>
+		/// </summary>
+		public bool IsUnderDevelopment(CNRegionState state, int developedBuildings)
+		{
+			if (state == null || !state.Claimed)
+				return false;
+
+			if (state.OwnBuildings >= Math.Max(1, developedBuildings) || state.IsFull)
+				return false;
+
+			var stall = Math.Max(1, Info.RegionDevelopmentStallTicks);
+			return world.WorldTick - state.LastGrowthTick < stall;
 		}
 
 		/// <summary>This bot's standing on one region, or null when the id names nothing.</summary>

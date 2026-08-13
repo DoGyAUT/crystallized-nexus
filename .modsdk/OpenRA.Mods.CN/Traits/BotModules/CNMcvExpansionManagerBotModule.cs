@@ -62,8 +62,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int StarvationRespawningPercent = 50;
 
 		[Desc("Own buildings a held region needs before it counts as established rather than as a building " +
-			"site still being worked on.")]
-		public readonly int RegionDevelopedBuildings = 8;
+			"site still being worked on. Eight proved too high in play - it left an Expansion bot sitting " +
+			"on three regions of one, three and five buildings and refusing to found anything, when what " +
+			"it needed was the essentials up and then on to the next.")]
+		public readonly int RegionDevelopedBuildings = 5;
 
 		[Desc("How many of the bot's regions may be under development at once. A construction yard adds a " +
 			"build site and no build throughput whatever - the player has one building queue, so nine " +
@@ -1269,7 +1271,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var underDevelopment = 0;
 					foreach (var state in regionManagerModule.GetRegionStates())
-						if (state.Claimed && state.OwnBuildings < Math.Max(1, Info.RegionDevelopedBuildings))
+						if (regionManagerModule.IsUnderDevelopment(state, Info.RegionDevelopedBuildings))
 							underDevelopment++;
 
 					if (underDevelopment >= maxRegionsUnderDevelopment)
