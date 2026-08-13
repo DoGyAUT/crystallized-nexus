@@ -7,9 +7,10 @@ defense spread for everyone else) is on for its first real playtest. A shared re
 (`CNRegion`) replaces the per-bot territory flood with a one-time, shared shape plus a periodic
 ownership tally - visually confirmed, including a fix for ramps not registering as region
 boundaries. Its first real consumer, `EnableCoreRegionPlacement`, keeps ordinary building placement
-inside the bot's starting region instead of a plain search ring that doesn't know a door is in the
-way. Region roles, saturation scoring and front squads are recorded below as future work, not
-started.
+inside its own region instead of a plain search ring that doesn't know a door is in the way — since
+extended from the starting base to *every* base. **Region roles are now shipped too**
+(`CNRegionManagerBotModule`, see below) and `CNBaseRole` derives from them. Saturation scoring and
+front squads are still recorded below as future work, not started.
 
 ## The problem
 
@@ -294,9 +295,10 @@ direct research to consult no region, territory or door concept at all. A ring d
 is in the way; it could offer a cell on the *other* side of a chokepoint just as easily as one in
 the region the base actually holds.
 
-Deliberately scoped to a first step, not every base: the candidate pool is filtered to the region
-containing `BaseOrigin` (the bot's actual starting position, stable regardless of role
-reassignment) only when the base being built for *is* the starting one
+Originally scoped to a first step, since extended to every base — each one is held to its own
+region, the starting base measured from `BaseOrigin` (its actual starting position, stable
+regardless of role reassignment) and any other from its own centre. The first version filtered the
+candidate pool only when the base being built for *was* the starting one
 (`targetBase.AnchorId == PrimaryBase.AnchorId` - `AnchorId`, not object identity, since
 `GetBases()`/`PrimaryBase` rebuild fresh instances every call). Filtered once, at the single point
 every layout (`Grid`, `BaseGrid`, `Compact`, ...) and every building type (tech, production,
@@ -379,6 +381,53 @@ Both tiers still require `DoorHasNearbyDefense` - a door is only worth fortifyin
 defence structure already stands within `DoorKillZoneRadius` of it (placed by `EnableDoorDefense`,
 which runs independently). Tier-1 gates share the existing `BasePerimeterMaxGateCount` cap with
 chokepoint-seal and base-perimeter gates rather than getting a separate budget.
+
+## Region roles: what CNBaseRole was approximating
+
+Shipped (`CNRegionManagerBotModule`, `EnableRegionBaseRoles` on in yaml). One per-bot module holding
+the three things the shared graph deliberately does not: which regions this bot **holds**, what each
+region's ground is **worth**, and what each held region is **for**.
+
+A region is held when a construction yard of ours stands in it, or — for a group whose yard packed
+up but which still holds its ground — when `ClaimMinimumBuildings` of our buildings do. That is a
+statement about ground, not about a radius, which is the whole point: the claim ends where the
+terrain does.
+
+Value is three scores of 0-100, weighted into one number: resource cells against
+`ResourceCellsForFullScore`, buildable cells against `BuildableCellsForFullScore`, and security as
+`100 -` (a penalty per connected region, plus a penalty per cell of sealable-door width). Two
+separate penalties on purpose — *every* neighbouring region is a way in, but only some of those ways
+pinch narrow enough to have resolved to a corridor, so a region reachable over a wide ramp scores no
+door width at all and the connection count is what still catches it. All three are terrain, so an
+unheld region can be scored before anything is committed to it, which is what expansion siting will
+want.
+
+Roles are the same five names, moved onto the thing they were always describing. Core is pinned to
+the region the bot started in (latched off its first construction yard, so losing ground never
+quietly relabels the main base); Military is held ground whose neighbour belongs to an enemy;
+Outpost is a region too small to be anything else; Economy is what is left with tiberium in it.
+Core and Military are exclusive, Economy and Outpost are not. `RegionRoleMinimumHoldTicks` keeps a
+role from flickering, for the reason `BaseRoleMinimumHoldTicks` already existed: a role decides what
+gets built there, and one that follows the evidence tick by tick leaves half-finished structure
+behind in both directions.
+
+`CNBaseRole` no longer computes any of this. `EvaluateBaseRolesFromRegions` gives each base the role
+of the region it stands in and then resolves the two exclusive roles down to one base each — a
+region can hold several construction yards, and Core and Military each name a single place to send a
+category of building to. The radius heuristics are kept intact as the fallback for the moment before
+the first refresh, or a map where the cut produced nothing: without one, every base would come back
+`Secondary`, which is not an answer but the absence of one.
+
+**A gap this closed on the way past.** `CNRegion.DoorCorridorIndices` was documented as "indices into
+the shared chokepoint-corridor list" and there was no such list — the corridors were local to
+`BuildRegions` and thrown away, so a region could say it had three doors and nothing could ask how
+wide any of them was. They are now kept on `CNSharedTopology` (`RegionDoorCorridors`,
+`GetRegionDoorCorridor`). The merge only ever drops barrier pieces and never renumbers that list, so
+the indices stay valid however many rounds the fill takes.
+
+`RegionGeneration` was added alongside it: region ids are positions in a list, so anything
+remembering something per id — the role cache above, first — has to drop it when a bridge falling
+re-cuts the map.
 
 ## Future: region-aware front squads
 
