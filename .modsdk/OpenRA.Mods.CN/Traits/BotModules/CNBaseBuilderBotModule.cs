@@ -375,6 +375,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks between base role reevaluations.")]
 		public readonly int BaseRoleUpdateInterval = 250;
 
+		[Desc("Take base roles from the role " + nameof(CNRegionManagerBotModule) + " gave the region the base",
+			"stands in, instead of deriving them from radii here. Every one of the heuristics below is a",
+			"distance standing in for an area - nearest-to-origin for Core, a radius around a chokepoint for",
+			"Outpost, a radius around a remembered attack for Military - and a region is that area, bounded",
+			"by the terrain rather than by a circle. Falls back to the radius heuristics whenever the region",
+			"manager is absent or holds no region yet, so nothing depends on the graph being ready.")]
+		public readonly bool EnableRegionBaseRoles = true;
+
 		[Desc("A base with at most this many buildings that also sits on a chokepoint becomes an Outpost:",
 			"defense and support only, and it is exempt from the per-base minimum.")]
 		public readonly int OutpostMaxStructures = 8;
@@ -878,6 +886,7 @@ namespace OpenRA.Mods.Common.Traits
 		public IBotBaseExpansion[] BaseExpansionModules;
 		public CNResourceMapBotModule ResourceMapModule;
 		public CNTacticalMapBotModule TacticalMapModule;
+		public CNRegionManagerBotModule RegionManagerModule;
 
 		readonly World world;
 		readonly Player player;
@@ -1605,6 +1614,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		void EvaluateBaseRoles(List<CNBotBase> bases)
 		{
+			// The terrain-bounded answer, when there is one. Everything below this line is the older
+			// radius-based approximation of the same question, kept as the fallback for a map or a moment
+			// where the region graph has nothing to say.
+			if (EvaluateBaseRolesFromRegions(bases))
+			{
+				StampBaseRoles(bases);
+				return;
+			}
+
 			// A role change switches what gets built in a base but takes nothing back, so a role that
 			// follows the decaying danger memory tick by tick leaves half-finished structure in both
 			// directions. A base that has held a role for less than BaseRoleMinimumHoldTicks keeps it, and
@@ -1736,8 +1754,15 @@ namespace OpenRA.Mods.Common.Traits
 					&& HasEconomicSubstance(bases[i]))
 					bases[i].Role = CNBaseRole.Economy;
 
-			// Stamp the tick only where the role actually changed, so the hold measures how long a base has
-			// really been what it is. Entries of bases that no longer exist are dropped.
+			StampBaseRoles(bases);
+		}
+
+		/// <summary>
+		/// Stamp the tick only where the role actually changed, so the hold measures how long a base has
+		/// really been what it is. Entries of bases that no longer exist are dropped.
+		/// </summary>
+		void StampBaseRoles(List<CNBotBase> bases)
+		{
 			var refreshed = new Dictionary<uint, (CNBaseRole Role, int SinceTick)>(bases.Count);
 			foreach (var b in bases)
 			{
@@ -1751,6 +1776,94 @@ namespace OpenRA.Mods.Common.Traits
 			baseRoleByAnchor.Clear();
 			foreach (var kv in refreshed)
 				baseRoleByAnchor[kv.Key] = kv.Value;
+		}
+
+		/// <summary>
+		/// Gives every base the role of the region it stands in. Returns false when the region graph has
+		/// nothing to say yet, in which case the caller falls back to the radius heuristics.
+		/// <para>
+		/// No second hold timer here: the region manager already holds a region's role for
+		/// <c>RegionRoleMinimumHoldTicks</c>, so a base's role is exactly as stable as its ground, which is
+		/// the whole point of moving the decision there. What this pass still has to do is resolve the two
+		/// exclusive roles down to one base each - a region can hold several construction yards, and Core
+		/// and Military each describe a single place to send a category of building to.
+		/// </para>
+		/// </summary>
+		bool EvaluateBaseRolesFromRegions(List<CNBotBase> bases)
+		{
+			if (!Info.EnableRegionBaseRoles || RegionManagerModule == null || !RegionManagerModule.Ready || bases.Count == 0)
+				return false;
+
+			var anyClaimed = false;
+			foreach (var b in bases)
+			{
+				if (RegionManagerModule.IsClaimedAt(b.Center))
+				{
+					anyClaimed = true;
+					break;
+				}
+			}
+
+			// Before the first refresh, or on a map where the cut produced nothing, every base would come
+			// back Secondary - which is not an answer, it is the absence of one. Fall back rather than
+			// wipe roles the older path would have assigned.
+			if (!anyClaimed)
+				return false;
+
+			foreach (var b in bases)
+			{
+				// A group that lost its construction yard cannot hold a steering role: every one of them
+				// says what gets built somewhere, and nothing gets built there any more. Same rule the
+				// radius path applies, for the same reason.
+				b.Role = b.IsBuildSite
+					? RegionManagerModule.GetRoleAt(b.Center) switch
+					{
+						CNRegionRole.Core => CNBaseRole.Core,
+						CNRegionRole.Economy => CNBaseRole.Economy,
+						CNRegionRole.Military => CNBaseRole.Military,
+						CNRegionRole.Outpost => CNBaseRole.Outpost,
+						_ => CNBaseRole.Secondary,
+					}
+					: CNBaseRole.Secondary;
+			}
+
+			// Core goes to the base nearest where the bot started, Military to the biggest one at the
+			// front; the rest of their region falls back to Secondary and takes its ordinary share of the
+			// build order. Demoting to Secondary rather than to the region's second-best role on purpose:
+			// a second yard in the Core region is not an economy base, it is just another build site.
+			KeepOneBaseWithRole(bases, CNBaseRole.Core,
+				(best, candidate) => (candidate.Center - BaseOrigin).LengthSquared < (best.Center - BaseOrigin).LengthSquared);
+
+			KeepOneBaseWithRole(bases, CNBaseRole.Military,
+				(best, candidate) => candidate.Buildings.Count > best.Buildings.Count);
+
+			return true;
+		}
+
+		/// <summary>
+		/// Leaves <paramref name="role"/> on the single best base holding it per <paramref name="isBetter"/>,
+		/// and demotes every other holder to <see cref="CNBaseRole.Secondary"/>.
+		/// </summary>
+		static void KeepOneBaseWithRole(List<CNBotBase> bases, CNBaseRole role, Func<CNBotBase, CNBotBase, bool> isBetter)
+		{
+			CNBotBase keep = null;
+			foreach (var b in bases)
+			{
+				if (b.Role != role)
+					continue;
+
+				if (keep == null || isBetter(keep, b))
+					keep = b;
+			}
+
+			if (keep == null)
+				return;
+
+			// AnchorId, not object identity - the convention everywhere else a base is compared, since
+			// GetBases() hands out fresh CNBotBase instances on every call.
+			foreach (var b in bases)
+				if (b.Role == role && b.AnchorId != keep.AnchorId)
+					b.Role = CNBaseRole.Secondary;
 		}
 
 		/// <summary>
@@ -2167,6 +2280,7 @@ namespace OpenRA.Mods.Common.Traits
 				ResourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				TacticalMapModule = bot.Player.PlayerActor.TraitsImplementing<CNTacticalMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
+				RegionManagerModule = bot.Player.PlayerActor.TraitsImplementing<CNRegionManagerBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				combatAnalysis = bot.Player.PlayerActor.TraitsImplementing<CombatAnalysisBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				firstTick = false;
 			}
@@ -3234,14 +3348,68 @@ namespace OpenRA.Mods.Common.Traits
 
 			// This caps GetTargetRefineryCount, so when it comes out low the bot stops wanting
 			// refineries entirely — no placement is ever attempted and nothing else reports why.
-			CNBotLog.Debug(
-				"{0} refinery capacity: {1} from {2}/{3} indices (largest field {4} cells, thresholds {5}/{6})",
-				player, supportedCapacity, scored, ResourceMapModule.GetIndicesLength(),
-				largestField, Info.MinFiniteFieldCellsForRefinery, Info.MinFiniteFieldCellsForExtraRefinery);
-
+			//
+			// Logged alongside the region graph's answer to the same question, because the two disagree and
+			// the disagreement is the suspected cause of the overshoot seen in play: an indice is a raster
+			// square, so a single field crossing four of them is counted four times over here, while a
+			// region counts its resource cells once. Only the region number gates PLACEMENT today
+			// (RegionRefineryCapacityReached); the target the bot works toward is still the indice sum, so
+			// it keeps wanting refineries the ground cannot feed and they end up wherever placement will
+			// still take them. Two numbers side by side say how far apart they actually are on a real map,
+			// which is what any change to either of them should be argued from.
+			// Stamped before the log, not after: GetTargetRefineryCount below re-enters this method, and
+			// only a filled cache stops that being an infinite recursion.
 			cachedSupportedRefineryCapacityTick = world.WorldTick;
 			cachedSupportedRefineryCapacity = Math.Max(Info.InititalMinimumRefineryCount, supportedCapacity);
+
+			// Boxed rather than formatted here: -1 means "the region graph has nothing to say yet", which
+			// reads as n/a in the log and must not be mistaken for a ceiling of zero.
+			var regionCapacity = GetRegionRefineryCapacity();
+			var regionCapacityText = regionCapacity < 0 ? (object)"n/a" : regionCapacity;
+			CNBotLog.Debug(
+				"{0} refinery capacity: {1} from {2}/{3} indices (largest field {4} cells, thresholds {5}/{6}) | "
+				+ "region capacity {7}, target {8}, standing {9}",
+				player, supportedCapacity, scored, ResourceMapModule.GetIndicesLength(),
+				largestField, Info.MinFiniteFieldCellsForRefinery, Info.MinFiniteFieldCellsForExtraRefinery,
+				regionCapacityText,
+				GetTargetRefineryCount(),
+				AIUtils.CountActorByCommonName(RefineryBuildings));
+
 			return cachedSupportedRefineryCapacity;
+		}
+
+		/// <summary>
+		/// The refinery ceiling the region graph implies: every region this bot holds, each capped by its
+		/// own resource cells at <see cref="CNBaseBuilderBotModuleInfo.ResourceCellsPerRegionRefinery"/>.
+		/// <para>
+		/// Diagnostic for now, deliberately not wired into <see cref="GetTargetRefineryCount"/>: the same
+		/// per-region rule already gates placement, and making it the target as well is a real behaviour
+		/// change that should be argued from what the two numbers actually look like on a played map rather
+		/// than from the reasoning alone.
+		/// </para>
+		/// Returns -1 when the region graph or the region manager has nothing to say yet, which the log
+		/// prints as "n/a" rather than as a ceiling of zero.
+		/// </summary>
+		public int GetRegionRefineryCapacity()
+		{
+			var perRefinery = Info.ResourceCellsPerRegionRefinery;
+			if (perRefinery <= 0 || TacticalMapModule == null || !TacticalMapModule.TopologyReady
+				|| RegionManagerModule == null || !RegionManagerModule.Ready)
+				return -1;
+
+			var capacity = 0;
+			foreach (var region in TacticalMapModule.GetRegions())
+			{
+				// Held ground only, mirroring IsIndiceWithinReach: tiberium in a region the bot has not
+				// claimed is not capacity it has, it is capacity it would have to go and take.
+				var state = RegionManagerModule.GetRegionState(region.Id);
+				if (state == null || !state.Claimed || region.ResourceCellCount <= 0)
+					continue;
+
+				capacity += (region.ResourceCellCount + perRefinery - 1) / perRefinery;
+			}
+
+			return capacity;
 		}
 
 		/// <summary>
