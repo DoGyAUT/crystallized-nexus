@@ -623,6 +623,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// starting it at the launch spent most of it on gathering and marching before a shot was fired.
 		int waveStartedTick;
 		int waveLaunchTick;
+
+		// What the wave was made of at each stage, so its life can be read as three numbers rather than
+		// guessed at from the rally decision alone.
+		int waveLaunchSquads;
+		int waveLaunchUnits;
+		int waveReleaseSquads;
+		int waveReleaseUnits;
 		HashSet<CNSquadType> waveEligibleRoleSet = [];
 		readonly Dictionary<Actor, int> idleTickCounters = [];
 
@@ -2128,7 +2135,32 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			waveLaunchTick = World.WorldTick;
 			waveStartedTick = 0;
 			IsWaveLaunched = true;
+
+			(waveLaunchSquads, waveLaunchUnits) = CountWave();
+			waveReleaseSquads = 0;
+			waveReleaseUnits = 0;
+
+			CNBotLog.Debug("{0} wave launched: {1} squads, {2} units, target {3} at {4}, rally {5}",
+				Player, waveLaunchSquads, waveLaunchUnits, target.Info.Name, target.Location, rally);
+
 			return true;
+		}
+
+		/// <summary>Squads still valid in the active wave, and the units in them.</summary>
+		(int Squads, int Units) CountWave()
+		{
+			var squads = 0;
+			var units = 0;
+			foreach (var squad in WaveParticipants)
+			{
+				if (squad == null || !squad.IsValid)
+					continue;
+
+				squads++;
+				units += squad.Units.Count;
+			}
+
+			return (squads, units);
 		}
 
 		void MonitorActiveWave()
@@ -2139,7 +2171,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			WaveParticipants.RemoveWhere(s => s == null || !s.IsValid);
 			if (WaveParticipants.Count == 0)
 			{
-				ClearActiveWave();
+				ClearActiveWave("no participants left");
 				return;
 			}
 
@@ -2158,6 +2190,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 						continue;
 
 					waveStartedTick = World.WorldTick;
+					(waveReleaseSquads, waveReleaseUnits) = CountWave();
+
+					// The gap between this and the launch figures is the wave that never made it to the
+					// gathering point - which is one of the two ways an army ends up strung out across the
+					// map, the other being what happens after this line.
+					CNBotLog.Debug("{0} wave released: {1} squads/{2} units of {3}/{4} launched, after {5} ticks",
+						Player, waveReleaseSquads, waveReleaseUnits, waveLaunchSquads, waveLaunchUnits,
+						World.WorldTick - waveLaunchTick);
+
 					break;
 				}
 			}
@@ -2167,7 +2208,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (waveStartedTick == 0)
 			{
 				if (World.WorldTick - waveLaunchTick >= Math.Max(1, Info.AttackWaveLaunchGraceTicks))
-					ClearActiveWave();
+					ClearActiveWave("never set off");
 
 				return;
 			}
@@ -2192,7 +2233,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					InitializeSquadStateForRole(squad);
 				}
 
-				ClearActiveWave();
+				ClearActiveWave("attack budget spent");
 			}
 		}
 
@@ -2210,7 +2251,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			var nextTarget = PickWaveTarget();
 			if (nextTarget == null)
 			{
-				ClearActiveWave();
+				ClearActiveWave("nothing left to attack");
 				return false;
 			}
 
@@ -2282,8 +2323,30 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return (squadPos - targetPos).LengthSquared < (center.Value - targetPos).LengthSquared;
 		}
 
-		void ClearActiveWave()
+		/// <summary>
+		/// Ends the active wave and reports what became of it.
+		/// <para>
+		/// The whole life of a wave was invisible: a played match logged 137 rally decisions and not one
+		/// line about what happened to any of them, so "the army trickles across the map in a queue" could
+		/// not be told apart from "waves arrive together and lose", and neither from "waves never set off
+		/// at all". Three numbers separate them - what launched, what was still there at release, and what
+		/// is left now - and the reason says which of the four exits was taken.
+		/// </para>
+		/// </summary>
+		void ClearActiveWave(string reason = "unknown")
 		{
+			if (IsWaveLaunched)
+			{
+				var (squads, units) = CountWave();
+				CNBotLog.Debug(
+					"{0} wave ended ({1}): launched {2} squads/{3} units, released {4}/{5}, left {6}/{7}; "
+					+ "{8} ticks gathering, {9} attacking",
+					Player, reason, waveLaunchSquads, waveLaunchUnits, waveReleaseSquads, waveReleaseUnits,
+					squads, units,
+					(waveStartedTick == 0 ? World.WorldTick : waveStartedTick) - waveLaunchTick,
+					waveStartedTick == 0 ? 0 : World.WorldTick - waveStartedTick);
+			}
+
 			IsWaveLaunched = false;
 			WaveTarget = null;
 			waveStartedTick = 0;
