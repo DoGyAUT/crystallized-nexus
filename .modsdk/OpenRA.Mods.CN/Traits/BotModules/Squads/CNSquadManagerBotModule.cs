@@ -330,6 +330,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"stretch between the gathering point and the objective and has to be summed along it.")]
 		public readonly int ApproachThreatSamples = 10;
 
+		[Desc("Cells between samples when a run-in is measured along the ground rather than along a line. " +
+			"Fixed spacing rather than a fixed count on purpose: a fixed count measures average exposure, " +
+			"which makes the candidate closest to the objective look worst of all, since every one of its " +
+			"samples falls in the defended stretch while a distant candidate spends most of them on empty " +
+			"ground. Total fire taken is proportional to ground crossed under guns, so the spacing is the " +
+			"thing that has to be held constant. ApproachThreatSamples * 8 caps how many are ever taken.")]
+		public readonly int ApproachThreatSampleSpacingCells = 2;
+
 		[Desc("Score penalty per point of static-defence damage per salvo covering a target, in hundredths. " +
 			"Makes squads prefer objectives that are not sitting under a battery of guns, so a beaten squad " +
 			"tries somewhere else rather than walking back into what just killed it. 0 ignores defences.")]
@@ -2390,10 +2398,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			var approach = PickApproachCell(target, victim);
 			var usable = approach != null && World.Map.Contains(approach.Value);
 
-			// Both measured along the ground now, so the comparison is between two routes a squad could
-			// actually walk. Measured on the line, the direct rally won whenever anything was known: its
-			// line cut through the terrain beside the objective's only entrance, where nothing is built
-			// because nothing can pass, and read as the coldest way in.
+			// Reported, not decided on. Ranking the door against the line was the wrong question from the
+			// start: where the objective's region has one entrance both routes run through it, so the two
+			// numbers describe the same road, and the only thing separating them was an artefact - a fixed
+			// count of samples spread over routes of different lengths makes whichever candidate sits
+			// closer to the objective look hotter, because all of its samples land in the defended stretch.
+			// The door is where a wave should form up if it is going in that way; which door is a question
+			// for PickApproachCell, and it is the only place a threat figure decides anything now.
 			var approachThreat = usable ? GetDefenseThreatAlongRoute(approach.Value, target, victim) : -1;
 			var directThreat = GetDefenseThreatAlongRoute(cell, target, victim);
 
@@ -2409,18 +2420,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				usable ? approach.Value.ToString() : "none", approachThreat,
 				GetDefenseThreatAt(target.CenterPosition, victim), knownEnemyDefenses.Count);
 
-			// A tie goes to the door. Requiring it to be strictly colder meant it almost never won: both
-			// figures are usually zero, because the rally deliberately sits AttackWaveStagingProgressPercent
-			// short of the target and therefore outside defensive range - the log line above was added to
-			// show exactly that. So the door lost by drawing, every time.
-			//
-			// And a draw is not a reason to prefer the straight line. A point on the line from base to
-			// target is an arbitrary spot in the open; a door is a defined place with terrain on both
-			// flanks, which is where a wave should form up if it is going in that way at all. It is already
-			// on the route, since the detour bound rejected anything that was not, and StandOffCell has
-			// stepped it back from the passage so the squad forms in front of the door rather than bunching
-			// inside the narrowest ground it could pick.
-			if (usable && approachThreat <= directThreat)
+			// The door, whenever there is one. A point on the line from base to target is an arbitrary spot
+			// in the open; a door is a defined place with terrain on both flanks, already on the route
+			// (the detour bound rejected anything that was not) and already stepped back from the passage
+			// by StandOffCell, so the wave forms in front of the door rather than bunching inside the
+			// narrowest ground it could have picked. The wave then holds there until
+			// EnoughWaveParticipantsArrived says it is complete, which is the whole point of gathering at
+			// a place rather than at a coordinate.
+			if (usable)
 				return approach.Value;
 
 			return cell;
@@ -3064,15 +3071,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					break;
 			}
 
-			// The same sample budget the straight-line version spends, so the two remain comparable where
-			// both are used; only where the samples sit changes.
-			var samples = Math.Max(1, Info.ApproachThreatSamples);
+			// Sampled every few cells rather than a fixed number of times along however long the route is.
+			// A fixed count makes the figure mean "average exposure", which ranks a candidate sitting right
+			// at the objective as the worst of all - every one of its samples lands in the defended stretch
+			// while a distant candidate spends most of its samples on empty ground. What is wanted is total
+			// fire taken while crossing, and that is proportional to ground covered under guns, so the
+			// spacing is what has to be fixed. Capped so a very long route cannot turn one ranking decision
+			// into thousands of range checks.
+			var spacing = Math.Max(1, Info.ApproachThreatSampleSpacingCells);
+			var maxRouteCells = Math.Max(1, Info.ApproachThreatSamples) * 8 * spacing;
 			var total = 0;
-			for (var i = 1; i <= samples; i++)
-			{
-				var index = (int)((long)(route.Count - 1) * i / samples);
-				total += GetDefenseThreatAt(World.Map.CenterOfCell(route[index]), victim);
-			}
+			for (var i = 0; i < route.Count && i < maxRouteCells; i += spacing)
+				total += GetDefenseThreatAt(World.Map.CenterOfCell(route[i]), victim);
 
 			return total;
 		}
