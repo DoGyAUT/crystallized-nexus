@@ -8,6 +8,13 @@ Player:
 		TopologyLocomotors: tracked
 		ChokepointSealMaxWidth: 15
 
+	# Reads the shared region graph the tactical map cuts, and decides which of those regions this bot
+	# holds and what each held one is for. CNBaseBuilderBotModule derives its own base roles from this
+	# when EnableRegionBaseRoles is set, instead of guessing them from radii.
+	CNRegionManagerBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		ConstructionYardTypes: gacnst, nacnst
+
 	CNGarrisonBotModule@cn:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 
