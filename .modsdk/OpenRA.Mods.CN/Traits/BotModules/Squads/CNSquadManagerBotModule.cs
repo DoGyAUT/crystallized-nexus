@@ -333,6 +333,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"0 disables the routing and the pathfinder decides as before.")]
 		public readonly int WaveRouteWaypoints = 4;
 
+		[Desc("Ticks' worth of defensive fire per unit, above which a wave is held back rather than launched " +
+			"- the run-in is costing more than the force can pay. 0 disables the check, which is the " +
+			"default: a failed wave gives an upper bound on what is too much and a successful one gives a " +
+			"lower bound, and only the first kind has been observed so far. The figure is logged on every " +
+			"launch as \"wave strength\"; read a match, then set this.")]
+		public readonly int WaveAbortThreatPerUnit = 0;
+
+		[Desc("Multiplier on a target's capability value (Production, Tech, Superweapon and so on) when " +
+			"choosing what a wave attacks. Raise it to make waves chase the valuable thing regardless of " +
+			"what guards it; lower it to make them take whatever is cheapest to reach.")]
+		public readonly int WaveTargetValueWeight = 10;
+
+		[Desc("Divisor on the defensive fire already known to cover a candidate target. This is what tells " +
+			"the edge of a base from its middle: a building ringed by turrets costs more to reach than one " +
+			"on the perimeter, and a wave that ignores the difference marches into the middle and dies " +
+			"there. Larger values care less about how well guarded a target is.")]
+		public readonly int WaveTargetThreatDivisor = 8;
+
 		[Desc("How many points along the run-in are sampled when weighing one approach against another. " +
 			"Emplacements cover approaches rather than the buildings behind them, so the fire is on the " +
 			"stretch between the gathering point and the objective and has to be summed along it.")]
@@ -2124,7 +2142,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (participants == null || participants.Count == 0)
 				return false;
 
-			var target = PickWaveTarget();
+			// The representative first, so the target is chosen against the armour that will be walking in.
+			ActorInfo victim = null;
+			foreach (var participant in participants)
+			{
+				victim = participant?.CenterUnit()?.Info;
+				if (victim != null)
+					break;
+			}
+
+			var target = PickWaveTarget(victim);
 			if (target == null)
 				return false;
 
@@ -2135,16 +2162,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// AttackWaveMaxActiveTicks, which is every rush game once the economy bonus shortens it.
 			if (IsWaveLaunched)
 				return false;
-
-			// A representative of what is about to march, so "how hot is this approach" is measured
-			// against the armour that will actually be standing in it.
-			ActorInfo victim = null;
-			foreach (var participant in participants)
-			{
-				victim = participant?.CenterUnit()?.Info;
-				if (victim != null)
-					break;
-			}
 
 			var (rally, entry) = ComputeRallyCell(target, victim);
 
@@ -2176,9 +2193,33 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			waveReleaseSquads = 0;
 			waveReleaseUnits = 0;
 
+			// What this wave is walking into, per unit walking into it. The absolute figure says nothing on
+			// its own - a played match ranged from 154 to 36216 - but against the number of units carrying
+			// it, it is the closest thing to "is this force enough" that can be had without guessing.
+			var routeThreat = GetDefenseThreatAlongRoute(rally, target, victim);
+			var threatPerUnit = waveLaunchUnits > 0 ? routeThreat / waveLaunchUnits : routeThreat;
+
+			// Held rather than launched when the run-in costs more per unit than the profile is willing to
+			// spend. Off by default on purpose: every failed wave in the log gives an upper bound, and not
+			// one successful wave gives a lower one, so any threshold I picked now would be invention. The
+			// figure is logged on every launch - set the option once a match shows where the line falls.
+			if (Info.WaveAbortThreatPerUnit > 0 && threatPerUnit > Info.WaveAbortThreatPerUnit)
+			{
+				CNBotLog.Debug("{0} wave held: run-in costs {1} per unit over {2} units, limit {3}",
+					Player, threatPerUnit, waveLaunchUnits, Info.WaveAbortThreatPerUnit);
+
+				IsWaveLaunched = false;
+				WaveTarget = null;
+				WaveParticipants.Clear();
+				return false;
+			}
+
 			CNBotLog.Debug("{0} wave launched: {1} squads, {2} units, target {3} at {4}, rally {5}",
 				Player, waveLaunchSquads, waveLaunchUnits, target.Info.Name, target.Location,
 				entry != null ? $"{rally} then {entry}" : rally.ToString());
+
+			CNBotLog.Debug("{0} wave strength: {1} units against a run-in of {2} ({3} per unit)",
+				Player, waveLaunchUnits, routeThreat, threatPerUnit);
 
 			if (WaveRoute.Count > 0)
 				CNBotLog.Debug("{0} wave route: {1} waypoints around region {2} to {3}",
@@ -2494,7 +2535,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			WaveParticipants.Clear();
 		}
 
-		public Actor PickWaveTarget()
+		public Actor PickWaveTarget(ActorInfo victim = null)
 		{
 			var ownCenter = GetWaveSourceActor();
 			if (ownCenter == null)
@@ -2510,8 +2551,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			Actor BestOf(IEnumerable<Actor> candidates)
 			{
 				return candidates
-					.OrderByDescending(WaveTargetValueScore)
-					.ThenBy(a => (a.CenterPosition - ownCenter.CenterPosition).LengthSquared)
+					.OrderByDescending(a => WaveTargetScore(a, ownCenter, victim))
 					.FirstOrDefault();
 			}
 
@@ -2523,6 +2563,33 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			return BestOf(buildings);
+		}
+
+		/// <summary>
+		/// What a building is worth attacking: what it does for its owner, less what it costs to get at.
+		/// <para>
+		/// Value alone ranked by tag and then broke every tie on distance - and most buildings carry no tag
+		/// at all, construction yards included, so in practice the tie-break decided. That is how waves
+		/// ended up marching at the one building that sits in the middle of the base by definition: not
+		/// because it was valuable, but because among a field of zeroes it happened to be nearest to a
+		/// randomly chosen building of ours. A played match had waves of thirty units arrive at full
+		/// strength, lose seventy percent of themselves and take nothing.
+		/// </para>
+		/// The fire already known to cover a spot is what separates the edge of a base from its middle, and
+		/// it is the cheap measure - the defence memory is a short list, no flooding involved. A human peels
+		/// the perimeter first; this is that instinct, expressed as a number.
+		/// </summary>
+		int WaveTargetScore(Actor a, Actor ownCenter, ActorInfo victim)
+		{
+			var score = WaveTargetValueScore(a) * Math.Max(0, Info.WaveTargetValueWeight);
+
+			score -= GetDefenseThreatAt(a.CenterPosition, victim) / Math.Max(1, Info.WaveTargetThreatDivisor);
+
+			// Distance last and gently, in cells rather than squared: it should separate two otherwise
+			// equal targets, not decide between a soft one and a hard one.
+			score -= (a.CenterPosition - ownCenter.CenterPosition).Length / 1024;
+
+			return score;
 		}
 
 		static int WaveTargetValueScore(Actor a)
