@@ -183,6 +183,16 @@ namespace OpenRA.Mods.Common.Traits
 					"Recommended to set it equal or larger than ResourceMapStrideRadius.")]
 		public readonly int CRmodeFriendlyRefineryDislikeRange = 14;
 
+		[Desc("How much a perfect region adds to a candidate's attraction, as a percentage of the indice-side",
+			"square every other term is measured in. " + nameof(CNRegionManagerBotModule) + " scores each",
+			"region on its resources, its buildable space and how many ways in it has - the same three",
+			"questions this module answers per raster square, asked of the ground's actual shape instead.",
+			"A candidate in a region scoring 100 gets this much; one in a region scoring 0 gets nothing.",
+			"Deliberately below the distance term's reach, so a good region tilts a decision without",
+			"sending an MCV across the map for it. 0 disables. Nothing happens when the region graph is",
+			"unavailable, so a map it cannot read behaves exactly as before.")]
+		public readonly int RegionValueAttractionPercent = 25;
+
 		[Desc("Bonus attraction for resource indices with respawning resource sources.")]
 		public readonly int CRmodeRespawningFieldBonus = 96;
 
@@ -289,6 +299,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		PathFinder pathfinder;
 		CNResourceMapBotModule resourceMapModule;
+		CNRegionManagerBotModule regionManagerModule;
 		PlayerResources playerResources;
 		Actor mustUndeployCoyard;
 
@@ -784,6 +795,8 @@ namespace OpenRA.Mods.Common.Traits
 
 						attraction -= CalculateThreats(indiceSideLengthSquare, i);
 
+						attraction += CalculateRegionValueBonus(indiceCenter, indiceSideLengthSquare);
+
 						if (currentExpansionGoal == ExpansionGoal.DefenseOutpost && ownBaseCenter.HasValue && enemyBaseCenter.HasValue)
 							attraction += CalculateFrontlineOutpostBonus(indiceCenter, ownBaseCenter.Value, enemyBaseCenter.Value);
 
@@ -899,6 +912,11 @@ namespace OpenRA.Mods.Common.Traits
 						var threatPenalty = CalculateThreats(indiceSideLengthSquare, i);
 						attraction -= threatPenalty;
 
+						// Scored at the resource centre rather than the indice centre: that is the ground the
+						// MCV is actually being sent to work, and the two can sit in different regions when a
+						// raster square straddles a boundary.
+						attraction += CalculateRegionValueBonus(resourceCellsCenter, indiceSideLengthSquare);
+
 						var coordinationPenalty = CalculateExpansionCoordinationPenalty(resCenter, mcv, indiceSideLengthSquare);
 						attraction -= coordinationPenalty;
 
@@ -967,6 +985,31 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// What the region a candidate stands in is worth, in the same currency as every other attraction
+		/// term (see the block comment in <see cref="GetExpansionCenter"/>): a share of
+		/// <paramref name="indiceSideLengthSquare"/>, scaled by the region's 0-100 score.
+		/// <para>
+		/// The indice terms above ask "how much tiberium is in this raster square" and "is there room to
+		/// build in it". A region asks the same of the ground's actual shape, and adds the question neither
+		/// can reach - how many ways into it there are. It overlaps the resource term on purpose rather
+		/// than replacing it: one measures the square an MCV would deploy in, the other the pocket it would
+		/// be committing to.
+		/// </para>
+		/// Zero whenever the region graph is unavailable, so nothing changes on a map it cannot read.
+		/// </summary>
+		int CalculateRegionValueBonus(CPos cell, int indiceSideLengthSquare)
+		{
+			if (regionManagerModule == null || !regionManagerModule.Ready || Info.RegionValueAttractionPercent <= 0)
+				return 0;
+
+			var state = regionManagerModule.GetRegionStateAt(cell);
+			if (state == null)
+				return 0;
+
+			return state.Value * indiceSideLengthSquare * Info.RegionValueAttractionPercent / (100 * 100);
+		}
+
 		int CalculateThreats(int indiceSideLengthSquare, int index)
 		{
 			var baseIndice = resourceMapModule.GetIndice(index);
@@ -992,6 +1035,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				resourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
+				regionManagerModule = bot.Player.PlayerActor.TraitsImplementing<CNRegionManagerBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				SwitchExpansionMode(Info.InitialExpansionMode);
 				currentExpansionGoal = Info.InitialExpansionMode == BotMcvExpansionMode.CheckResource
 					? ExpansionGoal.Economy : ExpansionGoal.BaseExtension;

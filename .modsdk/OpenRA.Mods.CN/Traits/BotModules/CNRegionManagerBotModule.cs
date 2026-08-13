@@ -470,6 +470,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		public IReadOnlyList<CNRegionState> GetRegionStates() => states;
 
+		/// <summary>
+		/// This bot's standing on the region containing a cell, or null when the cell is in no region. The
+		/// scores are terrain, so this answers for ground the bot has never been to - which is what siting
+		/// an expansion needs, since the whole question there is what an unheld place would be worth.
+		/// </summary>
+		public CNRegionState GetRegionStateAt(CPos cell)
+		{
+			if (tacticalMap == null)
+				return null;
+
+			return GetRegionState(tacticalMap.GetRegionIdAt(cell));
+		}
+
 		/// <summary>What the region containing a cell is for. None when the cell is in no region, or in one we do not hold.</summary>
 		public CNRegionRole GetRoleAt(CPos cell)
 		{
