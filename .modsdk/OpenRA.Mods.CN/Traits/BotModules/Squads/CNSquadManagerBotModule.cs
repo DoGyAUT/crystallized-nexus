@@ -2395,7 +2395,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// Measured along the final leg, from where the squads gather to what they are attacking —
 			// the stretch they actually have to cross. Comparing the two staging cells instead compared
 			// two points that are cold by construction.
-			var approach = PickApproachCell(target, victim);
+			var approach = PickApproachCell(target, victim, out var approachIsDoor);
 			var usable = approach != null && World.Map.Contains(approach.Value);
 
 			// Reported, not decided on. Ranking the door against the line was the wrong question from the
@@ -2427,7 +2427,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// narrowest ground it could have picked. The wave then holds there until
 			// EnoughWaveParticipantsArrived says it is complete, which is the whole point of gathering at
 			// a place rather than at a coordinate.
-			if (usable)
+			// A door needs no justification: it is the way into the objective's region, both routes run
+			// through it anyway, and forming up in front of it is the point. A chokepoint that merely lies
+			// near the target is a different claim - there may well be another way in - so it still has to
+			// be no worse than the line, the way every candidate had to be before doors existed. On open
+			// ground neither is available and this falls through to the line untouched.
+			if (usable && (approachIsDoor || approachThreat <= directThreat))
 				return approach.Value;
 
 			return cell;
@@ -3091,8 +3096,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		/// The most lightly defended chokepoint within reach of <paramref name="target"/>, or null when
 		/// the tactical map has nothing to offer — in which case the caller stays on the direct line.
 		/// </summary>
-		public CPos? PickApproachCell(Actor target, ActorInfo victim)
+		public CPos? PickApproachCell(Actor target, ActorInfo victim) => PickApproachCell(target, victim, out _);
+
+		/// <summary>
+		/// The lightest-defended way into <paramref name="target"/>'s own region, or null when the tactical
+		/// map has nothing to offer — in which case the caller stays on the direct line.
+		/// </summary>
+		/// <param name="target">What the wave is being sent at.</param>
+		/// <param name="victim">The unit type the run-in is costed for.</param>
+		/// <param name="fromDoor">
+		/// Whether the answer is a door of the target's own region rather than a chokepoint that merely
+		/// happens to lie near it. The caller needs the difference: a door is the way in, so gathering at
+		/// it needs no justification, while a chokepoint is one of many and still has to earn its place.
+		/// </param>
+		public CPos? PickApproachCell(Actor target, ActorInfo victim, out bool fromDoor)
 		{
+			fromDoor = false;
 			if (!Info.AvoidDefendedApproaches || target == null || victim == null || tacticalMap == null)
 				return null;
 
@@ -3110,6 +3129,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			if (candidates.Count == 0)
 				return null;
+
+			fromDoor = doors.Count > 0;
 
 			var basePos = World.Map.CenterOfCell(GetRandomBaseCenter());
 			var directLength = (target.CenterPosition - basePos).Length;
