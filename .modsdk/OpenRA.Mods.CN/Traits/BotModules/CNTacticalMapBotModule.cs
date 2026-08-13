@@ -2174,6 +2174,31 @@ namespace OpenRA.Mods.Common.Traits
 			return corridorIndex >= 0 && corridorIndex < regionDoorCorridors.Count ? regionDoorCorridors[corridorIndex] : null;
 		}
 
+		/// <summary>
+		/// The ways into the region containing a cell. Unlike <see cref="GetTerritoryDoors"/> this is not
+		/// about anyone's claim, so it answers the question for ground the caller does not hold - which is
+		/// what an attacker needs, and what makes it work against a human opponent who has no bot module to
+		/// ask.
+		/// </summary>
+		public IReadOnlyList<CNSealableCorridor> GetRegionDoorsAt(CPos cell)
+		{
+			EnsureBuilt();
+
+			var regionId = GetRegionIdAt(cell);
+			if (regionId < 0 || regionId >= regions.Count)
+				return [];
+
+			var doors = new List<CNSealableCorridor>();
+			foreach (var index in regions[regionId].DoorCorridorIndices)
+			{
+				var corridor = GetRegionDoorCorridor(index);
+				if (corridor != null)
+					doors.Add(corridor);
+			}
+
+			return doors;
+		}
+
 		/// <summary>Whoever's buildings currently dominate a region, or null if unclaimed/contested/unknown.</summary>
 		public Player GetRegionOwner(int regionId) =>
 			shared?.RegionOwners is { } owners && regionId >= 0 && regionId < owners.Length ? owners[regionId] : null;

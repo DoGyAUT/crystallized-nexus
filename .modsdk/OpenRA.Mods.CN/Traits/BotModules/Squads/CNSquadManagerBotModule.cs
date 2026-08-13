@@ -2937,12 +2937,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (!Info.AvoidDefendedApproaches || target == null || victim == null || tacticalMap == null)
 				return null;
 
-			// The useful set, not the raw one: these are the chokepoints reachable from this bot's own
-			// base that lead somewhere real. The raw list includes dead ends and pockets across
-			// impassable terrain, and staging at one of those is how the first version produced rally
-			// points the squads could not sensibly walk to.
-			var chokepoints = tacticalMap.GetUsefulChokepointsForOwnBase();
-			if (chokepoints.Count == 0)
+			// The doors of the region the target stands in, when the graph knows them: those are the ways
+			// into the ground being attacked, which is the question this method has always been asking and
+			// answering with a radius. The region graph is terrain, not anyone's claim, so it answers for
+			// ground this bot does not hold - and against a human opponent, who has no bot module to ask.
+			// Falls back to the useful chokepoint set when the target's region has no resolved door: the
+			// raw list includes dead ends and pockets across impassable terrain, and staging at one of
+			// those is how the first version produced rally points the squads could not sensibly walk to.
+			var doors = tacticalMap.GetRegionDoorsAt(target.Location);
+			var candidates = doors.Count > 0
+				? doors.Select(d => d.Center).ToList()
+				: tacticalMap.GetUsefulChokepointsForOwnBase().Select(c => c.Cell).ToList();
+
+			if (candidates.Count == 0)
 				return null;
 
 			var basePos = World.Map.CenterOfCell(GetRandomBaseCenter());
@@ -2958,9 +2965,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			var bestThreat = int.MaxValue;
 			var inRadius = 0;
 			var withinDetour = 0;
-			foreach (var chokepoint in chokepoints)
+			foreach (var candidate in candidates)
 			{
-				var pos = World.Map.CenterOfCell(chokepoint.Cell);
+				var pos = World.Map.CenterOfCell(candidate);
 				if ((pos - target.CenterPosition).LengthSquared > reachSq)
 					continue;
 
@@ -2985,7 +2992,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					continue;
 
 				bestThreat = threat;
-				best = chokepoint.Cell;
+				best = candidate;
 			}
 
 			// Which filter emptied the list. A played match logged "approach none" for every wave while
@@ -2995,11 +3002,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// The detour bound is an ellipse through base and target, so it tightens as the two move
 			// together: at a short direct line even a chokepoint straight ahead can fail it. Whether
 			// that is what empties the list cannot be read without the distance it is scaled from.
+			// Says which source the candidates came from too, because a door list and a chokepoint list
+			// fail for different reasons: doors are few and already the right shape, so an empty result
+			// from them means the target's region genuinely has no resolved way in, while the chokepoint
+			// fallback failing usually means the radius or the detour bound was too tight.
 			if (best == null)
 				CNBotLog.Debug(
-					"{0} no approach: {1} useful chokepoints, {2} within {3} cells of target, {4} within detour "
-					+ "(direct {5} cells, route allowance {6})",
-					Player, chokepoints.Count, inRadius, Info.ApproachSearchRadiusCells, withinDetour,
+					"{0} no approach: {1} {2}, {3} within {4} cells of target, {5} within detour "
+					+ "(direct {6} cells, route allowance {7})",
+					Player, candidates.Count, doors.Count > 0 ? "region doors" : "useful chokepoints",
+					inRadius, Info.ApproachSearchRadiusCells, withinDetour,
 					directLength / 1024, maxRouteLength / 1024);
 
 			if (best == null)
