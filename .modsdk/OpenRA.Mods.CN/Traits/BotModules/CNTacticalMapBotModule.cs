@@ -253,6 +253,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Merge chokepoints that end up within this many cells of each other (cuts duplicate markers/clutter).")]
 		public readonly int ChokepointMergeRadius = 5;
 
+		[Desc("How far (cells) a ramp seal may grow away from the cliff it is anchored at. A ramp is a cut",
+			"through a cliff and is at most about this wide; without a bound the run of slope tiles it grows",
+			"along is connected across half a rolling map and the seal swallows the map with it. Both edges",
+			"of a wide ramp seed the growth, so a ramp up to roughly twice this wide still closes.")]
+		public readonly int RampSealMaxSpread = 8;
+
 		[Desc("Regions smaller than this (cells) are merged into their larger neighbour by dropping the",
 			"barrier between them, repeated until no undersized region has anywhere left to merge into.",
 			"A chokepoint can be a perfectly genuine bottleneck and still be far too minor a wrinkle to",
@@ -759,35 +765,32 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var cell in corridors[i].Cells)
 					cellToCorridorIndex[cell] = i;
 
-			// Every walkable step up, rather than anything that tries to recognise a "ramp". Three attempts
-			// did try: cells against a cliff (only the outer columns of a wide climb), those grown across
-			// inferred height transitions (tore where a wide climb flattens out), and those grown across
-			// Map.Ramp slope tiles (a fifth of all ground carries a slope index on this tileset - it
-			// carpeted the map). The terrain census below settled it: the map has real height levels, so
-			// the rule can be stated on the levels themselves.
-			//
-			// A cell with a HIGHER passable neighbour is barrier. That is the whole rule, and it needs no
-			// seed, no reach and no notion of what a ramp looks like: two neighbouring cells at different
-			// heights always have the lower one flagged, so nothing can walk between levels without
-			// standing on the barrier, and every region that comes out is therefore of one height
-			// throughout. Only the lower side is taken - flagging both would double the barrier to say the
-			// same thing.
+			// IsCliffRamp only flags a cell with a cliff immediately beside it, so on a ramp wider than a
+			// couple of cells only its outermost columns qualify: the middle of the slope touches nothing
+			// impassable and was never barrier at all, which leaves a hole straight through the middle of
+			// the very thing being sealed - and the one-ring dilation below only ever covered a hole two
+			// cells across. A ramp is one connected run of walkable slope, bounded by the cliff it cuts
+			// through, so the flagged cells are grown across that run: the seal ends up the ramp's true
+			// width, however wide it is, while open bumpy ground stays untouched because no cliff seeds it
+			// in the first place.
+			// Map.Ramp was tried as part of this run and taken back out: on this tileset a great many
+			// ordinary ground tiles carry a nonzero ramp index, so the run was connected across most of the
+			// map and the seal carpeted open ground - see the terrain census logged below, which is what
+			// any further attempt here should be decided on rather than on what a ramp "ought" to look
+			// like.
+			var slopeCells = new HashSet<CPos>();
 			var rampCells = new HashSet<CPos>();
 			foreach (var c in world.Map.AllCells)
 			{
-				if (!IsPassable(c))
+				if (!IsPassable(c) || !IsHeightTransition(c))
 					continue;
 
-				var h = world.Map.Height[c];
-				foreach (var dir in CVec.Directions)
-				{
-					var n = c + dir;
-					if (!world.Map.Contains(n) || !IsPassable(n) || world.Map.Height[n] <= h)
-						continue;
+				slopeCells.Add(c);
 
+				// Seeded from the cliff, so a hillside nowhere near one is never barrier however much it
+				// slopes.
+				if (HasCliffAbove(c))
 					rampCells.Add(c);
-					break;
-				}
 			}
 
 			// What the map is actually made of, because three attempts at sealing ramps were each argued
@@ -821,6 +824,30 @@ namespace OpenRA.Mods.Common.Traits
 				passableCells, slopeTileCells, transitionCells, cliffAdjacentCells,
 				string.Join(" ", heightCensus.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value}")));
 
+			// Bounded, because slope tiles are not rare on rolling terrain: their connected run reaches
+			// across half a map, and an unbounded growth swallowed it whole - the barrier covered open
+			// ground everywhere and left regions of one and two cells behind. A ramp is a cut through a
+			// cliff and is only so wide, and both of its edges seed, so the bound closes a ramp up to
+			// roughly twice RampSealMaxSpread across while leaving open hillside alone.
+			var maxSpread = Math.Max(1, Info.RampSealMaxSpread);
+			var rampQueue = new Queue<(CPos Cell, int Depth)>();
+			foreach (var seed in rampCells)
+				rampQueue.Enqueue((seed, 0));
+
+			while (rampQueue.Count > 0)
+			{
+				var (cell, depth) = rampQueue.Dequeue();
+				if (depth >= maxSpread)
+					continue;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var next = cell + dir;
+					if (slopeCells.Contains(next) && rampCells.Add(next))
+						rampQueue.Enqueue((next, depth + 1));
+				}
+			}
+
 			// The barrier is kept as individually droppable pieces - one per resolved corridor, one per
 			// chokepoint that never resolved to one, one per physical ramp - because merging undersized
 			// regions below works by dropping the piece that separates them and running the whole fill
@@ -840,10 +867,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (!cellToCorridorIndex.ContainsKey(cell))
 					pieces.Add(([cell], true));
 
-			// One piece per connected run of steps, so a single climb can be given up on its own. No
-			// dilation any more: the earlier ramp barrier needed a ring around it to stop the flood
-			// corner-cutting a thin diagonal line and to cover a climb's unflagged lead-in cells, and the
-			// rule above has neither problem - a cell below a step is flagged wherever that step runs.
+			// A one-cell-thin barrier line has two known ways to leak with 8-directional movement: the
+			// flood corner-cuts diagonally between two ramp cells that only touch corner-to-corner, and
+			// the flat lead-in/lead-out cells at a ramp's very top and bottom are not height transitions
+			// at all, so nothing above flags them - exactly where a region flowed straight through in the
+			// first /cntopo pass. Dilating by one ring closes both: thick enough that no diagonal gap fits,
+			// and wide enough to cover the ramp's open ends too. Per ramp rather than over one combined
+			// blob - same cells, but each physical ramp can then be dropped on its own.
 			var rampVisited = new HashSet<CPos>();
 			var rampPieces = 0;
 			foreach (var start in rampCells)
@@ -851,7 +881,17 @@ namespace OpenRA.Mods.Common.Traits
 				if (!rampVisited.Add(start))
 					continue;
 
-				pieces.Add(([.. ConnectedComponent(start, rampCells, rampVisited)], false));
+				var component = ConnectedComponent(start, rampCells, rampVisited);
+				var piece = new HashSet<CPos>(component);
+				foreach (var cell in component)
+					foreach (var dir in CVec.Directions)
+					{
+						var n = cell + dir;
+						if (world.Map.Contains(n) && IsPassable(n))
+							piece.Add(n);
+					}
+
+				pieces.Add((piece, false));
 				rampPieces++;
 			}
 
@@ -861,7 +901,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			var minRegionSize = Math.Max(0, Info.MinRegionSize);
 			var piecesDropped = 0;
-			var stepsDropped = 0;
 			var round = 0;
 
 			// Cheap insurance, not a tuning knob: dropping is monotone, so this terminates on its own -
@@ -870,9 +909,6 @@ namespace OpenRA.Mods.Common.Traits
 			// would have stopped the merge a tenth of the way through. Each extra round is one more
 			// full-map fill, paid once at map load.
 			var maxMergeRounds = pieces.Count + 1;
-
-			// Below this a region is a sliver, not a place, and even a height step gives way for it.
-			const int TinySliverCells = 10;
 
 			for (; ; round++)
 			{
@@ -899,17 +935,11 @@ namespace OpenRA.Mods.Common.Traits
 				var worstSize = int.MaxValue;
 				for (var i = 0; i < pieces.Count; i++)
 				{
-					if (!active[i])
+					if (!active[i] || !pieces[i].Droppable)
 						continue;
 
-					// A step is normally kept whatever happens, but a region of a handful of cells is not
-					// high ground worth holding apart - it is a sliver along the edge of a climb, and
-					// leaving those standing is what turns a level change into confetti. The threshold only
-					// decides whether a piece may go at all; the ranking below is on the raw size, so the
-					// worst offender of the round wins whichever kind of piece it is.
-					var threshold = pieces[i].Droppable ? minRegionSize : Math.Min(minRegionSize, TinySliverCells);
 					var separated = SmallestSeparatedRegionSize(pieces[i].Cells);
-					if (separated >= threshold || separated >= worstSize)
+					if (separated >= minRegionSize || separated >= worstSize)
 						continue;
 
 					worstSize = separated;
@@ -921,20 +951,12 @@ namespace OpenRA.Mods.Common.Traits
 
 				active[worst] = false;
 				piecesDropped++;
-
-				// Split by kind, because the totals cannot answer the one question that decides whether
-				// the height cut did anything: a dropped height step merges high ground back into low,
-				// which is the single separation the whole cut exists for. Thirty-odd drops of corridors
-				// is housekeeping; one dropped step is the plateau bug coming back.
-				if (!pieces[worst].Droppable)
-					stepsDropped++;
 			}
 
 			CNBotLog.Debug(
-				"regions: {0} barrier pieces ({1} height steps, {2} step cells, kept unless they only wall "
-				+ "off a sliver), {3} dropped over {4} rounds ({5} of them height steps) -> {6} regions (min size {7})",
-				pieces.Count, rampPieces, rampCells.Count, piecesDropped, round + 1, stepsDropped,
-				regions.Count, minRegionSize);
+				"regions: {0} barrier pieces ({1} ramps, {2} ramp cells, kept whatever happens), {3} dropped "
+				+ "over {4} rounds -> {5} regions (min size {6})",
+				pieces.Count, rampPieces, rampCells.Count, piecesDropped, round + 1, regions.Count, minRegionSize);
 		}
 
 		/// <summary>

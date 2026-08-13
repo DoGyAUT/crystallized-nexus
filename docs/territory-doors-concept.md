@@ -226,36 +226,33 @@ untouched because no cliff seeds it in the first place. Region-only, like the ra
 are wrong here" so far has really been "the barrier has a hole here", and a hole is invisible from
 the region outlines alone — they simply run past it as if nothing were there.
 
-### Stop recognising ramps; flag the steps
+Two corrections followed from watching it, both from the same session:
 
-Three attempts tried to work out where a ramp *is*, and each was wrong in a different direction:
-cells against a cliff caught only the outer columns of a wide climb; growing those across inferred
-height transitions (`IsHeightTransition`, which needs a lower **and** a higher passable neighbour)
-tore exactly where a wide climb flattens out; growing them across `Map.Ramp` slope tiles carpeted
-the map. What settled it was measuring the map instead of arguing about it — a one-off census logged
-by `BuildRegions`:
+*`Map.Ramp` as the run to grow along — tried, reverted.* The engine's own slope index looked like the
+honest answer to "a wide climb flattens out in the middle, so `IsHeightTransition` tears there". It
+carpeted the map: a fifth of all ground carries a nonzero slope index on this tileset, so the run was
+connected across most of it. `RampSealMaxSpread` (default 8, still in place) was added to bound the
+growth and barely dented it — the growth is seeded from every cell beside higher impassable rock, and
+rock outcrops are everywhere.
+
+*Cutting on every walkable step up — built, and rejected in play (`1270d1b`, reverted).* Stated on the
+levels rather than on ramp shapes: a passable cell with a higher passable neighbour is barrier, which
+guarantees nothing walks between levels without standing on it and makes every region uniform in
+height. Clean rule, too much barrier in practice; the cliff-seeded version was preferred as good
+enough for now. Kept in history rather than deleted, since the argument for it still holds if
+region-per-level ever becomes the thing that is wanted.
+
+*The census is what the next attempt should start from.* `BuildRegions` logs, once per map:
 
 ```
 terrain: 24254 passable, 5090 slope tiles, 1304 height transitions, 359 cliff-adjacent
          heights 0:13 1:101 2:5706 3:446 4:437 5:596 6:9309 7:766 8:419 9:799 10:5101 11:529 12:32
 ```
 
-Three real levels (2, 6, 10) with narrow bands between them; a fifth of all ground carrying a slope
-index, which is why that attempt carpeted; and only 359 cells against a cliff, which is why the
-first one sealed almost nothing — the growth had added **zero** cells, so the seal was those 359
-cells and nothing else.
-
-So the rule is stated on the levels themselves: **a passable cell with a higher passable neighbour is
-barrier.** No seed, no reach, no notion of what a ramp looks like. Two neighbouring cells at
-different heights always have the lower one flagged, so nothing walks between levels without
-standing on the barrier, and every region that comes out is therefore of one height throughout. Only
-the lower side is flagged — taking both would double the barrier to say the same thing. The
-per-piece dilation went away with it: it existed to stop the flood corner-cutting a thin diagonal
-line and to cover a climb's unflagged lead-in cells, and neither can happen under this rule.
-
-Height steps are still exempt from the merge, with one loosening: a step that walls off nothing
-bigger than a ten-cell sliver is dropped after all. A sliver along the edge of a climb is not high
-ground worth holding apart, and leaving those standing is what turns a level change into confetti.
+Read on the map above: three real levels (2, 6, 10) with narrow bands between them, a fifth of the
+ground carrying a slope index, and 359 cells against a cliff — which was the *entire* seal, because
+the growth across height transitions added zero cells to it. Three attempts here were each argued
+from a different guess about that shape and each was wrong in a different direction.
 
 **A chain of mini-regions along a coastline.** Regions of 15, 35 and 47 cells strung along one
 shoreline, each cut off by its own small `Passage`. Structurally the same problem the doors had
