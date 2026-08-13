@@ -67,6 +67,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		// What the scores were read from. Kept so the overlay and the log can show the evidence rather
 		// than only the verdict - every tuning argument about these numbers needs the inputs.
+
+		/// <summary>Raw buildable-cell count of the region, unscaled - the capacity behind <see cref="SpaceScore"/>.</summary>
+		public int BuildableCells;
+
+		/// <summary>How many buildings this region's ground is taken to hold, or 0 when the notion is disabled.</summary>
+		public int BuildingCapacity;
+
+		/// <summary>Whether the region has as many of our buildings as its ground is taken to hold.</summary>
+		public bool IsFull => BuildingCapacity > 0 && OwnBuildings >= BuildingCapacity;
+
 		public int Connections;
 		public int SealableDoors;
 		public int DoorWidthTotal;
@@ -136,6 +146,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("A held region at most this many cells across is an Outpost regardless of what else it scores:",
 			"there is not enough ground in it to be anything else.")]
 		public readonly int OutpostMaximumRegionSize = 400;
+
+		[Desc("Buildable cells a region needs per building it is considered able to hold. A region that has",
+			"reached its capacity is full, and the base builder prefers to build anywhere else - which is",
+			"also the signal that it is time to expand rather than keep cramming.",
+			"0 disables the capacity notion entirely and nothing is ever considered full.",
+			"Pick this from the ratio reported in the region log rather than by eye: a played match had a",
+			"region of roughly 840 buildable cells holding 102 buildings, about eight cells each, so a",
+			"guess of forty would have capped it at twenty and strangled the bot.")]
+		public readonly int BuildableCellsPerBuilding = 0;
 
 		public override object Create(ActorInitializer init) { return new CNRegionManagerBotModule(init.Self, this); }
 	}
@@ -296,6 +315,10 @@ namespace OpenRA.Mods.Common.Traits
 
 				state.ResourceScore = Math.Min(100, region.ResourceCellCount * 100 / resourceFull);
 				state.SpaceScore = Math.Min(100, region.BuildableCellCount * 100 / spaceFull);
+				state.BuildableCells = region.BuildableCellCount;
+				state.BuildingCapacity = Info.BuildableCellsPerBuilding > 0
+					? region.BuildableCellCount / Info.BuildableCellsPerBuilding
+					: 0;
 
 				// Every neighbouring region is a way in. Only some of those ways pinch narrow enough to have
 				// resolved to a sealable corridor, which is why width is summed separately instead of being
@@ -460,7 +483,14 @@ namespace OpenRA.Mods.Common.Traits
 				player, held.Count, regions.Count,
 				string.Join("  ", held.Select(s =>
 					$"R{s.RegionId} {s.Role} v{s.Value} (res{s.ResourceScore} spc{s.SpaceScore} sec{s.SecurityScore}; "
-					+ $"{s.Connections} conn, {s.SealableDoors} doors w{s.DoorWidthTotal}, {s.OwnBuildings}b"
+					+ $"{s.Connections} conn, {s.SealableDoors} doors w{s.DoorWidthTotal}, "
+
+					// Buildings against the ground they stand on, because picking BuildableCellsPerBuilding
+					// by eye is exactly the kind of guess that has cost this feature three attempts already.
+					// This prints the ratio bots actually achieve, so the number can be read off a match.
+					+ $"{s.OwnBuildings}b/{s.BuildableCells}c"
+					+ (s.OwnBuildings > 0 ? $" ({s.BuildableCells / s.OwnBuildings}c per b)" : "")
+					+ (s.BuildingCapacity > 0 ? $", cap {s.BuildingCapacity}{(s.IsFull ? " FULL" : "")}" : "")
 					+ (s.BordersEnemy ? ", enemy adj" : "") + ")")));
 		}
 

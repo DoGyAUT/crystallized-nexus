@@ -2212,6 +2212,13 @@ namespace OpenRA.Mods.Common.Traits
 				.OrderByDescending(b => LacksCapabilityFloor(b, capability))
 				.ThenByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
 
+				// A region whose ground is used up goes to the back. Sorted rather than filtered on
+				// purpose: if every region is full the bot must still be able to build somewhere, and the
+				// answer to "everything is full" is to expand, not to stop. The capability floor above
+				// still outranks it - a base missing its one guaranteed power plant gets it wherever it
+				// stands.
+				.ThenBy(b => IsRegionFullAt(b.Center))
+
 				// An outpost holds a chokepoint with defense and support; it is the last choice for anything
 				// that belongs to a role, but still a choice if no other base can take it.
 				.ThenBy(b => preferredRole != null && b.Role == CNBaseRole.Outpost)
@@ -2638,6 +2645,19 @@ namespace OpenRA.Mods.Common.Traits
 					count++;
 
 			return count;
+		}
+
+		/// <summary>
+		/// Whether the region a cell sits in already holds as many buildings as its ground is taken to
+		/// carry. False whenever the region graph is unavailable or the capacity notion is switched off,
+		/// so nothing changes where it cannot be answered.
+		/// </summary>
+		public bool IsRegionFullAt(CPos cell)
+		{
+			if (RegionManagerModule == null || !RegionManagerModule.Ready)
+				return false;
+
+			return RegionManagerModule.GetRegionStateAt(cell)?.IsFull ?? false;
 		}
 
 		public CPos? GetBestDefenseHotspot(CPos reference, DefenseRole role = DefenseRole.Default)
