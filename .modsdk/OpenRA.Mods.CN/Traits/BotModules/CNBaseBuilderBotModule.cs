@@ -2692,6 +2692,59 @@ namespace OpenRA.Mods.Common.Traits
 			return memory.GetDominantRole(Math.Max(1, Info.DefenseDangerMemoryMinimumWeight));
 		}
 
+		/// <summary>
+		/// Danger from attacks that actually happened, and nothing else. Same weighting and same cap as the
+		/// placement list, but only its reactive half.
+		/// <para>
+		/// The combined list is the right input for deciding WHERE to build defence - a bridge is worth
+		/// covering whether or not anyone has come over it yet. It is the wrong input for "am I under
+		/// attack", which is what the adaptive profile asks of it and what it publishes to allies as this
+		/// bot's danger: four bridges come to 528 on a quiet map, over the 420 that flips a bot to Turtle,
+		/// so map shape alone could turn a bot defensive and tell its team it was being attacked.
+		/// </para>
+		/// </summary>
+		public int GetReactiveDangerScore(CPos reference, DefenseRole role = DefenseRole.Default)
+		{
+			if (!Info.EnableDefenseDangerMemory || Info.DefensePlacementDangerWeight <= 0)
+				return 0;
+
+			var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
+			var candidates = new List<(int Weight, long Score)>();
+			foreach (var kv in defenseDangerMemory)
+			{
+				var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
+				if (weight < minimumWeight)
+					continue;
+
+				var finalWeight = weight * Info.DefensePlacementDangerWeight / 100;
+				candidates.Add((finalWeight, (long)finalWeight - (kv.Key - reference).LengthSquared / 8));
+			}
+
+			// Capped like the placement list, so the two are on the same scale and the thresholds tuned
+			// against one still mean something against the other.
+			var total = 0;
+			foreach (var (weight, _) in candidates.OrderByDescending(c => c.Score).Take(Math.Max(1, Info.DefensePlacementMaxHotspots)))
+				total += weight;
+
+			return total;
+		}
+
+		/// <summary>
+		/// The other half: how exposed this ground is by its shape alone - doors, bridges, ramps, passages.
+		/// Constant on a given map, which is exactly why it must not be added to the danger reading above.
+		/// </summary>
+		public int GetStaticExposureScore(CPos reference)
+		{
+			if (TacticalMapModule == null || Info.TopologyHotspotWeight <= 0)
+				return 0;
+
+			var total = 0;
+			foreach (var threat in GetProactiveThreats(reference))
+				total += threat.Weight * Info.TopologyHotspotWeight / 100;
+
+			return total;
+		}
+
 		public DefensePlacementThreat[] GetDefensePlacementThreats(CPos reference, DefenseRole role = DefenseRole.Default)
 		{
 			var maxHotspots = Math.Max(1, Info.DefensePlacementMaxHotspots);

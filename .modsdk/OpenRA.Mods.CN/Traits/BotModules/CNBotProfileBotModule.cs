@@ -83,6 +83,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Sum of defense danger hotspot weights above this triggers Turtle mode.")]
 		public readonly int AdaptiveTurtleDangerThreshold = 350;
 
+		[Desc("How much the map's own shape - doors, bridges, ramps - counts toward preferring Turtle, as a",
+			"fraction of what live danger counts for. Deliberately small: exposed ground is a reason to lean",
+			"defensive, being shot at is a reason to turn defensive, and the two used to be added together",
+			"as one number. 0 ignores map shape entirely.")]
+		public readonly float AdaptiveStaticExposureWeight = 0.25f;
+
 		[Desc("Total alive combat units across all squads above this triggers Rush mode (when not under attack).")]
 		public readonly int AdaptiveRushUnitThreshold = 15;
 
@@ -165,8 +171,15 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BotProfile[] AdaptiveStartProfiles = [];
 
 		[Desc("Score bonus added to the currently active profile during each evaluation. " +
-			"Prevents rapid oscillation: a profile has to beat the current one by this margin to trigger a switch.")]
-		public readonly float AdaptiveProfileMomentumBonus = 2f;
+			"Prevents rapid oscillation: a profile has to beat the current one by this margin to trigger a " +
+			"switch. Kept below 1.0 on purpose - at 2.0 it stopped being hysteresis and started deciding " +
+			"which states were reachable at all. Two worked examples from the score table below: once the " +
+			"danger passes, Turtle scores 0 but holds 2.0 against Expansion's 1.5, so it never leaves; and " +
+			"a cash-rich bot scores Tech at 2.5 against a running Expansion's 1.5 + 2.0, so the income " +
+			"signal the profile exists for could never trigger the switch it was written for. The right " +
+			"value is a matter for a played match - this is the largest one that leaves both transitions " +
+			"possible.")]
+		public readonly float AdaptiveProfileMomentumBonus = 0.75f;
 
 		[Desc("Score deducted per allied adaptive bot already running a given profile. " +
 			"Encourages teammates to spread across different strategies.")]
@@ -369,9 +382,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (baseBuilder == null || ActiveProfile == BotProfile.Turtle)
 				return false;
 
-			var dangerScore = 0;
-			foreach (var t in baseBuilder.GetDefensePlacementThreats(baseBuilder.DefenseCenter))
-				dangerScore += t.Weight;
+			// Reactive only. The combined placement list also carries doors, bridges and ramps, which are
+			// constant on a map - an emergency triggered by terrain would fire on the first tick and never
+			// clear.
+			var dangerScore = baseBuilder.GetReactiveDangerScore(baseBuilder.DefenseCenter);
 
 			LastDangerScore = dangerScore;
 			if (dangerScore < Info.AdaptiveEmergencyTurtleDangerThreshold)
@@ -428,10 +442,13 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// Collect inputs once.
-			var dangerThreats = baseBuilder.GetDefensePlacementThreats(baseBuilder.DefenseCenter);
-			var dangerScore = 0;
-			foreach (var t in dangerThreats)
-				dangerScore += t.Weight;
+			// Danger is what has actually been done to us; exposure is what the ground looks like. Summing
+			// the combined placement list conflated the two: four bridges came to 528 on an untouched map,
+			// past the 420 that turns a bot Turtle, so map shape alone could flip the profile - and
+			// LastDangerScore is published to allies as this bot's danger, so it told the team it was under
+			// attack as well. Kept apart now, and the static half is weighted in far below the live one.
+			var dangerScore = baseBuilder.GetReactiveDangerScore(baseBuilder.DefenseCenter);
+			var exposureScore = baseBuilder.GetStaticExposureScore(baseBuilder.DefenseCenter);
 
 			LastDangerScore = dangerScore;
 
@@ -486,6 +503,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Normalized danger: 0 at no threat, 1.0 at the normal Turtle threshold.
 			var dangerRatio = (float)dangerScore / Math.Max(1, Info.AdaptiveTurtleDangerThreshold);
+
+			// Exposed ground is a reason to lean defensive, just a much weaker one than being shot at, and
+			// it must never on its own reach the threshold that live danger is measured against.
+			var exposureRatio = Math.Min(1f, (float)exposureScore / Math.Max(1, Info.AdaptiveTurtleDangerThreshold))
+				* Math.Max(0f, Info.AdaptiveStaticExposureWeight);
 
 			var rushThreshold = Info.AdaptiveRushUnitThreshold
 				+ (ActiveTechStage == TechStage.Early ? Info.RushUnitThresholdEarlyOffset : 0)
@@ -542,7 +564,7 @@ namespace OpenRA.Mods.Common.Traits
 					// Turtle: scales with danger + active threat. Has no penalty — being
 					// defensive is always valid when under pressure.
 					BotProfile.Turtle =>
-						dangerRatio * 3f + (hasActiveThreat ? 2f : 0f),
+						dangerRatio * 3f + exposureRatio + (hasActiveThreat ? 2f : 0f),
 
 					// Expansion: small constant baseline (reasonable fallback) plus a large
 					// bonus when the economy genuinely needs rebuilding. Running the fields dry counts
