@@ -503,12 +503,25 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				isStuck = true;
 
+				// Standing ON its own dock is delivering, not deadlocking. StationaryTicks counts any tick
+				// where the harvester is not idle and has not changed cell, and unloading is exactly that -
+				// so every delivery eventually crossed the threshold, and the moment the load ran out the
+				// full-harvester exemption below stopped covering it. That is the whole of this signal: a
+				// played match logged 1517 "deadlocks", not one of them hemmed in, at the same dock cells
+				// and by the same harvesters thirty and forty times each - once per delivery.
+				// A harvester wedged on the APPROACH still counts, which is the case the check exists for;
+				// it is only the one already at the dock that is exempt.
+				var reservedHost = h.DockClientManager?.ReservedHost;
+				if (reservedHost != null
+					&& (h.Actor.Location - world.Map.CellContaining(reservedHost.DockPosition)).LengthSquared <= 4)
+					isStuck = false;
+
 				// A full harvester sitting near a refinery is usually just queueing for its turn to dock -
 				// don't flag that as stuck. An empty harvester has no legitimate reason to sit still there
 				// for this long (it should be docking-and-leaving or already searching for resources), so
 				// it stays flagged even near a refinery. This is what actually deadlocks a busy dock: an
 				// empty harvester wedged in the approach blocks everyone still queueing to deliver.
-				if (!h.Harvester.IsEmpty && h.StationaryTicks < StuckHarvesterHardThreshold)
+				if (isStuck && !h.Harvester.IsEmpty && h.StationaryTicks < StuckHarvesterHardThreshold)
 				{
 					foreach (var refinery in refineries.Actors)
 					{
