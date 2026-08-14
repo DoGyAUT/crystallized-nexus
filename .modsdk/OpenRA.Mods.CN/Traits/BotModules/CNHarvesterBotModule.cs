@@ -538,6 +538,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (h.Parachutable != null && h.Parachutable.IsInAir)
 				return false;
 
+			var steppingAside = false;
 			if (isStuck)
 			{
 				// Re-ordering alone never freed anything. Wedged means the harvester cannot move, and a
@@ -547,11 +548,17 @@ namespace OpenRA.Mods.Common.Traits
 				// refinery - the dock approach, where a stuck harvester also blocks everyone queueing
 				// behind it.
 				//
-				// So step aside first. The Harvest order below still follows, queued behind the move, and
-				// takes over once there is space to act on it.
+				// So step aside first, and the Harvest order below is QUEUED behind that move rather than
+				// replacing it. This comment already claimed as much while both orders went out unqueued:
+				// the harvest resolved immediately, cancelled the step-aside, and left the harvester wedged
+				// exactly where it was - which is why the same harvesters kept reappearing here at the same
+				// cell, twenty and thirty times each.
 				var freeCell = FindStepAsideCell(h);
 				if (freeCell != null)
+				{
 					bot.QueueOrder(new Order("Move", h.Actor, Target.FromCell(world, freeCell.Value), false));
+					steppingAside = true;
+				}
 
 				CNBotLog.Debug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. " +
 					$"Stepping aside to {(freeCell != null ? freeCell.Value.ToString() : "nowhere - hemmed in")} and re-issuing harvest order.");
@@ -566,7 +573,7 @@ namespace OpenRA.Mods.Common.Traits
 			CNBotLog.Debug($"CN AI: Harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
 			if (newSafeResourcePatch.Type != TargetType.Invalid)
 			{
-				bot.QueueOrder(new Order("Harvest", h.Actor, newSafeResourcePatch, false));
+				bot.QueueOrder(new Order("Harvest", h.Actor, newSafeResourcePatch, steppingAside));
 				var assignedRefinery = refineryAnchor;
 				if (h.DockClientManager != null && newSafeResourcePatch.Type == TargetType.Terrain)
 					assignedRefinery = FindBestRefineryForResource(h.Actor, h.DockClientManager, world.Map.CellContaining(newSafeResourcePatch.CenterPosition), out _);
