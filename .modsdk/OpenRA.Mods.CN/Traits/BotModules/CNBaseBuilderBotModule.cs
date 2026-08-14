@@ -3373,6 +3373,9 @@ namespace OpenRA.Mods.Common.Traits
 		int cachedSupportedRefineryCapacity;
 		int cachedSupportedRefineryCapacityTick = int.MinValue;
 
+		// Last set of figures reported, so an unchanged picture is not restated every 50 ticks.
+		(int Supported, int Region, int Target, int Standing, int Scored) lastRefineryCapacityReport = (-1, -1, -1, -1, -1);
+
 		int GetSupportedRefineryCapacity()
 		{
 			if (ResourceMapModule == null)
@@ -3441,14 +3444,25 @@ namespace OpenRA.Mods.Common.Traits
 			// reads as n/a in the log and must not be mistaken for a ceiling of zero.
 			var regionCapacity = GetRegionRefineryCapacity();
 			var regionCapacityText = regionCapacity < 0 ? (object)"n/a" : regionCapacity;
+			var standing = AIUtils.CountActorByCommonName(RefineryBuildings);
+			var target = GetTargetRefineryCount();
+
+			// Only when one of the numbers actually moves. It fired every 50 ticks per bot regardless,
+			// which came to 1570 lines in one match - fourteen percent of the whole log, second only to
+			// the ungated dock spam - and repeating an unchanged line that often buries the ones that did
+			// change. Same shape RegionRefineryCapacityReached already uses for its own cap message.
+			var signature = (supportedCapacity, regionCapacity, target, standing, scored);
+			if (signature == lastRefineryCapacityReport)
+				return cachedSupportedRefineryCapacity;
+
+			lastRefineryCapacityReport = signature;
+
 			CNBotLog.Debug(
 				"{0} refinery capacity: {1} from {2}/{3} indices (largest field {4} cells, thresholds {5}/{6}) | "
 				+ "region capacity {7}, target {8}, standing {9}",
 				player, supportedCapacity, scored, ResourceMapModule.GetIndicesLength(),
 				largestField, Info.MinFiniteFieldCellsForRefinery, Info.MinFiniteFieldCellsForExtraRefinery,
-				regionCapacityText,
-				GetTargetRefineryCount(),
-				AIUtils.CountActorByCommonName(RefineryBuildings));
+				regionCapacityText, target, standing);
 
 			return cachedSupportedRefineryCapacity;
 		}
