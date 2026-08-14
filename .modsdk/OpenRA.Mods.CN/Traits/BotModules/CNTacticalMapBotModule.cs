@@ -946,34 +946,56 @@ namespace OpenRA.Mods.Common.Traits
 				if (minRegionSize == 0 || round >= maxMergeRounds - 1)
 					break;
 
-				// One piece per round - the one holding the smallest undersized region apart - and the fill
-				// is re-run before the next one is chosen. Dropping every qualifying piece at once measured
-				// them all against a fill that was still cut by pieces about to be dropped themselves: a
-				// side reads undersized only because its neighbours have not been merged into it yet, the
-				// piece goes on that reading, and dropping is monotone so it never comes back. A played map
-				// lost 67 of 120 pieces that way and ended up with passages that separated nothing.
+				// Every INDEPENDENT drop of the round at once. Dropping every qualifying piece together was
+				// wrong because they were all measured against a fill still cut by pieces about to be
+				// dropped themselves: a side reads undersized only because its neighbours have not been
+				// merged into it yet, the piece goes on that reading, and dropping is monotone so it never
+				// comes back. A played map lost 67 of 120 pieces that way and left passages separating
+				// nothing.
+				//
+				// But only pieces touching the SAME region can spoil each other's measurement. Two whose
+				// neighbouring regions are disjoint can go in one round with no artifact at all, and nearly
+				// every sliver is of that kind. Taking strictly one per round was the safe reading and cost
+				// 129 full-map fills at load on a 367-piece map - 1901 ms inside a single bot tick, which
+				// is a visible hitch and was waved through in its own commit message as "paid once at map
+				// load" without anyone measuring it.
 				// An undersized pocket with nothing to merge into keeps its pieces and stays small, the
 				// same way MinDomainNodes leaves unreachable pockets alone.
-				var worst = -1;
-				var worstSize = int.MaxValue;
+				var eligible = new List<(int Index, int Separated, HashSet<int> Touching)>();
 				for (var i = 0; i < pieces.Count; i++)
 				{
 					if (!active[i] || !pieces[i].Droppable)
 						continue;
 
-					var separated = SmallestSeparatedRegionSize(pieces[i].Cells);
-					if (separated >= minRegionSize || separated >= worstSize)
+					var touching = TouchedRegions(pieces[i].Cells);
+					if (touching.Count < 2)
 						continue;
 
-					worstSize = separated;
-					worst = i;
+					var separated = int.MaxValue;
+					foreach (var id in touching)
+						separated = Math.Min(separated, regions[id].Size);
+
+					if (separated < minRegionSize)
+						eligible.Add((i, separated, touching));
 				}
 
-				if (worst < 0)
+				if (eligible.Count == 0)
 					break;
 
-				active[worst] = false;
-				piecesDropped++;
+				// Worst first, so where two genuinely do conflict the more urgent one goes this round and
+				// the other is re-measured in the next.
+				eligible.Sort((a, b) => a.Separated.CompareTo(b.Separated));
+
+				var claimed = new HashSet<int>();
+				foreach (var (index, _, touching) in eligible)
+				{
+					if (touching.Overlaps(claimed))
+						continue;
+
+					claimed.UnionWith(touching);
+					active[index] = false;
+					piecesDropped++;
+				}
 			}
 
 			CNBotLog.Debug(
@@ -983,17 +1005,19 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The size of the smallest region this barrier piece holds apart, or <see cref="int.MaxValue"/>
-		/// when it holds nothing apart at all. Read off the finished fill rather than tracked during it: a
+		/// The regions this barrier piece holds apart. Read off the finished fill rather than tracked
+		/// during it: a
 		/// piece is small, and what it separates is simply whatever <see cref="regionIdByCell"/> says on
 		/// either side of it.
 		/// <para>
-		/// A size rather than a yes/no, so the merge can drop the worst offender first and re-measure,
-		/// instead of dropping everything that looks undersized in one pass against a fill that is still
-		/// cut by the pieces it is about to drop.
+		/// The whole set rather than only the smallest size, because the merge needs to know which drops
+		/// may share a round: two pieces with no neighbouring region in common cannot spoil each other's
+		/// measurement, and batching those is the difference between a handful of full-map fills and one
+		/// per dropped piece. Fewer than two regions means nothing on the far side to merge into - a piece
+		/// against the map edge, or buried inside a wider barrier.
 		/// </para>
 		/// </summary>
-		int SmallestSeparatedRegionSize(HashSet<CPos> piece)
+		HashSet<int> TouchedRegions(HashSet<CPos> piece)
 		{
 			var touching = new HashSet<int>();
 			foreach (var cell in piece)
@@ -1004,16 +1028,7 @@ namespace OpenRA.Mods.Common.Traits
 						touching.Add(id);
 				}
 
-			// Nothing on the far side to merge into - a piece against the map edge, or buried inside a
-			// wider barrier. Dropping it would gain nothing.
-			if (touching.Count < 2)
-				return int.MaxValue;
-
-			var smallest = int.MaxValue;
-			foreach (var id in touching)
-				smallest = Math.Min(smallest, regions[id].Size);
-
-			return smallest;
+			return touching;
 		}
 
 		/// <summary>
