@@ -605,7 +605,14 @@ namespace OpenRA.Mods.Common.Traits
 			var minCellCost = harv.Mobile.Locomotor.Info.TerrainSpeeds.Values.Min(ti => ti.Cost);
 			var cellCostMultiplier = Info.HarvesterEnemyAvoidanceCostMultipler;
 
-			static int2 CellToBin(CPos cell, int radius) => new(cell.X / radius, cell.Y / radius);
+			// Floor division, not C#'s truncation toward zero. Negative cell coordinates are ordinary on an
+			// isometric map, and plain division makes the bin straddling zero twice as wide as every other:
+			// at radius 10, -9 and +9 both land in bin 0 while -10 is already in bin -1. A harvester on the
+			// negative side of an axis then drew its avoidance cost from a rectangle sitting on the
+			// positive side and could miss the threat in its actual neighbour.
+			static int FloorDiv(int value, int divisor) => (value >= 0 ? value : value - divisor + 1) / divisor;
+
+			static int2 CellToBin(CPos cell, int radius) => new(FloorDiv(cell.X, radius), FloorDiv(cell.Y, radius));
 
 			static int CalculateAvoidanceCostForBin(World world, int2 bin, int radius, Actor actor, int minCellCost, int multiplier)
 			{
@@ -696,6 +703,7 @@ namespace OpenRA.Mods.Common.Traits
 			bestScore = int.MinValue;
 			Actor bestFree = null;
 			var bestFreeDistance = int.MaxValue;
+			var bestFreeScore = int.MinValue;
 
 			foreach (var refinery in refineries.Actors)
 			{
@@ -728,6 +736,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					bestFreeDistance = fieldDistance;
 					bestFree = refinery;
+					bestFreeScore = score;
 				}
 
 				if (score > bestScore)
@@ -748,6 +757,12 @@ namespace OpenRA.Mods.Common.Traits
 					(bestBusy > 0 || bestDock.ReservationCount > 0 || CountAssignedHarvesters(best) > 0) &&
 					bestFreeDistance <= bestDistance + Info.FreeRefineryDistanceSlack)
 				{
+					// The score has to travel with the refinery it belongs to. It did not: bestFree was
+					// returned while bestScore still held the score of the busy dock this preference just
+					// rejected. The caller checks its reassignment threshold against that number, so a
+					// switch could be waved through on the strength of a refinery the harvester is not
+					// being sent to.
+					bestScore = bestFreeScore;
 					return bestFree;
 				}
 			}
@@ -786,8 +801,17 @@ namespace OpenRA.Mods.Common.Traits
 					score += Info.RespawningFieldBonus;
 			}
 
-			score -= dock.ReservationCount * Info.RefineryOccupancyPenalty;
-			var persistentAssigned = CountAssignedHarvesters(refinery);
+			// The asking harvester does not count as congestion at its OWN dock. It was counted twice over:
+			// once in the reservation it already holds there and once in the persistent assignment, while
+			// only the nearby-busy term below ever excluded it. Its current refinery therefore started two
+			// full occupancy penalties behind every alternative - more than the reassignment threshold on
+			// its own - so two otherwise equal refineries would trade the same harvester back and forth
+			// indefinitely. A played match logged 176 reassignments with several straight reversals.
+			var ownReservation = dockClientManager.ReservedHostActor == refinery ? 1 : 0;
+			var ownAssignment = harvesterRefineryAssignment.GetValueOrDefault(actor) == refinery ? 1 : 0;
+
+			score -= Math.Max(0, dock.ReservationCount - ownReservation) * Info.RefineryOccupancyPenalty;
+			var persistentAssigned = Math.Max(0, CountAssignedHarvesters(refinery) - ownAssignment);
 			score -= persistentAssigned * Info.RefineryOccupancyPenalty;
 			var busyHarvesterCount = CountBusyHarvestersNearRefinery(refinery, actor);
 			score -= busyHarvesterCount * Info.BusyRefineryNearbyHarvesterPenalty;
