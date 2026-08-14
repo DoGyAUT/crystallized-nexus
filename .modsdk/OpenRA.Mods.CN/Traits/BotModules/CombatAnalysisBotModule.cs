@@ -110,6 +110,7 @@ namespace OpenRA.Mods.Common.Traits
 		int decayTicks;
 		int nextThreatRecordTick;
 		int nextCombatUnitThreatRecordTick;
+
 		// Per attacker, because the score it throttles is per attacker too. One shared tick let whoever
 		// struck first in a frame mute everybody else until the interval expired.
 		readonly Dictionary<Player, int> nextNemesisRecordTickByAttacker = [];
