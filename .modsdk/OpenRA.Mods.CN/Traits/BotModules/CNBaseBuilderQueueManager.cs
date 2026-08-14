@@ -3106,6 +3106,33 @@ namespace OpenRA.Mods.Common.Traits
 						// Small relaxed second pass with a much tighter candidate budget.
 						foreach (var r in resourcesShouldCheck)
 						{
+							// Every saturation gate the pass above applies, applied here too. They were
+							// missing entirely, and "relaxed" only ever meant a smaller candidate budget and
+							// looser structural checks - never permission to exceed what the ground can feed.
+							// The comment below says why that matters: this pass is not the rare fallback its
+							// name suggests, it placed a bot's opening refinery in a played match, so a
+							// region already at capacity could be built in anyway from here.
+							if (baseBuilder.TacticalMapModule != null
+								&& RegionRefineryCapacityReached(baseBuilder.TacticalMapModule.GetRegionIdAt(r)))
+								continue;
+
+							if (baseBuilder.ResourceMapModule != null)
+							{
+								var relaxedIndice = baseBuilder.ResourceMapModule.FindClosestIndiceFromCPos(r);
+								if (relaxedIndice != null
+									&& !baseBuilder.CanSupportAnotherRefinery(relaxedIndice,
+										baseBuilder.CountPendingRefineriesForIndice(relaxedIndice)))
+									continue;
+							}
+
+							if (baseBuilder.Info.MaxRefineriesPerCluster > 0 && existingRefineries.Count > 0)
+							{
+								var relaxedClusterRadiusSq = baseBuilder.Info.RefineryClusterRadius * baseBuilder.Info.RefineryClusterRadius;
+								if (existingRefineries.Count(loc => (loc - r).LengthSquared <= relaxedClusterRadiusSq)
+									>= baseBuilder.Info.MaxRefineriesPerCluster)
+									continue;
+							}
+
 							// Measured here too. This pass used to score without it, and it is not the rare
 							// fallback the name suggests: a played match placed a bot's opening refinery
 							// from here, so the detour term was skipped on the one placement that shapes
@@ -3206,6 +3233,34 @@ namespace OpenRA.Mods.Common.Traits
 					// no trace at all, so the log said nothing about the placement while the field
 					// measurements sat right above it - which reads as the measurement being ignored
 					// rather than as no candidate having survived the scans.
+					// The saturation gates apply to the fallback too. Both scans above reject a field whose
+					// region or indice is already as refined as it can feed, and this path then aimed at one
+					// anyway - so a region at capacity kept collecting refineries by way of the fallback,
+					// which is exactly the overbuild the caps exist to stop.
+					// Exempt while the bot has no refinery at all: there the alternative is no income, and
+					// that recovery has to outrank any saturation rule.
+					if (fallbackTarget.HasValue && existingRefineryCount > 0)
+					{
+						var fallbackCapped = baseBuilder.TacticalMapModule != null
+							&& RegionRefineryCapacityReached(baseBuilder.TacticalMapModule.GetRegionIdAt(fallbackTarget.Value));
+
+						if (!fallbackCapped && baseBuilder.ResourceMapModule != null)
+						{
+							var fallbackIndice = baseBuilder.ResourceMapModule.FindClosestIndiceFromCPos(fallbackTarget.Value);
+							fallbackCapped = fallbackIndice != null
+								&& !baseBuilder.CanSupportAnotherRefinery(fallbackIndice,
+									baseBuilder.CountPendingRefineriesForIndice(fallbackIndice));
+						}
+
+						if (fallbackCapped)
+						{
+							CNBotLog.Debug("{0} refinery: base grid fallback field {1} is already saturated, standing down",
+								player, fallbackTarget.Value);
+
+							return (null, null, 0);
+						}
+					}
+
 					if (fallbackTarget.HasValue)
 					{
 						CNBotLog.Debug("{0} refinery for field {1} ({2} to drive) via base grid fallback, no candidate survived either scan",
