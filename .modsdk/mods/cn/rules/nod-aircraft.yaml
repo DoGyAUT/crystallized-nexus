@@ -1,7 +1,10 @@
 SCRIN:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	# AutoTargetAll, not AutoTargetGround: every weapon on this aircraft can engage Air, and the
+	# ground template's ValidTargets list has no Air entry in either stance - so it could never pick
+	# an air target by itself however capable its guns were.
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
 	Inherits@VOXELDYNAMICS: ^VoxelDynamicsAircraft
 	Valued:
 		Cost: 1500
@@ -96,7 +99,10 @@ SCRIN:
 HYDRA:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	# AutoTargetAll, not AutoTargetGround. HydraLauncher's ValidTargets is Air and nothing else, and the
+	# ground template's list has no Air entry in either stance - so that launcher could only ever fire on
+	# a target a human clicked, and never once under a bot. HydraCannon reaches air as well.
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
 	Inherits@VOXELDYNAMICS: ^VoxelDynamicsVTOL
 	Valued:
 		Cost: 1000
