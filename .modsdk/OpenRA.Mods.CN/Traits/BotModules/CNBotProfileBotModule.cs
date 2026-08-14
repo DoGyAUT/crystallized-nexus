@@ -98,6 +98,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Added to RushUnitThreshold in Late tech stage (advanced units punch harder, lower threshold).")]
 		public readonly int RushUnitThresholdLateOffset = -3;
 
+		[Desc("Ticks between emergency danger checks while the full profile evaluation is on cooldown. The",
+			"danger memory records an attack at most every 30 ticks, so reading it oftener than this cannot",
+			"see anything new and only costs a threat scan per bot per tick.")]
+		public readonly int AdaptiveEmergencyCheckInterval = 25;
+
 		[Desc("Minimum ticks an adaptive bot keeps a non-emergency strategic intent before switching again.")]
 		public readonly int AdaptiveMinimumIntentHoldTicks = 3000;
 
@@ -255,6 +260,10 @@ namespace OpenRA.Mods.Common.Traits
 		int activeProfileSinceTick;
 		int lastEvalEarned;
 		int lastEvalCashTick;
+		int emergencyCheckTicks;
+
+		// High-water mark for UpdateTechStage - see there.
+		TechStage highestTechStage = TechStage.Early;
 		int profileConditionToken = Actor.InvalidConditionToken;
 
 		CNBaseBuilderBotModule baseBuilder;
@@ -329,8 +338,16 @@ namespace OpenRA.Mods.Common.Traits
 				// the bot in Rush or Expansion for up to AdaptiveSwitchCooldownTicks with the emergency
 				// threshold long since exceeded. Only the danger reading is taken here; the full five-
 				// profile comparison stays on the long interval, where it belongs.
-				if (TryEmergencyTurtle())
-					switchCooldown = Info.AdaptiveSwitchCooldownTicks;
+				// On its own clock, not every tick: the reading walks the threat list, sorts it and
+				// allocates, while the danger memory it reads from only records an attack every 30 ticks
+				// anyway. Checking oftener than the data can change buys nothing and costs a scan per bot
+				// per tick - which is what the first version of this did.
+				if (--emergencyCheckTicks <= 0)
+				{
+					emergencyCheckTicks = Math.Max(1, Info.AdaptiveEmergencyCheckInterval);
+					if (TryEmergencyTurtle())
+						switchCooldown = Info.AdaptiveSwitchCooldownTicks;
+				}
 
 				UpdateStrategySnapshot();
 				return;
@@ -383,6 +400,16 @@ namespace OpenRA.Mods.Common.Traits
 				ActiveTechStage = TechStage.Mid;
 			else
 				ActiveTechStage = TechStage.Early;
+
+			// Never backwards. The tick thresholds come from the ACTIVE profile, so a switch swaps them
+			// underneath an already-reached stage: a bot that hit Mid at 3000 under Tech and then turned
+			// Turtle, whose threshold is 6000, dropped back to Early on the next tick unless it happened
+			// to own a tech building. BuildingFractions and the rush offset then moved backwards with it.
+			// Tech reached is a fact about what the bot has done, not about which profile it is running.
+			if (ActiveTechStage < highestTechStage)
+				ActiveTechStage = highestTechStage;
+			else
+				highestTechStage = ActiveTechStage;
 		}
 
 		// Profiles considered during scored evaluation (excludes Adaptive — that is the mode, not a target).
@@ -641,6 +668,11 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var p in world.Players)
 			{
 				if (p == player || !player.IsAlliedWith(p))
+					continue;
+
+				// A defeated ally keeps no ground and fights nobody, but its last recorded danger and
+				// coverage went on steering this bot's strategy to the end of the match.
+				if (p.WinState != WinState.Undefined)
 					continue;
 
 				foreach (var m in p.PlayerActor.TraitsImplementing<CNBotProfileBotModule>())

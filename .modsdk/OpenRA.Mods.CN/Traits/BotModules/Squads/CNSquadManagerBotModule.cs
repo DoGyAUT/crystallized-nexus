@@ -734,8 +734,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var random = World.LocalRandom;
 			assignRolesTicks = random.Next(0, Info.AssignRolesInterval);
-			minAttackForceDelayTicks = random.Next(0, Info.MinimumAttackForceDelay + 1);
 			cleanupTicks = random.Next(0, CleanupInterval);
+
+			// Counted from the start of the game, exactly like AttackWaveInitialDelay below and for the
+			// same reason. An adaptive bot swaps one profile's squad manager for another mid-game, and the
+			// swap dissolves every squad; re-arming the full delay on top of that left the army with no
+			// squads AND no way to form new ones for up to MinimumAttackForceDelay ticks - 1800 for
+			// Turtle, seventy-two seconds, and the switch that reaches Turtle fastest is the emergency
+			// one, which fires precisely when the bot is under attack. Once the opening delay has passed,
+			// a mid-game switch resumes at once.
+			minAttackForceDelayTicks = Math.Max(0, Info.MinimumAttackForceDelay - World.WorldTick);
+			if (minAttackForceDelayTicks > 0)
+				minAttackForceDelayTicks = random.Next(0, minAttackForceDelayTicks + 1);
 
 			// Wave system init
 			waveEligibleRoleSet = [.. Info.WaveParticipantRoles ?? []];
