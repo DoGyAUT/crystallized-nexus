@@ -451,6 +451,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (!TopologyReady)
 				return;
 
+			// Another bot rebuilt the shared topology (e.g. after a bridge change) -> adopt the newer version.
+			// FIRST, before any refresh below reads a region id. Those refreshes answer from this bot's own
+			// regionIdByCell, which is still the OLD cut until Adopt runs, while the shared Regions and
+			// RegionOwners arrays are already the new one. Running them in the other order mixes the two:
+			// TickRegionOwnershipRefresh writes owners[regionId] into an array sized for the new graph using
+			// an id from the old one, which is silently the wrong region when the id still fits and an
+			// IndexOutOfRangeException when the re-cut produced fewer regions.
+			if (shared != null && shared.Generation != sharedGeneration)
+			{
+				Adopt(shared);
+				return;
+			}
+
 			// Advance the incremental 'useful' refresh on the sim thread (a few chokepoints per tick), so neither the
 			// base builder nor the render overlay ever pays the full per-chokepoint flood in a single tick.
 			TickUsefulRefresh();
@@ -458,13 +471,6 @@ namespace OpenRA.Mods.Common.Traits
 			TickHighGroundRefresh();
 			TickTerritoryRefresh();
 			TickRegionOwnershipRefresh();
-
-			// Another bot rebuilt the shared topology (e.g. after a bridge change) -> adopt the newer version.
-			if (shared != null && shared.Generation != sharedGeneration)
-			{
-				Adopt(shared);
-				return;
-			}
 
 			if (Info.RecomputeInterval > 0 && --recomputeTick <= 0)
 			{
@@ -2158,7 +2164,14 @@ namespace OpenRA.Mods.Common.Traits
 		/// positions in <see cref="GetRegions"/>, so anything remembering something per id has to drop it
 		/// when this changes - after a re-cut nothing says id 4 is the same ground it was.
 		/// </summary>
-		public int RegionGeneration => shared?.Generation ?? 0;
+		/// <remarks>
+		/// The generation this bot has ADOPTED, not the one currently published. The two differ for a tick
+		/// after a bridge falls: the rebuilding bot publishes at once, while every other bot still answers
+		/// <see cref="GetRegions"/> from the old cut until its own Adopt runs. Reporting the published
+		/// number there would tell a caller its cached per-region state was current when it was not - and
+		/// since the number then matches for good, the state would never be rebuilt at all.
+		/// </remarks>
+		public int RegionGeneration => TopologyReady ? sharedGeneration : -1;
 
 		/// <summary>
 		/// Whether ground units can cross a cell, by the same locomotor the chokepoints, doors and regions
