@@ -98,11 +98,19 @@ namespace OpenRA.Mods.Common.Traits
 				if (repairableInBarracks != null && health.DamageState < Info.BarracksMinimumDamageState)
 					continue;
 
-				if (TryAssignMobileRepair(bot, actor))
+				var mobileRepair = TryAssignMobileRepair(bot, actor);
+				if (mobileRepair == MobileRepairResult.Ordered)
 				{
 					assignments++;
 					continue;
 				}
+
+				// Already standing at its repairer and being healed: nothing to order, and nothing to send
+				// it away for either. Falling through here is what had a unit drive off to a service depot
+				// while the aura beside it was already repairing it - and it does not spend an assignment
+				// slot, since no order was issued.
+				if (mobileRepair == MobileRepairResult.AlreadyServiced)
+					continue;
 
 				var repairableNear = actor.TraitOrDefault<RepairableNear>();
 				if (repairableNear != null)
@@ -149,10 +157,18 @@ namespace OpenRA.Mods.Common.Traits
 				.FirstOrDefault(t => t.IsTraitEnabled());
 		}
 
-		bool TryAssignMobileRepair(IBot bot, Actor actor)
+		/// <summary>
+		/// What became of a mobile-repair attempt. Three outcomes, because two of them used to share the
+		/// same "false" and the caller could not tell them apart: a unit already parked at its repairer,
+		/// being healed by its aura, was read as "mobile repair not possible" and sent off to a distant
+		/// service depot on the very next scan.
+		/// </summary>
+		enum MobileRepairResult { NotApplicable, AlreadyServiced, Ordered }
+
+		MobileRepairResult TryAssignMobileRepair(IBot bot, Actor actor)
 		{
 			if (Info.MobileRepairActorTypes.Count == 0 || actor.Info.TraitInfoOrDefault<AircraftInfo>() != null)
-				return false;
+				return MobileRepairResult.NotApplicable;
 
 			var bestRepairer = idleBaseUnits
 				.Where(a =>
@@ -172,12 +188,12 @@ namespace OpenRA.Mods.Common.Traits
 				.FirstOrDefault();
 
 			if (bestRepairer == null)
-				return false;
+				return MobileRepairResult.NotApplicable;
 
 			var maxRange = WDist.FromCells(Info.MobileRepairSearchRadius);
 			var distanceSq = (bestRepairer.CenterPosition - actor.CenterPosition).HorizontalLengthSquared;
 			if (distanceSq > (long)maxRange.Length * maxRange.Length)
-				return false;
+				return MobileRepairResult.NotApplicable;
 
 			// Already standing at the repairer: the unit is being serviced (or the repairer can't help
 			// it), so there is nothing to order. Returning true here would burn one of the scan's
@@ -188,10 +204,10 @@ namespace OpenRA.Mods.Common.Traits
 			// which no unit is ever inside. The check would have been dead.
 			var atRepairer = WDist.FromCells(2);
 			if (distanceSq <= (long)atRepairer.Length * atRepairer.Length)
-				return false;
+				return MobileRepairResult.AlreadyServiced;
 
 			bot.QueueOrder(new Order("Move", actor, Target.FromCell(actor.World, bestRepairer.Location), false));
-			return true;
+			return MobileRepairResult.Ordered;
 		}
 
 		int RepairScanInterval => Info.RepairScanInterval > 0 ? Info.RepairScanInterval : 1;

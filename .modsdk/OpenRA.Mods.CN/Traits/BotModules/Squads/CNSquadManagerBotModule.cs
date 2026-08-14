@@ -1870,6 +1870,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (squad.TemplateInfo != null)
 			{
 				var deaths = squad.Units.Count(a => a != null && a.IsDead);
+
+				// Passengers count too. Before the drop they live only in the slot assignment, never in
+				// squad.Units, and the purge below then removes the dead ones without any of them ever
+				// having been charged to the template. An APC carrying five engineers destroyed on the way
+				// in cost its template exactly one unit - so the riskiest transport templates, the ones
+				// that stake five passengers on one delivery, scored as the safest.
+				// Excluded where a passenger is also in Units, which is the case after a successful drop:
+				// that is the same actor and would otherwise be charged twice.
+				foreach (var assignment in squad.SlotAssignments)
+					deaths += assignment.Passengers.Count(a => a != null && a.IsDead && !squad.Units.Contains(a));
+
 				if (deaths > 0)
 					foreach (var tag in squad.TemplateInfo.Tags)
 						ApplyPerformancePenalty(tag, deaths);

@@ -1852,6 +1852,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		readonly HashSet<uint> sellOrdered = [];
 		readonly List<Actor> captureTargets = [];
 
+		// Which engineer is going for which building. captureTargets alone cannot answer that - it is a
+		// flat list appended after the fact - and without it every engineer in the squad chooses the same
+		// nearest target on the same tick.
+		readonly Dictionary<Actor, Actor> claimedTargets = [];
+
 		public void Activate(CNSquad squad)
 		{
 			squad.AcceptingPassengers = false;
@@ -1897,16 +1902,30 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			// Assign idle engineers to the best nearby capturable enemy building.
 			var engineers = squad.PassengerUnits.Where(e => !e.IsDead && e.IsInWorld).ToList();
+
+			// Drop claims whose engineer is gone, so a building freed by a dead engineer can be taken up
+			// again by another.
+			foreach (var claimant in claimedTargets.Keys.ToList())
+				if (claimant.IsDead || !claimant.IsInWorld)
+					claimedTargets.Remove(claimant);
+
 			foreach (var engineer in engineers)
 			{
 				if (!engineer.IsIdle)
 					continue;
 
-				var target = FindCaptureTarget(squad, engineer);
+				// Claimed per engineer, so five of them do not all walk at the same building. captureTargets
+				// was only appended to AFTER the order and never consulted while choosing, and the active
+				// templates carry five engineers - so on the tick after a drop every one of them picked the
+				// nearest refinery, one captured it, and the other four spent their time on orders that had
+				// become invalid, sometimes reaching the mission cap before they got to a second target.
+				// Keyed by engineer rather than a flat list, so a claim dies with the engineer holding it.
+				var target = FindCaptureTarget(squad, engineer, claimedTargets);
 				if (target == null)
 					continue;
 
 				squad.Bot.QueueOrder(new Order("CaptureActor", engineer, Target.FromActor(target), false));
+				claimedTargets[engineer] = target;
 				if (!captureTargets.Contains(target))
 					captureTargets.Add(target);
 			}
@@ -1924,7 +1943,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		public void Deactivate(CNSquad squad) { }
 
-		static Actor FindCaptureTarget(CNSquad squad, Actor engineer)
+		static Actor FindCaptureTarget(CNSquad squad, Actor engineer, Dictionary<Actor, Actor> claimedTargets)
 		{
 			var engineerCaptureManager = engineer.TraitOrDefault<CaptureManager>();
 			if (engineerCaptureManager == null)
@@ -1939,6 +1958,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 				var targetCaptureManager = building.TraitOrDefault<CaptureManager>();
 				if (targetCaptureManager == null || !engineerCaptureManager.CanTarget(targetCaptureManager))
+					continue;
+
+				// Somebody else in this squad is already on their way to it.
+				if (claimedTargets != null && claimedTargets.Any(kv => kv.Key != engineer && kv.Value == building))
 					continue;
 
 				// Distance dominates (in cells); value gives a small "worth a few cells closer" nudge.
