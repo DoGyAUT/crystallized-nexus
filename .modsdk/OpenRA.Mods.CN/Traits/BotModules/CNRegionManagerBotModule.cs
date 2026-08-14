@@ -414,7 +414,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (homeOrigin != null)
 				{
 					var homeRegion = tacticalMap.GetRegionIdAt(homeOrigin.Value);
-					if (homeRegion >= 0 && homeRegion < states.Length && states[homeRegion].Claimed && !locked[homeRegion])
+					if (homeRegion >= 0 && homeRegion < states.Length && states[homeRegion].Claimed)
 						coreId = homeRegion;
 				}
 
@@ -422,7 +422,19 @@ namespace OpenRA.Mods.Common.Traits
 					coreId = BestUnassigned(proposed, locked, s => s.OwnBuildings > 0, s => s.OwnBuildings);
 
 				if (coreId >= 0)
-					proposed[coreId] = CNRegionRole.Core;
+				{
+					// An exclusive role outranks a hold on a non-exclusive one. The hold exists so a role
+					// does not flicker; it was never meant to leave the bot without a Core at all, and it
+					// did: lose the Core region shortly after the survivors were given Economy or Outpost,
+					// and every candidate is locked until its timer runs out. Tech then has nowhere to go
+					// for the rest of that hold. Never at the cost of the OTHER exclusive role, which is a
+					// place of its own and not a spare slot.
+					if (proposed[coreId] != CNRegionRole.Military)
+					{
+						proposed[coreId] = CNRegionRole.Core;
+						locked[coreId] = false;
+					}
+				}
 			}
 
 			// Military: held ground that touches an enemy's. Preferring the one that already has buildings
@@ -431,8 +443,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (!militaryHeld)
 			{
 				var militaryId = BestUnassigned(proposed, locked, s => s.BordersEnemy, s => s.OwnBuildings * 1000 + s.Value);
-				if (militaryId >= 0)
+
+				// Same preemption as Core, and Core is filled first above so it wins any contest between
+				// the two. A locked Economy or Outpost on the only region touching the enemy would
+				// otherwise leave the bot with no Military at all.
+				if (militaryId < 0)
+					militaryId = BestUnassignedLocked(proposed, s => s.BordersEnemy && s.Role != CNRegionRole.Core,
+						s => s.OwnBuildings * 1000 + s.Value);
+
+				if (militaryId >= 0 && proposed[militaryId] != CNRegionRole.Core)
+				{
 					proposed[militaryId] = CNRegionRole.Military;
+					locked[militaryId] = false;
+				}
 			}
 
 			// Economy and Outpost are not exclusive: several fields and several doors can each be worth
@@ -476,6 +499,35 @@ namespace OpenRA.Mods.Common.Traits
 			for (var i = 0; i < states.Length; i++)
 			{
 				if (locked[i] || proposed[i] != CNRegionRole.None || !states[i].Claimed || !eligible(states[i]))
+					continue;
+
+				var value = rank(states[i]);
+				if (value <= bestRank)
+					continue;
+
+				bestRank = value;
+				bestId = i;
+			}
+
+			return bestId;
+		}
+
+		/// <summary>
+		/// The best claimed region for an exclusive role among those currently LOCKED under a non-exclusive
+		/// one. Only reached when no unlocked candidate exists at all - a hold that would otherwise leave
+		/// the bot without a Core or a Military entirely.
+		/// </summary>
+		int BestUnassignedLocked(CNRegionRole[] proposed, Func<CNRegionState, bool> eligible, Func<CNRegionState, int> rank)
+		{
+			var bestId = -1;
+			var bestRank = int.MinValue;
+
+			for (var i = 0; i < states.Length; i++)
+			{
+				if (!states[i].Claimed || !eligible(states[i]))
+					continue;
+
+				if (proposed[i] == CNRegionRole.Core || proposed[i] == CNRegionRole.Military)
 					continue;
 
 				var value = rank(states[i]);
