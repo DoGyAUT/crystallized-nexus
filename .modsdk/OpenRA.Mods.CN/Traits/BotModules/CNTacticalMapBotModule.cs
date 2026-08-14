@@ -44,7 +44,9 @@ namespace OpenRA.Mods.Common.Traits
 		public CellLayer<bool> Passability;
 		public IReadOnlyDictionary<CPos, uint> AbstractDomains;
 		public CPos[] NodeCells = [];
-		public bool LastBridgeSignature;
+
+		// A fold over the watched bridge cells, not a yes/no - see CurrentBridgeSignature.
+		public int LastBridgeSignature;
 		public int Generation;
 
 		// The map's shape, cut once by the same chokepoints that gate the territory walk - not anyone's
@@ -370,7 +372,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Passability signature of bridge chokepoints, used to detect destroyed/repaired bridges cheaply.
 		readonly List<CPos> bridgeWatchCells = [];
-		bool lastBridgeSignature;
+		int lastBridgeSignature;
 		int recheckTick;
 		int recomputeTick;
 
@@ -489,16 +491,25 @@ namespace OpenRA.Mods.Common.Traits
 				RebuildSharedOnBridgeChange();
 		}
 
-		bool CurrentBridgeSignature()
+		int CurrentBridgeSignature()
 		{
-			// Cheap aggregate: are all watched bridge cells still passable? Checked LIVE (not via the frozen passability
-			// snapshot) so an actual bridge destroyed/repaired is detected. Only a handful of cells, so this is cheap.
+			// A fold over each watched cell, not "are they all passable". As a boolean this could only ever
+			// report the FIRST change: once one bridge was down it read false and stayed false, so a second
+			// bridge falling, or the first being repaired while the second stayed down, changed nothing and
+			// the graph went stale for the rest of the match.
+			// Checked LIVE rather than through the frozen passability snapshot, so a bridge actually
+			// destroyed or repaired is seen. Only a handful of cells, and bridgeWatchCells is filled in
+			// scan order, so the same map state always folds to the same number everywhere.
+			var signature = 17;
 			foreach (var cell in bridgeWatchCells)
-				if (locomotor == null || !world.Map.Contains(cell)
-					|| locomotor.MovementCostForCell(cell) == short.MaxValue)
-					return false;
+			{
+				var passable = locomotor != null && world.Map.Contains(cell)
+					&& locomotor.MovementCostForCell(cell) != short.MaxValue;
 
-			return true;
+				signature = signature * 31 + (passable ? 1 : 0);
+			}
+
+			return signature;
 		}
 
 		void EnsureBuilt()
@@ -2293,9 +2304,33 @@ namespace OpenRA.Mods.Common.Traits
 				byPlayer[a.Owner] = byPlayer.GetValueOrDefault(a.Owner) + 1;
 			}
 
+			// A clear majority, or nobody. OrderByDescending().First() handed the region to whoever the
+			// dictionary happened to enumerate first when two players had the same number of buildings -
+			// so a frontier region with one building each was declared held, which reads downstream as
+			// "this neighbour belongs to an enemy" and steers Military roles, attack choice and expansion
+			// off a coin toss. GetRegionOwner documents null as contested; this makes that true.
+			// One pass instead of a sort, which also drops the per-region allocation.
 			var owners = new Player[shared.Regions.Count];
 			foreach (var (regionId, byPlayer) in tally)
-				owners[regionId] = byPlayer.OrderByDescending(kv => kv.Value).First().Key;
+			{
+				Player leader = null;
+				var best = 0;
+				var tied = false;
+
+				foreach (var (owner, count) in byPlayer)
+				{
+					if (count > best)
+					{
+						best = count;
+						leader = owner;
+						tied = false;
+					}
+					else if (count == best)
+						tied = true;
+				}
+
+				owners[regionId] = tied ? null : leader;
+			}
 
 			shared.RegionOwners = owners;
 		}
