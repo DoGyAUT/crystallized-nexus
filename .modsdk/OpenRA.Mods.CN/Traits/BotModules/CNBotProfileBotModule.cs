@@ -253,7 +253,7 @@ namespace OpenRA.Mods.Common.Traits
 		Actor playerActor;
 		int switchCooldown;
 		int activeProfileSinceTick;
-		int lastEvalCash;
+		int lastEvalEarned;
 		int lastEvalCashTick;
 		int profileConditionToken = Actor.InvalidConditionToken;
 
@@ -392,17 +392,23 @@ namespace OpenRA.Mods.Common.Traits
 			var cash = playerResources.GetCashAndResources();
 			var stableEco = HasStableEconomy();
 
-			// Whether the till is filling, rather than how full it happens to be right now. Sampled
-			// between evaluations, so the window is however long the last hold lasted; dividing by the
-			// elapsed ticks keeps the rate comparable regardless.
+			// What the economy EARNS, not what the balance happens to do. Sampled between evaluations, so
+			// the window is however long the last hold lasted; dividing by the elapsed ticks keeps the rate
+			// comparable regardless.
+			// Taken from Earned rather than from the balance, because the balance is income minus spending
+			// and this is asked as an income question. A bot earning 3000 a minute and spending all 3000 on
+			// production held a trend of zero and never cleared the threshold, so its tech score stayed
+			// negative while its economy was in fact strong - and a one-off refund could make a dying
+			// economy look rich from the other direction.
+			var earned = playerResources.Earned;
 			var cashTrendPerMinute = 0f;
 			if (lastEvalCashTick > 0 && world.WorldTick > lastEvalCashTick)
 			{
 				var ticksPerMinute = 60000f / world.Timestep;
-				cashTrendPerMinute = (cash - lastEvalCash) * ticksPerMinute / (world.WorldTick - lastEvalCashTick);
+				cashTrendPerMinute = (earned - lastEvalEarned) * ticksPerMinute / (world.WorldTick - lastEvalCashTick);
 			}
 
-			lastEvalCash = cash;
+			lastEvalEarned = earned;
 			lastEvalCashTick = world.WorldTick;
 
 			// Team coordination: sample allied adaptive bots once per evaluation.
