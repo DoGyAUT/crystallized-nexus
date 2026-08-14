@@ -232,15 +232,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			// Re-target if the original wave target died mid-march so the squad
-			// has a fresh objective to switch to on arrival.
-			if (waveTarget == null || waveTarget.IsDead || !waveTarget.IsInWorld)
-			{
-				waveTarget = squad.SquadManager.PickWaveTarget()
-					?? CNSquadHelper.FindTarget(squad);
-				if (waveTarget != null)
-					squad.SetActorToTarget(waveTarget);
-			}
+			// While this squad is still part of the wave, the manager owns the objective. Picking our own
+			// replacement here and writing it back on arrival is how a coordinated wave comes apart: the
+			// target dies while several squads are staging, each independently chooses a different one,
+			// the manager then settles on a third for everybody - and each squad overwrites it again the
+			// moment it arrives. Only a squad that has left the wave answers for itself.
+			var manager = squad.SquadManager;
+			var inWave = manager.IsWaveLaunched && manager.WaveParticipants.Contains(squad);
+			if (inWave)
+				waveTarget = manager.WaveTarget;
+			else if (waveTarget == null || waveTarget.IsDead || !waveTarget.IsInWorld)
+				waveTarget = manager.PickWaveTarget() ?? CNSquadHelper.FindTarget(squad);
+
+			if (waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld)
+				squad.SetActorToTarget(waveTarget);
 
 			var arrivalDist = WDist.FromCells(squad.SquadManager.Info.AttackWaveStagingArrivalCells);
 			var arrivalSq = (long)arrivalDist.Length * arrivalDist.Length;
@@ -273,7 +278,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// closing on it by definition, so leaving this armed would evict every waiting squad
 			// after MaxNoProgressTicks and defeat the staging. From then on the timeout governs,
 			// with the manager's AttackWaveMaxActiveTicks as the outer backstop.
-			var stuck = stagingStartTick == 0 && squad.World.WorldTick - lastProgressTick >= MaxNoProgressTicks;
+			//
+			// And it is disarmed entirely while a pinned route is being walked, because it measures
+			// straight-line closing on the FINAL rally - which a route round the objective deliberately
+			// does not do. Going west to reach a northern door looks exactly like being stuck, and after
+			// MaxNoProgressTicks the squad would abandon the way round and take the direct line straight
+			// through the base the route existed to avoid.
+			var onRoute = followRoute && manager.WaveRoute.Count > 0;
+			var stuck = !onRoute && stagingStartTick == 0
+				&& squad.World.WorldTick - lastProgressTick >= MaxNoProgressTicks;
 
 			if (EnoughWaveParticipantsArrived(squad, rallyPos, arrivalSq) || nearbyEnemy != null || timedOut || stuck)
 			{

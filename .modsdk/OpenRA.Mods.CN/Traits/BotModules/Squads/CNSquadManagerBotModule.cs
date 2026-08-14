@@ -581,6 +581,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// whole map.
 		const int MaxApproachFloodCells = 6000;
 
+		// The safe-route flood is a different job and needs its own bound. It runs from the rally back to
+		// the bot's own base with the objective's region walled off, so its reach is the width of the map
+		// plus whatever detour going round costs - not the forty-cell neighbourhood the figure above was
+		// chosen for. Sharing that cap meant the flood ran out before reaching the base on anything but a
+		// short march, BuildSafeRouteTo returned nothing, and the wave silently fell back to the plain
+		// pathfinder - straight through the base it was going round. A played log bears that out: six
+		// routes actually computed across eighty-one wave launches.
+		const int MaxSafeRouteFloodCells = 30000;
+
 		public readonly World World;
 		public readonly Player Player;
 		public new readonly CNSquadManagerBotModuleInfo Info;
@@ -2261,7 +2270,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				queue.Enqueue(seed);
 			}
 
-			while (queue.Count > 0 && safeRouteDistances.Count < MaxApproachFloodCells)
+			while (queue.Count > 0 && safeRouteDistances.Count < MaxSafeRouteFloodCells)
 			{
 				var cell = queue.Dequeue();
 				var next = safeRouteDistances[cell] + 1;
