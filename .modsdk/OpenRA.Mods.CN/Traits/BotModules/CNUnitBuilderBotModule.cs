@@ -428,7 +428,7 @@ namespace OpenRA.Mods.CN.Traits
 			// passengers, which is why loading APCs sat at "wanted=4 pool=0" indefinitely.
 			if (squadManager != null && !squadManager.IsTraitDisabled)
 			{
-				var picked = squadManager.WeightedTemplateOrder(candidates, c => c.Score)[0].Actor;
+				var picked = squadManager.WeightedTemplatePick(candidates, c => c.Score).Actor;
 				NoteProduction(picked, bestUnaffordable, bestUnaffordableScore);
 				return picked;
 			}
@@ -775,8 +775,7 @@ namespace OpenRA.Mods.CN.Traits
 			if (pool.Count == 0)
 				return null;
 
-			var ordered = squadManager.WeightedTemplateOrder(pool, kv => squadManager.GetEffectiveScore(kv.Value));
-			return ordered[0].Key;
+			return squadManager.WeightedTemplatePick(pool, kv => squadManager.GetEffectiveScore(kv.Value)).Key;
 		}
 
 		int CountReservedTemplateQueues(string templateName, uint excludingQueueActorId)

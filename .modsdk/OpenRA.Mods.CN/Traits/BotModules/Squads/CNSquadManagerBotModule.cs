@@ -869,10 +869,27 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			respondToAttackCooldown = MaxRespondToAttackCooldown;
 
-			if (combatAnalysis != null &&
-				self.Owner != Player &&
-				self.Owner.RelationshipWith(Player) == PlayerRelationship.Ally)
-				combatAnalysis.RegisterAllyAttack(e.Attacker.Owner);
+			// Tell our allies who is hitting us. This used to read self.Owner != Player, which cannot be
+			// true here - the attack-response modules are invoked for their OWN player's damaged actors -
+			// so RegisterAllyAttack had no reachable caller at all and NemesisAllyWeightPerHit was
+			// configured for something that never happened. An enemy could wipe out an allied bot without
+			// moving this bot's nemesis score by a point.
+			// Pushed outward rather than pulled: nothing tells a bot that its ally was hit, so the one
+			// that WAS hit does the telling. World.Players is a fixed-order array, so which allies are
+			// notified, and in what order, is the same on every machine.
+			if (e.Attacker.Owner == null)
+				return;
+
+			foreach (var other in World.Players)
+			{
+				if (other == Player || other.RelationshipWith(Player) != PlayerRelationship.Ally)
+					continue;
+
+				var allyAnalysis = other.PlayerActor.TraitsImplementing<CombatAnalysisBotModule>()
+					.FirstOrDefault(t => t.IsTraitEnabled());
+
+				allyAnalysis?.RegisterAllyAttack(e.Attacker.Owner);
+			}
 		}
 
 		public bool IsNemesis(Player player) =>
@@ -1690,6 +1707,38 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			return result;
+		}
+
+		/// <summary>
+		/// One weighted draw, without building the order behind it. Two of the three callers want only the
+		/// winner and were paying for a full permutation to get it: a second list, a removal per element,
+		/// and one random draw per element. The third genuinely walks the whole order and still calls
+		/// <see cref="WeightedTemplateOrder"/>.
+		/// <para>
+		/// Draws exactly as the first step of that method does - same weights, same
+		/// TemplateSelectionSharpness curve, one <c>NextFloat</c> - so a pick here and the head of an order
+		/// there are the same distribution.
+		/// </para>
+		/// </summary>
+		public T WeightedTemplatePick<T>(IReadOnlyList<T> items, Func<T, int> weight)
+		{
+			if (items == null || items.Count == 0)
+				return default;
+
+			var k = Math.Max(0, Info.TemplateSelectionSharpness);
+			var total = 0.0;
+			foreach (var item in items)
+				total += k == 0 ? 1.0 : Math.Pow(Math.Max(1, weight(item)), k);
+
+			var roll = World.LocalRandom.NextFloat() * total;
+			for (var i = 0; i < items.Count; i++)
+			{
+				roll -= k == 0 ? 1.0 : Math.Pow(Math.Max(1, weight(items[i])), k);
+				if (roll <= 0)
+					return items[i];
+			}
+
+			return items[^1];
 		}
 
 		public bool IsUnitAssignedToSquad(Actor actor)
