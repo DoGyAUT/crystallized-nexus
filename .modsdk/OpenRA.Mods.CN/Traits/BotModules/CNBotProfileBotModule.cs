@@ -323,6 +323,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (--switchCooldown > 0)
 			{
+				// Except for the emergency, which is a response to being attacked and cannot wait for the
+				// evaluation cadence. SwitchTo lets it past the minimum intent hold, but the cooldown sits
+				// in front of the whole evaluation - so a heavy assault beginning just after one pass left
+				// the bot in Rush or Expansion for up to AdaptiveSwitchCooldownTicks with the emergency
+				// threshold long since exceeded. Only the danger reading is taken here; the full five-
+				// profile comparison stays on the long interval, where it belongs.
+				if (TryEmergencyTurtle())
+					switchCooldown = Info.AdaptiveSwitchCooldownTicks;
+
 				UpdateStrategySnapshot();
 				return;
 			}
@@ -330,6 +339,29 @@ namespace OpenRA.Mods.Common.Traits
 			EvaluateAndSwitch();
 			UpdateStrategySnapshot();
 			switchCooldown = Info.AdaptiveSwitchCooldownTicks;
+		}
+
+		/// <summary>
+		/// The danger reading on its own, and the switch to Turtle if it has gone past the emergency
+		/// threshold. Split out of the full evaluation so it can run while that one is still on cooldown:
+		/// an emergency is a response to being attacked, and waiting out the evaluation cadence to notice
+		/// is the one thing it must not do. Returns whether it switched.
+		/// </summary>
+		bool TryEmergencyTurtle()
+		{
+			if (baseBuilder == null || ActiveProfile == BotProfile.Turtle)
+				return false;
+
+			var dangerScore = 0;
+			foreach (var t in baseBuilder.GetDefensePlacementThreats(baseBuilder.DefenseCenter))
+				dangerScore += t.Weight;
+
+			LastDangerScore = dangerScore;
+			if (dangerScore < Info.AdaptiveEmergencyTurtleDangerThreshold)
+				return false;
+
+			SwitchTo(BotProfile.Turtle, emergency: true);
+			return true;
 		}
 
 		void UpdateTechStage()
