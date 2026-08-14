@@ -398,7 +398,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			// Reset stuck clock on leader movement or target change
+			// Reset stuck clock on leader movement, target change - or on the squad being in a fight, since
+			// a column halted because its escorts are shooting is making exactly the progress it should.
+			if (squad.Units.Any(BusyAttack))
+				lastUpdatedTick = squad.World.WorldTick;
+
 			if (leader.Location != lastLeaderLocation)
 			{
 				lastLeaderLocation = leader.Location;
@@ -582,6 +586,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			// Stuck detection
+			// A squad that is shooting is not stuck. The clock only ever reset on the leader moving or the
+			// target changing, and neither happens while a group stands in front of a durable building and
+			// works on it - so after StuckTimeoutTicks a squad that was fighting successfully dropped to
+			// idle and restarted its whole approach, breaking off focus fire mid-attack.
+			if (squad.Units.Any(BusyAttack))
+				lastUpdatedTick = squad.World.WorldTick;
+
 			if (leader.Location != lastLeaderLocation)
 			{
 				lastLeaderLocation = leader.Location;
