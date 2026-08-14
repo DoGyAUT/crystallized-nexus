@@ -1050,12 +1050,8 @@ namespace OpenRA.Mods.CN.Traits
 		/// </summary>
 		void NoteProduction(ActorInfo picked, ActorInfo unaffordable, int unaffordableScore)
 		{
-			if (picked != null && string.Equals(picked.Name, savingsGoalType, StringComparison.OrdinalIgnoreCase))
-			{
-				CNBotLog.Debug("{0} savings goal {1} reached and built", player, savingsGoalType);
-				ClearSavingsGoal();
-			}
-
+			// The savings goal is cleared in QueueSpecific now - every path into production goes through
+			// it, this one included, and doing it here only covered the ordinary demand path.
 			if (unaffordable == null || world.WorldTick < nextProductionReportTick)
 				return;
 
@@ -1183,12 +1179,26 @@ namespace OpenRA.Mods.CN.Traits
 				string.Equals(s.TemplateName, templateName, StringComparison.OrdinalIgnoreCase));
 		}
 
-		static bool QueueSpecific(IBot bot, ProductionQueue queue, string typeName)
+		bool QueueSpecific(IBot bot, ProductionQueue queue, string typeName)
 		{
 			if (!queue.BuildableItems().Any(a => a.Name == typeName))
 				return false;
 
 			bot.QueueOrder(Order.StartProduction(queue.Actor, typeName, 1));
+
+			// Clearing the savings goal lives HERE rather than in the caller, because it used to live in
+			// exactly one caller - the ordinary demand path, through NoteProduction - while the reserved
+			// template path builds through this method too and runs first. The bot would save up for an
+			// expensive unit, the template reservation would then buy that very unit, and the goal stayed
+			// standing for up to ReservationStallTicks afterwards, reserving its full price against every
+			// other type in the meantime. Every route into production passes through here, so this cannot
+			// be missed by a new one.
+			if (string.Equals(typeName, savingsGoalType, StringComparison.OrdinalIgnoreCase))
+			{
+				CNBotLog.Debug("{0} savings goal {1} reached and built", player, savingsGoalType);
+				ClearSavingsGoal();
+			}
+
 			return true;
 		}
 
