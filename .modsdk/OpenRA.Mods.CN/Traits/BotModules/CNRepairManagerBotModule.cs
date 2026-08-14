@@ -162,22 +162,32 @@ namespace OpenRA.Mods.Common.Traits
 					a.IsInWorld &&
 					a.IsIdle &&
 					Info.MobileRepairActorTypes.Contains(a.Info.Name))
-				.OrderBy(a => (a.Location - actor.Location).LengthSquared)
+
+				// Ranked in world space, not in cells. CPos distance on a RectangularIsometric map is not
+				// the distance on the ground: the same raw cell delta is a different real separation along
+				// one axis than along the other, so the nearest repairer by this measure was not always the
+				// nearest one, and the radius below let one damaged unit in and kept an equally close one
+				// out depending on which way it happened to lie.
+				.OrderBy(a => (a.CenterPosition - actor.CenterPosition).HorizontalLengthSquared)
 				.FirstOrDefault();
 
 			if (bestRepairer == null)
 				return false;
 
-			var distanceSq = (bestRepairer.Location - actor.Location).LengthSquared;
-			var maxRangeSq = Info.MobileRepairSearchRadius * Info.MobileRepairSearchRadius;
-			if (distanceSq > maxRangeSq)
+			var maxRange = WDist.FromCells(Info.MobileRepairSearchRadius);
+			var distanceSq = (bestRepairer.CenterPosition - actor.CenterPosition).HorizontalLengthSquared;
+			if (distanceSq > (long)maxRange.Length * maxRange.Length)
 				return false;
 
 			// Already standing at the repairer: the unit is being serviced (or the repairer can't help
 			// it), so there is nothing to order. Returning true here would burn one of the scan's
 			// MaxAssignmentsPerScan slots on a no-op every single scan, starving units that do need
 			// a repair order.
-			if (distanceSq <= 2)
+			// In cells, like the radius above. This read "<= 2" while distanceSq was a raw cell delta -
+			// about one and a half cells - and measuring in world units now makes 2 a couple of pixels,
+			// which no unit is ever inside. The check would have been dead.
+			var atRepairer = WDist.FromCells(2);
+			if (distanceSq <= (long)atRepairer.Length * atRepairer.Length)
 				return false;
 
 			bot.QueueOrder(new Order("Move", actor, Target.FromCell(actor.World, bestRepairer.Location), false));

@@ -125,6 +125,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (enemy.Owner.RelationshipWith(player) != PlayerRelationship.Enemy)
 					continue;
 
+				// The comment above says visible, and this is what makes it true. Without it the garrison
+				// answered threats the bot has no business knowing about yet - cloaked or shrouded aircraft
+				// approaching out of sight had it swapping pre-emptively to anti-air.
+				if (!enemy.CanBeViewedByPlayer(player))
+					continue;
+
 				var caps = enemy.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
 				if (caps == null)
 					continue;
@@ -149,6 +155,31 @@ namespace OpenRA.Mods.Common.Traits
 		static bool HasCapability(Actor a, string capability)
 		{
 			return a.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains(capability) ?? false;
+		}
+
+		/// <summary>
+		/// A spare unit carrying <paramref name="capability"/> that is free to be garrisoned, or null. Same
+		/// eligibility the fill pass uses - idle, not in a squad, and outside the spare-infantry buffer -
+		/// because a swap that empties a position on the strength of a replacement the fill pass would
+		/// then refuse to hand over is worse than no swap at all.
+		/// </summary>
+		Actor FindFreeSpecialist(Player player, string capability)
+		{
+			var spare = -Info.MinimumSpareInfantry;
+			foreach (var a in world.ActorsHavingTrait<Mobile>())
+			{
+				if (a.Owner != player || !a.IsInWorld || a.IsDead || !a.IsIdle
+					|| !HasCapability(a, Info.InfantryCapability)
+					|| squadManager?.IsUnitAssignedToSquad(a) == true)
+					continue;
+
+				// Counted the same way the fill pass counts: the buffer comes off the top, and only what is
+				// left over may be committed.
+				if (++spare > 0 && HasCapability(a, capability))
+					return a;
+			}
+
+			return null;
 		}
 
 		void TickFill(IBot bot, Player player, List<Actor> garrisons)
@@ -221,8 +252,16 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				// Nobody currently inside covers the local threat. If there's a free slot the fill pass will
-				// bring the right specialist in on its own; if the garrison is full, make room for it now.
-				if (!cargo.HasSpace(1))
+				// bring the right specialist in on its own; if the garrison is full, make room for it now -
+				// but only once the replacement actually exists.
+				//
+				// Unload empties the whole position, and this used to fire whether or not anything could
+				// take the vacated seats. A full anti-armour bunker that spotted aircraft with no free
+				// anti-air infantry anywhere would empty itself and stand there vacant, then refill with
+				// the same unsuitable squad on the next pass and empty again on the one after. Worse, the
+				// fill pass running in the same bot tick still sees the old cargo, because orders resolve
+				// later - so it cannot be relied on to catch the position on the way down.
+				if (!cargo.HasSpace(1) && FindFreeSpecialist(player, wantedCapability) != null)
 					bot.QueueOrder(new Order("Unload", garrison, false));
 			}
 		}
