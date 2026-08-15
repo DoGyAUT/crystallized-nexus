@@ -14,20 +14,22 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.CN.Traits
 {
 	[Desc("Tilts a static sprite back and forth to fake wind movement, without needing animated frames.",
-		"The sprite is rotated around its centre and shifted back along screen-x so the base stays planted.",
+		"The sprite is rotated around a pivot at its base, so the crown travels while the trunk stays planted.",
 		"Purely cosmetic: driven by wall-clock time, never by the simulation.")]
 	public class CNWindSwayInfo : TraitInfo, Requires<RenderSpritesInfo>
 	{
-		[Desc("Peak tilt at full gust strength. 1024 units is a full circle, so 6 is roughly 2 degrees.",
-			"Together with PivotHeight this is the main knob for how far the crown travels.")]
-		public readonly WAngle Angle = new(6);
+		[Desc("Peak tilt at full gust strength. 1024 units is a full circle, so 10 is roughly 3.5 degrees.",
+			"This is the main knob. Note that rotation is quantised to whole units, so small values give",
+			"few distinct positions across a sway and start to look stepped: below about 6 the motion",
+			"visibly ticks rather than flows.")]
+		public readonly WAngle Angle = new(10);
 
-		[Desc("Distance in screen pixels from the sprite centre down to the trunk base.",
-			"Roughly half the sprite height. Only used to keep the base planted while the crown moves.")]
+		[Desc("Distance in screen pixels from the sprite centre down to the trunk base, i.e. roughly half",
+			"the sprite height. The point the sprite pivots around; the crown travels twice this far.")]
 		public readonly int PivotHeight = 24;
 
 		[Desc("Milliseconds for one full sway cycle.")]
-		public readonly int Period = 2600;
+		public readonly int Period = 2200;
 
 		[Desc("Milliseconds for one full gust cycle. Modulates the sway amplitude.")]
 		public readonly int GustPeriod = 9000;
@@ -52,18 +54,6 @@ namespace OpenRA.Mods.CN.Traits
 
 	public class CNWindSway : IRenderModifier, INotifyCreated
 	{
-		// The tilt is quantised to whole WAngle units, which at these amplitudes is only a handful of
-		// distinct positions across a sway. We therefore compute the tilt at 256x resolution and feed
-		// the leftover fraction into the horizontal offset instead, which has sub-pixel precision in
-		// world units. The base drifts by less than the residual tilt would move the crown, i.e. well
-		// under a tenth of a pixel, in exchange for motion that reads as smooth.
-		const int SubBits = 8;
-		const int SubUnits = 1 << SubBits;
-
-		// sin(x) ~= x * 2*pi/1024 for small x, expressed in the 1024-scaled units WAngle.Sin() returns
-		// and folded down from sub-units: 1024 * (1/256) * 2*pi/1024 ~= 25/1024.
-		const int ResidualSinNumerator = 25;
-
 		readonly CNWindSwayInfo info;
 		int phase;
 		int wavePhase;
@@ -106,25 +96,20 @@ namespace OpenRA.Mods.CN.Traits
 
 			var gust = 100 + info.GustStrength * new WAngle((int)(1024 * t / info.GustPeriod) + wavePhase).Sin() / 1024;
 
-			var tiltSub = (int)((long)info.Angle.Angle * wave * gust * SubUnits / (1024 * 100));
-			var tilt = tiltSub >> SubBits;
-			var residual = tiltSub - (tilt << SubBits);
-			if (tilt == 0 && residual == 0)
+			var tilt = (int)((long)info.Angle.Angle * wave * gust / (1024 * 100));
+			if (tilt == 0)
 				return r;
 
+			// The pivot correction itself is applied in screen space inside SpriteRenderable, where it
+			// stays sub-pixel accurate. Anything routed through a world-space offset would be rounded to
+			// whole pixels and the sprite would jump rather than tilt.
 			var rotation = new WAngle(tilt);
-
-			// Rotation happens around the sprite centre, which would drag the trunk sideways by
-			// +PivotHeight * sin(tilt). Shift back by that much, plus the residual fraction.
-			var sinScaled = rotation.Sin() * SubUnits + residual * ResidualSinNumerator / 4;
-			var dx = -info.PivotHeight * wr.TileScale * sinScaled / (wr.TileSize.Width * 1024 * SubUnits);
-			var offset = new WVec(dx, 0, 0);
 
 			buffer.Clear();
 			foreach (var renderable in r)
 			{
 				if (renderable is SpriteRenderable sr)
-					buffer.Add(sr.WithRotation(rotation, offset));
+					buffer.Add(sr.WithRotation(rotation, info.PivotHeight));
 				else
 					buffer.Add(renderable);
 			}
