@@ -162,12 +162,50 @@ namespace OpenRA.Mods.CN.Traits
 		int savingsGoalExpiryTick;
 		int nextProductionReportTick;
 
+		// Per-tick memo for the two questions the production pass asks over and over.
+		//
+		// BuildDemand walks (categories x queues), FindBestDemandUnit walks every demanded type inside
+		// each of those, and each type used to ask the engine for a queue's BuildableItems() and scan it
+		// by name, then ask for the cash reserve - which walks every queue again and, through
+		// HasEconomyRecoveryPath, prices the cheapest buildable refinery and MCV by enumerating
+		// BuildableItems once more. Every factor grows over a match, so the pass grew with the product
+		// of all of them: measured at 4,2 s per 5000 ticks across six bots by tick 30000, over 90% of
+		// the module.
+		// Neither answer can change within a tick - bot orders are queued and issued after the tick - so
+		// they are computed once and reused. Same answers, one evaluation.
+		// Ordinal on purpose: the scan it replaces compared names with ==, and the category lookup it
+		// keys on goes through the queue lookup's own ordinal comparison. Loosening either here would
+		// change which units count as buildable rather than just how fast that is decided.
+		readonly Dictionary<string, HashSet<string>> buildableNamesByCategory = [];
+		int buildableNamesTick = -1;
+		int desiredReserve;
+		int desiredReserveTick = -1;
+
+		// Two instances of this module run on every bot - one building the army, one building engineers
+		// for capturable tech buildings - and they were reporting under one name, so their very different
+		// workloads showed up as a single number. Built once here rather than concatenated per sample.
+		readonly string perfModule, perfCounts, perfDemand, perfBuildDemand, perfFallback;
+		readonly string perfQueues, perfReserved, perfFindBest, perfQueueOrder, perfCandidates, perfPick;
+
 		public CNUnitBuilderBotModule(Actor self, CNUnitBuilderBotModuleInfo info)
 			: base(info)
 		{
 			world = self.World;
 			player = self.Owner;
 			ticks = world.LocalRandom.Next(FeedbackTime);
+
+			var name = info.RequireCapturableTargets ? "CNUnitBuilder(Capture)" : "CNUnitBuilder(Combat)";
+			perfModule = name;
+			perfCounts = name + "/Counts";
+			perfDemand = name + "/Demand";
+			perfBuildDemand = name + "/BuildDemand";
+			perfFallback = name + "/Fallback";
+			perfQueues = name + "/BD.Queues";
+			perfReserved = name + "/BD.Reserved";
+			perfFindBest = name + "/BD.FindBest";
+			perfQueueOrder = name + "/BD.QueueOrder";
+			perfCandidates = name + "/BD.Candidates";
+			perfPick = name + "/BD.Pick";
 		}
 
 		protected override void Created(Actor self)
@@ -215,6 +253,8 @@ namespace OpenRA.Mods.CN.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, perfModule);
+
 			RefreshActiveBotTraits();
 
 			if (requestPause.Any(rp => rp.PauseUnitProduction))
@@ -224,9 +264,26 @@ namespace OpenRA.Mods.CN.Traits
 			if (ticks % FeedbackTime != 0)
 				return;
 
-			var queuesByCategory = AIUtils.FindQueuesByCategory(player);
-			PruneDeadQueueReservations();
-			var existingByType = BuildExistingCounts(queuesByCategory);
+			// The capture instance has nothing of its own to do while there is nothing to capture, and
+			// that is its normal state - so it leaves before the queue scan and the count sweep, which
+			// only its own production path needs. It did that work every pass and then turned around at
+			// a gate three checks further down.
+			//
+			// The external request list is checked first and deliberately: any module can route a
+			// production request to any builder, and those must keep being served. Skipped along with
+			// the rest is the panic path - a builder that exists to make engineers for tech buildings
+			// is not the one that should be spitting out emergency defenders anyway.
+			if (Info.RequireCapturableTargets && externalBuildRequests.Count == 0 && !HasCapturableTarget())
+				return;
+
+			Dictionary<string, int> existingByType;
+			ILookup<string, ProductionQueue> queuesByCategory;
+			using (CNBotPerf.Sample(bot, perfCounts))
+			{
+				queuesByCategory = AIUtils.FindQueuesByCategory(player);
+				PruneDeadQueueReservations();
+				existingByType = BuildExistingCounts(queuesByCategory);
+			}
 
 			// Under active attack with essentially nothing to defend with (no squads yet, or very few units
 			// owned in total - an early rush, or having just been wiped out): spam the cheapest armed unit
@@ -260,12 +317,20 @@ namespace OpenRA.Mods.CN.Traits
 			if (Info.IdleBaseUnitsMaximum > 0 && idleUnitCount >= Info.IdleBaseUnitsMaximum)
 				return;
 
-			var demand = CalculateDemand(existingByType);
-			if (demand.Count > 0 && BuildDemand(bot, demand, existingByType, queuesByCategory))
-				return;
+			Dictionary<string, int> demand;
+			using (CNBotPerf.Sample(bot, perfDemand))
+				demand = CalculateDemand(existingByType);
+
+			if (demand.Count > 0)
+			{
+				using var buildScope = CNBotPerf.Sample(bot, perfBuildDemand);
+				if (BuildDemand(bot, demand, existingByType, queuesByCategory))
+					return;
+			}
 
 			if (Info.FallbackUnitsToBuild != null && Info.FallbackUnitsToBuild.Count > 0)
-				BuildFallback(bot, queuesByCategory, existingByType);
+				using (CNBotPerf.Sample(bot, perfFallback))
+					BuildFallback(bot, queuesByCategory, existingByType);
 		}
 
 		Dictionary<string, int> CalculateDemand(Dictionary<string, int> existingByType)
@@ -305,26 +370,40 @@ namespace OpenRA.Mods.CN.Traits
 
 			foreach (var queueCategory in orderedCategories)
 			{
-				var queueSlots = GetAvailableQueues(queuesByCategory, queueCategory);
+				List<ProductionQueue> queueSlots;
+				using (CNBotPerf.Sample(bot, perfQueues))
+					queueSlots = GetAvailableQueues(queuesByCategory, queueCategory);
+
 				if (queueSlots.Count == 0)
 					continue;
 
 				foreach (var queue in queueSlots)
 				{
-					if (TryBuildReservedTemplate(bot, queue, existingByType, demand, queuesByCategory, ref committedCost))
+					bool reserved;
+					using (CNBotPerf.Sample(bot, perfReserved))
+						reserved = TryBuildReservedTemplate(bot, queue, existingByType, demand, queuesByCategory, ref committedCost);
+
+					if (reserved)
 					{
 						builtAny = true;
 						continue;
 					}
 
-					var best = FindBestDemandUnit(demand, existingByType, queuesByCategory, queueCategory, committedCost);
+					ActorInfo best;
+					using (CNBotPerf.Sample(bot, perfFindBest))
+						best = FindBestDemandUnit(demand, existingByType, queuesByCategory, queueCategory, committedCost);
+
 					if (best == null)
 						break;
 
 					if (!HasBudgetFor(best, committedCost, queuesByCategory))
 						continue;
 
-					if (!QueueSpecific(bot, queue, best.Name))
+					bool queued;
+					using (CNBotPerf.Sample(bot, perfQueueOrder))
+						queued = QueueSpecific(bot, queue, best.Name);
+
+					if (!queued)
 						continue;
 
 					existingByType[best.Name] = existingByType.GetValueOrDefault(best.Name) + 1;
@@ -376,40 +455,45 @@ namespace OpenRA.Mods.CN.Traits
 			ActorInfo bestUnaffordable = null;
 			var bestUnaffordableScore = 0;
 
-			foreach (var (typeName, missingCount) in demand)
+			// Sampled around the whole sweep rather than per demand entry: this runs for every queue on
+			// every production pass, and a timestamp pair per entry would start measuring itself.
+			using (CNBotPerf.Sample(player, perfCandidates))
 			{
-				if (missingCount <= 0)
-					continue;
-
-				if (Info.UnitDelays != null &&
-					Info.UnitDelays.TryGetValue(typeName, out var delay) &&
-					world.WorldTick < delay)
-					continue;
-
-				if (ReachedUnitCap(typeName, existingByType))
-					continue;
-
-				if (!IsBuildable(typeName, queuesByCategory, preferredQueueCategory))
-					continue;
-
-				var actorInfo = world.Map.Rules.Actors.GetValueOrDefault(typeName);
-				if (actorInfo == null)
-					continue;
-
-				if (!HasBudgetFor(actorInfo, committedCost, queuesByCategory))
+				foreach (var (typeName, missingCount) in demand)
 				{
-					// Remember the most-wanted thing money alone put out of reach. This is both the
-					// diagnostic that was missing here and the input the savings goal needs.
-					if (missingCount > bestUnaffordableScore)
+					if (missingCount <= 0)
+						continue;
+
+					if (Info.UnitDelays != null &&
+						Info.UnitDelays.TryGetValue(typeName, out var delay) &&
+						world.WorldTick < delay)
+						continue;
+
+					if (ReachedUnitCap(typeName, existingByType))
+						continue;
+
+					if (!IsBuildable(typeName, queuesByCategory, preferredQueueCategory))
+						continue;
+
+					var actorInfo = world.Map.Rules.Actors.GetValueOrDefault(typeName);
+					if (actorInfo == null)
+						continue;
+
+					if (!HasBudgetFor(actorInfo, committedCost, queuesByCategory))
 					{
-						bestUnaffordable = actorInfo;
-						bestUnaffordableScore = missingCount;
+						// Remember the most-wanted thing money alone put out of reach. This is both the
+						// diagnostic that was missing here and the input the savings goal needs.
+						if (missingCount > bestUnaffordableScore)
+						{
+							bestUnaffordable = actorInfo;
+							bestUnaffordableScore = missingCount;
+						}
+
+						continue;
 					}
 
-					continue;
+					candidates.Add((actorInfo, missingCount));
 				}
-
-				candidates.Add((actorInfo, missingCount));
 			}
 
 			ConsiderSavingsGoal(bestUnaffordable, bestUnaffordableScore, candidates);
@@ -428,6 +512,7 @@ namespace OpenRA.Mods.CN.Traits
 			// passengers, which is why loading APCs sat at "wanted=4 pool=0" indefinitely.
 			if (squadManager != null && !squadManager.IsTraitDisabled)
 			{
+				using var pickScope = CNBotPerf.Sample(player, perfPick);
 				var picked = squadManager.WeightedTemplatePick(candidates, c => c.Score).Actor;
 				NoteProduction(picked, bestUnaffordable, bestUnaffordableScore);
 				return picked;
@@ -603,8 +688,28 @@ namespace OpenRA.Mods.CN.Traits
 
 			return buildable.Queue.Any(queueType =>
 				(preferredQueueCategory == null || queueType == preferredQueueCategory) &&
-				queuesByCategory[queueType].Any(q =>
-					q.BuildableItems().Any(a => a.Name == typeName)));
+				GetBuildableNames(queuesByCategory, queueType).Contains(typeName));
+		}
+
+		/// <summary>Names buildable in a queue category this tick. See buildableNamesByCategory.</summary>
+		HashSet<string> GetBuildableNames(ILookup<string, ProductionQueue> queuesByCategory, string queueCategory)
+		{
+			if (buildableNamesTick != world.WorldTick)
+			{
+				buildableNamesTick = world.WorldTick;
+				buildableNamesByCategory.Clear();
+			}
+
+			if (buildableNamesByCategory.TryGetValue(queueCategory, out var names))
+				return names;
+
+			names = [];
+			foreach (var queue in queuesByCategory[queueCategory])
+				foreach (var item in queue.BuildableItems())
+					names.Add(item.Name);
+
+			buildableNamesByCategory[queueCategory] = names;
+			return names;
 		}
 
 		void BuildSpecific(IBot bot, string typeName, ILookup<string, ProductionQueue> queuesByCategory, Dictionary<string, int> existingByType)
@@ -962,6 +1067,19 @@ namespace OpenRA.Mods.CN.Traits
 
 		int GetDesiredReserve(ILookup<string, ProductionQueue> queuesByCategory)
 		{
+			// Asked once per candidate unit per queue, and the answer is the same every time within a
+			// tick. HasEconomyRecoveryPath alone prices the cheapest buildable refinery and MCV, which
+			// means walking every queue's BuildableItems - see buildableNamesByCategory.
+			if (desiredReserveTick == world.WorldTick)
+				return desiredReserve;
+
+			desiredReserveTick = world.WorldTick;
+			desiredReserve = CalculateDesiredReserve(queuesByCategory);
+			return desiredReserve;
+		}
+
+		int CalculateDesiredReserve(ILookup<string, ProductionQueue> queuesByCategory)
+		{
 			if (baseBuilder != null && !baseBuilder.HasEconomyRecoveryPath())
 				return 0;
 
@@ -1147,7 +1265,11 @@ namespace OpenRA.Mods.CN.Traits
 
 		bool HasCapturableTarget()
 		{
-			return world.Actors.Any(a =>
+			// ActorsHavingTrait, not world.Actors. The predicate ends in a Capturable check, so every
+			// actor without that trait was walked only to be rejected - and the short-circuit only helps
+			// when a target exists, which is the case this is asked about least. With none on the map it
+			// scanned every actor in the game, once per production pass, per bot.
+			return world.ActorsHavingTrait<Capturable>().Any(a =>
 			{
 				if (a.IsDead || !a.IsInWorld || a.Owner == player)
 					return false;
