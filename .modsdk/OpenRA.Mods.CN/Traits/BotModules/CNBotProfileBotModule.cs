@@ -818,7 +818,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			TextNotificationsManager.AddSystemLine("Bot",
-				$"{player.PlayerName}: {from} → {to}{(emergency ? " (emergency)" : "")}");
+				$"{player.ResolvedPlayerName}: {from} → {to}{(emergency ? " (emergency)" : "")}");
 		}
 
 		void SwitchTo(BotProfile nextProfile, bool emergency)
