@@ -5,7 +5,7 @@ LtRail:
 		Inaccuracy: 0c512
 	Warhead@1Dam: SpreadDamage
 		Range: 0, 32
-		Damage: 50
+		Damage: 30
 	Warhead@FLASH: CreateEffect
 		ValidRelationships: Neutral, Enemy
 	Warhead@5Eff: CreateEffect
