@@ -56,6 +56,7 @@
 	RenderSprites:
 		Palette: terraindecoration
 	WithSpriteBody:
+	CNWindSway:
 	Tooltip:
 		Name: meta-tree-name
 	MapEditorData:
