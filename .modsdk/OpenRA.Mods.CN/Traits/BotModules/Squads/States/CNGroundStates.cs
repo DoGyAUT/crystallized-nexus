@@ -103,7 +103,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				.FindActorsInCircle(center, WDist.FromCells(radiusCells))
 				.Where(a => squad.SquadManager.IsLiveEnemyActor(a) &&
 							a.Info.HasTraitInfo<BuildingInfo>() &&
-							!a.Info.HasTraitInfo<LineBuildInfo>())
+							!a.Info.HasTraitInfo<LineBuildInfo>() &&
+							CNSquadHelper.CanSquadEngage(squad, a))
 				.MinByOrDefault(a => (a.CenterPosition - center).LengthSquared);
 		}
 
@@ -224,7 +225,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		static int ScoreRushTarget(CNSquad squad, Actor leader, Actor target)
 		{
-			if (leader == null || target == null || leader.IsDead || target.IsDead || !leader.IsInWorld || !target.IsInWorld)
+			if (leader == null || target == null || leader.IsDead || target.IsDead || !leader.IsInWorld || !target.IsInWorld ||
+				!CNSquadHelper.CanSquadEngage(squad, target))
 				return int.MaxValue;
 
 			var score = (int)((target.CenterPosition - leader.CenterPosition).LengthSquared / 65536);
@@ -288,6 +290,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundFleeState());
 				return;
 			}
+
+			// A mixed squad can lose the only member able to hit its current target. Keeping the actor
+			// as a valid target then sends the surviving ground-only units after an aircraft forever.
+			if (squad.IsTargetValid && !CNSquadHelper.CanSquadEngage(squad, squad.TargetActor))
+				squad.SetActorToTarget(null);
 
 			if (!squad.IsTargetValid)
 			{
@@ -373,6 +380,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			if (squad.IsTargetValid && !CNSquadHelper.CanSquadEngage(squad, squad.TargetActor))
+				squad.SetActorToTarget(null);
+
 			if (!squad.IsTargetValid)
 			{
 				ForceNewLeader();
@@ -418,6 +428,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// Stuck detection — drop back to idle to re-evaluate target/path
 			if (squad.World.WorldTick > lastUpdatedTick + StuckTimeoutTicks)
 			{
+				// Idle only searches when the old actor target has been released. Keeping it here made
+				// the alleged path re-evaluation issue the exact same unreachable order again.
+				squad.SetActorToTarget(null);
 				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundIdleState());
 				return;
 			}
@@ -462,7 +475,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				// Majority together — switch to direct attack if enemies are close
 				var nearEnemy = squad.SquadManager.FindClosestEnemy(leader,
-					WDist.FromCells(squad.SquadManager.Info.AttackScanRadius));
+					WDist.FromCells(squad.SquadManager.Info.AttackScanRadius),
+					a => CNSquadHelper.CanSquadEngage(squad, a));
 				nearEnemy ??= FindNearbyEnemyBuilding(squad, leader.CenterPosition,
 					squad.SquadManager.Info.AttackScanRadius * 2);
 				if (nearEnemy != null)
@@ -471,7 +485,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					squad.FuzzyStateMachine.ChangeState(squad, new CNGroundAttackState());
 				}
 				else if (squad.SquadManager.HasOutrunTheWave(squad) &&
-					squad.SquadManager.WaveCenterPosition() is WPos waveCenter)
+					squad.SquadManager.WaveCenterPosition(squad) is WPos waveCenter)
 				{
 					// Ahead of the rest of the wave with nothing to fight here: ease back toward the
 					// wave's centre so the attack lands as one body instead of arriving in pieces and
@@ -530,6 +544,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
+			if (squad.IsTargetValid && !CNSquadHelper.CanSquadEngage(squad, squad.TargetActor))
+				squad.SetActorToTarget(null);
+
 			if (!squad.IsTargetValid)
 			{
 				ForceNewLeader();
@@ -538,7 +555,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				var squadCenter = squad.CenterPosition();
 				var next = squad.World
 					.FindActorsInCircle(squadCenter, WDist.FromCells(squad.SquadManager.Info.AttackScanRadius))
-					.Where(a => squad.SquadManager.IsPreferredEnemyUnit(a) && !a.Info.HasTraitInfo<LineBuildInfo>())
+					.Where(a => squad.SquadManager.IsPreferredEnemyUnit(a) &&
+						a.CanBeViewedByPlayer(squad.Bot.Player) &&
+						!a.Info.HasTraitInfo<LineBuildInfo>() &&
+						CNSquadHelper.CanSquadEngage(squad, a))
 					.MinByOrDefault(a => (a.CenterPosition - squadCenter).LengthSquared);
 
 				// Step 1b: when pushing into a base, widen the local building scan so the squad
@@ -607,6 +627,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (squad.World.WorldTick > lastUpdatedTick + StuckTimeoutTicks)
 			{
+				squad.SetActorToTarget(null);
 				squad.FuzzyStateMachine.ChangeState(squad, new CNGroundIdleState());
 				return;
 			}
@@ -667,7 +688,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					continue;
 				}
 
-				if (BusyAttack(unit))
+				// Busy with the previous actor is not busy with the target the squad just selected.
+				if (BusyAttack(unit) && !targetChanged)
 					continue;
 
 				// Already on its way with nothing changed: leave it alone rather than restarting it.
@@ -714,6 +736,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Activate(CNSquad squad)
 		{
 			fleeStartTick = squad.World.WorldTick;
+			squad.SetActorToTarget(null);
 
 			// Decided once, on entry: a squad this far below strength is not worth walking back out,
 			// so its survivors are better off in the pool feeding a fresh full-strength squad. This
