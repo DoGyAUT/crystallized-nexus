@@ -451,6 +451,30 @@ the indices stay valid however many rounds the fill takes.
 remembering something per id — the role cache above, first — has to drop it when a bridge falling
 re-cuts the map.
 
+## Two-door pincer attacks: implemented, awaiting a played match
+
+The first attack consumer now uses the region's doors as more than a choice of one quiet entrance.
+A wave with at least four ready squads may split across two doors when both can be reached without
+walking through the objective's own region or another region currently held by the target player,
+the doors stand in opposite half-planes around the target, and they are at least
+`PincerAttackMinDoorSeparationCells` apart. Anything less falls back to the validated single-rally
+path; open ground and one-door regions are unchanged. Pincer routes pin every turn and at most
+`PincerRouteWaypointSpacingCells` cells between waypoints: four broad route points let the movement
+pathfinder legitimately shortcut through the very base the second flank was meant to go around.
+
+Each squad receives an immutable rally / far-side entry / route plan for the wave's lifetime. The
+split balances live unit counts while keeping attached artillery with the squad it follows. Rally
+and entry are released per stage only after *each* surviving flank has met the configured arrival
+share, and post-entry cohesion is measured against that flank rather than the midpoint between two
+opposite armies. This avoids three plausible but false versions of a pincer: two groups that take
+the same door, two groups launched at unrelated times, and two real flanks that turn around after
+release because global cohesion pulls them back together.
+
+This is deliberately marked unvalidated. The debug log reports selected doors, separation,
+threat, squad/unit split and both routes. A played match still has to answer whether the existing
+staging timeout is long enough for the slower flank and whether four squads split 2+2 have enough
+weight to survive contact; those values are not guessed here.
+
 ## Future: region-aware front squads
 
 Not started. A door has terrain doing part of the work, which is what lets a handful of turrets

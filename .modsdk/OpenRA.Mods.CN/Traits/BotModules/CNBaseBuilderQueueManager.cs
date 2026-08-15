@@ -35,6 +35,10 @@ namespace OpenRA.Mods.Common.Traits
 		// neighbourhood the refinery is being placed in anyway.
 		const int MaxFieldSpreadInspections = 512;
 
+		// Larger than every ordinary refinery siting term, but finite so this remains a preference and
+		// the first refinery can still use the kill-zone courtyard when the map offers no other income.
+		const int DoorKillZoneBuildingPenalty = 1000000;
+
 		// Safety net on the drive-distance flood fill, not a tuning knob: the reachable ground around a
 		// base is bounded by the map, and this only stops a pathological one running away with a tick.
 		const int MaxHarvesterFloodCells = 30000;
@@ -905,12 +909,22 @@ namespace OpenRA.Mods.Common.Traits
 				if (plugInfo != null)
 				{
 					var possibleBuilding = world.ActorsWithTrait<Pluggable>().FirstOrDefault(a =>
-						a.Actor.Owner == player && a.Trait.AcceptsPlug(plugInfo.Type));
+						a.Actor.Owner == player && !a.Actor.IsDead && !a.Actor.Disposed && a.Actor.IsInWorld
+						&& a.Trait.AcceptsPlug(plugInfo.Type));
 
 					if (possibleBuilding.Actor != null)
 					{
 						orderString = "PlacePlug";
 						location = possibleBuilding.Actor.Location + possibleBuilding.Trait.Info.Offset;
+					}
+					else
+					{
+						// A socket can disappear or be filled while the plug is in production. Retrying
+						// placement cannot change that state and only wedges the building queue for six
+						// attempts before selecting the same still-buildable plug again.
+						CNBotLog.Debug("{0} plug {1}: no compatible socket remains, cancelling", player, currentBuilding.Item);
+						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
+						return false;
 					}
 				}
 				else if (actorInfo.HasTraitInfo<LineBuildInfo>() ||
@@ -1042,8 +1056,6 @@ namespace OpenRA.Mods.Common.Traits
 								be.UpdateExpansionParams(bot, true, undeployEvenNoBase, null);
 						}
 					}
-
-					return true;
 				}
 			}
 
@@ -1288,9 +1300,57 @@ namespace OpenRA.Mods.Common.Traits
 			return existingRefineryLocs.Count < 1;
 		}
 
+		bool HasAvailablePlugHost(ActorInfo actorInfo)
+		{
+			var plugInfo = actorInfo.TraitInfoOrDefault<PlugInfo>();
+			if (plugInfo == null)
+				return true;
+
+			return world.ActorsWithTrait<Pluggable>().Any(a =>
+				a.Actor.Owner == player && !a.Actor.IsDead && !a.Actor.Disposed && a.Actor.IsInWorld
+				&& a.Trait.AcceptsPlug(plugInfo.Type));
+		}
+
+		static int GetCoverageRadius(ActorInfo actorInfo)
+		{
+			var proximityInfo = actorInfo.TraitInfoOrDefault<ProximityExternalConditionInfo>();
+			var detectionRange = actorInfo.TraitInfos<DetectCloakedInfo>()
+				.Select(d => d.Range)
+				.DefaultIfEmpty(WDist.Zero)
+				.Max();
+			var visionRange = actorInfo.TraitInfos<RevealsShroudInfo>()
+				.Select(r => r.Range)
+				.DefaultIfEmpty(WDist.Zero)
+				.Max();
+
+			return proximityInfo != null
+				? Math.Max(1, proximityInfo.Range.Length / 1024)
+				: detectionRange > WDist.Zero
+					? Math.Max(1, detectionRange.Length / 1024)
+					: visionRange > WDist.Zero
+						? Math.Max(1, visionRange.Length / 1024)
+						: 8;
+		}
+
+		bool NeedsCoverageBuilding(ActorInfo actorInfo)
+		{
+			var existing = playerBuildings
+				.Where(b => b.Info.Name == actorInfo.Name)
+				.Select(b => b.Location)
+				.ToArray();
+			if (existing.Length == 0)
+				return playerBuildings.Length > 0;
+
+			var radius = GetCoverageRadius(actorInfo);
+			var radiusSq = radius * radius;
+			return playerBuildings.Any(b => existing.All(e => (b.Location - e).LengthSquared > radiusSq));
+		}
+
 		ActorInfo ChooseBuildingToBuild(ProductionQueue queue)
 		{
-			var buildableThings = queue.BuildableItems().ToList();
+			// A Plug can remain buildable after every compatible socket has been filled. Do not
+			// spend the queue on an item that the placement order cannot possibly consume.
+			var buildableThings = queue.BuildableItems().Where(HasAvailablePlugHost).ToList();
 
 			// This gets used quite a bit, so let's cache it here
 			var power = GetProducibleBuilding(baseBuilder.Info.PowerTypes, buildableThings,
@@ -1537,6 +1597,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (!buildableByName.TryGetValue(name, out var actor))
 					continue;
 
+				if (baseBuilder.Info.BuildingLayouts.TryGetValue(name, out var buildingLayout)
+					&& buildingLayout.Layout == BaseBuildingLayout.Coverage && !NeedsCoverageBuilding(actor))
+					continue;
+
 				if (baseBuilder.Info.DefenseTypes.Contains(name))
 					continue;
 
@@ -1550,7 +1614,7 @@ namespace OpenRA.Mods.Common.Traits
 				var capabilityFloorException = baseBuilder.AllowsCapabilityFloorException(name);
 
 				// Do we want to build this structure?
-				if (count * 100 > frac.Value * playerBuildings.Length && !capabilityFloorException)
+				if (count * 100 >= frac.Value * playerBuildings.Length && !capabilityFloorException)
 					continue;
 
 				if (baseBuilder.Info.BuildingLimits.TryGetValue(name, out var limit) && baseBuilder.GetScaledBuildingLimit(limit) <= count)
@@ -1971,6 +2035,17 @@ namespace OpenRA.Mods.Common.Traits
 					.Where(t => t.BI != null)
 					.ToArray()
 				: null;
+			var doorKillZoneReservedCells = type != BuildingType.Defense
+				&& !baseBuilder.Info.WallTypes.Contains(actorType)
+				&& !baseBuilder.Info.GateTypes.Contains(actorType)
+				? GetActiveDoorKillZoneReservedCells()
+				: null;
+
+			bool FootprintOverlapsDoorKillZone(CPos cell, BuildingInfo candidateBuildingInfo)
+			{
+				return doorKillZoneReservedCells != null && doorKillZoneReservedCells.Count > 0
+					&& candidateBuildingInfo.Tiles(cell).Any(doorKillZoneReservedCells.Contains);
+			}
 
 			bool RespectsGeneralBuildingSpacing(CPos cell, BuildingInfo candidateBuildingInfo)
 			{
@@ -1990,8 +2065,6 @@ namespace OpenRA.Mods.Common.Traits
 								return false;
 						}
 					}
-
-					return true;
 				}
 
 				var minSpacingSq = minSpacing * minSpacing;
@@ -2008,7 +2081,12 @@ namespace OpenRA.Mods.Common.Traits
 				var newBottom = cell.Y + candidateBuildingInfo.Dimensions.Y;
 				foreach (var (existing, existingBi) in globalBuildingInfos)
 				{
-					if (hasLayoutOverride && existing.Info.Name == actorType)
+					// Refineries use their footprint-aware MinSpacing against each other above, but still
+					// need GlobalMinSpacing from every other building. Returning from that special case
+					// made the result depend on build order: a refinery could hug an older factory, while
+					// a factory built second was kept away from the refinery.
+					if ((hasLayoutOverride && existing.Info.Name == actorType) ||
+						(type == BuildingType.Refinery && baseBuilder.Info.RefineryTypes.Contains(existing.Info.Name)))
 						continue;
 
 					var existingRight = existing.Location.X + existingBi.Dimensions.X;
@@ -2256,6 +2334,14 @@ namespace OpenRA.Mods.Common.Traits
 					else
 						cells = allCells;
 
+					// Once the first wall of a U-shaped door kill zone exists, its open courtyard is no
+					// longer spare base ground. Keeping non-defense buildings out preserves the space the
+					// shape was built to funnel attackers through. This is a preference, not a hard veto:
+					// stable partitioning leaves overlapping cells at the end so a cramped base can still
+					// finish a critical structure when no valid position exists anywhere else.
+					if (doorKillZoneReservedCells != null && doorKillZoneReservedCells.Count > 0)
+						cells = cells.OrderBy(c => FootprintOverlapsDoorKillZone(c, vbi) ? 1 : 0);
+
 					if (isTech)
 					{
 						CPos? bestCell = null;
@@ -2272,7 +2358,8 @@ namespace OpenRA.Mods.Common.Traits
 								continue;
 
 							var score = baseBuilder.ScoreTechPlacementSafety(cell, center, techDangerHotspots)
-								+ ScoreBaseGridAlignment(cell, vbi, gridAnchor);
+								+ ScoreBaseGridAlignment(cell, vbi, gridAnchor)
+								+ (FootprintOverlapsDoorKillZone(cell, vbi) ? DoorKillZoneBuildingPenalty : 0);
 							if (score >= bestScore)
 								continue;
 
@@ -2465,6 +2552,7 @@ namespace OpenRA.Mods.Common.Traits
 					IEnumerable<CPos> sortedDefenseCells;
 					var placementThreats = baseBuilder.GetDefensePlacementThreats(defenseCenter, role);
 					long DefenseScore(CPos cell) => baseBuilder.ScoreDefensePlacement(cell, defenseCenter, targetCell, placementThreats);
+
 					// Widen the search on every retry. The candidate list is truncated by score, so all
 					// surviving cells face the same threat hotspot and sit close together; once one
 					// defense stands there, the hard spacing filter rules out that whole cluster, and the
@@ -3072,7 +3160,8 @@ namespace OpenRA.Mods.Common.Traits
 								}
 
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledResourceCells, harvesterPathLength)
-									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
+									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor)
+									+ (FootprintOverlapsDoorKillZone(loc, bi) ? DoorKillZoneBuildingPenalty : 0);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
 								{
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
@@ -3180,7 +3269,8 @@ namespace OpenRA.Mods.Common.Traits
 									continue;
 
 								var score = ScoreRefineryCandidate(actorInfo, resourceBaseCenter, r, loc, existingRefineries, sampledRelaxed, relaxedPathLength)
-									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor);
+									+ ScoreBaseGridAlignment(loc, bi, targetBase.GridAnchor)
+									+ (FootprintOverlapsDoorKillZone(loc, bi) ? DoorKillZoneBuildingPenalty : 0);
 								if (bestCandidate == null || score < bestCandidate.Value.Score)
 								{
 									bestCandidate = new RefineryCandidate((loc, resourceBaseCenter, 0), score);
@@ -3290,23 +3380,7 @@ namespace OpenRA.Mods.Common.Traits
 						// vision. Without the latter two a radar (DetectCloaked and RevealsShroud at 15
 						// cells, no ProximityExternalCondition) would have been spaced as if it covered 8,
 						// and the bot would have clustered them into overlapping circles.
-						var proximityInfo = actorInfo.TraitInfoOrDefault<ProximityExternalConditionInfo>();
-						var detectionRange = actorInfo.TraitInfos<DetectCloakedInfo>()
-							.Select(d => d.Range)
-							.DefaultIfEmpty(WDist.Zero)
-							.Max();
-						var visionRange = actorInfo.TraitInfos<RevealsShroudInfo>()
-							.Select(r => r.Range)
-							.DefaultIfEmpty(WDist.Zero)
-							.Max();
-
-						var coverageRadius = proximityInfo != null
-							? Math.Max(1, proximityInfo.Range.Length / 1024)
-							: detectionRange > WDist.Zero
-								? Math.Max(1, detectionRange.Length / 1024)
-								: visionRange > WDist.Zero
-									? Math.Max(1, visionRange.Length / 1024)
-									: 8;
+						var coverageRadius = GetCoverageRadius(actorInfo);
 						var coverageRadiusSq = coverageRadius * coverageRadius;
 
 						var baseBuildingPositions = playerBuildings
@@ -3334,11 +3408,18 @@ namespace OpenRA.Mods.Common.Traits
 
 						// FindTilesInAnnulus for radius 25 yields ~2000 cells; checking all of them
 						// with CanPlaceBuilding + IsCloseEnoughToBase + O(buildings) count is extremely
-						// expensive when called across multiple bots on the same tick.
-						// FindTilesInAnnulus is lazy — Take() stops the enumeration early.
+						// expensive when called across multiple bots on the same tick. Taking its first
+						// cells was not a representative bound, though: those are the innermost rings,
+						// which are precisely the cells a mature base has already occupied. Walk the cheap
+						// geometry once to derive a stride, then spend the expensive checks on a sample
+						// spread across the complete radius.
 						var covLimit = Math.Max(48, baseBuilder.Info.DefensePlacementCandidateLimit * 4);
+						var coverageCellCount = world.Map.FindTilesInAnnulus(effectiveCenter,
+							baseBuilder.Info.MinBaseRadius, maxRadius).Count();
+						var coverageStride = Math.Max(1, (coverageCellCount + covLimit - 1) / covLimit);
 						var coverageCandidates = world.Map.FindTilesInAnnulus(effectiveCenter,
-							baseBuilder.Info.MinBaseRadius, maxRadius)
+								baseBuilder.Info.MinBaseRadius, maxRadius)
+							.Where((_, index) => index % coverageStride == 0)
 							.Take(covLimit);
 
 						CPos? bestCell = null;
@@ -3496,6 +3577,71 @@ namespace OpenRA.Mods.Common.Traits
 				if (excludeMinY && cell.Y == minY) continue;
 				yield return cell;
 			}
+		}
+
+		HashSet<CPos> GetActiveDoorKillZoneReservedCells()
+		{
+			// The current profile decides whether to START a wall formation, not whether an existing
+			// formation still needs its courtyard. Adaptive bots may switch away from Turtle/Tech after
+			// building the U; the walls remain and so must the space they were built to protect.
+			if (!baseBuilder.Info.EnableDoorKillZone || baseBuilder.TacticalMapModule == null)
+				return null;
+
+			var radius = Math.Max(1, baseBuilder.TacticalMapModule.Info.DoorKillZoneRadius);
+			var reserved = new HashSet<CPos>();
+			foreach (var door in baseBuilder.TacticalMapModule.GetTerritoryDoors())
+			{
+				var wallCells = DoorKillZoneBoxWallCells(door, radius)
+					.Where(world.Map.Contains)
+					.ToArray();
+				if (wallCells.Length == 0 || !wallCells.Any(c =>
+					HasOwnActorAt(c, baseBuilder.Info.WallTypes) || HasOwnActorAt(c, baseBuilder.Info.GateTypes)))
+					continue;
+
+				// The missing fourth side is the entrance, but the two flank endpoints still define its
+				// edge. Filling the wall cells' bounds therefore reserves exactly the U and its interior,
+				// including the open mouth that must remain clear for units entering the kill zone.
+				var minX = wallCells.Min(c => c.X);
+				var maxX = wallCells.Max(c => c.X);
+				var minY = wallCells.Min(c => c.Y);
+				var maxY = wallCells.Max(c => c.Y);
+				for (var y = minY; y <= maxY; y++)
+					for (var x = minX; x <= maxX; x++)
+					{
+						var cell = new CPos(x, y);
+						if (world.Map.Contains(cell))
+							reserved.Add(cell);
+					}
+			}
+
+			return reserved.Count > 0 ? reserved : null;
+		}
+
+		// The open front of the tier-2 box gets units into the kill zone, but does not help units caught
+		// outside its long back wall. Put the gate in that wall, directly opposite the territory door.
+		static List<CPos> DoorKillZoneBoxGateFootprint(CNTerritoryDoor door, int radius, BuildingInfo gateInfo)
+		{
+			var approach = CNTacticalMapBotModule.DoorApproachAxis(door);
+			var wallRunsHorizontal = approach.Y != 0;
+			var gateRunsHorizontal = gateInfo.Dimensions.X > gateInfo.Dimensions.Y;
+			if (wallRunsHorizontal != gateRunsHorizontal)
+				return null;
+
+			CPos topLeft;
+			if (wallRunsHorizontal)
+			{
+				var backY = approach.Y > 0 ? door.Center.Y - radius : door.Center.Y + radius;
+				topLeft = new CPos(door.Center.X - gateInfo.Dimensions.X / 2, backY);
+			}
+			else
+			{
+				var backX = approach.X > 0 ? door.Center.X - radius : door.Center.X + radius;
+				topLeft = new CPos(backX, door.Center.Y - gateInfo.Dimensions.Y / 2);
+			}
+
+			var footprint = gateInfo.Tiles(topLeft).ToList();
+			var wallCells = DoorKillZoneBoxWallCells(door, radius).ToHashSet();
+			return footprint.All(wallCells.Contains) ? footprint : null;
 		}
 
 		bool HasBlockingBuildingForChokepointSeal(CPos cell)
@@ -3792,8 +3938,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Place a gate on a tier-1 fallback corridor, matching the wall line's orientation - direct reuse
 		// of ChooseChokepointGateLocation's body, sourced from FindDoorFallbackCorridor instead of
-		// GetSealableCorridors. Tier 2's box has no gate (open-ended by construction), so nothing to place
-		// when a door has no fallback pinch.
+		// GetSealableCorridors. Tier 2 instead replaces the center of the box's back wall: its open front
+		// admits attackers, but is on the wrong side for friendly units trying to cross that wall.
 		(CPos? Location, CPos? BaseCenter, int Variant) ChooseDoorKillZoneGateLocation(ActorInfo actorInfo)
 		{
 			if (!baseBuilder.ShouldSealDoorKillZone() || !baseBuilder.DoorKillZoneUsesWalls() || baseBuilder.TacticalMapModule == null)
@@ -3819,22 +3965,32 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var fallback = FindDoorFallbackCorridor(door, radius);
-				if (fallback == null || fallback.WallRunsHorizontal != horizontal)
+				var fallbackFootprint = fallback == null ? null : ChokepointGateFootprint(fallback);
+				var usesFallback = fallbackFootprint != null
+					&& ChokepointCorridorIsWorthSealing(fallback, wallActorInfo, wallBuildingInfo);
+				if (usesFallback)
+				{
+					if (fallback.WallRunsHorizontal != horizontal || fallbackFootprint.Any(HasAnyBuildingAt))
+						continue;
+
+					var fallbackTopLeft = fallbackFootprint[0];
+					if (!world.CanPlaceBuilding(fallbackTopLeft, actorInfo, bi, null)
+						|| !bi.IsCloseEnoughToBase(world, player, actorInfo, fallbackTopLeft))
+						continue;
+
+					return (fallbackTopLeft, baseCenter, 0);
+				}
+
+				var boxFootprint = DoorKillZoneBoxGateFootprint(door, radius, bi);
+				if (boxFootprint == null || !boxFootprint.All(c => HasOwnActorAt(c, baseBuilder.Info.WallTypes)))
 					continue;
 
-				var footprint = ChokepointGateFootprint(fallback);
-				if (footprint == null || !ChokepointCorridorIsWorthSealing(fallback, wallActorInfo, wallBuildingInfo))
+				var boxTopLeft = boxFootprint[0];
+				if (!world.CanPlaceBuilding(boxTopLeft, actorInfo, bi, null)
+					|| !bi.IsCloseEnoughToBase(world, player, actorInfo, boxTopLeft))
 					continue;
 
-				var topLeft = footprint[0];
-				if (footprint.Any(HasAnyBuildingAt))
-					continue;
-
-				if (!world.CanPlaceBuilding(topLeft, actorInfo, bi, null)
-					|| !bi.IsCloseEnoughToBase(world, player, actorInfo, topLeft))
-					continue;
-
-				return (topLeft, baseCenter, 0);
+				return (boxTopLeft, baseCenter, 0);
 			}
 
 			return (null, null, 0);
