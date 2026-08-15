@@ -82,13 +82,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		// attack run is abandoned.
 		const int StuckThreshold = 600;
 		const int KiteThreatRadiusCells = 5;
+		const int OrderReissueTicks = 75;
 		int stuckTicks;
 		CPos lastPos;
+		Actor lastOrderedTarget;
+		int reissueCooldown;
 
 		public void Activate(CNSquad squad)
 		{
 			stuckTicks = 0;
 			lastPos = CPos.Zero;
+			lastOrderedTarget = null;
+			reissueCooldown = 0;
 		}
 
 		public void Tick(CNSquad squad)
@@ -136,9 +141,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			foreach (var unit in squad.OrderableUnits)
-				if (!BusyAttack(unit))
-					squad.Bot.QueueOrder(new Order("AttackMove", unit, squad.Target, false));
+			// AttackMove is a movement activity until contact, so BusyAttack is false throughout the
+			// approach. Replacing it on every 15-tick engaged update repeatedly threw away its path and
+			// formation. Reissue on a changed target or a modest heartbeat, while still waking an idle
+			// unit immediately if its previous order ended early.
+			var targetChanged = squad.TargetActor != lastOrderedTarget;
+			reissueCooldown -= squad.TicksSinceLastUpdate;
+			var reissue = targetChanged || reissueCooldown <= 0;
+			if (reissue)
+			{
+				lastOrderedTarget = squad.TargetActor;
+				reissueCooldown = OrderReissueTicks;
+			}
+
+			var movers = squad.OrderableUnits
+				.Where(unit => !BusyAttack(unit) && (reissue || unit.IsIdle))
+				.ToArray();
+			if (movers.Length > 0)
+				squad.Bot.QueueOrder(new Order("AttackMove", null, squad.Target, false, groupedActors: movers));
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -180,21 +200,39 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (threat == null)
 				return false;
 
-			// A threat we can't be hit by is no reason to disengage.
-			if (!squad.OrderableUnits.Any(u => CanAttackTarget(threat, u)))
+			var threatenedUnit = squad.OrderableUnits.FirstOrDefault(u => CanAttackTarget(threat, u));
+			if (threatenedUnit == null)
 				return false;
 
-			return MaxWeaponRange(squad.OrderableUnits) > MaxWeaponRange([threat]);
+			var ownMaxRange = MaxWeaponRange(squad.OrderableUnits, threat);
+			var threatMaxRange = MaxWeaponRange([threat], threatenedUnit);
+			if (ownMaxRange <= threatMaxRange)
+				return false;
+
+			// Merely having a compatible weapon does not mean the threat can hit from here. Pulling
+			// back from a one-cell gun while already firing safely from five cells produced the same
+			// drive-in/drive-out loop this check was meant to remove. The other legitimate reason to
+			// open distance is being inside our own minimum range (Bike/Hover missiles).
+			var threatTarget = Target.FromActor(threat);
+			var unitTarget = Target.FromActor(threatenedUnit);
+			var threatCanHitNow = unitTarget.IsInRange(threat.CenterPosition, threatMaxRange);
+			var ownMinRange = MinWeaponRange(squad.OrderableUnits, threat);
+			var insideOwnMinRange = ownMinRange > WDist.Zero &&
+				threatTarget.IsInRange(threatenedUnit.CenterPosition, ownMinRange);
+
+			return threatCanHitNow || insideOwnMinRange;
 		}
 
-		static WDist MaxWeaponRange(IEnumerable<Actor> actors)
+		static WDist MaxWeaponRange(IEnumerable<Actor> actors, Actor target)
 		{
 			var best = WDist.Zero;
+			var targetTypes = target.GetEnabledTargetTypes();
 			foreach (var actor in actors)
 			{
 				foreach (var armament in actor.TraitsImplementing<Armament>())
 				{
-					if (armament.IsTraitDisabled || armament.IsTraitPaused)
+					if (armament.IsTraitDisabled || armament.IsTraitPaused ||
+						!armament.Weapon.IsValidTarget(targetTypes))
 						continue;
 
 					var range = armament.MaxRange();
@@ -204,6 +242,27 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			return best;
+		}
+
+		static WDist MinWeaponRange(IEnumerable<Actor> actors, Actor target)
+		{
+			WDist? best = null;
+			var targetTypes = target.GetEnabledTargetTypes();
+			foreach (var actor in actors)
+			{
+				foreach (var armament in actor.TraitsImplementing<Armament>())
+				{
+					if (armament.IsTraitDisabled || armament.IsTraitPaused ||
+						!armament.Weapon.IsValidTarget(targetTypes))
+						continue;
+
+					var range = armament.Weapon.MinRange;
+					if (!best.HasValue || range < best.Value)
+						best = range;
+				}
+			}
+
+			return best ?? WDist.Zero;
 		}
 
 		internal static Actor FindClosestThreat(CNSquad squad, Actor source, int radiusCells)
@@ -222,6 +281,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	sealed class RaiderFleeState : CNStateBase, ICNState
 	{
 		const int RegroupWaitTicks = 80;
+		const int MaxServiceWaitTicks = 750;
 		const int MinRetreatCells = 6;
 		const int MaxRetreatCells = 14;
 		const int ReengageThreatDistanceCells = 9;
@@ -254,10 +314,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 
 			var enemy = RaiderAttackState.FindClosestThreat(squad, center, squad.SquadManager.Info.DangerScanRadius);
+			var elapsed = squad.World.WorldTick - fleeStartTick;
+
+			// Retreat may have replaced the fallback move with a repair/resupply order. Returning to
+			// Idle after 80 ticks used to overwrite that order with the old target before the unit even
+			// reached the depot. Let active service finish, but keep a hard ceiling for a destroyed or
+			// permanently congested repair facility.
+			if (elapsed < MaxServiceWaitTicks && squad.OrderableUnits.Any(IsRearming))
+				return;
 
 			if (enemy == null ||
 				HasOpenedKiteDistance(center, enemy) ||
-				squad.World.WorldTick - fleeStartTick >= RegroupWaitTicks)
+				elapsed >= RegroupWaitTicks)
 				squad.FuzzyStateMachine.ChangeState(squad, new RaiderIdleState());
 		}
 
