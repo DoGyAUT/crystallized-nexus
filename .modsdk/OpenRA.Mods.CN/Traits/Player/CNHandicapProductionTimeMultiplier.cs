@@ -15,7 +15,7 @@ namespace OpenRA.Mods.CN.Traits
 	public class CNHandicapProductionTimeMultiplierInfo : TraitInfo<CNHandicapProductionTimeMultiplier>, IProductionTimeModifierInfo
 	{
 		[Desc("Percentage modifier per named difficulty tier.")]
-		public readonly Dictionary<string, int> Modifiers = new();
+		public readonly Dictionary<string, int> Modifiers = [];
 
 		int IProductionTimeModifierInfo.GetProductionTimeModifier(TechTree techTree, string queue)
 		{
