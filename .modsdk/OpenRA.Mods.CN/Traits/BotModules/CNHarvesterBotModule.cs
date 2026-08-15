@@ -503,6 +503,14 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				isStuck = true;
 
+				// A refinery clears its reservations immediately when it dies, but the harvester's
+				// GenericDockSequence still has to reverse the unload body and drag the unit back from the
+				// dock's sub-cell position. Treating the now-unreserved harvester as deadlocked cancels that
+				// cleanup with an unqueued Move order: it keeps the GHORV unload voxel and cannot leave the
+				// off-grid dock position. The dock sequence already handles a dead host and must finish.
+				if (h.Actor.CurrentActivity?.ActivitiesImplementing<GenericDockSequence>().Any() == true)
+					isStuck = false;
+
 				// Standing ON its own dock is delivering, not deadlocking. StationaryTicks counts any tick
 				// where the harvester is not idle and has not changed cell, and unloading is exactly that -
 				// so every delivery eventually crossed the threshold, and the moment the load ran out the
@@ -514,6 +522,15 @@ namespace OpenRA.Mods.Common.Traits
 				var reservedHost = h.DockClientManager?.ReservedHost;
 				if (reservedHost != null
 					&& (h.Actor.Location - world.Map.CellContaining(reservedHost.DockPosition)).LengthSquared <= 4)
+					isStuck = false;
+
+				// HarvestResource deliberately waits BaleLoadDelay between each bale while remaining on one
+				// cell. On the long-delay harvesters that crosses the generic stationary threshold and made
+				// the bot cancel normal harvesting as a deadlock hundreds of times per match. Only exempt it
+				// while it is actually standing on harvestable material; a blocked move toward another cell
+				// still needs recovery.
+				if (isStuck && !h.Harvester.IsFull && h.Harvester.CanHarvestCell(h.Actor.Location)
+					&& h.Actor.CurrentActivity?.ActivitiesImplementing<HarvestResource>().Any() == true)
 					isStuck = false;
 
 				// A full harvester sitting near a refinery is usually just queueing for its turn to dock -
@@ -573,7 +590,7 @@ namespace OpenRA.Mods.Common.Traits
 					steppingAside = true;
 				}
 
-				CNBotLog.Debug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. " +
+				CNBotLog.Debug($"CN AI: {player} harvester {h.Actor} appears deadlocked at {h.Actor.Location}. " +
 					$"Stepping aside to {(freeCell != null ? freeCell.Value.ToString() : "nowhere - hemmed in")} and re-issuing harvest order.");
 
 				h.StationaryTicks = 0;
@@ -583,7 +600,7 @@ namespace OpenRA.Mods.Common.Traits
 			ClearHarvesterRefinery(h.Actor);
 			var refineryAnchor = FindBestRefineryAnchor(h.Actor, h);
 			var newSafeResourcePatch = FindNextResource(h.Actor, h, refineryAnchor);
-			CNBotLog.Debug($"CN AI: Harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
+			CNBotLog.Debug($"CN AI: {player} harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
 			if (newSafeResourcePatch.Type != TargetType.Invalid)
 			{
 				bot.QueueOrder(new Order("Harvest", h.Actor, newSafeResourcePatch, steppingAside));
@@ -639,8 +656,8 @@ namespace OpenRA.Mods.Common.Traits
 				return threatActors.Count() * minCellCost * multiplier;
 			}
 
-			var path = harv.Mobile.PathFinder.FindPathToTargetCells(
-				actor, scanFromActor.Location, targets, BlockedByActor.Stationary,
+			List<CPos> SearchFrom(CPos from) => harv.Mobile.PathFinder.FindPathToTargetCells(
+				actor, from, targets, BlockedByActor.Stationary,
 				loc =>
 				{
 					var bin = CellToBin(loc, cellRadius);
@@ -651,6 +668,19 @@ namespace OpenRA.Mods.Common.Traits
 					avoidanceCostForBin.Add(bin, avoidanceCost);
 					return avoidanceCost;
 				});
+
+			var path = SearchFrom(scanFromActor.Location);
+
+			// Searching from the refinery is deliberate - it finds the patch closest to where the load has to
+			// be delivered, not the one closest to wherever the harvester happens to idle. But the answer is
+			// then handed to the HARVESTER, and nothing in FindBestRefineryAnchor checks that the two can
+			// reach the same ground: the anchor only has to be dockable. An anchor whose own surroundings are
+			// mined out or cut off returns an empty path while the harvester still has resources within
+			// reach, and the caller reads that as "no resources left" and sits out the cooldown.
+			// One match logged 494 of these with 491 coming from three harvesters, one cluster of cells -
+			// a persistent local state, not a map running dry.
+			if (path.Count == 0 && refineryAnchor != null && refineryAnchor.Location != actor.Location)
+				path = SearchFrom(actor.Location);
 
 			if (path.Count == 0)
 				return Target.Invalid;
