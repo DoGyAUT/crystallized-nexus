@@ -99,6 +99,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public WDist ArtilleryHangBackRange;  // Artillery: how far behind frontline to stay
 		public CNSquad AttachedTo;            // ArtilleryAssault/Support: squad to follow
 		public string[] PreferredTargetCapabilities; // BotCapabilities tags to prioritize as targets (Raider, Stealth, SubAssault, ...)
+		internal Player MissionTargetPlayer;  // Subterranean strike: do not retarget into another enemy's base mid-mission.
 
 		/// <summary>True if any unit in this squad is a MobSpawnerMaster.</summary>
 		public bool HasMobs => Units.Any(a => a != null && !a.IsDead && a.IsInWorld && a.Info.HasTraitInfo<MobSpawnerMasterInfo>());
