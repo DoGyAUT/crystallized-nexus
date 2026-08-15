@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -103,6 +104,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNResourceMapBotModule));
+
 			if (firstTick)
 			{
 				resourceLayer = world.WorldActor.TraitOrDefault<IResourceLayer>();

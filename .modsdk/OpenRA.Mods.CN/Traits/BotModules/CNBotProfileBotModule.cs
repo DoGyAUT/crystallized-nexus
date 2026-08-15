@@ -306,6 +306,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNBotProfileBotModule));
+
 			// Re-resolved whenever the cached one is no longer enabled, not once at startup.
 			//
 			// There is one squad manager, base builder and MCV manager PER PROFILE, each gated by a

@@ -1,4 +1,4 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -13,6 +13,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.CN.Traits;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.CN.Traits.BotModules.Squads;
 using OpenRA.Traits;
 
@@ -65,6 +66,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNRepairManagerBotModule));
+
 			if (--repairScanTicks > 0)
 				return;
 

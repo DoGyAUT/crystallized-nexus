@@ -202,6 +202,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNHarvesterBotModule));
+
 			respondToAttackCooldown--;
 
 			if (resourceLayer == null || resourceLayer.IsEmpty)

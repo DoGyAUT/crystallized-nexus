@@ -68,6 +68,8 @@ namespace OpenRA.Mods.CN.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNBridgeRepairBotModule));
+
 			if (--repairScanTicks > 0)
 				return;
 

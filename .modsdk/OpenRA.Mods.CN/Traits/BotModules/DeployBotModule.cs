@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
@@ -115,6 +116,8 @@ namespace OpenRA.Mods.CN.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(DeployBotModule));
+
 			if (--scanTicks > 0)
 				return;
 

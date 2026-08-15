@@ -17,7 +17,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		public void Update(CNSquad squad)
 		{
-			currentState?.Tick(squad);
+			if (currentState == null)
+				return;
+
+			// Charged to the state rather than to the squad loop as a whole. SquadUpdates is the phase
+			// with the worst single-call spikes left (605 ms in a heavy match), and the states differ
+			// enormously in what they do - some only check arrival, others search the map for a target.
+			// Type.Name is cached by the runtime, so this costs a timestamp pair per squad update.
+			using (CNBotPerf.Sample(squad.Bot, currentState.GetType().Name))
+				currentState.Tick(squad);
 		}
 
 		public void ChangeState(CNSquad squad, ICNState newState)

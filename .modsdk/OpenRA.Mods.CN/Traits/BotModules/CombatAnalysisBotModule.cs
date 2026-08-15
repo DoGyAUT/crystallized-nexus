@@ -351,6 +351,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CombatAnalysisBotModule));
+
 			if (IsTraitDisabled)
 				return;
 			if (--decayTicks > 0)
