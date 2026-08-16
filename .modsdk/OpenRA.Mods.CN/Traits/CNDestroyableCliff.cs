@@ -67,13 +67,14 @@ namespace OpenRA.Mods.CN.Traits
 		}
 	}
 
-	public class CNDestroyableCliff : INotifyKilled
+	public class CNDestroyableCliff : INotifyKilled, ITargetablePositions
 	{
 		readonly CNDestroyableCliffInfo info;
 		readonly ITemplatedTerrainInfo terrainInfo;
 		readonly Map map;
 
 		CPos[] footprint = [];
+		WPos[] targetablePositions = [];
 		CPos templateOrigin;
 		bool collapsed;
 
@@ -99,7 +100,15 @@ namespace OpenRA.Mods.CN.Traits
 		{
 			templateOrigin = origin;
 			footprint = cells;
+
+			// One aim point per cell of the cliff, at that cell's real centre - height included, so a point
+			// on the plateau sits high and one at the foot sits low. A unit then engages the piece of wall
+			// in front of it instead of the one place the actor happens to stand, which is what made units
+			// have to be walked around by hand before they would shoot the part they were already next to.
+			targetablePositions = Array.ConvertAll(cells, map.CenterOfCell);
 		}
+
+		IEnumerable<WPos> ITargetablePositions.TargetablePositions(Actor self) => targetablePositions;
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
