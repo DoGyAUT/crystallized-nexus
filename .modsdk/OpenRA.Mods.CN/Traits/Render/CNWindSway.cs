@@ -18,24 +18,33 @@ namespace OpenRA.Mods.CN.Traits
 		"Purely cosmetic: driven by wall-clock time, never by the simulation.")]
 	public class CNWindSwayInfo : TraitInfo, Requires<RenderSpritesInfo>
 	{
-		[Desc("Peak tilt at full gust strength. 1024 units is a full circle, so 10 is roughly 3.5 degrees.",
-			"This is the main knob. Note that rotation is quantised to whole units, so small values give",
-			"few distinct positions across a sway and start to look stepped: below about 6 the motion",
-			"visibly ticks rather than flows.")]
-		public readonly WAngle Angle = new(10);
+		[Desc("Peak tilt in calm weather at full gust strength. 1024 units is a full circle, so 5 is",
+			"roughly 1.8 degrees. This is the main knob. Rotation is quantised to whole units, so a low",
+			"value gives few distinct positions across a sway; the sprite is sheared rather than shifted",
+			"as a whole, so this shows up as the crown rippling in steps rather than the tree hopping.")]
+		public readonly WAngle Angle = new(5);
+
+		[Desc("Peak tilt at full ion storm intensity, blended in from Angle via WeatherController.Intensity.",
+			"Without a WeatherController on the world actor the sway stays at Angle.")]
+		public readonly WAngle StormAngle = new(10);
 
 		[Desc("Distance in screen pixels from the sprite centre down to the trunk base, i.e. roughly half",
 			"the sprite height. The point the sprite pivots around; the crown travels twice this far.")]
 		public readonly int PivotHeight = 24;
 
-		[Desc("Milliseconds for one full sway cycle.")]
+		[Desc("Milliseconds for one full sway cycle. Deliberately not affected by storms: the phase is",
+			"derived from absolute time, so changing the period mid-storm would jump every tree to a",
+			"different point in its sway. Storms read as stronger through amplitude and gusts instead.")]
 		public readonly int Period = 2200;
 
 		[Desc("Milliseconds for one full gust cycle. Modulates the sway amplitude.")]
 		public readonly int GustPeriod = 9000;
 
-		[Desc("How strongly a gust swells and calms the sway, in percent of the base amplitude.")]
-		public readonly int GustStrength = 45;
+		[Desc("How strongly a gust swells and calms the sway in calm weather, in percent of the base amplitude.")]
+		public readonly int GustStrength = 30;
+
+		[Desc("Gust strength at full ion storm intensity, blended in from GustStrength.")]
+		public readonly int StormGustStrength = 45;
 
 		[Desc("Wind direction as a facing in 32 steps, matching CloudSpawner's WindDirection.",
 			"Gusts travel across the map along this axis.")]
@@ -55,6 +64,7 @@ namespace OpenRA.Mods.CN.Traits
 	public class CNWindSway : IRenderModifier, INotifyCreated
 	{
 		readonly CNWindSwayInfo info;
+		WeatherController weather;
 		int phase;
 		int wavePhase;
 
@@ -71,6 +81,9 @@ namespace OpenRA.Mods.CN.Traits
 		// one providing IOccupySpace, has been constructed. Trees never move, so this runs once.
 		void INotifyCreated.Created(Actor self)
 		{
+			// Optional: maps without a WeatherController simply stay at the calm settings.
+			weather = self.World.WorldActor.TraitOrDefault<WeatherController>();
+
 			// Per-actor phase so neighbouring trees never sway in lockstep.
 			var cell = self.Location;
 			phase = (cell.X * 0x27D4EB2D ^ cell.Y * 0x165667B1) >> 11 & 1023;
@@ -85,7 +98,15 @@ namespace OpenRA.Mods.CN.Traits
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)
 		{
-			if (info.Angle.Angle == 0 || wr.Viewport.Zoom < info.MinZoom)
+			if (wr.Viewport.Zoom < info.MinZoom)
+				return r;
+
+			// Ion storms blend the sway up to its storm settings. Intensity already ramps in and out
+			// across the warning and clearing states, so nothing here needs to smooth the transition.
+			var storm = (int)((weather?.Intensity ?? 0f) * 256);
+			var angle = info.Angle.Angle + (info.StormAngle.Angle - info.Angle.Angle) * storm / 256;
+			var gustStrength = info.GustStrength + (info.StormGustStrength - info.GustStrength) * storm / 256;
+			if (angle == 0)
 				return r;
 
 			var t = Game.RunTime;
@@ -94,9 +115,9 @@ namespace OpenRA.Mods.CN.Traits
 			var wave = (7 * new WAngle((int)(1024 * t / info.Period) + phase + wavePhase).Sin()
 				+ 3 * new WAngle((int)(2359 * t / info.Period) + 2 * phase).Sin()) / 10;
 
-			var gust = 100 + info.GustStrength * new WAngle((int)(1024 * t / info.GustPeriod) + wavePhase).Sin() / 1024;
+			var gust = 100 + gustStrength * new WAngle((int)(1024 * t / info.GustPeriod) + wavePhase).Sin() / 1024;
 
-			var tilt = (int)((long)info.Angle.Angle * wave * gust / (1024 * 100));
+			var tilt = (int)((long)angle * wave * gust / (1024 * 100));
 			if (tilt == 0)
 				return r;
 
