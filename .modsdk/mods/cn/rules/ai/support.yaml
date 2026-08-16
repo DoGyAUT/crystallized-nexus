@@ -36,6 +36,16 @@ Player:
 		MinimumAttackers: 3
 		MaximumAttackers: 6
 		AttackerSearchRadius: 12
+	# GDI treats the weed as something to burn out; Nod leaves veinholes standing because its weed
+	# harvesters feed the Nawast off them. Nothing shoots a veinhole on its own (NoAutoTarget plus
+	# RequiresForceFire), so Nod needs no counterpart rule - not having this module is the behaviour.
+	CNVeinholeAssaultBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		Sides: GDI
+		ScanInterval: 300
+		MinimumAttackers: 4
+		MaximumAttackers: 8
+		AttackerSearchRadius: 12
 	CNUnitBuilderBotModule@Combat:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		UnitQueues: Infantry, Vehicle, Air
