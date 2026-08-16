@@ -35,7 +35,10 @@ Player:
 		ScanInterval: 250
 		MinimumAttackers: 3
 		MaximumAttackers: 6
-		AttackerSearchRadius: 12
+		# This is a marching order, not just a proximity filter - the units walk to the cliff. Twelve only
+		# ever caught whoever happened to be standing beside it, and a cliff at the far edge of a base is
+		# further away than that; twenty-five covers a base without sending anyone across the map.
+		AttackerSearchRadius: 25
 	# GDI treats the weed as something to burn out; Nod leaves veinholes standing because its weed
 	# harvesters feed the Nawast off them. Nothing shoots a veinhole on its own (NoAutoTarget plus
 	# RequiresForceFire), so Nod needs no counterpart rule - not having this module is the behaviour.

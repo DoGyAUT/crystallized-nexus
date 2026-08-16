@@ -40,8 +40,10 @@ namespace OpenRA.Mods.CN.Traits
 			"on both sides is already walked around, and blowing it open buys nothing.")]
 		public readonly bool RequireSeparatedSides = true;
 
-		[Desc("How far from a cliff a unit may be to be pulled onto it, in cells.")]
-		public readonly int AttackerSearchRadius = 12;
+		[Desc("How far from a cliff a unit may be to be pulled onto it, in cells. This is a marching",
+			"distance, not only a filter: the units are ordered to attack and walk there, so this is",
+			"effectively how far the bot will send somebody to open a cliff.")]
+		public readonly int AttackerSearchRadius = 25;
 
 		[Desc("Units that must be available before a cliff is engaged at all. Sending one tank at four",
 			"thousand hit points only feeds it.")]
