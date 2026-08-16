@@ -1170,7 +1170,7 @@ resources:
 	Defaults:
 		Length: 12
 		ShadowStart: 12
-		Offset: 0, -12, 1
+		Offset: 0, -12, 2
 		ZRamp: 1
 		IgnoreWorldTint: true
 	tib01:
@@ -1316,7 +1316,7 @@ shroud:
 
 smallscorches:
 	Defaults:
-		Offset: 0, -12, 2
+		Offset: 0, -12, 1
 		ZRamp: 1
 	sc1:
 		TilesetFilenames:
@@ -1351,7 +1351,7 @@ smallscorches:
 
 mediumscorches:
 	Defaults:
-		Offset: 0, -18, 2
+		Offset: 0, -18, 1
 		ZRamp: 1
 	sc7:
 		TilesetFilenames:
@@ -1376,7 +1376,7 @@ mediumscorches:
 
 largescorches:
 	Defaults:
-		Offset: 0, -24, 2
+		Offset: 0, -24, 1
 		ZRamp: 1
 	sc11:
 		TilesetFilenames:
@@ -1391,7 +1391,7 @@ largescorches:
 
 smallcraters:
 	Defaults:
-		Offset: 0, -12, 3
+		Offset: 0, -12, 1
 		ZRamp: 1
 	cr1:
 		TilesetFilenames:
@@ -1426,7 +1426,7 @@ smallcraters:
 
 mediumcraters:
 	Defaults:
-		Offset: 0, -12, 3
+		Offset: 0, -12, 1
 		ZRamp: 1
 	cr7:
 		TilesetFilenames:
@@ -1451,7 +1451,7 @@ mediumcraters:
 
 largecraters:
 	Defaults:
-		Offset: 0, -24, 3
+		Offset: 0, -24, 1
 		ZRamp: 1
 	cr11:
 		TilesetFilenames:
