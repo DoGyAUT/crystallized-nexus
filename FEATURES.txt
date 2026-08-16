@@ -138,11 +138,15 @@ TERRAIN & MAP
     A killed veinhole leaves a dent in the map via CNLeavesPitOnDeath: a
     2x2 floor one height level down, ringed by single-cell ramps so the hole
     stays walkable. The ramp pieces are not named in YAML — the trait
-    searches the tile set for 1x1 Clear templates by RampType, which covers
-    temperate/desert (643-654) and snow (721-732) with one rule, and picks
-    each ring cell's slope direction from MapGrid's own ramp table so the
-    slope always faces out of the hole. The 4x4 dent reaches one row past
-    the 3x3 footprint on the right and bottom.
+    searches the tile set for 1x1 Clear templates by RampType and takes the
+    lowest matching id, which lands on the stock single-cell slopes
+    (templates 40-43, slope01-slope04, the same ids in all three tile sets)
+    and on template 0 for the flat floor. Searching rather than naming also
+    covers the "Ramp edge fixup" pieces as a fallback, which do differ per
+    tile set (643-654 temperate/desert, 721-732 snow). Each ring cell picks
+    its slope direction by scoring MapGrid's own ramp table against the
+    direction out of the hole, so the slope always faces outwards. The 4x4
+    dent reaches one row past the 3x3 footprint on the right and bottom.
     GDI bots hunt veinholes down (CNVeinholeAssaultBotModule, see AI — BOT
     MODULES); Nod bots leave them standing for their weed harvesters.
 

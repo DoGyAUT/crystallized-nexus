@@ -19,9 +19,10 @@ namespace OpenRA.Mods.CN.Traits
 	[Desc("Sinks the ground where this actor died into a pit: a flat floor a height level down, ringed by",
 		"single-cell ramps so the hole is walkable rather than a cut-out. A killed veinhole leaves a real",
 		"dent in the map, not a decal.",
-		"The tiles are found in the tile set rather than named here - every Tiberian Sun tile set ships",
-		"1x1 ramp pieces for all four slope directions ('Ramp edge fixup'), but under different template",
-		"ids per tile set, and looking them up by their slope data covers all of them at once.")]
+		"The tiles are found in the tile set rather than named here. Tiberian Sun ships 1x1 pieces for all",
+		"four slope directions more than once - the stock slopes (slope01-slope04) and again as 'Ramp edge",
+		"fixup' pieces under ids that differ per tile set - so looking them up by their slope data covers",
+		"every tile set with one rule instead of a table of ids that has to be kept in step with the art.")]
 	public class CNLeavesPitOnDeathInfo : ConditionalTraitInfo
 	{
 		[Desc("Size of the whole dent, in cells: the floor plus the ramp ring around it.")]
@@ -201,7 +202,8 @@ namespace OpenRA.Mods.CN.Traits
 
 		/// <summary>
 		/// The four 1x1 pieces the dent is built from, keyed by RampType. Picking the lowest matching
-		/// template id keeps the choice the same for every player in a game.
+		/// template id keeps the choice the same for every player in a game, and in the stock tile sets
+		/// it lands on template 0 for the floor and 40-43 (slope01-slope04) for the ring.
 		/// </summary>
 		ushort[] ResolveTemplates()
 		{
