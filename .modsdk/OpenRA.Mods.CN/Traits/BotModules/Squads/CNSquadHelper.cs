@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
@@ -313,26 +314,69 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		/// Closest enemy building not tagged Defense. Falls back to any enemy building.
 		/// No shroud check — for infiltrators that navigate to known positions past defenses.
 		/// </summary>
-		public static Actor FindUnprotectedTarget(CNSquad squad)
+		public static Actor FindUnprotectedTarget(CNSquad squad, Func<Actor, bool> targetFilter = null)
 		{
 			var center = squad.CenterUnit();
 			if (center == null)
 				return null;
 
-			var nonDefense = squad.World.ActorsHavingTrait<Building>()
-				.Where(a => squad.SquadManager.IsLiveEnemyActor(a) &&
-							!(a.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains("Defense") ?? false) &&
-							CanSquadEngage(squad, a))
-				.MinByOrDefault(a => (a.CenterPosition - center.CenterPosition).LengthSquared);
+			// One walk over the world's buildings, not two. This used to run the full scan for the
+			// non-defense answer and then, whenever that came back empty - which is the normal case for
+			// a squad whose only reachable targets are defended - run the identical scan again for the
+			// fallback. Both passes called CanSquadEngage on every enemy building, and that walks the
+			// squad's units asking each whether it has a weapon for the target. StealthIdleState was
+			// the most expensive single thing left in the bot at 1138 ms per 5000 ticks, peaking at
+			// 53 ms in one call.
+			//
+			// The distance check comes first and skips everything else for a building that cannot beat
+			// either answer already held. Since both bests only ever move on a strict improvement, a
+			// candidate that ties or loses cannot change the outcome - so its engageability never has
+			// to be computed at all, which is where most of the saving comes from.
+			Actor bestNonDefense = null, bestAny = null;
+			var bestNonDefenseDistance = long.MaxValue;
+			var bestAnyDistance = long.MaxValue;
 
-			return nonDefense ?? FindClosestEnemyBuilding(squad);
+			foreach (var actor in squad.World.ActorsHavingTrait<Building>())
+			{
+				var distance = (actor.CenterPosition - center.CenterPosition).LengthSquared;
+				if (distance >= bestNonDefenseDistance && distance >= bestAnyDistance)
+					continue;
+
+				if (!squad.SquadManager.IsLiveEnemyActor(actor))
+					continue;
+
+				if (targetFilter != null && !targetFilter(actor))
+					continue;
+
+				if (!CanSquadEngage(squad, actor))
+					continue;
+
+				if (distance < bestAnyDistance)
+				{
+					bestAnyDistance = distance;
+					bestAny = actor;
+				}
+
+				var isDefense = actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains("Defense") ?? false;
+				if (!isDefense && distance < bestNonDefenseDistance)
+				{
+					bestNonDefenseDistance = distance;
+					bestNonDefense = actor;
+				}
+			}
+
+			return bestNonDefense ?? bestAny;
 		}
 
 		/// <summary>
 		/// Scans for preferred targets by BotCapabilities tag in priority order (first match wins).
 		/// Falls back to null if none found. Used by Raider, Stealth, Assault with PriorityTargetCapabilities set.
 		/// </summary>
-		public static Actor FindPriorityTarget(CNSquad squad, string[] priorityCaps, Actor sourceUnit)
+		public static Actor FindPriorityTarget(
+			CNSquad squad,
+			string[] priorityCaps,
+			Actor sourceUnit,
+			Func<Actor, bool> targetFilter = null)
 		{
 			if (sourceUnit == null || priorityCaps == null || priorityCaps.Length == 0)
 				return null;
@@ -346,47 +390,62 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			void CheckActor(Actor actor)
 			{
+				// Capability first, and deliberately so. This scan walks every Mobile, Aircraft and
+				// Building in the world for every squad that has priority capabilities - and the checks
+				// below it are not free: CanSquadEngage alone walks the squad's orderable units and asks
+				// each one whether it has a weapon for the target's types. Running that for every actor
+				// on the map before finding out the actor is not even a priority type made the cost
+				// (world actors x squad units), per squad, per update. A capability lookup is a set
+				// probe on cached ActorInfo and throws out the overwhelming majority of candidates.
+				// Pure predicates, so hoisting it changes which work is done, not which target is picked.
+				var caps = actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
+				if (caps == null)
+					return;
+
+				var priority = -1;
+				for (var i = 0; i < priorityCaps.Length; i++)
+				{
+					if (caps.Contains(priorityCaps[i]))
+					{
+						priority = i;
+						break;
+					}
+				}
+
+				if (priority < 0)
+					return;
+
 				if (!squad.SquadManager.IsPreferredEnemyUnit(actor))
 					return;
 				if (!actor.CanBeViewedByPlayer(squad.Bot.Player))
 					return;
 				if (!CanSquadEngage(squad, actor))
 					return;
-
-				var caps = actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet;
-				if (caps == null)
+				if (targetFilter != null && !targetFilter(actor))
 					return;
 
-				for (var i = 0; i < priorityCaps.Length; i++)
+				// Within a priority tier, distance used to be the only criterion. It now competes
+				// with how much of the squad can engage the target at all, and how much of it
+				// actually counters the target - so an anti-armor group walks past the infantry
+				// standing slightly closer and takes the tank behind it.
+				var counter = CounterFraction(squad, actor);
+				var score = (int)((actor.CenterPosition - sourceUnit.CenterPosition).LengthSquared / 65536);
+				score -= (int)(SquadEngageFraction(squad, actor) * EngageFractionBonus);
+				score -= (int)(counter * CounterFractionBonus);
+				if (squad.SquadManager.IsTargetOversubscribed(squad, actor))
+					score += OversubscribedPenalty;
+				if (squad.SquadManager.IsTargetBetterServed(squad, actor, counter))
+					score += BetterServedPenalty;
+
+				// What sits under a battery of guns is worth less than what does not. Without this a
+				// squad that was driven off simply picked the same objective again on its next pass
+				// and was ground down a few units at a time without ever landing a shot.
+				score += DefenseThreatPenalty(squad, actor, sourceUnit);
+
+				if (score < bestScoreByPriority[priority])
 				{
-					if (!caps.Contains(priorityCaps[i]))
-						continue;
-
-					// Within a priority tier, distance used to be the only criterion. It now competes
-					// with how much of the squad can engage the target at all, and how much of it
-					// actually counters the target - so an anti-armor group walks past the infantry
-					// standing slightly closer and takes the tank behind it.
-					var counter = CounterFraction(squad, actor);
-					var score = (int)((actor.CenterPosition - sourceUnit.CenterPosition).LengthSquared / 65536);
-					score -= (int)(SquadEngageFraction(squad, actor) * EngageFractionBonus);
-					score -= (int)(counter * CounterFractionBonus);
-					if (squad.SquadManager.IsTargetOversubscribed(squad, actor))
-						score += OversubscribedPenalty;
-					if (squad.SquadManager.IsTargetBetterServed(squad, actor, counter))
-						score += BetterServedPenalty;
-
-					// What sits under a battery of guns is worth less than what does not. Without this a
-					// squad that was driven off simply picked the same objective again on its next pass
-					// and was ground down a few units at a time without ever landing a shot.
-					score += DefenseThreatPenalty(squad, actor, sourceUnit);
-
-					if (score < bestScoreByPriority[i])
-					{
-						bestScoreByPriority[i] = score;
-						bestByPriority[i] = actor;
-					}
-
-					return;
+					bestScoreByPriority[priority] = score;
+					bestByPriority[priority] = actor;
 				}
 			}
 

@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using OpenRA.Graphics;
+using OpenRA.Mods.CN.Traits;
 using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Traits;
 
@@ -407,6 +408,10 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<CNChokepoint> usefulBuilding = [];
 		int usefulCursor = -1;
 		int usefulNextRefreshTick;
+
+		// Per-tick memo for EnemyBuildingCells - see there.
+		HashSet<CPos> enemyBuildingCells = [];
+		int enemyBuildingCellsTick = -1;
 		uint usefulDomain;
 		CPos usefulReference;
 		HashSet<CPos> usefulEnemyBuildings;
@@ -470,11 +475,25 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Advance the incremental 'useful' refresh on the sim thread (a few chokepoints per tick), so neither the
 			// base builder nor the render overlay ever pays the full per-chokepoint flood in a single tick.
-			TickUsefulRefresh();
-			TickCorridorRefresh();
-			TickHighGroundRefresh();
-			TickTerritoryRefresh();
-			TickRegionOwnershipRefresh();
+			// Five incremental refreshes, each doing a slice of work every tick so no single tick pays a
+			// full flood. That design makes the module cheap per call and invisible to spike hunting -
+			// and by the time everything expensive around it had been fixed, this steady drip was the
+			// largest single module in the game. Measured per refresh, because which of the five carries
+			// the cost is not something to guess at.
+			using (CNBotPerf.Sample(bot, "CNTacticalMapBotModule/Useful"))
+				TickUsefulRefresh();
+
+			using (CNBotPerf.Sample(bot, "CNTacticalMapBotModule/Corridor"))
+				TickCorridorRefresh();
+
+			using (CNBotPerf.Sample(bot, "CNTacticalMapBotModule/HighGround"))
+				TickHighGroundRefresh();
+
+			using (CNBotPerf.Sample(bot, "CNTacticalMapBotModule/Territory"))
+				TickTerritoryRefresh();
+
+			using (CNBotPerf.Sample(bot, "CNTacticalMapBotModule/RegionOwnership"))
+				TickRegionOwnershipRefresh();
 
 			if (Info.RecomputeInterval > 0 && --recomputeTick <= 0)
 			{
@@ -751,6 +770,14 @@ namespace OpenRA.Mods.Common.Traits
 				Add(center, CNChokepointType.Passage);
 
 			chokepoints.AddRange(byCell.Values);
+
+			// A destroyable cliff shot open turns into a walkable slope, which re-cuts the map exactly the
+			// way a bridge falling does - so it is watched through the same signature. The whole footprint
+			// is added rather than one cell of it: the replacement templates leave some of the cliff's cells
+			// untouched, and a representative cell that happens to be one of those never flips.
+			foreach (var cliff in world.ActorsHavingTrait<CNDestroyableCliff>())
+				bridgeWatchCells.AddRange(cliff.Trait<CNDestroyableCliff>().Footprint);
+
 			lastBridgeSignature = CurrentBridgeSignature();
 
 			BuildRegions(domainNodeCount);
@@ -2936,12 +2963,26 @@ namespace OpenRA.Mods.Common.Traits
 
 		HashSet<CPos> EnemyBuildingCells()
 		{
-			return world.Actors
+			// Two changes, both of them about how often this is paid rather than what it answers.
+			//
+			// ActorsHavingTrait instead of world.Actors: the filter ends on a BuildingInfo check, so
+			// every unit, projectile-carrier and crate on the map was walked only to be discarded.
+			//
+			// And memoised for the tick, because the useful and the corridor refresh each ask for it on
+			// their own 125-tick cadence and land on the same tick regularly - two identical full scans,
+			// one after the other. The set is rebuilt on the next tick that asks, so a building
+			// destroyed this tick is seen the next.
+			if (enemyBuildingCellsTick == world.WorldTick)
+				return enemyBuildingCells;
+
+			enemyBuildingCellsTick = world.WorldTick;
+			enemyBuildingCells = world.ActorsHavingTrait<Building>()
 				.Where(a => !a.IsDead && a.IsInWorld
-					&& a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy
-					&& a.Info.HasTraitInfo<BuildingInfo>())
+					&& a.Owner.RelationshipWith(player) == PlayerRelationship.Enemy)
 				.Select(a => a.Location)
 				.ToHashSet();
+
+			return enemyBuildingCells;
 		}
 
 		bool SealingLeadsSomewhere(CPos reference, CNSealableCorridor corridor, HashSet<CPos> enemyBuildings)

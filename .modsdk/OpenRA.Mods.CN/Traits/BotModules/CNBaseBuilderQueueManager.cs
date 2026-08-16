@@ -65,9 +65,15 @@ namespace OpenRA.Mods.Common.Traits
 		int cachedBases;
 		int cachedBuildings;
 		int minimumExcessPower;
+
+		// Per-tick memo for GetEffectiveExcessPower - see there.
+		int effectiveExcessPower;
+		int effectiveExcessPowerTick = -1;
 		int defensePlacementAttempt;
 		int refineryPlacementCooldownTicks;
 		int defensePlacementCooldownTicks;
+		HashSet<CPos> selectedWallPlanCells;
+		readonly List<PendingWallCleanup> pendingWallCleanup = [];
 
 		// The region cap is asked once per candidate resource cell, so what it reports is deduplicated
 		// down to "this changed" rather than logged every time it says no.
@@ -78,6 +84,20 @@ namespace OpenRA.Mods.Common.Traits
 		bool itemQueuedThisTick = false;
 
 		WaterCheck waterState = WaterCheck.NotChecked;
+
+		readonly struct PendingWallCleanup
+		{
+			public readonly CPos Cell;
+			public readonly int CheckTick;
+			public readonly int ExpiryTick;
+
+			public PendingWallCleanup(CPos cell, int checkTick, int expiryTick)
+			{
+				Cell = cell;
+				CheckTick = checkTick;
+				ExpiryTick = expiryTick;
+			}
+		}
 
 		readonly struct RefineryCandidate
 		{
@@ -207,6 +227,43 @@ namespace OpenRA.Mods.Common.Traits
 
 			WaitTicks = active ? baseBuilder.Info.StructureProductionActiveDelay + randomFactor
 				: baseBuilder.Info.StructureProductionInactiveDelay + randomFactor;
+		}
+
+		public bool TrySellUnplannedLineBuildSegment(IBot bot)
+		{
+			if (!baseBuilder.Info.SellUnplannedLineBuildSegments || pendingWallCleanup.Count == 0)
+				return false;
+
+			for (var i = 0; i < pendingWallCleanup.Count;)
+			{
+				var pending = pendingWallCleanup[i];
+				if (world.WorldTick < pending.CheckTick)
+				{
+					i++;
+					continue;
+				}
+
+				var wall = world.ActorMap.GetActorsAt(pending.Cell)
+					.Where(a => !a.IsDead && a.IsInWorld && a.Owner == player
+						&& baseBuilder.Info.WallTypes.Contains(a.Info.Name))
+					.OrderBy(a => a.ActorID)
+					.FirstOrDefault();
+
+				if (wall != null)
+				{
+					pendingWallCleanup.RemoveAt(i);
+					CNBotLog.Debug("{0} selling unplanned LineBuild wall segment {1} at {2}", player, wall.Info.Name, pending.Cell);
+					bot.QueueOrder(new Order("Sell", wall, Target.FromActor(wall), false));
+					return true;
+				}
+
+				if (world.WorldTick >= pending.ExpiryTick)
+					pendingWallCleanup.RemoveAt(i);
+				else
+					i++;
+			}
+
+			return false;
 		}
 
 		int CountPassableOrthogonalNeighbors(CPos cell)
@@ -882,7 +939,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (playerResources.GetCashAndResources() < baseBuilder.Info.ProductionMinCashRequirement || itemQueuedThisTick)
 					return false;
 
-				var item = ChooseBuildingToBuild(queue);
+				ActorInfo item;
+				using (CNBotPerf.Sample(bot, "CNBaseBuilderQueueManager/ChooseBuilding"))
+					item = ChooseBuildingToBuild(queue);
+
 				if (item == null)
 					return false;
 
@@ -932,12 +992,14 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					// Walls use LineBuild order and ProtectedByWalls/perimeter placement.
 					orderString = "LineBuild";
-					(location, baseCenterKeepsFailing, actorVariant) = ChooseWallLocation(actorInfo);
+					using (CNBotPerf.Sample(bot, "CNBaseBuilderQueueManager/WallLocation"))
+						(location, baseCenterKeepsFailing, actorVariant) = ChooseWallLocation(actorInfo);
 				}
 				else if (baseBuilder.Info.GateTypes.Contains(actorInfo.Name))
 				{
 					// Gates replace a 3-cell wall segment and must use normal building placement.
-					(location, baseCenterKeepsFailing, actorVariant) = ChooseGateLocation(actorInfo);
+					using (CNBotPerf.Sample(bot, "CNBaseBuilderQueueManager/GateLocation"))
+						(location, baseCenterKeepsFailing, actorVariant) = ChooseGateLocation(actorInfo);
 				}
 				else
 				{
@@ -947,7 +1009,8 @@ namespace OpenRA.Mods.Common.Traits
 					else if (baseBuilder.Info.RefineryTypes.Contains(actorInfo.Name))
 						type = BuildingType.Refinery;
 
-					(location, baseCenterKeepsFailing, actorVariant) = ChooseBuildLocation(currentBuilding.Item, true, type);
+					using (CNBotPerf.Sample(bot, "CNBaseBuilderQueueManager/BuildLocation"))
+						(location, baseCenterKeepsFailing, actorVariant) = ChooseBuildLocation(currentBuilding.Item, true, type);
 				}
 
 				if (location == null)
@@ -969,6 +1032,8 @@ namespace OpenRA.Mods.Common.Traits
 						// to succeed. It also let defenses trip the builder-wide production stall, which is
 						// meant for a genuinely walled-in base, not for one crowded corner.
 						defensePlacementAttempt = 0;
+						CNBotLog.Debug("{0} defense placement: no cell for {1} after {2} attempts, cancelling",
+							player, currentBuilding.Item, baseBuilder.Info.MaximumFailedPlacementAttempts);
 						bot.QueueOrder(Order.CancelProduction(queue.Actor, currentBuilding.Item, 1));
 						defensePlacementCooldownTicks = baseBuilder.Info.DefensePlacementRetryDelay;
 						return false;
@@ -1019,6 +1084,9 @@ namespace OpenRA.Mods.Common.Traits
 					baseCenterKeepsFailing = null;
 					if (type == BuildingType.Defense)
 						defensePlacementAttempt = 0;
+
+					if (orderString == "LineBuild")
+						TrackPotentialUnplannedLineBuildSegments(location.Value, actorInfo);
 
 					bot.QueueOrder(new Order(orderString, player.PlayerActor, Target.FromCell(world, location.Value), false)
 					{
@@ -1116,6 +1184,25 @@ namespace OpenRA.Mods.Common.Traits
 		// Using this value for power-build decisions ensures the bot targets enough capacity
 		// to run everything simultaneously, breaking the power-down / no-build cycle.
 		int GetEffectiveExcessPower()
+		{
+			// Memoised for the tick. HasSufficientPowerForActor asks this, and ChooseBuildingToBuild asks
+			// that once per priority branch - power, refinery, production, naval, silo, defense, tech -
+			// so a single build decision ran the whole sweep below around ten times for one answer. The
+			// sweep is not cheap: a trait lookup, then every player building with two LINQ aggregations
+			// each. Measured, ChooseBuilding was the larger half of the queue manager, ahead of the
+			// placement search it was assumed to be behind.
+			//
+			// Nothing the base builder does within a tick moves this: power changes arrive through
+			// orders, and bot orders are issued after the tick.
+			if (effectiveExcessPowerTick == world.WorldTick)
+				return effectiveExcessPower;
+
+			effectiveExcessPowerTick = world.WorldTick;
+			effectiveExcessPower = CalculateEffectiveExcessPower();
+			return effectiveExcessPower;
+		}
+
+		int CalculateEffectiveExcessPower()
 		{
 			if (playerPower == null)
 				return int.MaxValue;
@@ -1350,7 +1437,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// A Plug can remain buildable after every compatible socket has been filled. Do not
 			// spend the queue on an item that the placement order cannot possibly consume.
-			var buildableThings = queue.BuildableItems().Where(HasAvailablePlugHost).ToList();
+			List<ActorInfo> buildableThings;
+			using (CNBotPerf.Sample(player, "CNBaseBuilderQueueManager/CB.Buildables"))
+				buildableThings = queue.BuildableItems().Where(HasAvailablePlugHost).ToList();
 
 			// This gets used quite a bit, so let's cache it here
 			var power = GetProducibleBuilding(baseBuilder.Info.PowerTypes, buildableThings,
@@ -1435,7 +1524,9 @@ namespace OpenRA.Mods.Common.Traits
 						if (!HasSufficientPowerForActor(gate))
 							continue;
 
-						var (gateLoc, _, _) = ChooseGateLocation(gate);
+						CPos? gateLoc;
+						using (CNBotPerf.Sample(player, "CNBaseBuilderQueueManager/CB.GatePreview"))
+							(gateLoc, _, _) = ChooseGateLocation(gate, anyValidOnly: true);
 						if (gateLoc != null)
 						{
 							CNBotLog.Debug("{0} decided to build {1}: Priority override (gate)", queue.Actor.Owner, gate.Name);
@@ -1448,7 +1539,9 @@ namespace OpenRA.Mods.Common.Traits
 				if (wall != null && HasSufficientPowerForActor(wall))
 				{
 					var wallActorInfo = world.Map.Rules.Actors[wall.Name];
-					var (wallLoc, _, _) = ChooseWallLocation(wallActorInfo);
+					CPos? wallLoc;
+					using (CNBotPerf.Sample(player, "CNBaseBuilderQueueManager/CB.WallPreview"))
+						(wallLoc, _, _) = ChooseWallLocation(wallActorInfo, anyValidOnly: true);
 					if (wallLoc != null)
 					{
 						CNBotLog.Debug("{0} decided to build {1}: Priority override (wall)", queue.Actor.Owner, wall.Name);
@@ -2029,9 +2122,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Precompute once here so RespectsGeneralBuildingSpacing never calls TraitInfoOrDefault
 			// inside its O(N_buildings) loop — that lookup was the main cost in FindPos.
+			// Allies count here. Their buildings are physically in the way exactly like our own, and
+			// leaving them out is why two allied bases grow into each other until the structures
+			// interleave with no gap. They are tagged so the deferrals below can tell them apart.
 			var globalBuildingInfos = baseBuilder.Info.GlobalMinSpacing > 0
 				? playerBuildings
-					.Select(b => (Actor: b, BI: b.Info.TraitInfoOrDefault<BuildingInfo>()))
+					.Select(b => (Actor: b, BI: b.Info.TraitInfoOrDefault<BuildingInfo>(), Own: true))
+					.Concat(baseBuilder.GetCachedAlliedBuildings()
+						.Select(b => (Actor: b, BI: b.Info.TraitInfoOrDefault<BuildingInfo>(), Own: false)))
 					.Where(t => t.BI != null)
 					.ToArray()
 				: null;
@@ -2079,14 +2177,18 @@ namespace OpenRA.Mods.Common.Traits
 				var hasLayoutOverride = baseBuilder.Info.BuildingLayouts.ContainsKey(actorType);
 				var newRight = cell.X + candidateBuildingInfo.Dimensions.X;
 				var newBottom = cell.Y + candidateBuildingInfo.Dimensions.Y;
-				foreach (var (existing, existingBi) in globalBuildingInfos)
+				foreach (var (existing, existingBi, own) in globalBuildingInfos)
 				{
 					// Refineries use their footprint-aware MinSpacing against each other above, but still
 					// need GlobalMinSpacing from every other building. Returning from that special case
 					// made the result depend on build order: a refinery could hug an older factory, while
 					// a factory built second was kept away from the refinery.
-					if ((hasLayoutOverride && existing.Info.Name == actorType) ||
-						(type == BuildingType.Refinery && baseBuilder.Info.RefineryTypes.Contains(existing.Info.Name)))
+					//
+					// Own buildings only. Those deferrals hand the case to the same-type and refinery
+					// checks above, and both of those look at our own buildings alone - so deferring an
+					// ally's building there would drop it out of every spacing rule instead of one.
+					if (own && ((hasLayoutOverride && existing.Info.Name == actorType) ||
+						(type == BuildingType.Refinery && baseBuilder.Info.RefineryTypes.Contains(existing.Info.Name))))
 						continue;
 
 					var existingRight = existing.Location.X + existingBi.Dimensions.X;
@@ -2561,13 +2663,35 @@ namespace OpenRA.Mods.Common.Traits
 					// now drops the spacing requirement by a cell and weighs proportionally more
 					// candidates, so a retry actually explores somewhere new.
 					var placementRelaxation = Math.Max(0, defensePlacementAttempt);
-					var defMinSpacing = Math.Max(0,
-						(role == DefenseRole.AADefense || role == DefenseRole.InfantryDefense
-							? baseBuilder.Info.DefenseOuterMinSpacing
-							: baseBuilder.Info.DefenseInnerMinSpacing) - placementRelaxation);
+					var configuredSpacing = role == DefenseRole.AADefense || role == DefenseRole.InfantryDefense
+						? baseBuilder.Info.DefenseOuterMinSpacing
+						: baseBuilder.Info.DefenseInnerMinSpacing;
+					var relaxedSpacingFloor = Math.Min(Math.Max(0, configuredSpacing),
+						Math.Max(0, baseBuilder.Info.DefenseMinimumRelaxedSpacing));
+					var defMinSpacing = Math.Max(relaxedSpacingFloor, Math.Max(0, configuredSpacing) - placementRelaxation);
 					var defMinSpacingSq = defMinSpacing * defMinSpacing;
 					var defCandidateLimit = Math.Max(1,
 						baseBuilder.Info.DefensePlacementCandidateLimit * (1 + placementRelaxation));
+					var clusterRadius = Math.Max(0, baseBuilder.Info.DefenseClusterRadius);
+					var clusterRadiusSq = clusterRadius * clusterRadius;
+					var clusterMaxCount = Math.Max(0, baseBuilder.Info.DefenseClusterMaxCount);
+					var clusterPenalty = Math.Max(0, baseBuilder.Info.DefenseClusterPenaltyPerBuilding);
+
+					(int NearestSq, int ClusterCount) DefenseDensity(CPos cell)
+					{
+						var nearestSq = int.MaxValue;
+						var clusterCount = 0;
+						foreach (var location in allDefenseBuildings)
+						{
+							var distanceSq = (cell - location).LengthSquared;
+							nearestSq = Math.Min(nearestSq, distanceSq);
+							if (clusterRadius > 0 && distanceSq <= clusterRadiusSq)
+								clusterCount++;
+						}
+
+						return (nearestSq, clusterCount);
+					}
+
 					long FormationScore(CPos cell, int preferredRadius)
 					{
 						var score = DefenseScore(cell);
@@ -2578,13 +2702,18 @@ namespace OpenRA.Mods.Common.Traits
 						if (allDefenseBuildings.Count == 0)
 							return score;
 
-						var nearestDefenseSq = allDefenseBuildings.Min(loc => (cell - loc).LengthSquared);
+						var (nearestDefenseSq, localClusterCount) = DefenseDensity(cell);
 						var softSpacing = Math.Max(4, defMinSpacing + 2);
 						var softSpacingSq = softSpacing * softSpacing;
 						if (nearestDefenseSq < softSpacingSq)
 							score -= (softSpacingSq - nearestDefenseSq) * 18L;
 						else
 							score += Math.Min(nearestDefenseSq, 100);
+
+						// The previous nearest-neighbour term could arrange the first few defenses nicely, but
+						// every candidate near the same high-value door still survived the score truncation.
+						// Penalize the whole occupied post before that truncation so another approach gets a turn.
+						score -= (long)localClusterCount * clusterPenalty;
 
 						return score;
 					}
@@ -2717,10 +2846,10 @@ namespace OpenRA.Mods.Common.Traits
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								baseBuilder.Info.MinimumDefenseRadius, midRadius);
 							sortedDefenseCells = sameDefenseBuildings.Count > 0
-								? LimitDefenseCandidates(defenseCells, DefenseScore)
+								? LimitDefenseCandidates(defenseCells, c => FormationScore(c, midRadius))
 									.OrderByDescending(c => FormationScore(c, midRadius))
 									.ThenByDescending(c => sameDefenseBuildings.Min(loc => (c - loc).LengthSquared))
-								: LimitDefenseCandidates(defenseCells, DefenseScore)
+								: LimitDefenseCandidates(defenseCells, c => FormationScore(c, midRadius))
 									.OrderByDescending(c => FormationScore(c, midRadius));
 							break;
 						}
@@ -2730,7 +2859,7 @@ namespace OpenRA.Mods.Common.Traits
 							// Outer radius, sorted toward the most relevant attack direction.
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								innerRadius > 0 ? innerRadius : baseBuilder.Info.MinimumDefenseRadius, outerRadius);
-							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
+							sortedDefenseCells = LimitDefenseCandidates(defenseCells, c => FormationScore(c, outerRadius))
 								.OrderByDescending(c => FormationScore(c, outerRadius))
 								.ThenBy(c => (c - targetCell).LengthSquared);
 							break;
@@ -2802,7 +2931,7 @@ namespace OpenRA.Mods.Common.Traits
 								return FormationScore(cell, outerRadius) + covered * coverageWeight;
 							}
 
-							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
+							sortedDefenseCells = LimitDefenseCandidates(defenseCells, AACoverageScore)
 								.OrderByDescending(AACoverageScore);
 							break;
 						}
@@ -2812,7 +2941,7 @@ namespace OpenRA.Mods.Common.Traits
 							// Inner-to-mid radius behind the front, Richtung Feind
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								baseBuilder.Info.MinimumDefenseRadius, midRadius);
-							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
+							sortedDefenseCells = LimitDefenseCandidates(defenseCells, c => FormationScore(c, midRadius))
 								.OrderByDescending(c => FormationScore(c, midRadius))
 								.ThenByDescending(c => (c - targetCell).LengthSquared);
 							break;
@@ -2820,12 +2949,12 @@ namespace OpenRA.Mods.Common.Traits
 
 						case DefenseRole.GarrisonDefense:
 						{
-							// Same placement style as SpecialDefense (Obelisk) - outermost radius on the main approach
-							// vector, since a bunker's job is to be the first thing the enemy walks into.
+							// GAFORT is a 4x4 footprint. Restricting it to the outermost two-cell band repeatedly
+							// selected the fort and then cancelled it because walls and smaller towers consumed every
+							// legal anchor there. Keep it on the approach, but let it use the full mid-to-outer belt.
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
-								outerRadius - 2 > baseBuilder.Info.MinimumDefenseRadius ? outerRadius - 2 : baseBuilder.Info.MinimumDefenseRadius,
-								outerRadius);
-							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
+								midRadius, outerRadius);
+							sortedDefenseCells = LimitDefenseCandidates(defenseCells, c => FormationScore(c, outerRadius))
 								.OrderByDescending(c => FormationScore(c, outerRadius))
 								.ThenBy(c => (c - targetCell).LengthSquared);
 							break;
@@ -2837,7 +2966,7 @@ namespace OpenRA.Mods.Common.Traits
 							defenseCells = DefenseCandidateCells(defenseCenter, targetCell,
 								outerRadius - 2 > baseBuilder.Info.MinimumDefenseRadius ? outerRadius - 2 : baseBuilder.Info.MinimumDefenseRadius,
 								outerRadius);
-							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
+							sortedDefenseCells = LimitDefenseCandidates(defenseCells, c => FormationScore(c, outerRadius))
 								.OrderByDescending(c => FormationScore(c, outerRadius))
 								.ThenBy(c => (c - targetCell).LengthSquared);
 							break;
@@ -2854,7 +2983,7 @@ namespace OpenRA.Mods.Common.Traits
 									innerRadius > 0 ? innerRadius : baseBuilder.Info.MinimumDefenseRadius, outerRadius);
 
 							var preferredRadius = useInnerLine ? innerRadius : outerRadius;
-							sortedDefenseCells = LimitDefenseCandidates(defenseCells, DefenseScore)
+							sortedDefenseCells = LimitDefenseCandidates(defenseCells, c => FormationScore(c, preferredRadius))
 								.OrderByDescending(c => FormationScore(c, preferredRadius))
 								.ThenBy(c => useInnerLine ? (c - baseCenter).LengthSquared : (c - targetCell).LengthSquared);
 
@@ -2883,6 +3012,12 @@ namespace OpenRA.Mods.Common.Traits
 								&& allDefenseBuildings.Any(loc => (cell - loc).LengthSquared < defMinSpacingSq))
 								continue;
 
+							var (_, localDefenseCount) = DefenseDensity(cell);
+							if (clusterRadius > 0 && clusterMaxCount > 0 && localDefenseCount >= clusterMaxCount)
+								continue;
+
+							CNBotLog.Debug("{0} defense placement: {1} role {2} at {3}, local cluster {4}/{5}",
+								player, actorType, role, cell, localDefenseCount, clusterMaxCount);
 							return (cell, defenseCenter, defVariant);
 						}
 					}
@@ -3482,6 +3617,40 @@ namespace OpenRA.Mods.Common.Traits
 				.Any(a => !a.IsDead && a.Info.HasTraitInfo<BuildingInfo>());
 		}
 
+		bool LineBuildStaysInsidePlan(CPos target, ActorInfo actorInfo, BuildingInfo buildingInfo, HashSet<CPos> plan)
+		{
+			return BuildingUtils.GetLineBuildCells(world, target, actorInfo, buildingInfo, player)
+				.All(segment => plan.Contains(segment.Cell));
+		}
+
+		void TrackPotentialUnplannedLineBuildSegments(CPos target, ActorInfo actorInfo)
+		{
+			if (!baseBuilder.Info.SellUnplannedLineBuildSegments || selectedWallPlanCells == null)
+				return;
+
+			var range = actorInfo.TraitInfoOrDefault<LineBuildInfo>()?.Range ?? 0;
+			if (range <= 1)
+				return;
+
+			var checkTick = world.WorldTick + Math.Max(1, baseBuilder.Info.UnplannedLineBuildCleanupDelay);
+			var expiryTick = checkTick + Math.Max(1, baseBuilder.Info.UnplannedLineBuildCleanupLifetime);
+			foreach (var direction in new[] { new CVec(1, 0), new CVec(0, 1), new CVec(-1, 0), new CVec(0, -1) })
+			{
+				for (var distance = 1; distance < range; distance++)
+				{
+					var cell = target + direction * distance;
+					if (!world.Map.Contains(cell) || selectedWallPlanCells.Contains(cell)
+						|| HasOwnActorAt(cell, baseBuilder.Info.WallTypes)
+						|| pendingWallCleanup.Any(p => p.Cell == cell))
+						continue;
+
+					// Only remember currently empty cells. If an own wall already exists here then it predates this
+					// order and is not evidence that this LineBuild created it, however odd the old layout looks.
+					pendingWallCleanup.Add(new PendingWallCleanup(cell, checkTick, expiryTick));
+				}
+			}
+		}
+
 		// No point fortifying a door nothing defends yet - the door-defense-placement phase should already
 		// have anchored a turret within DoorKillZoneRadius by the time this fires (7 cells > the 3-cell
 		// GetDoorDefenseAnchors offset).
@@ -3521,9 +3690,9 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Fallback of the fallback: no natural pinch exists behind the door at all. Three sides of a
-		// fixed-radius box (two flanks and a back, door-facing side open) - simpler than tier 1's
-		// terrain-guaranteed corridor, accepted here as a rare, lower-stakes case rather than the common
-		// path, so it does not need a terrain-seeking walk of its own.
+		// fixed-radius box (two flanks and a back, door-facing side open). The fixed shape is kept separate
+		// from the short terrain connections below because those are all-or-nothing: an arm that cannot
+		// actually reach a cliff must not turn into another unexplained wall stub.
 		static IEnumerable<CPos> DoorKillZoneBoxWallCells(CNTerritoryDoor door, int radius)
 		{
 			const int Inset = 2;
@@ -3579,6 +3748,48 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// The tier-2 box used to stop a fixed two cells short of the door axis even when both ends faced
+		// straight into the cliff shoulders around that door. Walk only those two ends toward the door,
+		// and accept an arm only when it reaches thick terrain. This deliberately uses the topology's
+		// terrain-only passability rather than height or region ids: the three region-graph height seals
+		// documented in territory-doors-concept.md all over-sealed ordinary slopes, while this local walk
+		// asks only whether the visible wall stub can be joined to an obstacle a few cells in front of it.
+		IEnumerable<List<CPos>> DoorKillZoneTerrainConnectionArms(CNTerritoryDoor door, int radius)
+		{
+			const int Inset = 2;
+			var maxLength = Math.Max(0, baseBuilder.Info.DoorKillZoneTerrainConnectionMaxLength);
+			if (radius <= Inset || maxLength == 0 || baseBuilder.TacticalMapModule == null)
+				yield break;
+
+			var approach = CNTacticalMapBotModule.DoorApproachAxis(door);
+			var perpendicular = new CVec(-approach.Y, approach.X);
+			var frontCenter = door.Center - approach * (Inset + 1);
+
+			foreach (var side in new[] { -1, 1 })
+			{
+				var endpoint = frontCenter + perpendicular * (radius * side);
+				var cells = new List<CPos>(maxLength);
+				var reachedTerrain = false;
+
+				for (var distance = 1; distance <= maxLength; distance++)
+				{
+					var cell = endpoint + approach * distance;
+					if (!world.Map.Contains(cell) || !baseBuilder.TacticalMapModule.IsPassableCell(cell))
+					{
+						var beyond = cell + approach;
+						reachedTerrain = !world.Map.Contains(beyond)
+							|| !baseBuilder.TacticalMapModule.IsPassableCell(beyond);
+						break;
+					}
+
+					cells.Add(cell);
+				}
+
+				if (reachedTerrain)
+					yield return cells;
+			}
+		}
+
 		HashSet<CPos> GetActiveDoorKillZoneReservedCells()
 		{
 			// The current profile decides whether to START a wall formation, not whether an existing
@@ -3592,6 +3803,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var door in baseBuilder.TacticalMapModule.GetTerritoryDoors())
 			{
 				var wallCells = DoorKillZoneBoxWallCells(door, radius)
+					.Concat(DoorKillZoneTerrainConnectionArms(door, radius).SelectMany(arm => arm))
 					.Where(world.Map.Contains)
 					.ToArray();
 				if (wallCells.Length == 0 || !wallCells.Any(c =>
@@ -3855,15 +4067,21 @@ namespace OpenRA.Mods.Common.Traits
 				if (gateFootprint == null || !ChokepointCorridorIsWorthSealing(corridor, actorInfo, bi))
 					continue;
 
+				var plannedCells = corridor.Cells.Where(c => !gateFootprint.Contains(c)).ToHashSet();
+
 				foreach (var cell in corridor.Cells
 					.Where(c => !gateFootprint.Contains(c)
 						&& world.Map.Contains(c)
 						&& !HasOwnActorAt(c, baseBuilder.Info.WallTypes) && !HasOwnActorAt(c, baseBuilder.Info.GateTypes)
 						&& !HasAnyBuildingAt(c)
 						&& world.CanPlaceBuilding(c, actorInfo, bi, null)
+						&& LineBuildStaysInsidePlan(c, actorInfo, bi, plannedCells)
 						&& bi.IsCloseEnoughToBase(world, player, actorInfo, c))
 					.OrderBy(c => (c - corridor.Center).LengthSquared))
+				{
+					selectedWallPlanCells = plannedCells;
 					return (cell, baseCenter, 0);
+				}
 			}
 
 			return (null, null, 0);
@@ -3896,23 +4114,39 @@ namespace OpenRA.Mods.Common.Traits
 					var gateFootprint = ChokepointGateFootprint(fallback);
 					if (gateFootprint != null && ChokepointCorridorIsWorthSealing(fallback, actorInfo, bi))
 					{
+						var fallbackPlanCells = fallback.Cells.Where(c => !gateFootprint.Contains(c)).ToHashSet();
 						foreach (var cell in fallback.Cells
 							.Where(c => !gateFootprint.Contains(c)
 								&& world.Map.Contains(c)
 								&& !HasOwnActorAt(c, baseBuilder.Info.WallTypes) && !HasOwnActorAt(c, baseBuilder.Info.GateTypes)
 								&& !HasAnyBuildingAt(c)
 								&& world.CanPlaceBuilding(c, actorInfo, bi, null)
+								&& LineBuildStaysInsidePlan(c, actorInfo, bi, fallbackPlanCells)
 								&& bi.IsCloseEnoughToBase(world, player, actorInfo, c))
 							.OrderBy(c => (c - fallback.Center).LengthSquared))
+						{
+							selectedWallPlanCells = fallbackPlanCells;
 							return (cell, baseCenter, 0);
+						}
 					}
 				}
 
-				var zoneCells = DoorKillZoneBoxWallCells(door, radius).ToList();
+				var fixedZoneCells = DoorKillZoneBoxWallCells(door, radius).ToList();
+				var extensionArms = DoorKillZoneTerrainConnectionArms(door, radius).ToList();
+				var zoneCells = fixedZoneCells.Concat(extensionArms.SelectMany(arm => arm)).ToList();
 				if (zoneCells.Count == 0)
 					continue;
 
 				var existingWalls = new HashSet<CPos>(zoneCells.Where(c => HasOwnActorAt(c, baseBuilder.Info.WallTypes)));
+				var resourceAvoidanceRadius = Math.Max(0, baseBuilder.Info.BasePerimeterResourceAvoidanceRadius);
+				var usableExtensionCells = extensionArms
+					.Where(arm => arm.All(c => existingWalls.Contains(c) || HasOwnActorAt(c, baseBuilder.Info.GateTypes)
+						|| (world.Map.Contains(c) && !HasNearbyValuableResource(c, resourceAvoidanceRadius)
+							&& !HasAnyBuildingAt(c) && world.CanPlaceBuilding(c, actorInfo, bi, null)
+							&& bi.IsCloseEnoughToBase(world, player, actorInfo, c))))
+					.SelectMany(arm => arm)
+					.ToList();
+				var boxPlanCells = fixedZoneCells.Concat(usableExtensionCells).ToHashSet();
 
 				int KillZoneWallScore(CPos cell)
 				{
@@ -3924,13 +4158,17 @@ namespace OpenRA.Mods.Common.Traits
 					return score;
 				}
 
-				var resourceAvoidanceRadius = Math.Max(0, baseBuilder.Info.BasePerimeterResourceAvoidanceRadius);
-				foreach (var cell in zoneCells
+				foreach (var cell in fixedZoneCells.Concat(usableExtensionCells)
 					.Where(c => world.Map.Contains(c) && !existingWalls.Contains(c)
 						&& !HasNearbyValuableResource(c, resourceAvoidanceRadius) && !HasAnyBuildingAt(c)
-						&& world.CanPlaceBuilding(c, actorInfo, bi, null) && bi.IsCloseEnoughToBase(world, player, actorInfo, c))
+						&& world.CanPlaceBuilding(c, actorInfo, bi, null)
+						&& LineBuildStaysInsidePlan(c, actorInfo, bi, boxPlanCells)
+						&& bi.IsCloseEnoughToBase(world, player, actorInfo, c))
 					.OrderBy(KillZoneWallScore))
+				{
+					selectedWallPlanCells = boxPlanCells;
 					return (cell, baseCenter, 0);
+				}
 			}
 
 			return (null, null, 0);
@@ -4044,8 +4282,9 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Find a free adjacent cell around a ProtectedByWalls building, then fall back to a core perimeter.
-		(CPos? Location, CPos? BaseCenter, int Variant) ChooseWallLocation(ActorInfo actorInfo)
+		(CPos? Location, CPos? BaseCenter, int Variant) ChooseWallLocation(ActorInfo actorInfo, bool anyValidOnly = false)
 		{
+			selectedWallPlanCells = null;
 			var (chokeLoc, chokeBase, chokeVar) = ChooseChokepointWallLocation(actorInfo);
 			if (chokeLoc != null)
 				return (chokeLoc, chokeBase, chokeVar);
@@ -4089,7 +4328,12 @@ namespace OpenRA.Mods.Common.Traits
 						.ToList();
 
 					if (valid.Count == 0) continue;
-					return (valid.Random(world.LocalRandom), topLeft, 0);
+					var plannedCells = candidates.ToHashSet();
+					var safe = valid.Where(c => LineBuildStaysInsidePlan(c, actorInfo, bi, plannedCells)).ToList();
+					if (safe.Count == 0) continue;
+
+					selectedWallPlanCells = plannedCells;
+					return (safe.Random(world.LocalRandom), topLeft, 0);
 				}
 			}
 
@@ -4097,7 +4341,8 @@ namespace OpenRA.Mods.Common.Traits
 				TryGetCorePerimeter(out var baseCenter, out var minX, out var maxX, out var minY, out var maxY))
 			{
 				var lineBuildRange = actorInfo.TraitInfoOrDefault<LineBuildInfo>()?.Range ?? 8;
-				var existingWalls = new HashSet<CPos>(PerimeterCells(minX, maxX, minY, maxY)
+				var plannedCells = PerimeterCells(minX, maxX, minY, maxY).ToHashSet();
+				var existingWalls = new HashSet<CPos>(plannedCells
 					.Where(c => HasOwnActorAt(c, baseBuilder.Info.WallTypes) || HasOwnActorAt(c, baseBuilder.Info.GateTypes)));
 
 				int WallScore(CPos cell)
@@ -4127,22 +4372,29 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				var resourceAvoidanceRadius = Math.Max(0, baseBuilder.Info.BasePerimeterResourceAvoidanceRadius);
-				foreach (var cell in PerimeterCells(minX, maxX, minY, maxY)
+				var validWallCells = plannedCells
 					.Where(c =>
 						world.Map.Contains(c) &&
 						!existingWalls.Contains(c) &&
 						!HasNearbyValuableResource(c, resourceAvoidanceRadius) &&
 						!HasAnyBuildingAt(c) &&
 						world.CanPlaceBuilding(c, actorInfo, bi, null) &&
-						bi.IsCloseEnoughToBase(world, player, actorInfo, c))
-					.OrderBy(WallScore))
+						LineBuildStaysInsidePlan(c, actorInfo, bi, plannedCells) &&
+						bi.IsCloseEnoughToBase(world, player, actorInfo, c));
+
+				// See ChooseGateLocation: sorting forces the predicate over every planned cell, and the
+				// build decision only needs to know that one of them works.
+				foreach (var cell in anyValidOnly ? validWallCells : validWallCells.OrderBy(WallScore))
+				{
+					selectedWallPlanCells = plannedCells;
 					return (cell, baseCenter, 0);
+				}
 			}
 
 			return (null, null, 0);
 		}
 
-		(CPos? Location, CPos? BaseCenter, int Variant) ChooseGateLocation(ActorInfo actorInfo)
+		(CPos? Location, CPos? BaseCenter, int Variant) ChooseGateLocation(ActorInfo actorInfo, bool anyValidOnly = false)
 		{
 			var (chokeLoc, chokeBase, chokeVar) = ChooseChokepointGateLocation(actorInfo);
 			if (chokeLoc != null)
@@ -4215,9 +4467,13 @@ namespace OpenRA.Mods.Common.Traits
 				return targetDistance + sideCenterDistance * 8;
 			}
 
-			foreach (var cell in candidates
-				.Where(CanReplaceWallRun)
-				.OrderBy(GateScore))
+			// OrderBy has to materialise and sort the whole filtered sequence before it can yield even the
+			// first element, so the predicate - which does a CanPlaceBuilding and an annulus scan per
+			// candidate - runs for every candidate either way. The build decision only asks whether any
+			// placement exists at all, and for that the first hit is the answer; only the actual
+			// placement needs the best one.
+			var validGateCells = candidates.Where(CanReplaceWallRun);
+			foreach (var cell in anyValidOnly ? validGateCells : validGateCells.OrderBy(GateScore))
 				return (cell, baseCenter, 0);
 
 			return (null, null, 0);

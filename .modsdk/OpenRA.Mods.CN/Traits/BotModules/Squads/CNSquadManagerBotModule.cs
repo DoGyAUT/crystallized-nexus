@@ -1,4 +1,4 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -637,6 +637,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// pathfinder - straight through the base it was going round. A played log bears that out: six
 		// routes actually computed across eighty-one wave launches.
 		const int MaxSafeRouteFloodCells = 30000;
+		const int StealthDetectorSafetyCells = 2;
+
+		// How often the idle sweep runs. The threshold it feeds (IdleSalvageTicks) is 300 ticks in every
+		// profile, so sampling once a second resolves it more than finely enough while doing a
+		// twenty-fifth of the work. The one thing coarser sampling gives up: a unit that briefly does
+		// something between two samples keeps its timestamp and stays a salvage candidate, so marginally
+		// more idle units get pulled into squads - the direction this bot wants anyway.
+		const int IdleScanInterval = 25;
 
 		public readonly World World;
 		public readonly Player Player;
@@ -701,6 +709,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// Nemesis system
 		CombatAnalysisBotModule combatAnalysis;
 		CNBaseBuilderBotModule baseBuilder;
+		CNGarrisonBotModule garrisonManager;
 		CNTacticalMapBotModule tacticalMap;
 		CPos initialBaseCenter;
 
@@ -724,7 +733,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int waveReleaseSquads;
 		int waveReleaseUnits;
 		HashSet<CNSquadType> waveEligibleRoleSet = [];
-		readonly Dictionary<Actor, int> idleTickCounters = [];
+		int idleScanTicks = 1;
+		readonly HashSet<Actor> idleScanSeen = [];
+
+		// When each idle unit was first seen standing around, not how many ticks it has been counted for.
+		//
+		// The counting version had to run every tick to stay meaningful, and its scan walks every Mobile
+		// and Aircraft on the map - for every bot, including all six players' units - to feed a single
+		// threshold that is read only inside TryFillTemplates. A timestamp measures the same elapsed
+		// ticks no matter how often it is sampled, which is what makes the scan interval free to choose.
+		readonly Dictionary<Actor, int> idleSinceTick = [];
 
 		public bool IsWaveLaunched { get; private set; }
 		public Actor WaveTarget { get; private set; }
@@ -779,6 +797,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			baseBuilder = Player.PlayerActor
 				.TraitsImplementing<CNBaseBuilderBotModule>()
 				.FirstOrDefault();
+			garrisonManager = Player.PlayerActor
+				.TraitsImplementing<CNGarrisonBotModule>()
+				.FirstOrDefault(t => t.IsTraitEnabled());
 			tacticalMap = Player.PlayerActor
 				.TraitsImplementing<CNTacticalMapBotModule>()
 				.FirstOrDefault();
@@ -845,23 +866,29 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNSquadManagerBotModule));
+
 			// Its own cadence rather than the threat scan's: that one is gated on tags being tracked at
 			// all, and the defence memory has to keep working regardless of how a profile is configured.
 			if (Info.EnemyDefenseMemoryInterval > 0 && --defenseMemoryTicks <= 0)
 			{
 				defenseMemoryTicks = Info.EnemyDefenseMemoryInterval;
-				UpdateKnownEnemyDefenses();
+				using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/DefenseMemory"))
+					UpdateKnownEnemyDefenses();
 			}
 
 			if (Info.ThreatScanInterval > 0 && (allTrackedVisibleTags.Count > 0 || allTrackedGlobalTags.Count > 0 ||
 			 allTrackedVisiblePerUnitTags.Count > 0 || allTrackedGlobalPerUnitTags.Count > 0) && --threatScanTicks <= 0)
 			{
 				threatScanTicks = Info.ThreatScanInterval;
-				UpdateThreatTags();
+				using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/ThreatTags"))
+					UpdateThreatTags();
 			}
 
 			if (--cleanupTicks <= 0)
 			{
+				using var cleanupScope = CNBotPerf.Sample(bot, "CNSquadManagerBotModule/Cleanup");
+
 				cleanupTicks = CleanupInterval;
 				foreach (var squad in Squads)
 					RecordLossesAndPurgeDeadUnits(squad);
@@ -869,13 +896,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				DecayTemplatePerformance();
 				CleanSquads();
 				activeUnits.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
-				foreach (var actor in idleTickCounters.Keys
+				foreach (var actor in idleSinceTick.Keys
 					.Where(a => a == null || a.IsDead || !a.IsInWorld)
 					.ToList())
-					idleTickCounters.Remove(actor);
+					idleSinceTick.Remove(actor);
 			}
 
-			TrackIdleTime();
+			using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/IdleTime"))
+				TrackIdleTime();
 
 			// Per-squad schedule rather than one global timer. A squad holding a live target is updated
 			// on the much shorter EngagedSquadInterval, because AttackForceInterval — 55 to 95 ticks,
@@ -886,28 +914,33 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// Squads without a target stay on the old cadence, which keeps the cost bounded: target
 			// searching is the expensive part and idle squads are the majority. Staggering by squad
 			// also spreads the work across ticks instead of updating the whole army on one of them.
-			foreach (var squad in Squads.ToList())
+			using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/SquadUpdates"))
 			{
-				if (World.WorldTick < squad.NextUpdateTick)
-					continue;
+				foreach (var squad in Squads.ToList())
+				{
+					if (World.WorldTick < squad.NextUpdateTick)
+						continue;
 
-				squad.Update();
-				ReleaseStaleNoTargetSquad(squad);
+					squad.Update();
+					ReleaseStaleNoTargetSquad(squad);
 
-				var interval = squad.IsTargetValid || squad.FuzzyStateMachine.IsInTimeCriticalState
-					? Info.EngagedSquadInterval
-					: Info.AttackForceInterval;
-				squad.NextUpdateTick = World.WorldTick + Math.Max(1, interval);
+					var interval = squad.IsTargetValid || squad.FuzzyStateMachine.IsInTimeCriticalState
+						? Info.EngagedSquadInterval
+						: Info.AttackForceInterval;
+					squad.NextUpdateTick = World.WorldTick + Math.Max(1, interval);
+				}
 			}
 
 			if (Info.AttackWaveEnabled)
-				TickWaveSystem();
+				using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/Waves"))
+					TickWaveSystem();
 
 			if (--assignRolesTicks <= 0)
 			{
 				assignRolesTicks = Info.AssignRolesInterval;
 				if (minAttackForceDelayTicks <= 0)
-					TryFillTemplates(bot);
+					using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/FillTemplates"))
+						TryFillTemplates(bot);
 			}
 
 			if (minAttackForceDelayTicks > 0)
@@ -915,6 +948,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			if (respondToAttackCooldown > 0 && respondToAttackCooldown-- == MaxRespondToAttackCooldown)
 			{
+				using var protectScope = CNBotPerf.Sample(bot, "CNSquadManagerBotModule/ProtectOwn");
+
 				recentAttackers.RemoveAll(a => !IsValidAttackResponseTarget(a));
 				foreach (var attacker in recentAttackers.ToList())
 					ProtectOwn(bot, attacker);
@@ -1067,21 +1102,28 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		void TrackIdleTime()
 		{
-			var seen = new HashSet<Actor>();
+			if (--idleScanTicks > 0)
+				return;
+
+			idleScanTicks = IdleScanInterval;
+			idleScanSeen.Clear();
 
 			void Track(Actor actor)
 			{
 				if (actor.Owner != Player || actor.IsDead || !actor.IsInWorld || actor.Info.HasTraitInfo<MobSpawnerSlaveInfo>())
 					return;
 
-				seen.Add(actor);
+				idleScanSeen.Add(actor);
 				if (activeUnits.Contains(actor) || actor.CurrentActivity is Enter)
 				{
-					idleTickCounters.Remove(actor);
+					idleSinceTick.Remove(actor);
 					return;
 				}
 
-				idleTickCounters[actor] = idleTickCounters.GetValueOrDefault(actor) + 1;
+				// Only the first sighting sets the clock. Every later one leaves it alone, which is what
+				// turns this from a per-tick tally into an elapsed-time measurement.
+				if (!idleSinceTick.ContainsKey(actor))
+					idleSinceTick[actor] = World.WorldTick;
 			}
 
 			foreach (var actor in World.ActorsHavingTrait<Mobile>())
@@ -1089,8 +1131,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			foreach (var actor in World.ActorsHavingTrait<Aircraft>())
 				Track(actor);
 
-			foreach (var actor in idleTickCounters.Keys.Where(a => !seen.Contains(a)).ToList())
-				idleTickCounters.Remove(actor);
+			foreach (var actor in idleSinceTick.Keys.Where(a => !idleScanSeen.Contains(a)).ToList())
+				idleSinceTick.Remove(actor);
 		}
 
 		static bool CanActorAttackTarget(Actor actor, Actor target)
@@ -1178,14 +1220,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (slot.AllowedTypes.Length == 0)
 						continue;
 
+					// The score does not depend on the loop variable - same template, same slot, same
+					// count on every pass - so it was being recomputed identically once per missing
+					// instance. The calls themselves have to stay in the loop, because each one adds to
+					// the running demand.
+					var score = GetUnitDemandScore(template, slot, slot.Count, false);
 					for (var i = 0; i < missingInstances; i++)
-					{
-						AddPreferredDemand(
-							demand,
-							slot,
-							GetUnitDemandScore(template, slot, slot.Count, false),
-							existingByType);
-					}
+						AddPreferredDemand(demand, slot, score, existingByType);
 				}
 			}
 
@@ -1210,30 +1251,45 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (string.IsNullOrEmpty(typeName))
 				return 0;
 
-			var cap = 0;
-			foreach (var (_, template) in OrderedTemplates())
+			// Every template, every slot, every allowed type - asked once per demanded unit type per
+			// production queue on every production pass, which is where the unit builder's candidate
+			// sweep was measured spending nearly all of its time. The answer depends only on the
+			// templates and on GetEffectiveMaxInstances, so it is built once per tick for all types at
+			// once instead of rescanning the whole template set for each one.
+			if (templateUnitCapTick != World.WorldTick)
 			{
-				if (!TemplateAppliesToFaction(template))
-					continue;
+				templateUnitCapTick = World.WorldTick;
+				templateUnitCaps.Clear();
 
-				foreach (var (_, slot) in template.Slots)
+				foreach (var (_, template) in OrderedTemplates())
 				{
-					if (slot.AllowedTypes.Length == 0)
+					if (!TemplateAppliesToFaction(template))
 						continue;
 
-					foreach (var allowedType in slot.AllowedTypes)
+					var instances = GetEffectiveMaxInstances(template);
+					foreach (var (_, slot) in template.Slots)
 					{
-						if (!string.Equals(allowedType, typeName, StringComparison.OrdinalIgnoreCase))
-							continue;
-
-						cap += slot.Count * GetEffectiveMaxInstances(template);
-						break;
+						// A slot contributes its count to every type it accepts - the per-type scan found
+						// this slot for each of those types in turn. It contributes only once per type
+						// though, which is what the old loop's break meant: a type listed twice in one
+						// slot is still one slot. Hence the dedupe rather than a plain inner loop.
+						slotTypeScratch.Clear();
+						foreach (var allowedType in slot.AllowedTypes)
+							if (slotTypeScratch.Add(allowedType))
+								templateUnitCaps[allowedType] = templateUnitCaps.GetValueOrDefault(allowedType) + slot.Count * instances;
 					}
 				}
 			}
 
-			return cap;
+			return templateUnitCaps.GetValueOrDefault(typeName);
 		}
+
+		// Case-insensitive, because the per-type scan this replaces compared with OrdinalIgnoreCase -
+		// an ordinal map here would silently stop matching types whose casing differs between the
+		// template definition and the demand entry.
+		readonly Dictionary<string, int> templateUnitCaps = new(StringComparer.OrdinalIgnoreCase);
+		readonly HashSet<string> slotTypeScratch = new(StringComparer.OrdinalIgnoreCase);
+		int templateUnitCapTick = -1;
 
 		HashSet<string> typesIgnoringCashReserve;
 
@@ -1379,18 +1435,26 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (Info.IdleSalvageTicks <= 0)
 				return;
 
+			// Role, faction and score do not depend on which unit is being salvaged and do not change
+			// while this pass runs, so the filtering and the sort happen once instead of once per idle
+			// unit. Only the two conditions that genuinely vary stay inside the loop: whether the
+			// template has a slot for this unit, and the instance count - which does move as the pass
+			// creates squads, and would be wrong to bake into a precomputed list.
+			var rankedTemplates = OrderedTemplates()
+				.Where(kv => IsAttackRole(kv.Value.Role) && TemplateAppliesToFaction(kv.Value))
+				.OrderByDescending(kv => EffectiveScore(kv.Value))
+				.ToList();
+
 			foreach (var idleUnit in IdleSalvageCandidates(availableByType, claimedThisPass).ToList())
 			{
-				var candidates = OrderedTemplates()
-					.Where(kv => IsAttackRole(kv.Value.Role) &&
-						TemplateAppliesToFaction(kv.Value) &&
-						TemplateAcceptsUnit(kv.Value, idleUnit) &&
-						CountTemplateSquads(kv.Key) < GetEffectiveMaxInstances(kv.Value))
-					.OrderByDescending(kv => EffectiveScore(kv.Value))
-					.ToList();
-
-				foreach (var (templateName, template) in candidates)
+				foreach (var (templateName, template) in rankedTemplates)
 				{
+					if (!TemplateAcceptsUnit(template, idleUnit))
+						continue;
+
+					if (CountTemplateSquads(templateName) >= GetEffectiveMaxInstances(template))
+						continue;
+
 					var trialClaimed = new HashSet<Actor>(claimedThisPass);
 					var assignments = TryFillSlots(template, availableByType, trialClaimed);
 					if (!CanActivateTemplate(template, assignments))
@@ -1458,9 +1522,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			foreach (var unit in squad.Units)
-				idleTickCounters.Remove(unit);
+				idleSinceTick.Remove(unit);
 			foreach (var passenger in squad.PassengerUnits)
-				idleTickCounters.Remove(passenger);
+				idleSinceTick.Remove(passenger);
 
 			InitializeSquadState(squad);
 		}
@@ -1540,7 +1604,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (actor == null || actor.IsDead || !actor.IsInWorld || claimed.Contains(actor))
 						continue;
 
-					if (idleTickCounters.GetValueOrDefault(actor) >= Info.IdleSalvageTicks)
+					// TryGetValue, not GetValueOrDefault: a missing entry means "not known to be idle",
+					// and defaulting it to 0 would read as "idle since tick 0" - every unit the sweep
+					// has not seen yet would qualify immediately.
+					if (idleSinceTick.TryGetValue(actor, out var since) && World.WorldTick - since >= Info.IdleSalvageTicks)
 						yield return actor;
 				}
 		}
@@ -1599,7 +1666,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 						activeUnits.Add(actor);
 						claimedOwners[actor] = squad;
-						idleTickCounters.Remove(actor);
+						idleSinceTick.Remove(actor);
 					}
 				}
 			}
@@ -2505,31 +2572,100 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		/// not included: the transport state appends its per-carrier drop cells after crossing the entrance.
 		/// </summary>
 		public CPos[] BuildTransportApproachRoute(CPos from, Actor target, ActorInfo victim)
+			=> BuildTransportApproachRoute(from, target, victim, null, out _);
+
+		/// <summary>
+		/// The transport infiltration route with cells covered by currently visible enemy detectors
+		/// removed. Unknown detectors remain an honest ambush; known ones must not be treated as harmless
+		/// merely because ordinary defence scoring expects the victim to be targetable already.
+		/// </summary>
+		public CPos[] BuildStealthApproachRoute(CPos from, Actor target, Actor infiltrator, out bool blockedByDetection)
 		{
+			blockedByDetection = false;
+			if (infiltrator == null)
+				return [];
+
+			return BuildTransportApproachRoute(from, target, infiltrator.Info, infiltrator, out blockedByDetection);
+		}
+
+		CPos[] BuildTransportApproachRoute(
+			CPos from,
+			Actor target,
+			ActorInfo victim,
+			Actor detectorAvoidanceActor,
+			out bool blockedByDetection)
+		{
+			blockedByDetection = false;
 			if (target == null || victim == null || tacticalMap == null || !World.Map.Contains(from))
 				return [];
 
-			var approach = PickApproachCell(target, victim, out _);
-			if (!approach.HasValue)
+			var detectorCells = detectorAvoidanceActor == null
+				? null
+				: BuildKnownDetectorCells(detectorAvoidanceActor);
+			var hasKnownDetectors = detectorCells?.Count > 0;
+			if (hasKnownDetectors && detectorCells.Contains(target.Location))
+			{
+				blockedByDetection = true;
 				return [];
+			}
+
+			var fromPos = World.Map.CenterOfCell(from);
+			var detectorRejectedApproach = false;
+			bool DetectorSafeApproach(CPos candidate)
+			{
+				if (!hasKnownDetectors)
+					return true;
+
+				var candidateRally = StandOffCell(candidate, fromPos, Info.ApproachStandOffCells);
+				var candidateEntry = StandOffCell(candidate, target.CenterPosition, Info.ApproachStandOffCells);
+				var safe = !detectorCells.Contains(candidateRally) && !detectorCells.Contains(candidateEntry)
+					&& !KnownDetectionIntersectsLine(detectorCells, candidateRally, candidateEntry)
+					&& !KnownDetectionIntersectsLine(detectorCells, candidateEntry, target.Location);
+				if (!safe)
+					detectorRejectedApproach = true;
+
+				return safe;
+			}
+
+			var approach = PickApproachCell(target, victim, out _, DetectorSafeApproach);
+			if (!approach.HasValue)
+			{
+				blockedByDetection = detectorRejectedApproach || (hasKnownDetectors &&
+					KnownDetectionIntersectsLine(detectorCells, from, target.Location));
+				return [];
+			}
 
 			var targetRegion = tacticalMap.GetRegionIdAt(target.Location);
 			if (targetRegion < 0 || tacticalMap.GetRegionIdAt(from) == targetRegion)
+			{
+				blockedByDetection = hasKnownDetectors &&
+					KnownDetectionIntersectsLine(detectorCells, from, target.Location);
 				return [];
+			}
 
-			var fromPos = World.Map.CenterOfCell(from);
 			var rally = StandOffCell(approach.Value, fromPos, Info.ApproachStandOffCells);
 			var entry = StandOffCell(approach.Value, target.CenterPosition, Info.ApproachStandOffCells);
 			if (!World.Map.Contains(rally) || !World.Map.Contains(entry))
 				return [];
+			if (hasKnownDetectors &&
+				(detectorCells.Contains(rally) || detectorCells.Contains(entry) ||
+				 KnownDetectionIntersectsLine(detectorCells, rally, entry) ||
+				 KnownDetectionIntersectsLine(detectorCells, entry, target.Location)))
+			{
+				blockedByDetection = true;
+				return [];
+			}
 
 			var route = BuildSafeRouteTo(from, rally, targetRegion, target.Owner,
-				Math.Max(1, Info.TransportRouteWaypointSpacingCells));
+				Math.Max(1, Info.TransportRouteWaypointSpacingCells), detectorAvoidanceActor);
 
 			// An empty route is valid only when the carrier is already beside the entrance. Farther away it
 			// means the blocked-region flood found no safe way round, so retain the old direct-path fallback.
 			if (route.Count == 0 && (rally - from).LengthSquared > 4)
+			{
+				blockedByDetection = hasKnownDetectors;
 				return [];
+			}
 
 			if (route.Count == 0 || route[^1] != rally)
 				route.Add(rally);
@@ -2537,6 +2673,135 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				route.Add(entry);
 
 			return route.ToArray();
+		}
+
+		public bool IsCoveredByKnownDetector(Actor infiltrator, WPos position)
+		{
+			if (infiltrator == null)
+				return false;
+
+			foreach (var actor in World.Actors)
+			{
+				if (!IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(Player))
+					continue;
+
+				foreach (var detector in actor.TraitsImplementing<DetectCloaked>())
+				{
+					if (!DetectorMatches(infiltrator, detector))
+						continue;
+
+					var safeRange = detector.Range.Length + WDist.FromCells(StealthDetectorSafetyCells).Length;
+					if ((position - actor.CenterPosition).LengthSquared <= (long)safeRange * safeRange)
+						return true;
+				}
+			}
+
+			foreach (var (cell, typeName) in knownEnemyDetectors)
+			{
+				var info = World.Map.Rules.Actors.GetValueOrDefault(typeName);
+				if (info == null)
+					continue;
+
+				foreach (var detector in info.TraitInfos<DetectCloakedInfo>())
+				{
+					if (!DetectorInfoMatches(infiltrator, detector))
+						continue;
+
+					var safeRange = detector.Range.Length + WDist.FromCells(StealthDetectorSafetyCells).Length;
+					if ((position - World.Map.CenterOfCell(cell)).LengthSquared <= (long)safeRange * safeRange)
+						return true;
+				}
+			}
+
+			return false;
+		}
+
+		static bool DetectorMatches(Actor infiltrator, DetectCloaked detector)
+		{
+			if (detector.IsTraitDisabled || detector.Range == WDist.Zero)
+				return false;
+
+			foreach (var cloak in infiltrator.TraitsImplementing<Cloak>())
+				if (cloak.Info.DetectionTypes.Overlaps(detector.Info.DetectionTypes))
+					return true;
+
+			return false;
+		}
+
+		static bool DetectorInfoMatches(Actor infiltrator, DetectCloakedInfo detector)
+		{
+			foreach (var cloak in infiltrator.Info.TraitInfos<CloakInfo>())
+				if (cloak.DetectionTypes.Overlaps(detector.DetectionTypes))
+					return true;
+
+			return false;
+		}
+
+		HashSet<CPos> BuildKnownDetectorCells(Actor infiltrator)
+		{
+			var cells = new HashSet<CPos>();
+			foreach (var actor in World.Actors)
+			{
+				if (!IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(Player))
+					continue;
+
+				foreach (var detector in actor.TraitsImplementing<DetectCloaked>())
+				{
+					if (!DetectorMatches(infiltrator, detector))
+						continue;
+
+					var safeRange = detector.Range.Length + WDist.FromCells(StealthDetectorSafetyCells).Length;
+					var safeRangeSquared = (long)safeRange * safeRange;
+					var cellRange = (safeRange + 1023) / 1024;
+					foreach (var cell in World.Map.FindTilesInCircle(actor.Location, cellRange))
+						if ((World.Map.CenterOfCell(cell) - actor.CenterPosition).LengthSquared <= safeRangeSquared)
+							cells.Add(cell);
+				}
+			}
+
+			foreach (var (cell, typeName) in knownEnemyDetectors)
+			{
+				var info = World.Map.Rules.Actors.GetValueOrDefault(typeName);
+				if (info == null)
+					continue;
+
+				foreach (var detector in info.TraitInfos<DetectCloakedInfo>())
+				{
+					if (!DetectorInfoMatches(infiltrator, detector))
+						continue;
+
+					AddDetectorCells(cells, cell, World.Map.CenterOfCell(cell), detector.Range);
+				}
+			}
+
+			return cells;
+		}
+
+		void AddDetectorCells(HashSet<CPos> cells, CPos centerCell, WPos centerPosition, WDist range)
+		{
+			var safeRange = range.Length + WDist.FromCells(StealthDetectorSafetyCells).Length;
+			var safeRangeSquared = (long)safeRange * safeRange;
+			var cellRange = (safeRange + 1023) / 1024;
+			foreach (var cell in World.Map.FindTilesInCircle(centerCell, cellRange))
+				if ((World.Map.CenterOfCell(cell) - centerPosition).LengthSquared <= safeRangeSquared)
+					cells.Add(cell);
+		}
+
+		static bool KnownDetectionIntersectsLine(HashSet<CPos> detectorCells, CPos from, CPos to)
+		{
+			var delta = to - from;
+			var steps = Math.Max(Math.Abs(delta.X), Math.Abs(delta.Y));
+			if (steps == 0)
+				return detectorCells.Contains(from);
+
+			for (var i = 0; i <= steps; i++)
+			{
+				var cell = new CPos(from.X + delta.X * i / steps, from.Y + delta.Y * i / steps, from.Layer);
+				if (detectorCells.Contains(cell))
+					return true;
+			}
+
+			return false;
 		}
 
 		bool TryBuildPincerWavePlans(
@@ -2731,27 +2996,39 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		CPos safeRouteOrigin;
 		int safeRouteBlockedRegion = -2;
 		Player safeRouteBlockedOwner;
+		ActorInfo safeRouteDetectorVictim;
 		int safeRouteTick = -1;
 
-		void BuildSafeRouteDistances(CPos rally, int blockedRegionId, Player blockedOwner)
+		void BuildSafeRouteDistances(
+			CPos rally,
+			int blockedRegionId,
+			Player blockedOwner,
+			Actor detectorAvoidanceActor)
 		{
+			var detectorVictim = detectorAvoidanceActor?.Info;
 			if (safeRouteTick == World.WorldTick && safeRouteOrigin == rally
-				&& safeRouteBlockedRegion == blockedRegionId && safeRouteBlockedOwner == blockedOwner)
+				&& safeRouteBlockedRegion == blockedRegionId && safeRouteBlockedOwner == blockedOwner
+				&& safeRouteDetectorVictim == detectorVictim)
 				return;
 
 			safeRouteTick = World.WorldTick;
 			safeRouteOrigin = rally;
 			safeRouteBlockedRegion = blockedRegionId;
 			safeRouteBlockedOwner = blockedOwner;
+			safeRouteDetectorVictim = detectorVictim;
 			safeRouteDistances.Clear();
 
 			if (tacticalMap == null || !World.Map.Contains(rally))
 				return;
 
+			var detectorCells = detectorAvoidanceActor == null
+				? null
+				: BuildKnownDetectorCells(detectorAvoidanceActor);
 			var queue = new Queue<CPos>();
 			foreach (var seed in World.Map.FindTilesInCircle(rally, 2))
 			{
-				if (!tacticalMap.IsPassableCell(seed) || safeRouteDistances.ContainsKey(seed))
+				if (!tacticalMap.IsPassableCell(seed) || safeRouteDistances.ContainsKey(seed)
+					|| (detectorCells?.Contains(seed) ?? false))
 					continue;
 
 				var seedRegion = tacticalMap.GetRegionIdAt(seed);
@@ -2771,7 +3048,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				foreach (var dir in CVec.Directions)
 				{
 					var step = cell + dir;
-					if (safeRouteDistances.ContainsKey(step) || !tacticalMap.IsPassableCell(step))
+					if (safeRouteDistances.ContainsKey(step) || !tacticalMap.IsPassableCell(step)
+						|| (detectorCells?.Contains(step) ?? false))
 						continue;
 
 					// The objective's region and the target owner's other held regions are the wall.
@@ -2799,10 +3077,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			CPos rally,
 			int blockedRegionId,
 			Player blockedOwner = null,
-			int maximumWaypointSpacing = 0)
+			int maximumWaypointSpacing = 0,
+			Actor detectorAvoidanceActor = null)
 		{
 			var route = new List<CPos>();
-			BuildSafeRouteDistances(rally, blockedRegionId, blockedOwner);
+			BuildSafeRouteDistances(rally, blockedRegionId, blockedOwner, detectorAvoidanceActor);
 
 			if (!safeRouteDistances.TryGetValue(from, out var distance))
 				return route;
@@ -3810,6 +4089,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// loop and is also the honest model — every other target decision in this bot already refuses to
 		// act on what it has not seen, and this one was the odd exception.
 		readonly Dictionary<CPos, string> knownEnemyDefenses = [];
+		readonly Dictionary<CPos, string> knownEnemyDetectors = [];
 
 		/// <summary>
 		/// How many enemy emplacements the bot has seen or been shot by. A measure of how dug in the
@@ -3827,11 +4107,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			foreach (var building in GetCachedEnemyBuildings())
 			{
-				if (building.IsDead || !building.IsInWorld || !building.Info.HasTraitInfo<AttackBaseInfo>())
+				if (building.IsDead || !building.IsInWorld)
 					continue;
 
-				if (building.CanBeViewedByPlayer(Player))
+				if (!building.CanBeViewedByPlayer(Player))
+					continue;
+
+				if (building.Info.HasTraitInfo<AttackBaseInfo>())
 					knownEnemyDefenses[building.Location] = building.Info.Name;
+
+				if (building.TraitsImplementing<DetectCloaked>().Any(d => !d.IsTraitDisabled && d.Range != WDist.Zero))
+					knownEnemyDetectors[building.Location] = building.Info.Name;
 			}
 
 			scratchForgottenDefenses.Clear();
@@ -3856,9 +4142,36 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			foreach (var cell in scratchForgottenDefenses)
 				knownEnemyDefenses.Remove(cell);
+
+			scratchForgottenDetectors.Clear();
+			foreach (var (cell, _) in knownEnemyDetectors)
+			{
+				if (!Player.Shroud.IsVisible(cell))
+					continue;
+
+				var stillActive = false;
+				foreach (var actor in World.ActorMap.GetActorsAt(cell))
+				{
+					if (!IsLiveEnemyActor(actor) || !actor.Info.HasTraitInfo<BuildingInfo>())
+						continue;
+
+					if (actor.TraitsImplementing<DetectCloaked>().Any(d => !d.IsTraitDisabled && d.Range != WDist.Zero))
+					{
+						stillActive = true;
+						break;
+					}
+				}
+
+				if (!stillActive)
+					scratchForgottenDetectors.Add(cell);
+			}
+
+			foreach (var cell in scratchForgottenDetectors)
+				knownEnemyDetectors.Remove(cell);
 		}
 
 		readonly List<CPos> scratchForgottenDefenses = [];
+		readonly List<CPos> scratchForgottenDetectors = [];
 
 		/// <summary>Longest weapon range this actor type can bring to bear.</summary>
 		public int MaxWeaponRange(ActorInfo info)
@@ -4088,6 +4401,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		/// it needs no justification, while a chokepoint is one of many and still has to earn its place.
 		/// </param>
 		public CPos? PickApproachCell(Actor target, ActorInfo victim, out bool fromDoor)
+			=> PickApproachCell(target, victim, out fromDoor, null);
+
+		CPos? PickApproachCell(
+			Actor target,
+			ActorInfo victim,
+			out bool fromDoor,
+			Func<CPos, bool> candidateFilter)
 		{
 			fromDoor = false;
 			if (!Info.AvoidDefendedApproaches || target == null || victim == null || tacticalMap == null)
@@ -4130,6 +4450,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			var withinDetour = 0;
 			foreach (var candidate in candidates)
 			{
+				if (candidateFilter != null && !candidateFilter(candidate))
+					continue;
+
 				var pos = World.Map.CenterOfCell(candidate);
 				if ((pos - target.CenterPosition).LengthSquared > reachSq)
 					continue;
@@ -4578,6 +4901,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (health != null && health.DamageState > DamageState.Undamaged)
 						continue;
 				}
+
+				if (garrisonManager?.TryReserveInfantry(actor) == true)
+					continue;
 
 				units.Add(actor);
 			}
