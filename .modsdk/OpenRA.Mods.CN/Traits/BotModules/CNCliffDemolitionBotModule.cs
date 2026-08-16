@@ -77,6 +77,12 @@ namespace OpenRA.Mods.CN.Traits
 		bool firstTick = true;
 		int scanTicks;
 
+		// Cliffs are only ever destroyed, never built, so once the map has none left this module has
+		// nothing it could ever do again. Most maps have none to begin with. Latching that instead of
+		// re-asking every scan is the difference between a module that quietly costs something for the
+		// rest of the match and one that costs nothing at all.
+		bool dormant;
+
 		public CNCliffDemolitionBotModule(Actor self, CNCliffDemolitionBotModuleInfo info)
 			: base(info)
 		{
@@ -89,6 +95,10 @@ namespace OpenRA.Mods.CN.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			// Before the perf scope on purpose: a dormant module should not even show up in the report.
+			if (dormant)
+				return;
+
 			using var perfScope = CNBotPerf.Sample(bot, nameof(CNCliffDemolitionBotModule));
 
 			if (firstTick)
@@ -116,33 +126,44 @@ namespace OpenRA.Mods.CN.Traits
 
 		void QueueDemolitionOrders(IBot bot)
 		{
-			var candidates = new List<(Actor Cliff, bool Enemy)>();
+			var alive = 0;
+			var candidates = new List<(Actor Cliff, bool Enemy, List<Actor> Attackers)>();
 			foreach (var actor in world.ActorsHavingTrait<CNDestroyableCliff>())
 			{
 				if (actor.IsDead || !actor.IsInWorld)
 					continue;
 
+				alive++;
+
 				if (Info.CheckTargetsForVisibility && !actor.CanBeViewedByPlayer(player))
 					continue;
 
-				if (!ShouldDemolish(actor, out var enemyGround))
+				if (!ShouldDemolish(actor, out var enemyGround, out var attackers))
 					continue;
 
-				candidates.Add((actor, enemyGround));
+				candidates.Add((actor, enemyGround, attackers));
+			}
+
+			if (alive == 0)
+			{
+				dormant = true;
+				return;
 			}
 
 			if (candidates.Count == 0)
 				return;
 
 			// An opening into ground we are already fighting over is worth more than tidying up our own,
-			// and closer beats further among equals - the units are there either way.
+			// and closer beats further among equals. Both keys read the attacker list gathered above -
+			// the circle query behind it is the expensive part of this module, and it used to run three
+			// times per cliff per scan: once to decide, once to sort, once to give the orders.
 			var ordered = candidates
 				.OrderByDescending(c => c.Enemy)
-				.ThenBy(c => DistanceToOwnUnitsSquared(c.Cliff))
+				.ThenBy(c => NearestAttackerDistanceSquared(c.Cliff, c.Attackers))
 				.Take(Math.Max(1, Info.MaximumSimultaneousTargets));
 
-			foreach (var (cliff, enemyGround) in ordered)
-				Engage(bot, cliff, enemyGround);
+			foreach (var (cliff, enemyGround, attackers) in ordered)
+				Engage(bot, cliff, enemyGround, attackers);
 		}
 
 		/// <summary>
@@ -150,10 +171,13 @@ namespace OpenRA.Mods.CN.Traits
 		/// cells around the footprint rather than the cliff's own cells: the cliff is impassable, so it is
 		/// in no region at all, and the regions it separates are exactly the ones touching it.
 		/// </summary>
-		bool ShouldDemolish(Actor cliff, out bool enemyGround)
+		bool ShouldDemolish(Actor cliff, out bool enemyGround, out List<Actor> attackers)
 		{
 			enemyGround = false;
+			attackers = null;
 
+			// Region questions first, every one of them a cell lookup. The attacker search below walks a
+			// twenty-five cell circle, so it only ever runs for a cliff that has already passed here.
 			var regionIds = AdjacentRegions(cliff);
 			if (regionIds.Count == 0)
 				return false;
@@ -173,16 +197,19 @@ namespace OpenRA.Mods.CN.Traits
 					enemyHeld = true;
 			}
 
-			// Attacking is read from where our units are, not from squad bookkeeping: a squad's declared
-			// target says what it means to do, and what matters here is whether there is anything standing
-			// next to the cliff to walk through the hole once it is open.
-			if (Info.DemolishInAttackedRegions && enemyHeld && HasOwnUnitsNear(cliff))
-			{
-				enemyGround = true;
-				return true;
-			}
+			var wantEnemy = Info.DemolishInAttackedRegions && enemyHeld;
+			if (!wantEnemy && !(Info.DemolishInHeldRegions && held))
+				return false;
 
-			return Info.DemolishInHeldRegions && held;
+			attackers = CandidateAttackers(cliff);
+			if (attackers.Count == 0)
+				return false;
+
+			// Attacking is read from where our units are, not from squad bookkeeping: a squad's declared
+			// target says what it means to do, and what matters here is whether there is anything within
+			// reach to walk through the hole once it is open.
+			enemyGround = wantEnemy;
+			return true;
 		}
 
 		HashSet<int> AdjacentRegions(Actor cliff)
@@ -210,27 +237,32 @@ namespace OpenRA.Mods.CN.Traits
 			return regionIds;
 		}
 
-		bool HasOwnUnitsNear(Actor cliff)
-		{
-			return CandidateAttackers(cliff).Any();
-		}
-
-		long DistanceToOwnUnitsSquared(Actor cliff)
+		static long NearestAttackerDistanceSquared(Actor cliff, List<Actor> attackers)
 		{
 			var nearest = long.MaxValue;
-			foreach (var attacker in CandidateAttackers(cliff))
+			foreach (var attacker in attackers)
 				nearest = Math.Min(nearest, (attacker.CenterPosition - cliff.CenterPosition).LengthSquared);
 
 			return nearest;
 		}
 
-		IEnumerable<Actor> CandidateAttackers(Actor cliff)
+		/// <summary>
+		/// Our units that could be put on this cliff. The circle query here is the one costly thing this
+		/// module does, so the result is gathered once per cliff per scan and handed on to whoever needs
+		/// it - the decision, the ranking and the orders all read the same list.
+		/// </summary>
+		List<Actor> CandidateAttackers(Actor cliff)
 		{
+			var found = new List<Actor>();
 			var radius = WDist.FromCells(Math.Max(1, Info.AttackerSearchRadius));
 			var target = Target.FromActor(cliff);
+			var wanted = Math.Max(1, Info.MaximumAttackers);
 
 			foreach (var actor in world.FindActorsInCircle(cliff.CenterPosition, radius))
 			{
+				if (found.Count >= wanted)
+					break;
+
 				if (actor.Owner != player || actor.IsDead || !actor.IsInWorld)
 					continue;
 
@@ -250,16 +282,14 @@ namespace OpenRA.Mods.CN.Traits
 					&& (!Info.AllowSquadUnits || !actor.IsIdle))
 					continue;
 
-				yield return actor;
+				found.Add(actor);
 			}
+
+			return found;
 		}
 
-		void Engage(IBot bot, Actor cliff, bool enemyGround)
+		void Engage(IBot bot, Actor cliff, bool enemyGround, List<Actor> attackers)
 		{
-			var attackers = CandidateAttackers(cliff)
-				.Take(Math.Max(1, Info.MaximumAttackers))
-				.ToList();
-
 			if (attackers.Count < Math.Max(1, Info.MinimumAttackers))
 				return;
 
