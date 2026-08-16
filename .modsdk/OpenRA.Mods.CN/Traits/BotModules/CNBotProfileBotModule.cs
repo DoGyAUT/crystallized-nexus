@@ -137,6 +137,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Score added to Tech at full enemy fortification: out-range what cannot be walked into.")]
 		public readonly float AdaptiveFortificationTechBonus = 2f;
 
+		[Desc("Score for Tech while the economy is built out and earning (see AdaptiveTechCashTrendPerMinute).",
+			"This is the profile's whole case for itself, so it has to be able to win: measured over 200",
+			"evaluations, Expansion reached 9.1, Turtle 7.3 and Steamroller 6.8, while Tech - at the 2.5 this",
+			"replaces - topped out at 1.5 and was never once chosen. The gating condition is deliberately",
+			"strict (economy finished, not still expanding), so when it is met the profile should be a real",
+			"contender rather than a rounding error.")]
+		public readonly float AdaptiveTechCashRichBonus = 7f;
+
 		[Desc("Score added to Expansion at full enemy fortification: take the map while they sit still.")]
 		public readonly float AdaptiveFortificationExpansionBonus = 1f;
 
@@ -266,9 +274,15 @@ namespace OpenRA.Mods.Common.Traits
 		public CNBotStrategySnapshot CurrentStrategy { get; private set; }
 		public int LastDangerScore { get; private set; }
 
+		// Re-evaluation cadence for the tech stage. One second against thresholds measured in thousands
+		// of ticks: far finer than the thing being measured, and a stage that arrives a second late
+		// changes nothing downstream.
+		const int TechStageInterval = 25;
+
 		readonly World world;
 		readonly Player player;
 		Actor playerActor;
+		int techStageTicks = 1;
 		int switchCooldown;
 		int activeProfileSinceTick;
 		int lastEvalEarned;
@@ -336,7 +350,16 @@ namespace OpenRA.Mods.Common.Traits
 					.TraitsImplementing<CNMcvExpansionManagerBotModule>()
 					.FirstOrDefault(t => t.IsTraitEnabled());
 
-			UpdateTechStage();
+			// Not every tick. The stage is decided by which buildings the bot owns and by tick thresholds
+			// measured in thousands of ticks, and it can only ever move forward - highestTechStage sees
+			// to that. Re-deciding it forty times a second meant scanning the whole building list once
+			// or twice per bot per tick for an answer that changes a handful of times per match. This
+			// module has no spikes at all, just a constant drip, and this was most of it.
+			if (--techStageTicks <= 0)
+			{
+				techStageTicks = TechStageInterval;
+				UpdateTechStage();
+			}
 
 			if (Info.Profile != BotProfile.Adaptive)
 			{
@@ -454,8 +477,25 @@ namespace OpenRA.Mods.Common.Traits
 
 			LastDangerScore = dangerScore;
 
-			// Emergency Turtle: bypass hysteresis entirely.
-			if (dangerScore >= Info.AdaptiveEmergencyTurtleDangerThreshold)
+			// Emergency Turtle: bypass hysteresis entirely - but only to GET there.
+			//
+			// This used to return unconditionally, and that is what froze adaptive bots. Once a bot was
+			// already turtling, every later evaluation hit this branch, did nothing (SwitchTo returns
+			// immediately when the profile is unchanged) and left again before the five-profile
+			// comparison below - which is the only thing that can ever take a bot back out of Turtle.
+			// The danger score it would have to fall under first is a decaying memory of being shot at,
+			// and in a busy match it sits near its cap indefinitely.
+			// Measured over an 86-minute six-bot match: nine evaluations in total, all of them inside
+			// the first twentieth of the match, none afterwards. Bots picked Expansion early, were
+			// attacked once, and spent the rest of the game on Turtle thresholds - which is visible in
+			// play as an expansion held at the Turtle cash requirement of 12000 by a bot whose last
+			// recorded decision was Expansion.
+			//
+			// Letting the evaluation run while turtling is not a risk: danger is already an input to the
+			// ordinary scoring, and Turtle rises with it, so a bot under real pressure keeps choosing
+			// Turtle on merit rather than by having the alternatives hidden from it. A switch away is
+			// additionally held for AdaptiveMinimumIntentHoldTicks, so this cannot oscillate quickly.
+			if (dangerScore >= Info.AdaptiveEmergencyTurtleDangerThreshold && ActiveProfile != BotProfile.Turtle)
 			{
 				SwitchTo(BotProfile.Turtle, emergency: true);
 				return;
@@ -604,7 +644,7 @@ namespace OpenRA.Mods.Common.Traits
 					// Tech: modest bonus during the cash-rich window before late-game, and the answer to
 					// a fortified opponent - out-range what cannot be walked into.
 					BotProfile.Tech =>
-						(cashRich && ActiveTechStage != TechStage.Late ? 2.5f : -2f)
+						(cashRich && ActiveTechStage != TechStage.Late ? Info.AdaptiveTechCashRichBonus : -2f)
 						+ fortifiedRatio * Info.AdaptiveFortificationTechBonus,
 
 					_ => 0f
