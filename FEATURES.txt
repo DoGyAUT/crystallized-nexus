@@ -113,6 +113,22 @@ TERRAIN & MAP
   TerrainDeformationWarhead
     Terrain deformation via weapons.
 
+  Destroyable Cliffs  [CNDestroyableCliff, CNDestroyableCliffLayer]
+    The Tiberian Sun "Destroyable Cliffs" tile set (dcliff01/dcliff02 —
+    717/718 temperate+desert, 987/988 snow) made functional. TS shipped no
+    destroyed artwork, so the collapsed state is assembled from stock ramp
+    templates: 403+404 for the wide cliff, 406+405 for the tall one, which
+    retile the footprint exactly and leave a two-cell-wide slope. Configured
+    in rules/cliffs.yaml (DestroyedTemplates: template id per cell offset) —
+    changing how a collapse looks is YAML, not code.
+    CNDestroyableCliffLayer finds the templates on map load and places the
+    actors itself, so any existing map using those tiles gets working cliffs;
+    fragments below MinimumTemplateCoverage stay decoration. The collapse
+    writes Map.Tiles and Map.Height (separate layers in OpenRA, unlike the
+    tile set), then recomputes CliffBackImpassability over the area — that
+    layer runs once at load and would otherwise keep the new path blocked.
+    Bots blow them open via CNCliffDemolitionBotModule (see AI — BOT MODULES).
+
   ExplodeResourceWarhead
     Chain reactions on resource tiles (blue / red tiberium explodes when hit).
 
@@ -323,6 +339,14 @@ AI — BOT MODULES
       Assigns engineers/repair units to damaged bridge huts and requests
       replacement repairers via IBotRequestUnitProduction when none are
       available.
+
+    CNCliffDemolitionBotModule
+      Force-fires destroyable cliffs (see TERRAIN & MAP) open, but only where
+      the opening buys something: inside a region the bot holds, or inside an
+      enemy-held region it already has units in. Reads the sides a cliff
+      separates off the region graph (CNTacticalMapBotModule) and skips any
+      cliff with the same region on both sides. Prefers units not in a squad;
+      squad units are only pulled in while idle.
 
   Combat Intelligence
   ~~~~~~~~~~~~~~~~~~~

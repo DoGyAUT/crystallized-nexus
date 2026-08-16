@@ -27,6 +27,15 @@ Player:
 		BridgeHutActorTypes: cabhut
 		MinimumDamageState: Dead
 		MaximumRepairers: 2
+	# Shoots destroyable cliffs open, but only where an opening is worth something: inside ground this
+	# bot holds, or inside enemy ground it already has units in. Needs CNTacticalMapBotModule for the
+	# region graph, which base-building.yaml sets up.
+	CNCliffDemolitionBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		ScanInterval: 250
+		MinimumAttackers: 3
+		MaximumAttackers: 6
+		AttackerSearchRadius: 12
 	CNUnitBuilderBotModule@Combat:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		UnitQueues: Infantry, Vehicle, Air
