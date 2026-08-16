@@ -153,13 +153,6 @@ TERRAIN & MAP
   ExplodeResourceWarhead
     Chain reactions on resource tiles (blue / red tiberium explodes when hit).
 
-  Smudge render depth
-    Craters and scorches draw *under* tiberium and veins, not on top. All
-    three are TerrainSpriteLayers depth-tested against each other, so the
-    order is the sequence Offset's third component (positive = nearer the
-    camera), not the trait order: smudges sit at z=1, resources at z=2.
-
-
 GAMEPLAY MECHANICS
 ------------------
   HeightAdvantageBonus
@@ -218,7 +211,7 @@ UNIT MECHANICS
   HuskFacing
     Corrects husk facing when a unit dies mid-turn.
 
-  CNSteeredMobile
+  CNSteeredMobile (WIP)
     Steered movement for vehicles (smooth arc turns).
 
   CNAircraftFallsToEarth
