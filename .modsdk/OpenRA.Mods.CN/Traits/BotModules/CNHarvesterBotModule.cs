@@ -103,6 +103,15 @@ namespace OpenRA.Mods.Common.Traits
 			public CPos LastKnownPosition { get; set; }
 			public int StationaryTicks { get; set; }
 
+			// Where this harvester was the last time it was called deadlocked, and how many times in a
+			// row that has been the same jam. Without this the step-aside has no memory and picks the
+			// roomiest neighbour every time - which, once two adjacent cells are both open, is the cell
+			// it just came from. A played match logged one harvester flagged 360 times, 141 of them at
+			// 97,84 and 141 at 97,85: it spent the entire match walking back and forth between two
+			// cells while its actual problem went untouched.
+			public CPos? LastStuckCell { get; set; }
+			public int ConsecutiveStuckEvents { get; set; }
+
 			public HarvesterTraitWrapper(Actor actor)
 			{
 				Actor = actor;
@@ -460,17 +469,23 @@ namespace OpenRA.Mods.Common.Traits
 		/// candidate with the most open ground around it, so it steps clear of the jam instead of taking
 		/// the next place in it.
 		/// </summary>
-		CPos? FindStepAsideCell(HarvesterTraitWrapper h)
+		CPos? FindStepAsideCell(HarvesterTraitWrapper h, int minRadius, CPos? exclude)
 		{
 			var from = h.Actor.Location;
 
-			for (var radius = 1; radius <= StepAsideSearchRadius; radius++)
+			for (var radius = Math.Max(1, minRadius); radius <= StepAsideSearchRadius; radius++)
 			{
 				CPos? best = null;
 				var bestRoom = -1;
 
 				foreach (var cell in world.Map.FindTilesInAnnulus(from, radius, radius))
 				{
+					// Never straight back to where the last step-aside came from. That cell is open by
+					// definition - the harvester was standing on it - so on room alone it wins, and the
+					// two cells trade the harvester back and forth forever.
+					if (exclude.HasValue && cell == exclude.Value)
+						continue;
+
 					if (!world.Map.Contains(cell) || !h.Mobile.CanEnterCell(cell))
 						continue;
 
@@ -585,16 +600,29 @@ namespace OpenRA.Mods.Common.Traits
 				// the harvest resolved immediately, cancelled the step-aside, and left the harvester wedged
 				// exactly where it was - which is why the same harvesters kept reappearing here at the same
 				// cell, twenty and thirty times each.
-				var freeCell = FindStepAsideCell(h);
+				// Same jam as last time, or the cell we were nudged off a moment ago? Then the nudge did
+				// not work, and repeating it at the same distance will not work either. Each repeat
+				// pushes the search one ring further out, so the harvester eventually leaves the area
+				// instead of shuffling inside it. A genuinely new jam somewhere else starts over at one.
+				var here = h.Actor.Location;
+				if (h.LastStuckCell.HasValue && (h.LastStuckCell.Value == here ||
+					(h.LastStuckCell.Value - here).LengthSquared <= 2))
+					h.ConsecutiveStuckEvents++;
+				else
+					h.ConsecutiveStuckEvents = 1;
+
+				var freeCell = FindStepAsideCell(h, h.ConsecutiveStuckEvents, h.LastStuckCell);
 				if (freeCell != null)
 				{
 					bot.QueueOrder(new Order("Move", h.Actor, Target.FromCell(world, freeCell.Value), false));
 					steppingAside = true;
 				}
 
-				CNBotLog.Debug($"CN AI: {player} harvester {h.Actor} appears deadlocked at {h.Actor.Location}. " +
+				CNBotLog.Debug($"CN AI: {player} harvester {h.Actor} appears deadlocked at {here} " +
+					$"(attempt {h.ConsecutiveStuckEvents}). " +
 					$"Stepping aside to {(freeCell != null ? freeCell.Value.ToString() : "nowhere - hemmed in")} and re-issuing harvest order.");
 
+				h.LastStuckCell = here;
 				h.StationaryTicks = 0;
 			}
 
