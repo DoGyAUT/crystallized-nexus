@@ -167,6 +167,9 @@ actor-lobrdg-d-name = Dead Bridge
 actor-lobrdg-r-name = Bridge Ramp
 meta-elevatedbridgeplaceholder-name = Bridge
 
+## cliffs.yaml
+meta-destroyablecliff-name = Destroyable Cliff
+
 ## civilian-infantry.yaml
 actor-weedguy-name = Chem Spray Infantry
 actor-umagon-name = Umagon

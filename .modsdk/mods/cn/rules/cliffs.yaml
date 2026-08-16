@@ -1,0 +1,67 @@
+# Destroyable cliffs.
+#
+# Tiberian Sun shipped a "Destroyable Cliffs" tile set (dcliff01/dcliff02) but no artwork for the
+# destroyed state - the cliff was swapped for tiles the tile set already had. These actors do the
+# same: they are placed automatically by CNDestroyableCliffLayer wherever those templates appear on
+# a map (nothing to place in the editor), and when shot down they retile their own footprint with
+# two of the stock ramp pieces, which turns the cliff into a passable slope.
+#
+# Tuning is entirely in DestroyedTemplates: any template of the right size can be dropped in at any
+# offset, so a collapse that joins the neighbouring cliffs badly is a YAML change, not a code one.
+# Ramp ids are the same in all three tile sets, only the cliff ids differ, which is why one actor
+# covers temperate/desert (717/718) and snow (987/988) at once.
+
+^DestroyableCliff:
+	Immobile:
+		OccupiesSpace: false
+	BodyOrientation:
+		UseClassicPerspectiveFudge: false
+		QuantizedFacings: 1
+	CNHealth:
+		HP: 4000
+	Armor:
+		Type: Building
+	Targetable:
+		TargetTypes: Ground, Building
+		RequiresForceFire: true
+	Tooltip:
+		Name: meta-destroyablecliff-name
+	ShakeOnDeath:
+		Duration: 20
+		Intensity: 8
+	FireWarheadsOnDeath:
+		Weapon: Demolish
+
+DCLIFF1:
+	Inherits: ^DestroyableCliff
+	# dcliff01: six wide, four deep, plateau to the north, dropping south. ramp01 (403) and its mirror
+	# ramp02 (404) are 3x4 slopes with the cliff wall on opposite sides, so the pair meets in the middle:
+	# every one of the twenty cliff cells is retiled, nothing is written outside them, and what is left is
+	# a two-cell-wide slope running 3-2-1-0 between two walls.
+	CNDestroyableCliff:
+		Templates: 717, 987
+		DestroyedTemplates:
+			0,0: 403
+			3,0: 404
+	HitShape:
+		Type: Rectangle
+			TopLeft: -2048, -512
+			BottomRight: 3072, 4608
+	Interactable:
+		Bounds: 5120, 5120, 512, 2048
+
+DCLIFF2:
+	Inherits: ^DestroyableCliff
+	# dcliff02: the same cliff turned a quarter - four wide, six deep, plateau to the west, dropping east.
+	# ramp04 (406) and ramp03 (405) are the 4x3 pair that descends along x, stacked to meet in the middle.
+	CNDestroyableCliff:
+		Templates: 718, 988
+		DestroyedTemplates:
+			0,0: 406
+			0,3: 405
+	HitShape:
+		Type: Rectangle
+			TopLeft: -3072, -512
+			BottomRight: 2048, 4608
+	Interactable:
+		Bounds: 5120, 5120, -512, 2048
