@@ -21,8 +21,12 @@
 		HP: 4000
 	Armor:
 		Type: Building
+	# Same target types as the trees and the veinholes, the mod's other force-fire-only terrain: anything
+	# that can shoot ground, scenery or a structure can chip a cliff. Building stays in the list because
+	# a dozen weapons here name Building without naming Ground, and those are exactly the demolition
+	# weapons that ought to work on this.
 	Targetable:
-		TargetTypes: Ground, Building
+		TargetTypes: Ground, Trees, Building, NoAutoTarget
 		RequiresForceFire: true
 	Tooltip:
 		Name: meta-destroyablecliff-name
@@ -43,12 +47,18 @@ DCLIFF1:
 		DestroyedTemplates:
 			0,0: 403
 			3,0: 404
+	# The actor stands on the footprint cell nearest the middle - (2,1) for this template - so both the
+	# shape and the offsets below are written from there. A cliff is six cells of wall, and a unit can
+	# only shoot what it can reach: with the single default offset every unit on the map aimed at one
+	# point and had to path to within weapon range of it, which for a short-ranged unit means walking
+	# into the cliff. One offset per part of the wall lets each unit engage the piece in front of it.
 	HitShape:
 		Type: Rectangle
-			TopLeft: -2048, -512
-			BottomRight: 3072, 4608
+			TopLeft: -2560, -2048
+			BottomRight: 2560, 3072
+		TargetableOffsets: 0,512,0, 0,-1024,0, 1536,512,0, -1536,-512,0, 1536,1536,0, -1536,512,0, 0,2048,0
 	Interactable:
-		Bounds: 5120, 5120, 512, 2048
+		Bounds: 5120, 5120, 0, 512
 
 DCLIFF2:
 	Inherits: ^DestroyableCliff
@@ -59,9 +69,12 @@ DCLIFF2:
 		DestroyedTemplates:
 			0,0: 406
 			0,3: 405
+	# Centre cell (1,2) for this template; the block is the same diamond as DCLIFF1 turned a quarter, so
+	# the shape is identical and only the offsets follow the other axis.
 	HitShape:
 		Type: Rectangle
-			TopLeft: -3072, -512
-			BottomRight: 2048, 4608
+			TopLeft: -2560, -2048
+			BottomRight: 2560, 3072
+		TargetableOffsets: 0,512,0, 1024,-1024,0, 1536,-512,0, -512,-512,0, 1024,1024,0, -1536,1536,0, -1024,2048,0
 	Interactable:
-		Bounds: 5120, 5120, -512, 2048
+		Bounds: 5120, 5120, 0, 512

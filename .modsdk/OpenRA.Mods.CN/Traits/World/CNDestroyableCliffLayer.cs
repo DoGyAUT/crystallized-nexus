@@ -127,18 +127,54 @@ namespace OpenRA.Mods.CN.Traits
 			if (defined == 0 || cells.Count * 100 < defined * info.MinimumTemplateCoverage)
 				return false;
 
+			// The actor sits in the middle of the cliff, not on the template origin. Everything measured
+			// from an actor's centre gets twice as big when the centre is a corner: the hit shape needed to
+			// cover the whole cliff would reach 5500 world units, and ActorMap.LargestActorRadius - the
+			// slack added to EVERY area-damage query in the game, on every map, whether or not it has
+			// cliffs - is the largest hit shape in the ruleset. Centring keeps it under what the mod's
+			// biggest building already costs.
+			var anchor = CentreCell(w, cells);
+
 			var actor = w.CreateActor(cliffTypes[mapTile.Type],
 			[
-				new LocationInit(origin),
+				new LocationInit(anchor),
 				new OwnerInit(w.WorldActor.Owner),
 			]);
 
-			actor.Trait<CNDestroyableCliff>().Create([.. cells]);
+			actor.Trait<CNDestroyableCliff>().Create(origin, [.. cells]);
 
 			foreach (var subCell in cells)
 				cliffs[subCell] = actor;
 
 			return true;
+		}
+
+		/// <summary>
+		/// The footprint cell closest to the middle of the cliff. Ties go to the first in the scan's own
+		/// row-major order, so the same cliff always resolves to the same cell - the hit shape and the
+		/// targetable offsets in the rules are written against it.
+		/// </summary>
+		static CPos CentreCell(World w, List<CPos> cells)
+		{
+			var sum = WVec.Zero;
+			foreach (var cell in cells)
+				sum += w.Map.CenterOfCell(cell) - WPos.Zero;
+
+			var mean = WPos.Zero + sum / cells.Count;
+
+			var best = cells[0];
+			var bestDistance = long.MaxValue;
+			foreach (var cell in cells)
+			{
+				var distance = (w.Map.CenterOfCell(cell) - mean).HorizontalLengthSquared;
+				if (distance >= bestDistance)
+					continue;
+
+				bestDistance = distance;
+				best = cell;
+			}
+
+			return best;
 		}
 
 		/// <summary>The cliff covering a cell, or null. Null everywhere before the world has loaded.</summary>

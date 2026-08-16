@@ -74,6 +74,7 @@ namespace OpenRA.Mods.CN.Traits
 		readonly Map map;
 
 		CPos[] footprint = [];
+		CPos templateOrigin;
 		bool collapsed;
 
 		/// <summary>The cells the intact cliff covers. Empty until the layer has placed this actor.</summary>
@@ -89,9 +90,14 @@ namespace OpenRA.Mods.CN.Traits
 				throw new InvalidDataException("CNDestroyableCliff requires a template-based tileset.");
 		}
 
-		/// <summary>Called by CNDestroyableCliffLayer once it knows which cells this cliff actually occupies.</summary>
-		public void Create(CPos[] cells)
+		/// <summary>
+		/// Called by CNDestroyableCliffLayer once it knows which cells this cliff actually occupies. The
+		/// template origin is passed separately because the actor stands in the middle of the cliff, not
+		/// on the origin - the replacement blit is laid out from the origin, everything else from the actor.
+		/// </summary>
+		public void Create(CPos origin, CPos[] cells)
 		{
+			templateOrigin = origin;
 			footprint = cells;
 		}
 
@@ -135,7 +141,7 @@ namespace OpenRA.Mods.CN.Traits
 					continue;
 				}
 
-				var origin = self.Location + offset;
+				var origin = templateOrigin + offset;
 				for (var index = 0; index < template.TilesCount; index++)
 				{
 					// A template only defines the frames its artwork actually uses - dcliff01 skips four of
