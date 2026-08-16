@@ -396,13 +396,29 @@ pattern `ShouldSealChokepoints()` already uses):
   `EnableChokepointSealing` already has. This also solves a wall connecting cleanly to real terrain
   for free: `FindNarrowestCrossing`'s own shoulder-walk already guarantees that. Tier 2, only when no
   such pinch exists nearby, walls a simple fixed-radius box (two flanks and a back, door-facing side
-  open, reusing `PerimeterCells`) - accepted as a rare, lower-stakes fallback rather than something
-  needing its own terrain-seeking geometry.
+  open, reusing `PerimeterCells`). Its two open-side arms now make a short, bounded walk toward the
+  door and are extended only when the complete addition reaches a thick impassable shoulder. This
+  closes the visible few-cell gaps where the fixed U stopped just short of the cliffs around its
+  door, without reviving any of the region-graph height seals above: it is local placement geometry,
+  uses the topology's terrain-only passability, and leaves an arm unchanged when no terrain is found.
 
 Both tiers still require `DoorHasNearbyDefense` - a door is only worth fortifying once an own
 defence structure already stands within `DoorKillZoneRadius` of it (placed by `EnableDoorDefense`,
 which runs independently). Tier-1 gates share the existing `BasePerimeterMaxGateCount` cap with
 chokepoint-seal and base-perimeter gates rather than getting a separate budget.
+
+Wall placement also validates the engine's complete `LineBuild` preview against the selected shape.
+This matters because CN walls connect to both `wall` and `turret` nodes: placing one legitimate U
+cell beside several defenses otherwise creates perpendicular wall runs through the courtyard. A
+short-lived post-order audit remembers only empty cells outside that specific plan; if a wall appears
+there while the order resolves, the bot sells it. Existing walls are deliberately not swept, because
+their age alone cannot distinguish an obsolete plan from a player-intended fortification.
+
+Defense placement treats each occupied approach as a saturating post rather than letting every new
+turret take the globally best Door or danger score. Local density is penalised before the bounded
+candidate list is cut, and a hard cluster cap survives placement retries; retries may widen the
+search, but no longer erase the last two cells of spacing and pack the same courtyard to zero gap.
+This keeps small mutually supporting batteries while forcing the next battery onto another approach.
 
 ## Region roles: what CNBaseRole was approximating
 

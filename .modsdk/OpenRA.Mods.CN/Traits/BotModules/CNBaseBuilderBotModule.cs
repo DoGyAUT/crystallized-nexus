@@ -278,6 +278,19 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Bot profiles that build a door kill-zone when EnableDoorKillZone is set. Empty = all profiles.")]
 		public readonly FrozenSet<string> DoorKillZoneProfiles = FrozenSet<string>.Empty;
 
+		[Desc("Maximum cells that each open end of a fallback door kill-zone U may extend toward the door",
+			"to meet a thick impassable terrain shoulder. 0 disables terrain connections.")]
+		public readonly int DoorKillZoneTerrainConnectionMaxLength = 8;
+
+		[Desc("Sell wall segments that LineBuild added outside the wall shape selected by the bot.")]
+		public readonly bool SellUnplannedLineBuildSegments = true;
+
+		[Desc("Ticks to wait for predicted unwanted LineBuild segments to appear before checking them.")]
+		public readonly int UnplannedLineBuildCleanupDelay = 2;
+
+		[Desc("Ticks after which an unwanted LineBuild prediction is discarded if no wall appeared there.")]
+		public readonly int UnplannedLineBuildCleanupLifetime = 100;
+
 		[Desc("Score defense placement against territory doors (the handful of real ways into the player's",
 			"claimed ground) instead of the six chokepoints nearest each base. That per-base re-ranking is",
 			"what scattered a seven-base bot's defenses over seven neighbourhoods - doors are shared across",
@@ -541,6 +554,19 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum spacing for defense buildings in the outer line.")]
 		public readonly int DefenseOuterMinSpacing = 3;
 
+		[Desc("Lowest defense spacing retained when placement retries relax the configured inner or outer spacing.")]
+		public readonly int DefenseMinimumRelaxedSpacing = 2;
+
+		[Desc("Radius in cells used to count a local cluster of defense buildings. 0 disables the cluster cap.")]
+		public readonly int DefenseClusterRadius = 6;
+
+		[Desc("Maximum defense buildings allowed inside DefenseClusterRadius. 0 disables the cluster cap.")]
+		public readonly int DefenseClusterMaxCount = 5;
+
+		[Desc("Score penalty per existing defense inside DefenseClusterRadius. Applied before candidate truncation",
+			"so an unsaturated door or approach remains eligible instead of being cut from the candidate list.")]
+		public readonly int DefenseClusterPenaltyPerBuilding = 80;
+
 		[Desc("Minimum padding between defense building footprints and valuable resource cells.",
 			"Reserves field edges for refinery placement.")]
 		public readonly int DefenseResourceAvoidanceRadius = 4;
@@ -786,9 +812,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Interval (in ticks) between checking whether a bankrupt AI should sell a building to recover a refinery.")]
 		public readonly int BankruptcyRecoveryInterval = 125;
 
-		[Desc("Do not sell a building for refinery recovery unless this much cash is still missing after accounting for current reserves.")]
-		public readonly int BankruptcyRecoveryMinimumShortfall = 100;
-
 		[Desc("Hard cash ceiling: bankruptcy recovery (tiers 1-3) never fires while the bot has more",
 			"than this in cash+resources, even when other conditions match. Prevents premature selling during transient cash dips.")]
 		public readonly int BankruptcyRecoveryMaxCash = 500;
@@ -893,6 +916,10 @@ namespace OpenRA.Mods.Common.Traits
 		// Staleness window for the cached supported-refinery capacity sweep.
 		const int SupportedRefineryCapacityMaxAgeTicks = 50;
 
+		// Rate limit for the "bankrupt with nothing to fund" note: the state it reports persists for
+		// minutes at a time, and the recovery check itself runs every BankruptcyRecoveryInterval ticks.
+		const int RefineryRecoveryDeclineLogInterval = 1500;
+
 		// Actor, ActorCount.
 		public Dictionary<string, int> BuildingsBeingProduced = [];
 		public IBotBaseExpansion[] BaseExpansionModules;
@@ -944,6 +971,7 @@ namespace OpenRA.Mods.Common.Traits
 		int checkBestResourceLocationTicks;
 		int sellRefineryTick;
 		int bankruptcyRecoveryTick;
+		int nextRefineryRecoveryDeclineLogTick;
 		bool terminalRecoveryTriggered;
 		int defenseDangerMemoryDecayTick;
 		int nextDefenseDangerMemoryRecordTick;
@@ -973,6 +1001,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		IReadOnlyList<Actor> cachedPlayerBuildings = [];
 		int cachedPlayerBuildingsTick = -1;
+		IReadOnlyList<Actor> cachedAlliedBuildings = [];
+		int cachedAlliedBuildingsTick = -1;
 
 		ILookup<string, ProductionQueue> cachedQueues;
 		int cachedQueuesTick = -25;
@@ -1000,6 +1030,33 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return cachedPlayerBuildings;
+		}
+
+		/// <summary>
+		/// Allied buildings, for the placement rules that are about geometry rather than ownership.
+		/// <para>
+		/// Everything the base builder knows about buildings came from GetCachedPlayerBuildings, so an
+		/// ally's base was simply not there as far as spacing was concerned: two allied bots building
+		/// toward each other interleaved their structures with no gap at all, because the only rule that
+		/// prevents that (GlobalMinSpacing) was measured against own buildings exclusively.
+		/// </para>
+		/// Deliberately separate from the own-buildings cache rather than merged into it: most callers
+		/// ask counting questions - how many refineries do I have, can I produce infantry - and those
+		/// must keep answering about this player alone.
+		/// </summary>
+		public IReadOnlyList<Actor> GetCachedAlliedBuildings()
+		{
+			var tick = world.WorldTick;
+			if (tick != cachedAlliedBuildingsTick)
+			{
+				cachedAlliedBuildings = world.ActorsHavingTrait<Building>()
+					.Where(a => a.Owner != player && !a.IsDead && a.IsInWorld
+						&& a.Owner.RelationshipWith(player) == PlayerRelationship.Ally)
+					.ToList();
+				cachedAlliedBuildingsTick = tick;
+			}
+
+			return cachedAlliedBuildings;
 		}
 
 		// Both active-value tables are rebuilt from the same small set of inputs (profile, tech stage,
@@ -2307,6 +2364,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNBaseBuilderBotModule));
+
 			if (firstTick)
 			{
 				ResourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
@@ -2316,6 +2375,13 @@ namespace OpenRA.Mods.Common.Traits
 				combatAnalysis = bot.Player.PlayerActor.TraitsImplementing<CombatAnalysisBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				firstTick = false;
 			}
+
+			// LineBuild resolves after the placement order, so the queue manager that selected the wall can
+			// only remove an accidental connection on a later bot tick. At most one segment is sold per tick;
+			// these lists are normally empty and a malformed line is small enough not to need a bulk order.
+			foreach (var builder in builders)
+				if (builder.TrySellUnplannedLineBuildSegment(bot))
+					break;
 
 			if (--economyOverflowTick <= 0)
 			{
@@ -2343,6 +2409,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (--checkBestResourceLocationTicks <= 0 && resourceLayer != null)
 			{
+				using var resourceScanScope = CNBotPerf.Sample(bot, "CNBaseBuilderBotModule/ResourceScan");
 				checkBestResourceLocationTicks = Info.CheckBestResourceLocationInterval;
 
 				// Clear outdated refinery requests: dead/disposed MCVs would otherwise block
@@ -2444,16 +2511,19 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (--bankruptcyRecoveryTick <= 0)
 			{
+				using var recoveryScope = CNBotPerf.Sample(bot, "CNBaseBuilderBotModule/Bankruptcy");
 				bankruptcyRecoveryTick = Math.Max(1, Info.BankruptcyRecoveryInterval);
 				TryRecoverBankruptEconomy(bot, queuesByCategory);
 			}
 
 			DecayDefenseDangerMemory();
 
-			builders[currentBuilderIndex].Tick(bot, queuesByCategory);
+			using (CNBotPerf.Sample(bot, "CNBaseBuilderBotModule/QueueManager"))
+				builders[currentBuilderIndex].Tick(bot, queuesByCategory);
 
 			if (Info.SellRefineryInterval >= 0 && --sellRefineryTick <= 0)
 			{
+				using var sellScope = CNBotPerf.Sample(bot, "CNBaseBuilderBotModule/SellRefinery");
 				SellUselessRefinery(bot);
 				sellRefineryTick = Info.SellRefineryInterval;
 			}
@@ -3997,6 +4067,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			var cash = PlayerResources.GetCashAndResources();
 
+			// Active income → wait for cash to accumulate instead of preemptively selling.
+			// The sampling window (~300 ticks) keeps this positive for a while after the last
+			// harvester dump, which naturally debounces brief refinery losses.
+			if (IncomeRate > 0)
+				return false;
+
 			// A refinery already on the line used to end this outright - one is coming, nothing to do. It
 			// is not coming: a building under construction draws its cash as it goes, so with no income and
 			// an empty bank the queue item simply stalls, and the bot sits on a half-built refinery for the
@@ -4004,30 +4080,55 @@ namespace OpenRA.Mods.Common.Traits
 			// production, no money.
 			// So a queued refinery only ends this while it can still be paid for. What has to be raised is
 			// then the REMAINder of its cost, not the price of a fresh one: most of it may already be paid.
+			// An outstanding expansion request is deliberately not counted as "one is coming" here: past
+			// the income check above there is no money to drive it either, so letting it suppress recovery
+			// only wedged the bot harder.
 			var remaining = GetQueuedRefineryRemainingCost(queuesByCategory);
-			var queued = remaining >= 0 || RequestedRefineries.Count > 0;
-			if (queued && (remaining < 0 || remaining <= cash))
+			if (remaining >= 0 && remaining <= cash)
 				return false;
 
 			var refineryCost = remaining >= 0 ? remaining : GetCheapestBuildableRefineryCost(queuesByCategory);
 			if (refineryCost <= 0)
+			{
+				// Broke, no refinery, and nothing a sale could pay for: either the queued one is already
+				// fully paid and only placement is missing, or no refinery is buildable at all (lost
+				// prerequisite). Both look identical from the outside - a bot standing still at cash 0 -
+				// so say which one it is instead of leaving it to be reconstructed from the log later.
+				if (world.WorldTick >= nextRefineryRecoveryDeclineLogTick)
+				{
+					nextRefineryRecoveryDeclineLogTick = world.WorldTick + RefineryRecoveryDeclineLogInterval;
+					CNBotLog.Debug("{0} refinery recovery declined: nothing to fund (queued remaining {1}, cheapest buildable {2}, cash {3}, requests {4})",
+						player, remaining, GetCheapestBuildableRefineryCost(queuesByCategory), cash, RequestedRefineries.Count);
+				}
+
 				return false;
+			}
+
 			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
 				return false;
 
+			// Every credit of the gap has to come out of a sale. A minimum-shortfall floor used to sit
+			// here, skipping the sale while the gap was small - but this line is only ever reached with
+			// no income at all, and a small gap does not close on its own any more than a large one does.
+			// It parked bots at cash 0 in front of a refinery that was a hundred credits from finished.
 			var shortfall = refineryCost - cash;
-			if (shortfall <= Info.BankruptcyRecoveryMinimumShortfall)
-				return false;
-
-			// Active income → wait for cash to accumulate instead of preemptively selling.
-			// The sampling window (~300 ticks) keeps this positive for a while after the last
-			// harvester dump, which naturally debounces brief refinery losses.
-			if (IncomeRate > 0)
+			if (shortfall <= 0)
 				return false;
 
 			var sellCandidate = ChooseEmergencySellCandidate();
 			if (sellCandidate == null)
+			{
+				// The other way a bankrupt bot stands still: it wants to sell and every building it owns
+				// is protected (last conyard, last production, last power) or is itself a refinery.
+				if (world.WorldTick >= nextRefineryRecoveryDeclineLogTick)
+				{
+					nextRefineryRecoveryDeclineLogTick = world.WorldTick + RefineryRecoveryDeclineLogInterval;
+					CNBotLog.Debug("{0} refinery recovery declined: no sellable building (shortfall {1}, cash {2})",
+						player, shortfall, cash);
+				}
+
 				return false;
+			}
 
 			CNBotLog.Debug($"CN AI: Selling {sellCandidate} to recover refinery economy. Cash {cash}, refinery cost {refineryCost}.");
 			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
@@ -4057,12 +4158,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
 				return false;
 
-			var shortfall = harvesterCost - cash;
-			if (shortfall <= Info.BankruptcyRecoveryMinimumShortfall)
-				return false;
-
 			// Active income → another harvester is probably still dumping. Wait it out.
 			if (IncomeRate > 0)
+				return false;
+
+			// No income, so the gap never shrinks by itself - see TryRecoverRefinery on the removed floor.
+			var shortfall = harvesterCost - cash;
+			if (shortfall <= 0)
 				return false;
 
 			var sellCandidate = ChooseEmergencySellCandidate();
@@ -4094,13 +4196,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
 				return false;
 
-			var shortfall = mcvCost - cash;
-			if (shortfall <= Info.BankruptcyRecoveryMinimumShortfall)
-				return false;
-
 			// Active income → economy is still alive (e.g. lost conyard mid-game while a refinery
 			// still works). Wait for the next dump before tearing down buildings.
 			if (IncomeRate > 0)
+				return false;
+
+			// No income, so the gap never shrinks by itself - see TryRecoverRefinery on the removed floor.
+			var shortfall = mcvCost - cash;
+			if (shortfall <= 0)
 				return false;
 
 			var sellCandidate = ChooseEmergencySellCandidate();
