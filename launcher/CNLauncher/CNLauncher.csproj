@@ -1,25 +1,53 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>CNLauncher</AssemblyName>
     <RootNamespace>CNLauncher</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
 
-    <!-- Published as a single self-contained file so testers don't need the .NET runtime installed.
-         Build with -r win-x64, -r linux-x64, -r osx-x64 (Intel) or -r osx-arm64 (Apple
-         Silicon) to select the target platform. -->
+    <!-- Bumped by hand when cutting a launcher-v* tag; shown in the UI and compared
+         against the newest launcher release to decide whether to self-update. -->
+    <Version>2.0.0</Version>
+
+    <!-- Published as a single self-contained file so testers don't need the .NET runtime
+         installed. Build with -r win-x64, -r linux-x64, -r osx-x64 (Intel) or -r osx-arm64
+         (Apple Silicon) to select the target platform. -->
     <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!-- Testers download this over ModDB, so the two size levers are both pulled: trimming
+         drops unused framework code, compression packs what is left. Compiled bindings and
+         Avalonia's own trimming annotations keep the XAML working; verify by running the
+         published binary, not just by building it. -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
-    <ApplicationIcon>logo.ico</ApplicationIcon>
+    <ApplicationIcon>Assets/logo.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="12.1.1" Condition="'$(Configuration)' == 'Debug'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/**" />
+  </ItemGroup>
 
 </Project>

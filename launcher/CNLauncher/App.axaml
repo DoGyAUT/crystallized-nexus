@@ -1,0 +1,21 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="CNLauncher.App"
+             RequestedThemeVariant="Dark">
+
+  <Application.Resources>
+    <!-- Tiberium green against a cold dark base, to sit close to the mod's own palette. -->
+    <SolidColorBrush x:Key="Shell" Color="#0F1317" />
+    <SolidColorBrush x:Key="Panel" Color="#181E24" />
+    <SolidColorBrush x:Key="PanelHi" Color="#232C34" />
+    <SolidColorBrush x:Key="Line" Color="#2A343D" />
+    <SolidColorBrush x:Key="Text" Color="#E4EAEF" />
+    <SolidColorBrush x:Key="Muted" Color="#8895A1" />
+    <SolidColorBrush x:Key="Accent" Color="#7CE04A" />
+    <SolidColorBrush x:Key="AccentHi" Color="#95F065" />
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+  </Application.Styles>
+</Application>
