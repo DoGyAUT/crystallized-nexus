@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CNLauncher.Views.InstallPathDialog"
+        Title="Choose install folder"
+        Width="560" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{StaticResource Shell}">
+  <StackPanel Margin="24" Spacing="16">
+    <TextBlock Text="Where should Crystallized Nexus be installed?"
+               FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+
+    <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="20" Foreground="{StaticResource Muted}"
+               Text="The launcher keeps this folder in sync with the newest build, so anything you put inside it may be deleted on update. The game needs about 600 MB here, plus roughly 400 MB temporarily on your system drive while downloading. Your settings, replays and maps are stored separately and are never touched." />
+
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <TextBox Grid.Column="0" x:Name="PathBox" FontSize="12" />
+      <Button Grid.Column="1" Content="Browse..." Click="OnBrowse" MinWidth="90" />
+    </Grid>
+
+    <TextBlock x:Name="WarningText" FontSize="12" TextWrapping="Wrap"
+               Foreground="#E0A34A" IsVisible="False" />
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Cancel" MinWidth="90" Click="OnCancel" />
+      <Button x:Name="ConfirmButton" Content="Use this folder" MinWidth="120" Click="OnConfirm"
+              Background="{StaticResource Accent}" Foreground="#0C1207" FontWeight="SemiBold" />
+    </StackPanel>
+  </StackPanel>
+</Window>

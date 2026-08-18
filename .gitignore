@@ -433,6 +433,3 @@ engine/
 # Temporary GitHub/API scratch dumps
 .modsdk/mods/commits_page*.json
 .modsdk/mods/data*.json
-
-# Launcher secrets (GitHub token, only needed while the repo is private)
-launcher/CNLauncher/Secrets.cs

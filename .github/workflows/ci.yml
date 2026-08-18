@@ -42,6 +42,26 @@ jobs:
           sudo apt-get install -y lua5.1
           make check-scripts
 
+  launcher:
+    name: Launcher (.NET 10.0)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # The launcher is not part of the mod solution, so nothing else in CI would notice it
+      # breaking. Publishing rather than building is deliberate: trimming warnings only
+      # surface during publish, and the launcher ships fully trimmed.
+      - name: Publish Launcher
+        working-directory: launcher/CNLauncher
+        run: dotnet publish -c Release -r linux-x64 -warnaserror -o out
+
   windows:
     name: Windows (.NET 10.0)
     runs-on: windows-2022

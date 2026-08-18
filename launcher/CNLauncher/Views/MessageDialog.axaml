@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CNLauncher.Views.MessageDialog"
+        Width="460" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{StaticResource Shell}">
+  <StackPanel Margin="24" Spacing="18">
+    <TextBlock x:Name="HeadingText" FontSize="16" FontWeight="SemiBold"
+               Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+    <TextBlock x:Name="MessageText" FontSize="13" LineHeight="20"
+               Foreground="{StaticResource Muted}" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button x:Name="CancelButton" Content="Cancel" MinWidth="90" Click="OnCancel" />
+      <Button x:Name="ConfirmButton" Content="OK" MinWidth="90" Click="OnConfirm"
+              Background="{StaticResource Accent}" Foreground="#0C1207" FontWeight="SemiBold" />
+    </StackPanel>
+  </StackPanel>
+</Window>
