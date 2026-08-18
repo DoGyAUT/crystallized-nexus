@@ -53,9 +53,21 @@ public static class SelfUpdater
 		return best;
 	}
 
-	/// <summary>The asset name the launcher workflow publishes for this platform.</summary>
+	/// <summary>
+	/// The asset name the launcher workflow publishes for this platform. Derived from the
+	/// OS and architecture rather than from RuntimeInformation.RuntimeIdentifier, which is
+	/// not contractually a portable RID - a host reporting something like
+	/// "ubuntu.22.04-x64" would silently never find its own update.
+	/// </summary>
 	public static string ExpectedAssetName
-		=> "CNLauncher-" + RuntimeInformation.RuntimeIdentifier + (OperatingSystem.IsWindows() ? ".exe" : "");
+	{
+		get
+		{
+			var os = OperatingSystem.IsWindows() ? "win" : OperatingSystem.IsMacOS() ? "osx" : "linux";
+			var arch = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x64";
+			return $"CNLauncher-{os}-{arch}" + (OperatingSystem.IsWindows() ? ".exe" : "");
+		}
+	}
 
 	/// <summary>
 	/// Downloads the new build, swaps it in and restarts. Returns false when the swap could

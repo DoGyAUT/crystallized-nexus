@@ -85,6 +85,15 @@ public static class Downloader
 
 		using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
 
+		// A range that the server rejects outright means the partial file is unusable;
+		// discard it so the next attempt starts clean instead of asking again and failing
+		// the same way until the retries run out.
+		if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+		{
+			File.Delete(destinationPath);
+			throw new IOException("The server rejected the resume request; restarting the download.");
+		}
+
 		// A server that ignores the range header answers 200 with the whole file, in which
 		// case the bytes already on disk have to be thrown away.
 		var resuming = response.StatusCode == HttpStatusCode.PartialContent;
