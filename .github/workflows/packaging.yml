@@ -28,9 +28,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
+          # $'...' rather than "..." - in a plain double-quoted string the \n stayed a
+          # literal backslash-n, which the launcher then showed verbatim in its
+          # "What's new" panel. --generate-notes appends the commits since the previous
+          # release, which is what testers actually want to read there.
           gh release create "$RELEASE_TAG" \
             --title "Crystallized Nexus $RELEASE_TAG" \
-            --notes "## Crystallized Nexus $RELEASE_TAG\n\nSee attached files for platform packages." \
+            --notes $'Platform packages are attached below.\n\nThe launcher downloads and updates these for you.' \
+            --generate-notes \
             --prerelease || echo "Release already exists"
 
   linux:

@@ -1,0 +1,93 @@
+name: Launcher
+
+# The launcher is versioned independently of the game: it changes rarely, the game ships
+# every few days. Its builds therefore get their own "launcher-v*" tags, and are published
+# as full releases rather than prereleases - which also makes the launcher the download
+# GitHub shows under "Latest release" on the repository front page.
+
+on:
+  push:
+    tags:
+      - 'launcher-v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Launcher tag to build (launcher-vX.Y.Z)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  LAUNCHER_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$LAUNCHER_TAG" \
+            --title "Crystallized Nexus Launcher ${LAUNCHER_TAG#launcher-}" \
+            --notes $'Download the file for your platform and run it. It installs the game, keeps it up to date, and updates itself.\n\n- Windows: `CNLauncher-win-x64.exe`\n- Linux: `CNLauncher-linux-x64`\n- macOS (Apple Silicon): `CNLauncher-osx-arm64`\n- macOS (Intel): `CNLauncher-osx-x64`\n\nOn Linux and macOS, mark the file executable first (`chmod +x`).' \
+            || echo "Release already exists"
+
+  build:
+    name: ${{ matrix.rid }}
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # win-x64 is built on Windows on purpose: the .NET SDK only embeds the
+          # ApplicationIcon and version resource into the executable when the host is
+          # Windows, and a ModDB download with a blank icon looks broken.
+          - rid: win-x64
+            os: windows-2022
+            asset: CNLauncher-win-x64.exe
+            built: CNLauncher.exe
+          - rid: linux-x64
+            os: ubuntu-22.04
+            asset: CNLauncher-linux-x64
+            built: CNLauncher
+          - rid: osx-x64
+            os: macos-latest
+            asset: CNLauncher-osx-x64
+            built: CNLauncher
+          - rid: osx-arm64
+            os: macos-latest
+            asset: CNLauncher-osx-arm64
+            built: CNLauncher
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.LAUNCHER_TAG }}
+
+      - name: Install .NET 10.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        shell: bash
+        working-directory: launcher/CNLauncher
+        run: |
+          # The tag is the single source of truth for the version the launcher reports and
+          # compares against, so the csproj value is only a local-development default.
+          VERSION="${LAUNCHER_TAG#launcher-v}"
+          dotnet publish -c Release -r "${{ matrix.rid }}" -p:Version="${VERSION}" -o out
+          mv "out/${{ matrix.built }}" "out/${{ matrix.asset }}"
+
+      - name: Upload Package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$LAUNCHER_TAG" "launcher/CNLauncher/out/${{ matrix.asset }}" --clobber
