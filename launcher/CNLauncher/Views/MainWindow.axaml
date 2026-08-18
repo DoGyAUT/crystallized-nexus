@@ -95,9 +95,29 @@
               BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="16">
         <Grid RowDefinitions="Auto,*">
           <TextBlock Grid.Row="0" Classes="label" Text="WHAT'S NEW" Margin="0,0,0,10" />
-          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <TextBlock Text="{Binding ReleaseNotes}" TextWrapping="Wrap"
-                       FontSize="13" LineHeight="20" Foreground="{StaticResource Text}" />
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+            <ItemsControl ItemsSource="{Binding ReleaseNotes}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ReleaseNote">
+                  <StackPanel Margin="0,0,0,20" Spacing="3">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <!-- Builds published after the installed one are what the player has
+                           not read yet, so the accent marks how far back to scroll. -->
+                      <Border Width="3" CornerRadius="2"
+                              Background="{StaticResource Accent}"
+                              IsVisible="{Binding IsUnread}" />
+                      <TextBlock Text="{Binding Tag}" FontSize="14" FontWeight="SemiBold"
+                                 Foreground="{StaticResource Text}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Meta}" FontSize="11" Margin="11,0,0,4"
+                               Foreground="{StaticResource Muted}"
+                               IsVisible="{Binding Meta, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    <TextBlock Text="{Binding Body}" TextWrapping="Wrap" Margin="11,0,0,0"
+                               FontSize="13" LineHeight="20" Foreground="{StaticResource Text}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </ScrollViewer>
         </Grid>
       </Border>

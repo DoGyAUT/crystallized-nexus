@@ -84,8 +84,8 @@ public sealed class MainViewModel : ViewModelBase
 	string primaryText = "PLEASE WAIT";
 	public string PrimaryText { get => primaryText; private set => SetField(ref primaryText, value); }
 
-	string releaseNotes = "";
-	public string ReleaseNotes { get => releaseNotes; private set => SetField(ref releaseNotes, value); }
+	IReadOnlyList<ReleaseNote> releaseNotes = [];
+	public IReadOnlyList<ReleaseNote> ReleaseNotes { get => releaseNotes; private set => SetField(ref releaseNotes, value); }
 
 	string contentStatus = "";
 	public string ContentStatus { get => contentStatus; private set => SetField(ref contentStatus, value); }
@@ -175,7 +175,7 @@ public sealed class MainViewModel : ViewModelBase
 		InstallPathText = InstallDir;
 
 		AvailableVersion = candidate?.Release.TagName ?? "unavailable";
-		ReleaseNotes = candidate?.Notes() ?? "";
+		ReleaseNotes = ReleaseNoteBuilder.Build(releases, SelectedChannel, installed);
 
 		var hasContent = GameInstall.HasTiberianSunContent(InstallDir);
 		ContentMissing = !hasContent;
@@ -418,24 +418,4 @@ public sealed class MainViewModel : ViewModelBase
 		=> bytes >= 1024L * 1024 * 1024
 			? $"{bytes / 1024.0 / 1024 / 1024:0.00} GB"
 			: $"{bytes / 1024.0 / 1024:0.0} MB";
-}
-
-static class ReleaseNotesExtensions
-{
-	/// <summary>
-	/// Release bodies are markdown; the launcher shows them as plain text, so the heading
-	/// markers that would otherwise appear as literal hashes are stripped.
-	/// </summary>
-	public static string Notes(this InstallCandidate candidate)
-	{
-		var body = candidate.Release.Notes;
-		if (string.IsNullOrWhiteSpace(body))
-			return "No release notes for this build.";
-
-		var lines = body.Replace("\r\n", "\n").Split('\n')
-			.Select(l => l.TrimEnd())
-			.Select(l => l.StartsWith('#') ? l.TrimStart('#', ' ') : l);
-
-		return string.Join('\n', lines).Trim();
-	}
 }
