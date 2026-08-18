@@ -34,7 +34,7 @@ jobs:
         run: |
           gh release create "$LAUNCHER_TAG" \
             --title "Crystallized Nexus Launcher ${LAUNCHER_TAG#launcher-}" \
-            --notes $'Download the file for your platform and run it. It installs the game, keeps it up to date, and updates itself.\n\n- Windows: `CNLauncher-win-x64.exe`\n- Linux: `CNLauncher-linux-x64`\n- macOS (Apple Silicon): `CNLauncher-osx-arm64`\n- macOS (Intel): `CNLauncher-osx-x64`\n\nOn Linux and macOS, mark the file executable first (`chmod +x`).' \
+            --notes $'Download the file for your platform and run it. It installs the game, keeps it up to date, and updates itself.\n\n- Windows: `CNLauncher-win-x64.exe`\n- Linux: `CNLauncher-linux-x64` (run `chmod +x` on it first)\n- macOS (Apple Silicon): `CNLauncher-osx-arm64.dmg`\n- macOS (Intel): `CNLauncher-osx-x64.dmg`\n\nThe macOS build is not notarized, so the first launch needs Right-click > Open, or System Settings > Privacy & Security > Open Anyway.' \
             || echo "Release already exists"
 
   build:
@@ -56,13 +56,17 @@ jobs:
             os: ubuntu-22.04
             asset: CNLauncher-linux-x64
             built: CNLauncher
+          # The macOS builds are wrapped in a .app bundle and shipped as a disk image, the
+          # same shape the game's own packaging produces. A bare Mach-O executable is not a
+          # usable macOS download: Finder opens it in a terminal rather than launching it,
+          # and release assets lose the execute bit on the way through GitHub.
           - rid: osx-x64
             os: macos-latest
-            asset: CNLauncher-osx-x64
+            asset: CNLauncher-osx-x64.dmg
             built: CNLauncher
           - rid: osx-arm64
             os: macos-latest
-            asset: CNLauncher-osx-arm64
+            asset: CNLauncher-osx-arm64.dmg
             built: CNLauncher
 
     steps:
@@ -83,8 +87,65 @@ jobs:
           # The tag is the single source of truth for the version the launcher reports and
           # compares against, so the csproj value is only a local-development default.
           VERSION="${LAUNCHER_TAG#launcher-v}"
+          echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
           dotnet publish -c Release -r "${{ matrix.rid }}" -p:Version="${VERSION}" -o out
-          mv "out/${{ matrix.built }}" "out/${{ matrix.asset }}"
+
+      - name: Package Application Bundle
+        if: startsWith(matrix.rid, 'osx-')
+        shell: bash
+        working-directory: launcher/CNLauncher
+        run: |
+          set -euo pipefail
+          APP="stage/CNLauncher.app"
+          mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
+          mv out/CNLauncher "${APP}/Contents/MacOS/CNLauncher"
+          chmod +x "${APP}/Contents/MacOS/CNLauncher"
+
+          # Build the icon from the same artwork the other platforms use, rather than
+          # committing a generated .icns that would drift out of sync with it.
+          mkdir -p icon.iconset
+          for size in 16 32 128 256 512; do
+            sips -z ${size} ${size} Assets/logo.png --out "icon.iconset/icon_${size}x${size}.png" >/dev/null
+            sips -z $((size * 2)) $((size * 2)) Assets/logo.png --out "icon.iconset/icon_${size}x${size}@2x.png" >/dev/null
+          done
+          iconutil -c icns icon.iconset -o "${APP}/Contents/Resources/CNLauncher.icns"
+
+          cat > "${APP}/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>CN Launcher</string>
+            <key>CFBundleDisplayName</key><string>Crystallized Nexus Launcher</string>
+            <key>CFBundleIdentifier</key><string>net.crystallizednexus.launcher</string>
+            <key>CFBundleExecutable</key><string>CNLauncher</string>
+            <key>CFBundleIconFile</key><string>CNLauncher</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>${VERSION}</string>
+            <key>CFBundleVersion</key><string>${VERSION}</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>LSMinimumSystemVersion</key><string>12.0</string>
+          </dict>
+          </plist>
+          PLIST
+
+          # Ad-hoc signature. The .NET SDK already signs the inner executable, but the
+          # bundle as a whole needs its own or macOS treats it as damaged. This is not
+          # notarization - Gatekeeper still warns on first launch, which the release notes
+          # tell people about. Real notarization needs a paid Apple developer account.
+          codesign --force --deep --sign - "${APP}"
+          codesign --verify --strict "${APP}"
+
+          # A symlink to /Applications makes the disk image a drag-to-install window.
+          ln -s /Applications stage/Applications
+          hdiutil create -volname "Crystallized Nexus Launcher" \
+            -srcfolder stage -ov -format UDZO "out/${{ matrix.asset }}"
+
+      - name: Rename Package
+        if: ${{ !startsWith(matrix.rid, 'osx-') }}
+        shell: bash
+        working-directory: launcher/CNLauncher
+        run: mv "out/${{ matrix.built }}" "out/${{ matrix.asset }}"
 
       - name: Upload Package
         shell: bash
