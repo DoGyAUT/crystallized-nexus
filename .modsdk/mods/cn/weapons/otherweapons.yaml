@@ -181,7 +181,7 @@ TibCloudDamage:
 ^Debris:
 	Inherits@DefaultWahead: ^SmallExplosionWarhead
 	Range: 5c0
-	Projectile: ProjetcileHusk
+	Projectile: ProjectileHusk
 		Velocity: 30, -25, 300
 		VelocityRandomFactor: 50, 50, 400
 		Acceleration: 0, 0, -15
@@ -217,7 +217,7 @@ SmallDebris:
 LargeDebris:
 	Inherits: ^Debris
 	Inherits@FLASH: ^FlashMediumY
-	Projectile: ProjetcileHusk
+	Projectile: ProjectileHusk
 		Image: dbrislg
 		Sequences: 2, 3, 4, 6, 7, 9, 10
 	Warhead@1Dam: SpreadDamage
@@ -233,7 +233,7 @@ LargeDebris:
 LargeDebrisWithTrail:
 	Inherits: LargeDebris
 	Inherits@FLASH: ^FlashLargeY
-	Projectile: ProjetcileHusk
+	Projectile: ProjectileHusk
 		Sequences: 1, 5, 8
 		TrailImage: durasmoke_medium
 		TrailPalette: effect

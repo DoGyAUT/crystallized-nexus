@@ -95,7 +95,7 @@ BulletCasing:
 	ReloadDelay: 60
 	Range: 6c0
 	ValidTargets: Ground, Water, Air
-	Projectile: ProjetcileHusk
+	Projectile: ProjectileHusk
 		Velocity: 22, -12, 180
 		VelocityRandomFactor: 10, 24, 60
 		Acceleration: 0, 0, -15
@@ -119,13 +119,13 @@ BulletCasing:
 
 BulletCasingAir:
 	Inherits: BulletCasing
-	Projectile: ProjetcileHusk
+	Projectile: ProjectileHusk
 		Velocity: 15, -10, 75
 		VelocityRandomFactor: 8, 20, 40
 
 CannonCasing:
 	Inherits: BulletCasing
-	Projectile: ProjetcileHusk
+	Projectile: ProjectileHusk
 		Velocity: 26, -12, 210
 		VelocityRandomFactor: 12, 24, 70
 		Sequences: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
