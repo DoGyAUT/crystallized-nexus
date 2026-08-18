@@ -82,6 +82,12 @@ public sealed class MainViewModel : ViewModelBase
 		get => selectedBuildIndex;
 		set
 		{
+			// Replacing the Builds collection makes the combo box report -1 back before it
+			// re-reads the selection, and that arrives outside the rebuild guard. Taking it
+			// for a user choice would blank the picker and silently drop a pinned build.
+			if (value < 0)
+				return;
+
 			if (!SetField(ref selectedBuildIndex, value) || rebuildingBuildList)
 				return;
 
@@ -223,7 +229,25 @@ public sealed class MainViewModel : ViewModelBase
 				index = 0;
 			}
 
-			SelectedBuildIndex = index;
+			// The combo box evaluates its SelectedIndex binding while the list is still
+			// empty, cannot honour index 0, and quietly holds -1. The binding has already
+			// written 0 by then, so simply announcing 0 again is treated as no change and
+			// never reaches the control - which is what left the picker blank.
+			//
+			// Moving through -1 forces a real transition the binding has to push, and doing
+			// the second half on the dispatcher puts it after the items have been taken up.
+			// The field is assigned directly: going through the setter would read this as
+			// the user picking a build and overwrite their pin.
+			selectedBuildIndex = -1;
+			RaisePropertyChanged(nameof(SelectedBuildIndex));
+
+			Dispatcher.UIThread.Post(
+				() =>
+				{
+					selectedBuildIndex = index;
+					RaisePropertyChanged(nameof(SelectedBuildIndex));
+				},
+				DispatcherPriority.Background);
 		}
 		finally
 		{
