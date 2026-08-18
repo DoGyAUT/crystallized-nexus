@@ -12,7 +12,7 @@
                FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
 
     <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="20" Foreground="{StaticResource Muted}"
-               Text="The launcher keeps this folder in sync with the newest build, so anything you put inside it may be deleted on update. Around 1 GB of free space is needed. Your settings, replays and maps are stored separately and are never touched." />
+               Text="The launcher keeps this folder in sync with the newest build, so anything you put inside it may be deleted on update. The game needs about 600 MB here, plus roughly 400 MB temporarily on your system drive while downloading. Your settings, replays and maps are stored separately and are never touched." />
 
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
       <TextBox Grid.Column="0" x:Name="PathBox" FontSize="12" />
