@@ -12,6 +12,10 @@ public sealed class MainViewModel : ViewModelBase
 	InstallCandidate? candidate;
 	LauncherUpdate? launcherUpdate;
 
+	// Set while the build list is being rebuilt, so writing SelectedBuildIndex back to the
+	// combo box does not look like the user picking a different build.
+	bool rebuildingBuildList;
+
 	public MainViewModel()
 	{
 		PrimaryCommand = new RelayCommand(PrimaryActionAsync, () => !IsBusy && (candidate != null || IsInstalled));
@@ -69,11 +73,28 @@ public sealed class MainViewModel : ViewModelBase
 		}
 	}
 
+	IReadOnlyList<BuildOption> builds = [];
+	public IReadOnlyList<BuildOption> Builds { get => builds; private set => SetField(ref builds, value); }
+
+	int selectedBuildIndex;
+	public int SelectedBuildIndex
+	{
+		get => selectedBuildIndex;
+		set
+		{
+			if (!SetField(ref selectedBuildIndex, value) || rebuildingBuildList)
+				return;
+
+			// Index 0 is "Latest", which means follow the channel rather than pin anything.
+			config.PinnedRelease = value > 0 && value < Builds.Count ? Builds[value].Tag : null;
+			config.Save();
+			ResolveCandidate();
+			UpdateState();
+		}
+	}
+
 	string installedVersion = "";
 	public string InstalledVersion { get => installedVersion; private set => SetField(ref installedVersion, value); }
-
-	string availableVersion = "";
-	public string AvailableVersion { get => availableVersion; private set => SetField(ref availableVersion, value); }
 
 	bool updateAvailable;
 	public bool UpdateAvailable { get => updateAvailable; private set => SetField(ref updateAvailable, value); }
@@ -160,12 +181,61 @@ public sealed class MainViewModel : ViewModelBase
 			Status = $"Could not reach GitHub ({e.Message}).";
 		}
 
-		candidate = GameUpdater.SelectCandidate(releases, SelectedChannel);
+		RebuildBuildList();
+		ResolveCandidate();
 		UpdateState(reachedGitHub);
 		IsBusy = false;
 
 		if (launcherUpdate != null)
 			await OfferLauncherUpdateAsync();
+	}
+
+	/// <summary>
+	/// Rebuilds the pickable builds. Only releases with a package for this platform are
+	/// listed - offering a build that cannot be installed here would be a dead end.
+	/// </summary>
+	void RebuildBuildList()
+	{
+		var installable = GameUpdater.SelectAll(releases, SelectedChannel);
+		var newest = installable.FirstOrDefault();
+
+		var options = new List<BuildOption>
+		{
+			new(newest == null ? "Latest" : $"Latest  ({newest.Release.TagName})", null),
+		};
+
+		options.AddRange(installable.Select(c => new BuildOption(c.Release.TagName, c.Release.TagName)));
+
+		rebuildingBuildList = true;
+		try
+		{
+			Builds = options;
+
+			var pinned = config.PinnedRelease;
+			var index = pinned == null ? 0 : options.FindIndex(o => o.Tag == pinned);
+
+			// A pinned build that has disappeared from the list silently reverts to Latest
+			// rather than leaving the launcher pointing at nothing.
+			if (index < 0)
+			{
+				config.PinnedRelease = null;
+				config.Save();
+				index = 0;
+			}
+
+			SelectedBuildIndex = index;
+		}
+		finally
+		{
+			rebuildingBuildList = false;
+		}
+	}
+
+	void ResolveCandidate()
+	{
+		candidate = config.PinnedRelease != null
+			? GameUpdater.SelectSpecific(releases, config.PinnedRelease)
+			: GameUpdater.SelectCandidate(releases, SelectedChannel);
 	}
 
 	void UpdateState(bool reachedGitHub = true)
@@ -174,7 +244,6 @@ public sealed class MainViewModel : ViewModelBase
 		InstalledVersion = installed ?? "not installed";
 		InstallPathText = InstallDir;
 
-		AvailableVersion = candidate?.Release.TagName ?? "unavailable";
 		ReleaseNotes = ReleaseNoteBuilder.Build(releases, SelectedChannel, installed);
 
 		var hasContent = GameInstall.HasTiberianSunContent(InstallDir);
@@ -183,7 +252,12 @@ public sealed class MainViewModel : ViewModelBase
 			? "Tiberian Sun assets found."
 			: "Tiberian Sun assets not found - the game downloads them on first start.";
 
-		UpdateAvailable = candidate != null && installed != candidate.Release.TagName;
+		// GitHub returns releases newest-first, so a higher index is an older build.
+		var installedIndex = IndexOf(installed);
+		var targetIndex = IndexOf(candidate?.Release.TagName);
+		var targetIsOlder = installedIndex >= 0 && targetIndex > installedIndex;
+
+		UpdateAvailable = candidate != null && installed != candidate.Release.TagName && !targetIsOlder;
 
 		if (candidate == null)
 		{
@@ -199,15 +273,22 @@ public sealed class MainViewModel : ViewModelBase
 			PrimaryText = "INSTALL";
 			Status = $"Ready to install {candidate.Release.TagName} ({Format(candidate.Asset.Size)}).";
 		}
-		else if (UpdateAvailable)
+		else if (installed == candidate.Release.TagName)
 		{
-			PrimaryText = "UPDATE";
-			Status = $"Update available: {installed} -> {candidate.Release.TagName}.";
+			PrimaryText = "PLAY";
+			Status = config.PinnedRelease == null
+				? "Up to date."
+				: $"Pinned to {candidate.Release.TagName}. Newer builds will not be installed.";
+		}
+		else if (targetIsOlder)
+		{
+			PrimaryText = "SWITCH";
+			Status = $"Going back to {candidate.Release.TagName} ({Format(candidate.Asset.Size)}).";
 		}
 		else
 		{
-			PrimaryText = "PLAY";
-			Status = "Up to date.";
+			PrimaryText = "UPDATE";
+			Status = $"Update available: {installed} -> {candidate.Release.TagName}.";
 		}
 
 		PrimaryCommand.RaiseCanExecuteChanged();
@@ -215,11 +296,24 @@ public sealed class MainViewModel : ViewModelBase
 		UninstallCommand.RaiseCanExecuteChanged();
 	}
 
+	int IndexOf(string? tagName)
+	{
+		if (tagName == null)
+			return -1;
+
+		for (var i = 0; i < releases.Count; i++)
+			if (releases[i].TagName == tagName)
+				return i;
+
+		return -1;
+	}
+
 	async Task PrimaryActionAsync()
 	{
-		if (UpdateAvailable || !IsInstalled)
+		var installed = GameInstall.ReadInstalledVersion(InstallDir);
+		if (candidate != null && installed != candidate.Release.TagName)
 		{
-			if (candidate == null || !await InstallAsync(candidate))
+			if (!await InstallAsync(candidate))
 				return;
 		}
 

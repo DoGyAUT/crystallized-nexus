@@ -26,6 +26,28 @@ public static class GameUpdater
 		return null;
 	}
 
+	/// <summary>
+	/// Resolves one exact tag. Returns null when that release is gone or never had a
+	/// package for this platform, which the caller treats as "fall back to latest".
+	/// </summary>
+	public static InstallCandidate? SelectSpecific(IReadOnlyList<Release> releases, string tagName)
+	{
+		var release = releases.FirstOrDefault(r => r.TagName == tagName);
+		if (release == null)
+			return null;
+
+		var asset = FindAsset(release);
+		return asset == null ? null : new InstallCandidate(release, asset);
+	}
+
+	/// <summary>Every build in the channel that this platform could actually install.</summary>
+	public static IReadOnlyList<InstallCandidate> SelectAll(IReadOnlyList<Release> releases, ReleaseChannel channel)
+		=> releases.Where(r => channel.Accepts(r))
+			.Select(r => (Release: r, Asset: FindAsset(r)))
+			.Where(x => x.Asset != null)
+			.Select(x => new InstallCandidate(x.Release, x.Asset!))
+			.ToList();
+
 	static ReleaseAsset? FindAsset(Release release)
 	{
 		if (OperatingSystem.IsWindows())

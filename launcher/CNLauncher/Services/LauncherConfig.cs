@@ -13,6 +13,13 @@ public sealed class LauncherConfig
 	public string? InstallDir { get; set; }
 	public ReleaseChannel Channel { get; set; } = ReleaseChannel.Playtest;
 
+	/// <summary>
+	/// Tag of a specific build the user pinned, or null to follow whatever is newest in
+	/// the channel. Pinning is what lets a tester drop back to an earlier build to work
+	/// out which one introduced a problem.
+	/// </summary>
+	public string? PinnedRelease { get; set; }
+
 	[JsonIgnore]
 	public bool IsFirstRun => string.IsNullOrWhiteSpace(InstallDir);
 

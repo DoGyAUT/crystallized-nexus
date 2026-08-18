@@ -130,15 +130,25 @@
           <TextBlock Classes="value" Text="{Binding InstalledVersion}" />
         </StackPanel>
 
-        <StackPanel Spacing="3">
+        <StackPanel Spacing="5">
           <StackPanel Orientation="Horizontal" Spacing="8">
-            <TextBlock Classes="label" Text="AVAILABLE" VerticalAlignment="Center" />
+            <TextBlock Classes="label" Text="BUILD" VerticalAlignment="Center" />
             <Border Background="{StaticResource Accent}" CornerRadius="3" Padding="5,1"
                     IsVisible="{Binding UpdateAvailable}">
               <TextBlock Text="NEW" FontSize="9" FontWeight="Bold" Foreground="#0C1207" />
             </Border>
           </StackPanel>
-          <TextBlock Classes="value" Text="{Binding AvailableVersion}" />
+          <!-- "Latest" follows the channel; picking a tag pins it, which is how a tester
+               drops back to an earlier build to find where a problem started. -->
+          <ComboBox ItemsSource="{Binding Builds}"
+                    SelectedIndex="{Binding SelectedBuildIndex}"
+                    HorizontalAlignment="Stretch" FontSize="12" MaxDropDownHeight="260">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:BuildOption">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
         </StackPanel>
 
         <StackPanel Spacing="3">
