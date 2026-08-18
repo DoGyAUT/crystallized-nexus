@@ -95,14 +95,13 @@ BulletCasing:
 	ReloadDelay: 60
 	Range: 6c0
 	ValidTargets: Ground, Water, Air
-	Projectile: Bullet
-		Speed: 50,65
+	Projectile: ProjectileHusk
+		Velocity: 22, -12, 180
+		VelocityRandomFactor: 10, 24, 60
+		Acceleration: 0, 0, -15
 		Image: bulletcasing
 		Sequences: 1,2,3,4,5,6,7,8
-		Blockable: false
-		Inaccuracy: 0c256
-		InaccuracyType: Absolute
-		LaunchAngle: 220, 230
+		UseRangeModifierAsVelocityX: false
 	Warhead@2Eff: CreateEffect
 		Explosions: bulletcasingscorch1, bulletcasingscorch2, bulletcasingscorch3, bulletcasingscorch4, bulletcasingscorch5, bulletcasingscorch6, bulletcasingscorch7
 		ExplosionPalette: effect
@@ -120,14 +119,15 @@ BulletCasing:
 
 BulletCasingAir:
 	Inherits: BulletCasing
-	Projectile: Bullet
-		Speed: 150,170
-		LaunchAngle: 10, 20
+	Projectile: ProjectileHusk
+		Velocity: 15, -10, 75
+		VelocityRandomFactor: 8, 20, 40
 
 CannonCasing:
 	Inherits: BulletCasing
-	Projectile: Bullet
-		Speed: 60,80
+	Projectile: ProjectileHusk
+		Velocity: 26, -12, 210
+		VelocityRandomFactor: 12, 24, 70
 		Sequences: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
 		Image: cannoncasing
 		Shadow: true

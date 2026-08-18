@@ -181,13 +181,14 @@ TibCloudDamage:
 ^Debris:
 	Inherits@DefaultWahead: ^SmallExplosionWarhead
 	Range: 5c0
-	Projectile: Bullet
-		Speed: 64, 128
-		LaunchAngle: 80, 192
+	Projectile: ProjectileHusk
+		Velocity: 30, -25, 300
+		VelocityRandomFactor: 50, 50, 400
+		Acceleration: 0, 0, -15
+		UseRangeModifierAsVelocityX: false
 		Image: dbrissm
 		Sequences: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 		Shadow: true
-		Blockable: false
 		TrailImage: durasmoke_medium
 		TrailPalette: effect
 	Warhead@1Dam: SpreadDamage
@@ -216,7 +217,7 @@ SmallDebris:
 LargeDebris:
 	Inherits: ^Debris
 	Inherits@FLASH: ^FlashMediumY
-	Projectile: Bullet
+	Projectile: ProjectileHusk
 		Image: dbrislg
 		Sequences: 2, 3, 4, 6, 7, 9, 10
 	Warhead@1Dam: SpreadDamage
@@ -232,7 +233,7 @@ LargeDebris:
 LargeDebrisWithTrail:
 	Inherits: LargeDebris
 	Inherits@FLASH: ^FlashLargeY
-	Projectile: Bullet
+	Projectile: ProjectileHusk
 		Sequences: 1, 5, 8
 		TrailImage: durasmoke_medium
 		TrailPalette: effect
