@@ -10,6 +10,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
@@ -23,6 +24,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	static class SubterraneanHelpers
 	{
 		static readonly BitSet<TargetableType> UndergroundTypes = new("Underground");
+		static readonly string[] DefaultStrikeCapabilities =
+		[
+			"Superweapon", "Tech", "Production", "Economy", "Power",
+		];
 
 		/// <summary>Returns true if the actor is currently in the subterranean layer.</summary>
 		public static bool IsSubmerged(Actor a)
@@ -63,8 +68,55 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		/// <summary>
+		/// Chooses the soft, valuable building behind the active front. Capability value dominates;
+		/// among equivalent buildings, depth from our primary base favours the rear and known surface
+		/// fire breaks ties against a suicidal emergence point.
+		/// </summary>
+		public static Actor FindStrikeTarget(CNSquad squad, Actor source, Player enemy)
+		{
+			if (source == null || enemy == null)
+				return null;
+
+			var preferred = squad.PreferredTargetCapabilities != null &&
+				squad.PreferredTargetCapabilities.Length > 0
+					? squad.PreferredTargetCapabilities
+					: DefaultStrikeCapabilities;
+			var ownBase = squad.World.Map.CenterOfCell(squad.SquadManager.GetPrimaryBaseCenter());
+			Actor best = null;
+			var bestScore = long.MinValue;
+			foreach (var candidate in squad.SquadManager.GetCachedEnemyBuildings())
+			{
+				if (candidate.Owner != enemy || HasCapability(candidate, "Defense"))
+					continue;
+
+				var preference = 0;
+				for (var i = 0; i < preferred.Length; i++)
+					if (HasCapability(candidate, preferred[i]))
+					{
+						preference = preferred.Length - i;
+						break;
+					}
+
+				var depthCells = (candidate.CenterPosition - ownBase).Length / 1024;
+				var surfaceThreat = squad.SquadManager.GetDefenseThreatAt(candidate.CenterPosition, source.Info);
+				var score = (long)preference * 100000
+					+ (long)InsertionValueWeight(candidate) * 10000
+					+ depthCells * 100L
+					- surfaceThreat;
+
+				if (score > bestScore || (score == bestScore && (best == null || candidate.ActorID < best.ActorID)))
+				{
+					best = candidate;
+					bestScore = score;
+				}
+			}
+
+			return best;
+		}
+
+		/// <summary>
 		/// Returns the cell to burrow toward for a deep-insertion attack.
-		/// Computes a value-weighted centroid of all non-defense enemy buildings — economy,
+		/// Computes a value-weighted centroid of the selected target's local base — economy,
 		/// production and tech pull hard — and pushes slightly past it, away from our base.
 		/// This surfaces units in the soft economic heart rather than the defended perimeter
 		/// (a plain centroid would be dragged forward by front-line refineries/power).
@@ -72,10 +124,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public static CPos FindDeepInsertionCell(CNSquad squad, Actor source)
 		{
 			long sumX = 0, sumY = 0, totalWeight = 0;
+			var missionAnchor = squad.IsTargetValid ? squad.TargetActor : null;
+			var clusterRadius = WDist.FromCells(24);
+			var clusterRadiusSq = (long)clusterRadius.Length * clusterRadius.Length;
 
 			foreach (var b in squad.SquadManager.GetCachedEnemyBuildings())
 			{
-				if (HasCapability(b, "Defense"))
+				if (HasCapability(b, "Defense") ||
+					(squad.MissionTargetPlayer != null && b.Owner != squad.MissionTargetPlayer) ||
+					(missionAnchor != null &&
+						(b.CenterPosition - missionAnchor.CenterPosition).LengthSquared > clusterRadiusSq))
 					continue;
 
 				var weight = InsertionValueWeight(b);
@@ -170,11 +228,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 	// ===========================================================================
 
 	/// <summary>
-	/// Idle: wait until squad is ready, then find a target and begin burrow approach.
+	/// Idle: wait until squad is ready and the front has made contact, then strike the same enemy's rear.
 	/// </summary>
 	sealed class SubAssaultIdleState : CNStateBase, ICNState
 	{
-		public void Activate(CNSquad squad) { }
+		public void Activate(CNSquad squad)
+		{
+			squad.MissionTargetPlayer = null;
+			squad.SetActorToTarget(null);
+		}
 
 		public void Tick(CNSquad squad)
 		{
@@ -187,26 +249,38 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (center == null)
 				return;
 
-			// Priority target by BotCapabilities tag, then closest non-defense building.
-			Actor target = null;
-			if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
-				target = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
+			Actor target;
+			if (squad.SquadManager.Info.AttackWaveEnabled)
+			{
+				// Subterranean units are the second blow, not another body in the rally blob. Hold at
+				// home until a front participant has actually exchanged damage with the wave's victim.
+				if (!squad.SquadManager.TryGetSubterraneanStrikeEnemy(out var enemy))
+					return;
 
-			target ??= CNSquadHelper.FindUnprotectedTarget(squad);
+				target = SubterraneanHelpers.FindStrikeTarget(squad, center, enemy);
+				if (target != null)
+					squad.MissionTargetPlayer = enemy;
+			}
+			else
+			{
+				// Profiles may disable coordinated waves. Preserve an independent subterranean raid
+				// there rather than leaving an otherwise valid template permanently at home.
+				target = null;
+				if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
+					target = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
+
+				target ??= CNSquadHelper.FindUnprotectedTarget(squad);
+				if (target != null)
+					squad.MissionTargetPlayer = target.Owner;
+			}
 
 			if (target == null)
 			{
-				// No target this pass — reposition to a forward chokepoint instead of sitting
-				// still (burrowed, units here are already unseen), so the squad is closer to
-				// enemy territory when a target does appear on a later scan.
-				var chokepoint = FindAmbushChokepoint(squad, center);
-				if (chokepoint.HasValue)
-					squad.Bot.QueueOrder(new Order("Move", null, Target.FromCell(squad.World, chokepoint.Value), false,
-						groupedActors: squad.OrderableUnits.ToArray()));
-
 				return;
 			}
 
+			CNBotLog.Debug("{0} subterranean strike released with the front: {1} targets {2} at {3}",
+				squad.SquadManager.Player, squad.TemplateName ?? "SubterraneanAssault", target.Info.Name, target.Location);
 			squad.SetActorToTarget(target);
 			squad.FuzzyStateMachine.ChangeState(squad, new SubAssaultApproachState());
 		}
@@ -342,10 +416,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				var center = squad.CenterUnit();
 				if (center != null)
 				{
-					Actor newTarget = null;
-					if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
-						newTarget = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
-					newTarget ??= CNSquadHelper.FindUnprotectedTarget(squad);
+					var newTarget = squad.MissionTargetPlayer != null
+						? SubterraneanHelpers.FindStrikeTarget(squad, center, squad.MissionTargetPlayer)
+						: null;
+					if (newTarget == null && squad.MissionTargetPlayer == null)
+					{
+						if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
+							newTarget = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
+
+						newTarget ??= CNSquadHelper.FindUnprotectedTarget(squad);
+					}
 
 					if (newTarget != null)
 					{
@@ -518,7 +598,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			if (allLoaded)
 			{
-				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportBurrowState());
+				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportWaveSyncState());
 				return;
 			}
 
@@ -526,23 +606,98 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			{
 				// Timeout may send partial cargo, but never an empty SAPC.
 				squad.FuzzyStateMachine.ChangeState(squad,
-					anyCargo ? new SubTransportBurrowState() : new SubTransportIdleState());
+					anyCargo ? new SubTransportWaveSyncState() : new SubTransportIdleState());
 				return;
 			}
 
-			// Issue EnterTransport orders to passengers not yet loaded
+			// Reserve the still-walking passengers against carrier capacity before issuing orders.
+			// Choosing the nearest carrier independently sent every infantryman to the same SAPC;
+			// with two carriers the first filled while the second stayed empty and the rest retried it.
+			carriers.Sort((a, b) => a.ActorID.CompareTo(b.ActorID));
+			passengers.Sort((a, b) => a.ActorID.CompareTo(b.ActorID));
+			var freeCapacity = new int[carriers.Count];
+			for (var i = 0; i < carriers.Count; i++)
+			{
+				var cargo = carriers[i].TraitOrDefault<Cargo>();
+				if (cargo == null)
+					continue;
+
+				var usedWeight = cargo.Passengers.Sum(p =>
+					p.Info.TraitInfoOrDefault<PassengerInfo>()?.Weight ?? 1);
+				freeCapacity[i] = cargo.Info.MaxWeight - usedWeight;
+			}
+
+			var carrierIndex = 0;
 			foreach (var passenger in passengers)
 			{
+				if (!passenger.IsInWorld)
+					continue;
+
+				var passengerWeight = passenger.Info.TraitInfoOrDefault<PassengerInfo>()?.Weight ?? 1;
+				while (carrierIndex < carriers.Count && freeCapacity[carrierIndex] < passengerWeight)
+					carrierIndex++;
+
+				if (carrierIndex >= carriers.Count)
+					break;
+
 				if (passenger.IsIdle)
 				{
-					var nearestCarrier = carriers
-						.MinByOrDefault(c =>
-							(c.CenterPosition - passenger.CenterPosition).LengthSquared);
-					if (nearestCarrier != null)
-						squad.Bot.QueueOrder(new Order("EnterTransport", passenger,
-							Target.FromActor(nearestCarrier), false));
+					squad.Bot.QueueOrder(new Order("EnterTransport", passenger,
+						Target.FromActor(carriers[carrierIndex]), false));
 				}
+
+				// Non-idle passengers are already walking to the same deterministic carrier,
+				// so their seats must remain reserved while newly produced infantry is assigned.
+				freeCapacity[carrierIndex] -= passengerWeight;
 			}
+		}
+
+		public void Deactivate(CNSquad squad) { }
+	}
+
+	/// <summary>
+	/// A loaded SAPC force stays out of the front column. Once that column exchanges damage with its
+	/// objective, the transports take a high-value rear target owned by the same player and depart.
+	/// </summary>
+	sealed class SubTransportWaveSyncState : CNStateBase, ICNState
+	{
+		public void Activate(CNSquad squad)
+		{
+			squad.AcceptingPassengers = false;
+			squad.MissionTargetPlayer = null;
+			squad.SetActorToTarget(null);
+		}
+
+		public void Tick(CNSquad squad)
+		{
+			if (!squad.IsValid)
+				return;
+
+			var carrier = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead);
+			if (carrier == null)
+				return;
+
+			Player enemy;
+			if (squad.SquadManager.Info.AttackWaveEnabled)
+			{
+				if (!squad.SquadManager.TryGetSubterraneanStrikeEnemy(out enemy))
+					return;
+			}
+			else
+			{
+				enemy = squad.SquadManager.GetCachedEnemyBuildings()
+					.FirstOrDefault(a => !SubterraneanHelpers.HasCapability(a, "Defense"))?.Owner;
+			}
+
+			var target = SubterraneanHelpers.FindStrikeTarget(squad, carrier, enemy);
+			if (target == null)
+				return;
+
+			squad.MissionTargetPlayer = enemy;
+			squad.SetActorToTarget(target);
+			CNBotLog.Debug("{0} subterranean transport released with the front: {1} targets {2} at {3}",
+				squad.SquadManager.Player, squad.TemplateName ?? "SubterraneanTransport", target.Info.Name, target.Location);
+			squad.FuzzyStateMachine.ChangeState(squad, new SubTransportBurrowState());
 		}
 
 		public void Deactivate(CNSquad squad) { }
@@ -562,6 +717,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		bool moveIssued;
 		int lastProgressTick;
 		WPos lastCarrierPos;
+		readonly Dictionary<uint, CPos> carrierAmbushCells = [];
+
+		static readonly CVec[] CarrierOffsets =
+		[
+			new(0, 0),
+			new(2, 0), new(-2, 0), new(0, 2), new(0, -2),
+			new(2, 2), new(-2, -2), new(2, -2), new(-2, 2),
+		];
 
 		public void Activate(CNSquad squad)
 		{
@@ -569,6 +732,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			moveIssued = false;
 			lastProgressTick = squad.World.WorldTick;
 			lastCarrierPos = squad.CarrierUnits.FirstOrDefault(u => !u.IsDead)?.CenterPosition ?? WPos.Zero;
+			carrierAmbushCells.Clear();
 		}
 
 		public void Tick(CNSquad squad)
@@ -609,10 +773,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 				squad.SetPositionToTarget(ambushPos.Value);
 				var targetCell = squad.World.Map.CellContaining(ambushPos.Value);
+				AssignCarrierAmbushCells(squad, targetCell);
 
 				foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead))
 					squad.Bot.QueueOrder(new Order("Move", carrier,
-						Target.FromCell(squad.World, targetCell), false));
+						Target.FromCell(squad.World, ResolveCarrierAmbushCell(carrier, targetCell)), false));
 
 				// Escort subtanks tunnel alongside — their subterranean locomotor re-burrows automatically.
 				foreach (var escort in squad.EscortUnits.Where(u => !u.IsDead && u.IsInWorld))
@@ -640,17 +805,46 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			var arrived = squad.CarrierUnits
-				.Where(u => !u.IsDead)
-				.All(u => !SubterraneanHelpers.IsSubmerged(u) &&
-						  (u.CenterPosition - targetPos).Length <
-						  WDist.FromCells(3).Length);
+			var fallbackCell = squad.World.Map.CellContaining(targetPos);
+			var arrived = squad.CarrierUnits.Where(u => !u.IsDead).All(u =>
+			{
+				var arrivalPos = squad.World.Map.CenterOfCell(ResolveCarrierAmbushCell(u, fallbackCell));
+				return !SubterraneanHelpers.IsSubmerged(u) &&
+					(u.CenterPosition - arrivalPos).Length < WDist.FromCells(3).Length;
+			});
 
 			if (arrived)
 				squad.FuzzyStateMachine.ChangeState(squad, new SubTransportSurfaceState());
 		}
 
 		public void Deactivate(CNSquad squad) { }
+
+		void AssignCarrierAmbushCells(CNSquad squad, CPos anchor)
+		{
+			var reserved = new HashSet<CPos>();
+			var slot = 0;
+			foreach (var carrier in squad.CarrierUnits.Where(u => !u.IsDead).OrderBy(u => u.ActorID))
+			{
+				for (var i = 0; i < CarrierOffsets.Length; i++)
+				{
+					var ideal = anchor + CarrierOffsets[(slot + i) % CarrierOffsets.Length];
+					var candidate = SubterraneanHelpers.FindNearestOpenSurfaceCell(squad, carrier, ideal);
+					if (!candidate.HasValue || reserved.Contains(candidate.Value))
+						continue;
+
+					carrierAmbushCells[carrier.ActorID] = candidate.Value;
+					reserved.Add(candidate.Value);
+					break;
+				}
+
+				slot++;
+			}
+		}
+
+		CPos ResolveCarrierAmbushCell(Actor carrier, CPos fallback)
+		{
+			return carrierAmbushCells.TryGetValue(carrier.ActorID, out var assigned) ? assigned : fallback;
+		}
 
 		static WPos? FindAmbushPosition(CNSquad squad)
 		{
@@ -688,57 +882,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 		static Actor FindAmbushTarget(CNSquad squad, Actor source)
 		{
-			var preferredCaps = squad.PreferredTargetCapabilities != null &&
-				squad.PreferredTargetCapabilities.Length > 0
-					? squad.PreferredTargetCapabilities
-					: new[] { "Superweapon", "Tech", "Production", "Economy", "Power" };
+			if (squad.IsTargetValid && (squad.MissionTargetPlayer == null ||
+				squad.TargetActor.Owner == squad.MissionTargetPlayer))
+				return squad.TargetActor;
 
-			return squad.SquadManager.GetCachedEnemyBuildings()
-				.Where(a => HasAnyCapability(a, preferredCaps) && !HasCapability(a, "Defense"))
-				.OrderBy(a => ScoreAmbushTarget(squad, source, a, preferredCaps))
-				.FirstOrDefault()
-				?? squad.SquadManager.GetCachedEnemyBuildings()
-					.Where(a => !HasCapability(a, "Defense"))
-					.MinByOrDefault(a => (a.CenterPosition - source.CenterPosition).LengthSquared);
-		}
-
-		static int ScoreAmbushTarget(CNSquad squad, Actor source, Actor target, string[] preferredCaps)
-		{
-			var score = (int)((source.CenterPosition - target.CenterPosition).LengthSquared / 65536);
-
-			for (var i = 0; i < preferredCaps.Length; i++)
-				if (HasCapability(target, preferredCaps[i]))
-				{
-					score -= (preferredCaps.Length - i) * 300;
-					break;
-				}
-
-			foreach (var actor in squad.World.FindActorsInCircle(target.CenterPosition, WDist.FromCells(7)))
-			{
-				if (!squad.SquadManager.IsLiveEnemyActor(actor))
-					continue;
-
-				if (HasCapability(actor, "Defense"))
-					score += actor.Info.HasTraitInfo<BuildingInfo>() ? 600 : 180;
-				else if (actor.Info.HasTraitInfo<AttackBaseInfo>())
-					score += 120;
-			}
-
-			return score;
-		}
-
-		static bool HasAnyCapability(Actor actor, string[] capabilities)
-		{
-			foreach (var capability in capabilities)
-				if (HasCapability(actor, capability))
-					return true;
-
-			return false;
-		}
-
-		static bool HasCapability(Actor actor, string capability)
-		{
-			return actor.Info.TraitInfoOrDefault<BotCapabilitiesInfo>()?.CapabilitySet.Contains(capability) ?? false;
+			return SubterraneanHelpers.FindStrikeTarget(squad, source, squad.MissionTargetPlayer);
 		}
 	}
 

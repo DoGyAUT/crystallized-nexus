@@ -24,6 +24,8 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly Color BridgeColor = Color.Cyan;
 		public readonly Color RampColor = Color.Yellow;
 		public readonly Color PassageColor = Color.Orange;
+		public readonly Color RegionUnclaimedColor = Color.Gray;
+		public readonly Color RegionBarrierColor = Color.OrangeRed;
 
 		public override object Create(ActorInitializer init) { return new CNTacticalMapOverlay(this); }
 	}
@@ -83,6 +85,12 @@ namespace OpenRA.Mods.Common.Traits
 				.Distinct()
 				.ToList();
 
+			// Per-bot readings of that shared shape: who holds what, and what they think it is for.
+			var regionManagers = self.World.Players
+				.Select(p => p.PlayerActor.TraitsImplementing<CNRegionManagerBotModule>().FirstOrDefault(m => m.IsTraitEnabled()))
+				.Where(m => m != null && m.Ready)
+				.ToList();
+
 			// Cells the bots actually act on (reachable + lead somewhere). Everything else is detected-but-filtered.
 			var usefulCells = new HashSet<CPos>();
 			foreach (var module in moduleList)
@@ -104,6 +112,133 @@ namespace OpenRA.Mods.Common.Traits
 					yield return new CircleAnnotationRenderable(pos, WDist.FromCells(1), useful ? 2 : 1, color);
 					yield return new TextAnnotationRenderable(font, pos, 0, color,
 						$"{cp.Type.ToString()[0]} {cp.BaseWeight} (d{cp.Domain}){(useful ? "" : " x")}");
+				}
+			}
+
+			// The map's shape - computed once, shared, so any one ready module's view of it is everyone's
+			// view (unlike the per-player territories below). Boundary only, not every interior cell: a
+			// large region drawn cell-by-cell would be enormous on screen and pointless to look at - the
+			// point here is where the line runs and who, if anyone, currently holds the region it encloses.
+			var regionModule = moduleList.FirstOrDefault();
+			if (regionModule != null)
+			{
+				// What the cut ran along. Drawn because every "the regions are wrong here" so far has
+				// really been "the barrier has a hole here", and a hole is invisible from the outlines
+				// alone - they just run past it as if nothing were there.
+				foreach (var cell in regionModule.RegionBarrierForOverlay())
+				{
+					if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+						continue;
+
+					yield return new CircleAnnotationRenderable(
+						self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 5, 1, info.RegionBarrierColor);
+				}
+
+				foreach (var region in regionModule.GetRegions())
+				{
+					var owner = regionModule.GetRegionOwner(region.Id);
+					var regionColor = owner != null ? Color.FromArgb(160, owner.Color) : info.RegionUnclaimedColor;
+
+					foreach (var cell in region.BoundaryCells)
+					{
+						if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+							continue;
+
+						yield return new CircleAnnotationRenderable(
+							self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 4, 1, regionColor);
+					}
+
+					if (region.Cells.Length == 0 || !visible.Contains((PPos)region.Cells[0].ToMPos(self.World.Map)))
+						continue;
+
+					// What the region IS comes from the shared graph; what any one bot MAKES of it comes from
+					// its own region manager, so the two are read separately and the second is appended only
+					// where a bot actually holds the region. Without the scores on screen the roles are
+					// unarguable - "why is that the economy region" has no answer from the label alone.
+					var claim = regionManagers
+						.Select(m => m.GetRegionState(region.Id))
+						.FirstOrDefault(s => s != null && s.Claimed);
+
+					var label = $"R{region.Id} {region.Size}c res{region.ResourceCellCount} build{region.BuildableCellCount}"
+						+ (owner != null ? $" {owner.PlayerName}" : "");
+
+					if (claim != null)
+						label += $"\n{claim.Role} v{claim.Value} (res{claim.ResourceScore} spc{claim.SpaceScore} sec{claim.SecurityScore})"
+							+ $"\n{claim.Connections} conn, {claim.SealableDoors} doors w{claim.DoorWidthTotal}"
+							+ (claim.BordersEnemy ? ", front" : "");
+
+					yield return new TextAnnotationRenderable(font, self.World.Map.CenterOfCell(region.Cells[0]), 0,
+						regionColor, label);
+				}
+			}
+
+			// The territory edge, split into what terrain already holds and what has to be held. Drawn per
+			// cell rather than as one outline: the point of looking at this is to see where the line runs
+			// and where it is open, and a cell is the unit both of those are decided in.
+			// Kept paired with their player, unlike moduleList above: a territory only means anything
+			// alongside whose it is, and several are drawn at once.
+			var territories = self.World.Players
+				.Select(p => (Player: p, Module: p.PlayerActor.TraitsImplementing<CNTacticalMapBotModule>().FirstOrDefault(m => m.IsTraitEnabled())))
+				.Where(x => x.Module != null && x.Module.TopologyReady);
+
+			foreach (var (owner, module) in territories)
+			{
+				// In the owning player's colour, because one shared colour would make two territories
+				// meeting look like a single one. Wall is that colour faded: it is context, the doors
+				// are the point.
+				var doorColor = owner.Color;
+				var frontColor = Color.FromArgb(190, owner.Color);
+				var wallColor = Color.FromArgb(90, owner.Color);
+
+				foreach (var cell in module.TerritoryWallForOverlay())
+				{
+					if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+						continue;
+
+					yield return new CircleAnnotationRenderable(
+						self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 3, 1, wallColor);
+				}
+
+				// Open edge: either the enemy got there first, or the gap is too wide to plug. Drawn
+				// between the two, since it is neither free nor cheap to hold.
+				foreach (var cell in module.TerritoryFrontForOverlay())
+				{
+					if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+						continue;
+
+					yield return new CircleAnnotationRenderable(
+						self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 2, 1, frontColor);
+				}
+
+				// Set-back wall band a kill-zone would be built on - lighter than the door itself, since it
+				// is context for the shape, not yet something that exists unless EnableDoorKillZone builds it.
+				var killZoneColor = Color.FromArgb(140, owner.Color);
+
+				foreach (var door in module.DoorsForOverlay())
+				{
+					foreach (var cell in door.Cells)
+					{
+						if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+							continue;
+
+						yield return new CircleAnnotationRenderable(
+							self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 2, 2, doorColor);
+					}
+
+					foreach (var cell in module.GetDoorKillZoneCells(door))
+					{
+						if (!visible.Contains((PPos)cell.ToMPos(self.World.Map)))
+							continue;
+
+						yield return new CircleAnnotationRenderable(
+							self.World.Map.CenterOfCell(cell), WDist.FromCells(1) / 3, 1, killZoneColor);
+					}
+
+					if (!visible.Contains((PPos)door.Center.ToMPos(self.World.Map)))
+						continue;
+
+					yield return new TextAnnotationRenderable(font, self.World.Map.CenterOfCell(door.Center), 0,
+						doorColor, $"DOOR w{door.Width} beyond {door.GroundBeyond}");
 				}
 			}
 		}

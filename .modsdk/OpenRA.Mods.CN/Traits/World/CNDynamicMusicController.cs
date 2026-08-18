@@ -22,16 +22,16 @@ namespace OpenRA.Mods.CN.Traits
 	public class CNDynamicMusicControllerInfo : TraitInfo
 	{
 		[Desc("Peace stem filename per faction Side (e.g. GDI, Nod). Sides missing here never activate dynamic music.")]
-		public readonly Dictionary<string, string> PeaceStems = new();
+		public readonly Dictionary<string, string> PeaceStems = [];
 
 		[Desc("Tension stem filename per faction Side.")]
-		public readonly Dictionary<string, string> TensionStems = new();
+		public readonly Dictionary<string, string> TensionStems = [];
 
 		[Desc("Combat stem filename per faction Side.")]
-		public readonly Dictionary<string, string> CombatStems = new();
+		public readonly Dictionary<string, string> CombatStems = [];
 
 		[Desc("Big battle stem filename per faction Side.")]
-		public readonly Dictionary<string, string> BigBattleStems = new();
+		public readonly Dictionary<string, string> BigBattleStems = [];
 
 		[Desc("Radius around the tracked player's buildings that is scanned for enemy presence (Tension state).")]
 		public readonly WDist TensionScanRadius = WDist.FromCells(20);

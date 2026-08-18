@@ -7,9 +7,32 @@ Player:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		TopologyLocomotors: tracked
 		ChokepointSealMaxWidth: 15
+		# The 'useful chokepoint' refresh floods once per chokepoint, ~120 of them per pass, and profiling
+		# put it at two thirds of this module - itself the largest bot module once everything around it
+		# had been fixed. Both values here reduce how OFTEN a pass runs; UsefulChunkSize is deliberately
+		# left alone, since it only spreads the same work across more ticks and this refresh has no spikes.
+		#
+		# The tolerance matters more than the interval on a crowded map: a pass starts whenever the enemy
+		# building count moved by more than this, and at the default of 2 that is satisfied continuously
+		# with five opponents building and losing structures - so the interval was effectively the only
+		# thing throttling it. Raised to a value that means "one of them has done something substantial".
+		UsefulRefreshInterval: 375
+		EnemyBuildingCountTolerance: 8
+
+	# Reads the shared region graph the tactical map cuts, and decides which of those regions this bot
+	# holds and what each held one is for. CNBaseBuilderBotModule derives its own base roles from this
+	# when EnableRegionBaseRoles is set, instead of guessing them from radii.
+	CNRegionManagerBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		ConstructionYardTypes: gacnst, nacnst
 
 	CNGarrisonBotModule@cn:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		ScanInterval: 50
+		SwapInterval: 300
+		MinimumSpareInfantry: 1
+		DesiredOccupancyWeight: 4
+		ReservationTimeout: 450
 
 	CNBaseBuilderBotModule@cn:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
@@ -100,6 +123,18 @@ Player:
 		DefenseInnerRadius: 8
 		DefenseInnerMinSpacing: 2
 		DefenseOuterMinSpacing: 3
+		DefenseMinimumRelaxedSpacing: 2
+		DefenseClusterRadius: 6
+		DefenseClusterMaxCount: 5
+		DefenseClusterPenaltyPerBuilding: 80
+		EnableDoorDefense: true
+		EnableDoorKillZone: true
+		DoorKillZoneTerrainConnectionMaxLength: 8
+		SellUnplannedLineBuildSegments: true
+		EnableCoreRegionPlacement: true
+		EnableTerritoryPlacement: true
+		EnableRegionRefineryPlacement: true
+		ResourceCellsPerRegionRefinery: 50
 		EnableDefenseDangerMemory: true
 		DefenseDangerMemoryAttackWeight: 120
 		DefenseDangerMemoryBuildingAttackWeight: 160
@@ -252,7 +287,7 @@ Player:
 			ArmorDefense: 8
 			AADefense: 6
 			ArtilleryDefense: 8
-			GarrisonDefense: 5
+			GarrisonDefense: 7
 		
 		# Neutral base building targets.
 		# Tech-stage overlays are applied first, then profile budgets scale Production/Tech/Defense behavior in code.

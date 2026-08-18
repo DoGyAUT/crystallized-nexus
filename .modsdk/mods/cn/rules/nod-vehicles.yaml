@@ -312,9 +312,9 @@ LTNK:
 		Speed: 90
 		AlwaysTurnInPlace: true
 	CNHealth:
-		HP: 125
+		HP: 150
 	SecondaryHealth@ARMOR:
-		MaxHP: 300
+		MaxHP: 350
 		InitialHP: -1
 		ArmorType: Heavy
 		RegenerateRate: 0
@@ -393,12 +393,12 @@ TTNK:
 		ImmovableCondition: formation-move-locked || !undeployed
 		RequireForceMoveCondition: !undeployed
 	CNHealth:
-		HP: 100
+		HP: 200
 	Armor:
 		Type: Medium
 		RequiresCondition: !deployed
 	SecondaryHealth@ARMOR:
-		MaxHP: 200
+		MaxHP: 400
 		InitialHP: -1
 		ArmorType: Heavy
 		RegenerateRate: 0

@@ -107,8 +107,10 @@ GAMG:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights-bright
 		Palette: bright
-	LineBuildNode:
-		Types: turret
+	# No LineBuildNode. These are defences, not wall segments, and declaring them as 'turret' nodes
+	# made GDI walls line-build straight onto them - a wall dragged near a turret snapped to it and
+	# ran a segment across. Nod's defences carry no such node and behave the way this now does; both
+	# factions' walls still list 'turret' in NodeTypes, which is simply unused from here on.
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
 		Capabilities: Defense, InfantryDefense
@@ -180,8 +182,10 @@ GACAN:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights-bright
 		Palette: bright
-	LineBuildNode:
-		Types: turret
+	# No LineBuildNode. These are defences, not wall segments, and declaring them as 'turret' nodes
+	# made GDI walls line-build straight onto them - a wall dragged near a turret snapped to it and
+	# ran a segment across. Nod's defences carry no such node and behave the way this now does; both
+	# factions' walls still list 'turret' in NodeTypes, which is simply unused from here on.
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
 		Capabilities: Defense, ArmorDefense
@@ -250,8 +254,10 @@ GASAM:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights-bright
 		Palette: bright
-	LineBuildNode:
-		Types: turret
+	# No LineBuildNode. These are defences, not wall segments, and declaring them as 'turret' nodes
+	# made GDI walls line-build straight onto them - a wall dragged near a turret snapped to it and
+	# ran a segment across. Nod's defences carry no such node and behave the way this now does; both
+	# factions' walls still list 'turret' in NodeTypes, which is simply unused from here on.
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
 		Capabilities: Defense, AADefense
@@ -323,8 +329,10 @@ GAGAT:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights-bright
 		Palette: bright
-	LineBuildNode:
-		Types: turret
+	# No LineBuildNode. These are defences, not wall segments, and declaring them as 'turret' nodes
+	# made GDI walls line-build straight onto them - a wall dragged near a turret snapped to it and
+	# ran a segment across. Nod's defences carry no such node and behave the way this now does; both
+	# factions' walls still list 'turret' in NodeTypes, which is simply unused from here on.
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
 		Capabilities: Defense, InfantryDefense, SpecialDefense
@@ -396,8 +404,10 @@ GASEN:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights-bright
 		Palette: bright
-	LineBuildNode:
-		Types: turret
+	# No LineBuildNode. These are defences, not wall segments, and declaring them as 'turret' nodes
+	# made GDI walls line-build straight onto them - a wall dragged near a turret snapped to it and
+	# ran a segment across. Nod's defences carry no such node and behave the way this now does; both
+	# factions' walls still list 'turret' in NodeTypes, which is simply unused from here on.
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
 		Capabilities: Defense, InfantryDefense, ArmorDefense, SpecialDefense
@@ -466,8 +476,10 @@ GAMORTAR:
 		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights-bright
 		Palette: bright
-	LineBuildNode:
-		Types: turret
+	# No LineBuildNode. These are defences, not wall segments, and declaring them as 'turret' nodes
+	# made GDI walls line-build straight onto them - a wall dragged near a turret snapped to it and
+	# ran a segment across. Nod's defences carry no such node and behave the way this now does; both
+	# factions' walls still list 'turret' in NodeTypes, which is simply unused from here on.
 	ProvidesPrerequisite@buildingname:
 	BotCapabilities:
 		Capabilities: Defense, ArmorDefense, ArtilleryDefense

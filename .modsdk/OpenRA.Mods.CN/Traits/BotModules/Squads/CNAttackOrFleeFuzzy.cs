@@ -104,6 +104,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		static readonly string[] RaiderRulesNormalOwnHealth =
 		[
 
+			// A fresh raider force that is clearly stronger should actually open the fight. This case
+			// used to match no rule at all: Normal enemy health was only covered by the Weak/Equal
+			// flee rule, while the Strong attack rule required the enemy to be damaged already. The
+			// fuzzy result was then NaN, which CanAttack deliberately treats as Flee, so raiders turned
+			// away from exactly the isolated full-health target they were built to pick off.
+			"if ((OwnHealth is Normal) " +
+			"and (EnemyHealth is Normal) " +
+			"and (RelativeAttackPower is Strong) " +
+			"and ((RelativeSpeed is Slow) or (RelativeSpeed is Equal) or (RelativeSpeed is Fast))) " +
+			"then AttackOrFlee is Attack",
+
 			// Only attack if clearly stronger
 			"if ((OwnHealth is Normal) " +
 			"and ((EnemyHealth is NearDead) or (EnemyHealth is Injured)) " +
@@ -243,6 +254,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				var sum = 0;
 				foreach (var arm in a.TraitsImplementing<Armament>())
 				{
+					// Conditional alternatives are still traits on the actor. Counting both sides of a
+					// condition (BikeMissile plus its elite replacement, deployed plus mobile guns, ...)
+					// rated a unit as if it could fire every loadout at once and sent it into fights its
+					// currently enabled weapons could not carry.
+					if (arm.IsTraitDisabled || arm.IsTraitPaused)
+						continue;
+
 					var burst = arm.Weapon.Burst;
 					var delay = (arm.Weapon.ReloadDelay +
 						arm.Weapon.BurstDelays[0] * (burst - 1)).Clamp(1, 200);

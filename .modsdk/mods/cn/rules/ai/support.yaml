@@ -27,6 +27,28 @@ Player:
 		BridgeHutActorTypes: cabhut
 		MinimumDamageState: Dead
 		MaximumRepairers: 2
+	# Shoots destroyable cliffs open, but only where an opening is worth something: inside ground this
+	# bot holds, or inside enemy ground it already has units in. Needs CNTacticalMapBotModule for the
+	# region graph, which base-building.yaml sets up.
+	CNCliffDemolitionBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		ScanInterval: 250
+		MinimumAttackers: 3
+		MaximumAttackers: 6
+		# This is a marching order, not just a proximity filter - the units walk to the cliff. Twelve only
+		# ever caught whoever happened to be standing beside it, and a cliff at the far edge of a base is
+		# further away than that; twenty-five covers a base without sending anyone across the map.
+		AttackerSearchRadius: 25
+	# GDI treats the weed as something to burn out; Nod leaves veinholes standing because its weed
+	# harvesters feed the Nawast off them. Nothing shoots a veinhole on its own (NoAutoTarget plus
+	# RequiresForceFire), so Nod needs no counterpart rule - not having this module is the behaviour.
+	CNVeinholeAssaultBotModule@cn:
+		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
+		Sides: GDI
+		ScanInterval: 300
+		MinimumAttackers: 4
+		MaximumAttackers: 8
+		AttackerSearchRadius: 12
 	CNUnitBuilderBotModule@Combat:
 		RequiresCondition: enable-cn-ai || enable-cn-rush || enable-cn-turtle || enable-cn-tech || enable-cn-expansion || enable-cn-steamroller
 		UnitQueues: Infantry, Vehicle, Air
@@ -142,7 +164,11 @@ Player:
 			TickTank:
 				ActorTypes: ttnk
 				Mode: Stats
-				DeployRange: 6
+				# Deploying is worth an armour bonus, so a tick tank should be dug in whenever something is
+				# in reach - SafeRange is already 0, so closeness never drives it back up. Raised from 6 to
+				# 8 only so the deploy animation has time to finish before contact rather than starting as
+				# the enemy arrives.
+				DeployRange: 8
 				SafeRange: 0
 				DeployCooldown: 150
 			EMP:
@@ -175,6 +201,13 @@ Player:
 		MaxConcurrentMcvCounts:
 			Expansion: 3
 			Steamroller: 2
+		# A construction yard buys a build site and no build throughput - one building queue is shared by
+		# all of them - so spreading before a region is finished just makes every site grow slower and
+		# leaves the newest ones bare. One region at a time; Expansion, whose whole idea is the land grab,
+		# gets two.
+		MaxRegionsUnderDevelopment: 1
+		MaxRegionsUnderDevelopmentCounts:
+			Expansion: 2
 		BuildAdditionalMCVCashAmount: 9000
 		BuildAdditionalMCVCashAmounts:
 			Turtle: 12000

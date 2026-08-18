@@ -15,7 +15,7 @@ namespace OpenRA.Mods.CN.Traits
 	public class CNHandicapIncomeMultiplierInfo : TraitInfo
 	{
 		[Desc("Percentage modifier per named difficulty tier.")]
-		public readonly Dictionary<string, int> Modifiers = new();
+		public readonly Dictionary<string, int> Modifiers = [];
 
 		public override object Create(ActorInitializer init) { return new CNHandicapIncomeMultiplier(this, init.Self); }
 	}

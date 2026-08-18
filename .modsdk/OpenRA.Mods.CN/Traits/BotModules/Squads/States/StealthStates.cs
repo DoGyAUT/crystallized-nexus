@@ -15,6 +15,23 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 {
+	static class StealthHelpers
+	{
+		public static bool IsCloakedOrUncloakable(Actor actor)
+		{
+			foreach (var cloak in actor.TraitsImplementing<Cloak>())
+			{
+				if (cloak.IsTraitDisabled)
+					continue;
+
+				if (!cloak.Cloaked)
+					return false;
+			}
+
+			return true;
+		}
+	}
+
 	sealed class StealthIdleState : CNStateBase, ICNState
 	{
 		// Game ticks, not update cycles: how long a target picked here is kept before the squad
@@ -41,11 +58,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (center == null)
 				return;
 
-			Actor target = null;
-			if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
-				target = FindPriorityTarget(squad, squad.PreferredTargetCapabilities, center);
+			// Killing a soft target often returns here before the first-volley commitment expires. Do
+			// not start a fresh commitment window for every building in the base: a revealed squad that
+			// is now losing the local fight should disengage and cloak before choosing the next victim.
+			if (squad.OrderableUnits.Any(u => !StealthHelpers.IsCloakedOrUncloakable(u)) && ShouldFlee(squad))
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new StealthFleeState());
+				return;
+			}
 
-			target ??= CNSquadHelper.FindUnprotectedTarget(squad);
+			Actor target = null;
+			bool OutsideKnownDetection(Actor candidate)
+				=> !squad.SquadManager.IsCoveredByKnownDetector(center, candidate.CenterPosition);
+
+			if (squad.PreferredTargetCapabilities != null && squad.PreferredTargetCapabilities.Length > 0)
+				target = CNSquadHelper.FindPriorityTarget(
+					squad, squad.PreferredTargetCapabilities, center, OutsideKnownDetection);
+
+			target ??= CNSquadHelper.FindUnprotectedTarget(squad, OutsideKnownDetection);
 
 			if (target != null)
 			{
@@ -67,13 +97,25 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class StealthApproachState : CNStateBase, ICNState
 	{
-		const int MaxStuckTicks = 120;
+		// A stealth strike that reevaluates the fight on the same tick as its first volley often turns
+		// around before the missiles land. Give the ambush enough time to kill its focus target, then
+		// restore the normal threat/health decision instead of making the squad permanently fearless.
+		const int MinimumCommitTicks = 150;
+		const int MaxStuckTicks = 225;
+		const int StrikeCommitDistanceCells = 8;
+
+		bool ordersIssued;
+		int firstRevealTick;
 		int lastActivityTick;
+		int lastTotalHealth;
 		CPos lastCenterPos;
 
 		public void Activate(CNSquad squad)
 		{
+			ordersIssued = false;
+			firstRevealTick = 0;
 			lastActivityTick = squad.World.WorldTick;
+			lastTotalHealth = TotalHealth(squad);
 			lastCenterPos = squad.CenterUnit()?.Location ?? CPos.Zero;
 		}
 
@@ -88,21 +130,58 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			// Stealth units uncloak to fire (UncloakOn: Attack), so being "revealed" is the normal
-			// state mid-attack — not a reason to bail. Previously any uncloaked unit triggered a
-			// flee, so the squad retreated right after its first shot and never committed to a kill.
-			// Fleeing is now driven purely by the threat/health assessment, so the squad presses the
-			// attack and only pulls back when it is actually being beaten.
-			if (ShouldFlee(squad))
+			if (!ordersIssued && !IssueApproachOrders(squad))
+				return;
+
+			var allCloaked = squad.OrderableUnits.All(StealthHelpers.IsCloakedOrUncloakable);
+			var totalHealth = TotalHealth(squad);
+			var tookDamage = totalHealth < lastTotalHealth;
+			lastTotalHealth = totalHealth;
+			var anyAiming = IsAnyUnitAiming(squad);
+			var center = squad.CenterUnit();
+			var strikeDistance = WDist.FromCells(StrikeCommitDistanceCells).Length;
+			var closeToStrike = center != null &&
+				HorizontalLengthSquared(center.CenterPosition - squad.TargetActor.CenterPosition) <=
+				(long)strikeDistance * strikeDistance;
+			var knownDetectionAhead = center != null &&
+				(squad.SquadManager.IsCoveredByKnownDetector(center, center.CenterPosition) ||
+				 squad.SquadManager.IsCoveredByKnownDetector(center, squad.TargetActor.CenterPosition));
+			if (allCloaked && knownDetectionAhead && !closeToStrike)
+			{
+				CNBotLog.Debug("{0} stealth squad aborted {1}: detector coverage changed during approach",
+					squad.Bot.Player, squad.TargetActor);
+				squad.SetActorToTarget(null);
+				squad.FuzzyStateMachine.ChangeState(squad, new StealthFleeState());
+				return;
+			}
+
+			// Detection does not clear Cloak.Cloaked: it only makes the unit visible to the detector's
+			// owner. Damage is therefore the first legal signal when an unseen detector catches a squad.
+			// A hit on the run-in is not an ambush volley and must not buy the old six-second commitment.
+			if (tookDamage && !anyAiming && !closeToStrike)
 			{
 				squad.FuzzyStateMachine.ChangeState(squad, new StealthFleeState());
 				return;
 			}
 
-			var currentPos = squad.CenterUnit()?.Location ?? CPos.Zero;
-			var anyAttacking = squad.Units.Any(u => !u.IsDead && !u.IsIdle);
+			if ((!allCloaked || tookDamage) && firstRevealTick == 0)
+				firstRevealTick = squad.World.WorldTick;
 
-			if (currentPos != lastCenterPos || anyAttacking)
+			var committed = firstRevealTick > 0 &&
+				(anyAiming || closeToStrike) && squad.World.WorldTick - firstRevealTick < MinimumCommitTicks;
+
+			// A still-cloaked squad has not joined the local fight yet. Letting nearby enemies feed the
+			// fuzzy flee check here made covert routes peel away merely because they passed a defended
+			// area. Once revealed, the squad commits to one volley window and then judges the real fight.
+			if ((!allCloaked || tookDamage) && !committed && ShouldFlee(squad))
+			{
+				squad.FuzzyStateMachine.ChangeState(squad, new StealthFleeState());
+				return;
+			}
+
+			var currentPos = center?.Location ?? CPos.Zero;
+
+			if (currentPos != lastCenterPos || anyAiming)
 			{
 				lastActivityTick = squad.World.WorldTick;
 				lastCenterPos = currentPos;
@@ -128,6 +207,69 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// profile fled even at full health against a healthy enemy, which made them too timid.
 			return ShouldFlee(squad, (friendlies, enemies) =>
 				CannotAttackEvenTogether(CNAttackOrFleeFuzzy.Default, squad, friendlies, enemies));
+		}
+
+		bool IssueApproachOrders(CNSquad squad)
+		{
+			var center = squad.CenterUnit();
+			if (center == null)
+				return false;
+
+			var units = squad.OrderableUnits.OrderBy(u => u.ActorID).ToArray();
+			if (units.Length == 0)
+				return false;
+
+			// A direct Attack order asks the pathfinder for the shortest road. Against a rear building
+			// that road commonly enters through the front and crosses the whole enemy base. Reuse the
+			// pinned infiltration route so the cloaked group reaches the selected weak entrance first.
+			var blockedByDetection = false;
+			var route = squad.TargetActor.Info.HasTraitInfo<BuildingInfo>()
+				? squad.SquadManager.BuildStealthApproachRoute(
+					center.Location, squad.TargetActor, center, out blockedByDetection)
+				: [];
+			if (blockedByDetection)
+			{
+				CNBotLog.Debug("{0} stealth squad declined {1}: no route outside known detector coverage",
+					squad.Bot.Player, squad.TargetActor);
+				squad.SetActorToTarget(null);
+				squad.FuzzyStateMachine.ChangeState(squad, new StealthFleeState());
+				return false;
+			}
+
+			var queued = false;
+			foreach (var waypoint in route)
+			{
+				squad.Bot.QueueOrder(new Order("Move", null,
+					Target.FromCell(squad.World, waypoint), queued, groupedActors: units));
+				queued = true;
+			}
+
+			foreach (var unit in units)
+				squad.Bot.QueueOrder(new Order("Attack", unit, squad.Target, queued));
+
+			ordersIssued = true;
+			return true;
+		}
+
+		static int TotalHealth(CNSquad squad)
+		{
+			var total = 0;
+			foreach (var unit in squad.OrderableUnits)
+				total += unit.TraitOrDefault<IHealth>()?.HP ?? 0;
+
+			return total;
+		}
+
+		static bool IsAnyUnitAiming(CNSquad squad)
+		{
+			foreach (var unit in squad.OrderableUnits)
+			{
+				foreach (var attack in unit.TraitsImplementing<AttackBase>())
+					if (!attack.IsTraitDisabled && attack.IsAiming)
+						return true;
+			}
+
+			return false;
 		}
 	}
 
@@ -164,7 +306,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 
 			var enemy = RaiderAttackState.FindClosestThreat(squad, center, squad.SquadManager.Info.DangerScanRadius);
-			var allCloaked = squad.OrderableUnits.All(IsCloakedOrUncloakable);
+			var allCloaked = squad.OrderableUnits.All(StealthHelpers.IsCloakedOrUncloakable);
 
 			if (enemy == null ||
 				(allCloaked && HasOpenedKiteDistance(center, enemy)) ||
@@ -173,12 +315,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		}
 
 		public void Deactivate(CNSquad squad) { }
-
-		static bool IsCloakedOrUncloakable(Actor actor)
-		{
-			var cloaks = actor.TraitsImplementing<Cloak>().Where(c => !c.IsTraitDisabled).ToList();
-			return cloaks.Count == 0 || cloaks.All(c => c.Cloaked);
-		}
 
 		static bool HasOpenedKiteDistance(Actor center, Actor enemy)
 		{

@@ -1,4 +1,4 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -120,7 +120,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		[Desc("Transport/SubterraneanTransport only: after dropping its passengers (engineers) behind enemy " +
 			"lines, the squad orders them to capture the nearest valuable enemy building and immediately " +
-			"sell it for cash + denial. The (empty) carriers then return home.")]
+			"sell it for cash + denial. Captured construction yards instead pack up and return to the " +
+			"primary base as MCVs. The (empty) carriers then return home.")]
 		public readonly bool CaptureAndSell = false;
 
 		[Desc("When set, limits MaxInstances based on how many of this building type the player owns. " +
@@ -223,23 +224,33 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		public readonly int RepeatPenalty = 8;
 
 		[Desc("Score penalty per already active squad sharing each tag.")]
-		public readonly int TagSaturationPenalty = 4;
+		public readonly int TagSaturationPenalty = 2;
 
 		[Desc("Score penalty per already active squad of the same role when picking roles.")]
 		public readonly int RoleSaturationPenalty = 8;
 
 		[Desc("Maximum absolute dynamic score contribution from one NeedRules entry. 0 disables the cap.")]
-		public readonly int MaxNeedScorePerTag = 100;
+		public readonly int MaxNeedScorePerTag = 60;
 
-		[Desc("Score penalty applied to a tag's rolling performance for each unit lost from a squad carrying that tag.")]
-		public readonly int PerformancePenaltyPerLoss = 8;
+		[Desc("Score penalty applied to a template's rolling performance for each unit its squads lose.")]
+		public readonly int PerformancePenaltyPerLoss = 3;
 
-		[Desc("Per-cleanup-pass decay (0-1) applied to every tag's rolling performance penalty, recovering it back toward 0 " +
-			"when its squads stop losing units. Lower = forgets losses faster.")]
+		[Desc("Per-cleanup-pass decay (0-1) applied to every template's rolling performance score, recovering it back toward 0 " +
+			"when its squads stop dealing damage or losing units. Lower = forgets combat results faster.")]
 		public readonly float PerformanceDecay = 0.97f;
 
-		[Desc("Maximum (most negative) rolling performance penalty a single tag can accumulate. 0 disables the cap.")]
-		public readonly int MaxPerformancePenaltyPerTag = 40;
+		[Desc("Maximum (most negative) rolling performance penalty a single template can accumulate. 0 disables the cap.")]
+		public readonly int MaxPerformancePenaltyPerTemplate = 20;
+
+		[Desc("Actual enemy damage a template's squads must deal for +1 rolling performance score. " +
+			"0 disables the damage reward without disabling the kill reward.")]
+		public readonly int PerformanceDamagePerPoint = 1000;
+
+		[Desc("Additional rolling performance score awarded when a squad unit lands a killing blow.")]
+		public readonly int PerformanceRewardPerKill = 1;
+
+		[Desc("Maximum positive rolling performance score a single template can accumulate. 0 disables the cap.")]
+		public readonly int MaxPerformanceRewardPerTemplate = 15;
 
 		[Desc("Randomness exponent for template selection (squad formation and production). " +
 			"Templates are chosen by a weighted lottery where the chance is proportional to " +
@@ -313,14 +324,77 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			"march past the objective to gather behind it.")]
 		public readonly int ApproachMaxDetourPercent = 40;
 
+		[Desc("The same allowance, applied when the candidates are the doors of the target's own region " +
+			"rather than chokepoints near it. Deliberately far larger: a door is not a detour, it is the " +
+			"way in, and a door off to one side is exactly the back way an attack should prefer. The tight " +
+			"chokepoint figure rejected every door found in a played match - the funnel line read '1 region " +
+			"doors, 1 within 40 cells of target, 0 within detour' four times over. Still bounded rather " +
+			"than dropped, so a door on the far side of the objective cannot pull the wave past it.")]
+		public readonly int ApproachDoorMaxDetourPercent = 150;
+
 		[Desc("Cells short of the chosen way in that the squads actually gather. A chokepoint is narrow by " +
 			"definition, and assembling inside one bunches the squad up where it is easiest to shell.")]
 		public readonly int ApproachStandOffCells = 6;
+
+		[Desc("How many waypoints the march to the gathering point is pinned to when that march would " +
+			"otherwise cross the objective's own region. A wave sent to a flanking door was routed by the " +
+			"plain pathfinder, which took the shortest line: in through the near entrance, across the " +
+			"enemy base, and out to the far door - the very base it was going round to flank. Pinning a " +
+			"few corners of the way round is enough; every cell would be hundreds of queued orders. " +
+			"0 disables the routing and the pathfinder decides as before.")]
+		public readonly int WaveRouteWaypoints = 4;
+
+		[Desc("Split a sufficiently large wave across two opposite doors of the target region. Falls back " +
+			"to the normal single approach unless both flanks have a route that stays outside the target region.")]
+		public readonly bool PincerAttackEnabled = true;
+
+		[Desc("Minimum number of ready squads before a wave may split into two flanks. Each flank must still " +
+			"receive at least two squads, so values below 4 behave as 4.")]
+		public readonly int PincerAttackMinSquads = 4;
+
+		[Desc("Minimum cell distance between the two doors used by a pincer. They must also lie in opposite " +
+			"half-planes around the objective; distance alone would accept two entrances on the same side.")]
+		public readonly int PincerAttackMinDoorSeparationCells = 16;
+
+		[Desc("Maximum cells between pinned waypoints on a pincer approach. The ordinary four-waypoint " +
+			"route is too sparse here: the pathfinder may shortcut between them through the base the second " +
+			"flank is meant to go around. Values below 1 are clamped to 1.")]
+		public readonly int PincerRouteWaypointSpacingCells = 6;
+
+		[Desc("Maximum cells between pinned waypoints on a ground transport approach. APCs carry too much " +
+			"of the attack to let the pathfinder shortcut a sparse route through the enemy base.")]
+		public readonly int TransportRouteWaypointSpacingCells = 6;
+
+		[Desc("Ticks' worth of defensive fire per unit, above which a wave is held back rather than launched " +
+			"- the run-in is costing more than the force can pay. 0 disables the check, which is the " +
+			"default: a failed wave gives an upper bound on what is too much and a successful one gives a " +
+			"lower bound, and only the first kind has been observed so far. The figure is logged on every " +
+			"launch as \"wave strength\"; read a match, then set this.")]
+		public readonly int WaveAbortThreatPerUnit = 0;
+
+		[Desc("Multiplier on a target's capability value (Production, Tech, Superweapon and so on) when " +
+			"choosing what a wave attacks. Raise it to make waves chase the valuable thing regardless of " +
+			"what guards it; lower it to make them take whatever is cheapest to reach.")]
+		public readonly int WaveTargetValueWeight = 10;
+
+		[Desc("Divisor on the defensive fire already known to cover a candidate target. This is what tells " +
+			"the edge of a base from its middle: a building ringed by turrets costs more to reach than one " +
+			"on the perimeter, and a wave that ignores the difference marches into the middle and dies " +
+			"there. Larger values care less about how well guarded a target is.")]
+		public readonly int WaveTargetThreatDivisor = 8;
 
 		[Desc("How many points along the run-in are sampled when weighing one approach against another. " +
 			"Emplacements cover approaches rather than the buildings behind them, so the fire is on the " +
 			"stretch between the gathering point and the objective and has to be summed along it.")]
 		public readonly int ApproachThreatSamples = 10;
+
+		[Desc("Cells between samples when a run-in is measured along the ground rather than along a line. " +
+			"Fixed spacing rather than a fixed count on purpose: a fixed count measures average exposure, " +
+			"which makes the candidate closest to the objective look worst of all, since every one of its " +
+			"samples falls in the defended stretch while a distant candidate spends most of them on empty " +
+			"ground. Total fire taken is proportional to ground crossed under guns, so the spacing is the " +
+			"thing that has to be held constant. ApproachThreatSamples * 8 caps how many are ever taken.")]
+		public readonly int ApproachThreatSampleSpacingCells = 2;
 
 		[Desc("Score penalty per point of static-defence damage per salvo covering a target, in hundredths. " +
 			"Makes squads prefer objectives that are not sitting under a battery of guns, so a beaten squad " +
@@ -452,7 +526,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		[
 			CNSquadType.Assault,
 			CNSquadType.ArtilleryAssault,
-			CNSquadType.SubterraneanAssault,
 		];
 
 		[Desc("Team template definitions.")]
@@ -524,14 +597,54 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		}
 	}
 
+	/// <summary>The immutable route assigned to one squad for the lifetime of a launched wave.</summary>
+	sealed class CNWavePlan
+	{
+		public readonly int Flank;
+		public readonly CPos RallyCell;
+		public readonly CPos? EntryCell;
+		public readonly CPos[] Route;
+
+		public CNWavePlan(int flank, CPos rallyCell, CPos? entryCell, CPos[] route)
+		{
+			Flank = flank;
+			RallyCell = rallyCell;
+			EntryCell = entryCell;
+			Route = route;
+		}
+	}
+
 	// ---------------------------------------------------------------------------
 	// Runtime module
 	// ---------------------------------------------------------------------------
 	public class CNSquadManagerBotModule : ConditionalTrait<CNSquadManagerBotModuleInfo>,
-		IBotTick, IBotRespondToAttack, INotifyActorDisposing
+		IBotTick, IBotRespondToAttack, INotifyAppliedDamage, INotifyActorDisposing
 	{
 		const int MaxTrackedAttackers = 4;
 		const int MaxRespondToAttackCooldown = 30;
+
+		// Cap on the approach distance flood (see BuildApproachDistances). Bounded well below the harvester
+		// flood's 30000: a run-in past the detour allowance is rejected anyway, so ground beyond it never
+		// needs a distance. Keeps a burst of bots forming waves in the same frame from each walking the
+		// whole map.
+		const int MaxApproachFloodCells = 6000;
+
+		// The safe-route flood is a different job and needs its own bound. It runs from the rally back to
+		// the bot's own base with the objective's region walled off, so its reach is the width of the map
+		// plus whatever detour going round costs - not the forty-cell neighbourhood the figure above was
+		// chosen for. Sharing that cap meant the flood ran out before reaching the base on anything but a
+		// short march, BuildSafeRouteTo returned nothing, and the wave silently fell back to the plain
+		// pathfinder - straight through the base it was going round. A played log bears that out: six
+		// routes actually computed across eighty-one wave launches.
+		const int MaxSafeRouteFloodCells = 30000;
+		const int StealthDetectorSafetyCells = 2;
+
+		// How often the idle sweep runs. The threshold it feeds (IdleSalvageTicks) is 300 ticks in every
+		// profile, so sampling once a second resolves it more than finely enough while doing a
+		// twenty-fifth of the work. The one thing coarser sampling gives up: a unit that briefly does
+		// something between two samples keeps its timestamp and stays a salvage candidate, so marginally
+		// more idle units get pulled into squads - the direction this bot wants anyway.
+		const int IdleScanInterval = 25;
 
 		public readonly World World;
 		public readonly Player Player;
@@ -561,16 +674,25 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		HashSet<string> activeGlobalThreatTags = [];
 		HashSet<string> scratchGlobalThreatTags = [];
 
-		// Pre-allocated scratch dicts for per-unit count tracking.
+		// Pre-allocated scratch dicts keyed by NeedRules tag. One actor contributes at most once to
+		// each rule even when it carries several of that rule's capabilities.
 		Dictionary<string, int> activeVisibleThreatCounts = [];
 		Dictionary<string, int> scratchVisibleThreatCounts = [];
 		Dictionary<string, int> activeGlobalThreatCounts = [];
 		Dictionary<string, int> scratchGlobalThreatCounts = [];
 
-		// Rolling per-tag performance penalty, <= 0. Dragged down by units lost from squads
-		// carrying the tag, recovers back toward 0 over time via PerformanceDecay when a tag's
-		// squads stop losing units. Read by GetTagScore, written in PurgeDeadUnits.
-		readonly Dictionary<string, float> tagPerformance = [];
+		// Rolling per-template performance score. A tag-wide score taught the bot that
+		// Infantry or Vehicle itself was bad whenever one heavily tagged squad lost a unit, and a
+		// five-tag transport charged the same death five times. This keeps that evidence attached to
+		// the exact composition that produced it and recovers it via PerformanceDecay. Positive combat
+		// evidence uses the same score, so damage and kills can offset losses without creating a second
+		// selection bias that decays on a different clock.
+		readonly Dictionary<CNTeamTemplateInfo, float> templatePerformance = [];
+
+		// Applied-damage notifications identify the attacker, not its squad. Resolve that relationship
+		// only on the first hit and cache it; scanning all squads for every projectile impact made the
+		// reward itself part of the hot combat path.
+		readonly Dictionary<Actor, CNSquad> damageSquadCache = [];
 
 		// Per-tick building caches — one Building scan each per world tick, shared across all squads.
 		IReadOnlyList<Actor> cachedOwnBuildings = [];
@@ -587,6 +709,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// Nemesis system
 		CombatAnalysisBotModule combatAnalysis;
 		CNBaseBuilderBotModule baseBuilder;
+		CNGarrisonBotModule garrisonManager;
 		CNTacticalMapBotModule tacticalMap;
 		CPos initialBaseCenter;
 
@@ -601,13 +724,32 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// starting it at the launch spent most of it on gathering and marching before a shot was fired.
 		int waveStartedTick;
 		int waveLaunchTick;
+		int lastFrontWaveCombatTick;
+
+		// What the wave was made of at each stage, so its life can be read as three numbers rather than
+		// guessed at from the rally decision alone.
+		int waveLaunchSquads;
+		int waveLaunchUnits;
+		int waveReleaseSquads;
+		int waveReleaseUnits;
 		HashSet<CNSquadType> waveEligibleRoleSet = [];
-		readonly Dictionary<Actor, int> idleTickCounters = [];
+		int idleScanTicks = 1;
+		readonly HashSet<Actor> idleScanSeen = [];
+
+		// When each idle unit was first seen standing around, not how many ticks it has been counted for.
+		//
+		// The counting version had to run every tick to stay meaningful, and its scan walks every Mobile
+		// and Aircraft on the map - for every bot, including all six players' units - to feed a single
+		// threshold that is read only inside TryFillTemplates. A timestamp measures the same elapsed
+		// ticks no matter how often it is sampled, which is what makes the scan interval free to choose.
+		readonly Dictionary<Actor, int> idleSinceTick = [];
 
 		public bool IsWaveLaunched { get; private set; }
 		public Actor WaveTarget { get; private set; }
-		public CPos WaveRallyCell { get; private set; }
 		public readonly HashSet<CNSquad> WaveParticipants = [];
+		readonly Dictionary<CNSquad, CNWavePlan> wavePlans = [];
+		bool waveRallyReleased;
+		bool waveEntryReleased;
 
 		public bool IsWaveEligible(CNSquadType type) => waveEligibleRoleSet.Contains(type);
 
@@ -623,10 +765,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			foreach (var squad in Squads.ToList())
 				UnregisterSquad(squad);
+
+			damageSquadCache.Clear();
 		}
 
 		protected override void TraitEnabled(Actor self)
 		{
+			// An adaptive profile remains disabled far longer than this short rolling memory would
+			// naturally survive. Keeping it frozen made a profile resume with losses from minutes ago,
+			// while a continuously active profile forgot the same losses in under a minute.
+			templatePerformance.Clear();
+			activeVisibleThreatTags.Clear();
+			activeGlobalThreatTags.Clear();
+			activeVisibleThreatCounts.Clear();
+			activeGlobalThreatCounts.Clear();
+			threatScanTicks = 0;
+
 			var startCell = self.World.Map.AllCells.FirstOrDefault();
 			var foundTiles = self.World.Map.FindTilesInCircle(startCell, 1);
 
@@ -643,6 +797,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			baseBuilder = Player.PlayerActor
 				.TraitsImplementing<CNBaseBuilderBotModule>()
 				.FirstOrDefault();
+			garrisonManager = Player.PlayerActor
+				.TraitsImplementing<CNGarrisonBotModule>()
+				.FirstOrDefault(t => t.IsTraitEnabled());
 			tacticalMap = Player.PlayerActor
 				.TraitsImplementing<CNTacticalMapBotModule>()
 				.FirstOrDefault();
@@ -664,8 +821,18 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var random = World.LocalRandom;
 			assignRolesTicks = random.Next(0, Info.AssignRolesInterval);
-			minAttackForceDelayTicks = random.Next(0, Info.MinimumAttackForceDelay + 1);
 			cleanupTicks = random.Next(0, CleanupInterval);
+
+			// Counted from the start of the game, exactly like AttackWaveInitialDelay below and for the
+			// same reason. An adaptive bot swaps one profile's squad manager for another mid-game, and the
+			// swap dissolves every squad; re-arming the full delay on top of that left the army with no
+			// squads AND no way to form new ones for up to MinimumAttackForceDelay ticks - 1800 for
+			// Turtle, seventy-two seconds, and the switch that reaches Turtle fastest is the emergency
+			// one, which fires precisely when the bot is under attack. Once the opening delay has passed,
+			// a mid-game switch resumes at once.
+			minAttackForceDelayTicks = Math.Max(0, Info.MinimumAttackForceDelay - World.WorldTick);
+			if (minAttackForceDelayTicks > 0)
+				minAttackForceDelayTicks = random.Next(0, minAttackForceDelayTicks + 1);
 
 			// Wave system init
 			waveEligibleRoleSet = [.. Info.WaveParticipantRoles ?? []];
@@ -688,44 +855,55 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			waveGrowthTicks = Info.AttackWaveSizeGrowthInterval;
 			waveWaitingSinceTick = 0;
 			waveStartedTick = 0;
+			lastFrontWaveCombatTick = 0;
 			IsWaveLaunched = false;
 			WaveTarget = null;
 			WaveParticipants.Clear();
+			wavePlans.Clear();
+			waveRallyReleased = false;
+			waveEntryReleased = false;
 		}
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNSquadManagerBotModule));
+
 			// Its own cadence rather than the threat scan's: that one is gated on tags being tracked at
 			// all, and the defence memory has to keep working regardless of how a profile is configured.
 			if (Info.EnemyDefenseMemoryInterval > 0 && --defenseMemoryTicks <= 0)
 			{
 				defenseMemoryTicks = Info.EnemyDefenseMemoryInterval;
-				UpdateKnownEnemyDefenses();
+				using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/DefenseMemory"))
+					UpdateKnownEnemyDefenses();
 			}
 
 			if (Info.ThreatScanInterval > 0 && (allTrackedVisibleTags.Count > 0 || allTrackedGlobalTags.Count > 0 ||
 			 allTrackedVisiblePerUnitTags.Count > 0 || allTrackedGlobalPerUnitTags.Count > 0) && --threatScanTicks <= 0)
 			{
 				threatScanTicks = Info.ThreatScanInterval;
-				UpdateThreatTags();
+				using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/ThreatTags"))
+					UpdateThreatTags();
 			}
 
 			if (--cleanupTicks <= 0)
 			{
+				using var cleanupScope = CNBotPerf.Sample(bot, "CNSquadManagerBotModule/Cleanup");
+
 				cleanupTicks = CleanupInterval;
 				foreach (var squad in Squads)
 					RecordLossesAndPurgeDeadUnits(squad);
 
-				DecayTagPerformance();
+				DecayTemplatePerformance();
 				CleanSquads();
 				activeUnits.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
-				foreach (var actor in idleTickCounters.Keys
+				foreach (var actor in idleSinceTick.Keys
 					.Where(a => a == null || a.IsDead || !a.IsInWorld)
 					.ToList())
-					idleTickCounters.Remove(actor);
+					idleSinceTick.Remove(actor);
 			}
 
-			TrackIdleTime();
+			using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/IdleTime"))
+				TrackIdleTime();
 
 			// Per-squad schedule rather than one global timer. A squad holding a live target is updated
 			// on the much shorter EngagedSquadInterval, because AttackForceInterval — 55 to 95 ticks,
@@ -736,28 +914,33 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// Squads without a target stay on the old cadence, which keeps the cost bounded: target
 			// searching is the expensive part and idle squads are the majority. Staggering by squad
 			// also spreads the work across ticks instead of updating the whole army on one of them.
-			foreach (var squad in Squads.ToList())
+			using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/SquadUpdates"))
 			{
-				if (World.WorldTick < squad.NextUpdateTick)
-					continue;
+				foreach (var squad in Squads.ToList())
+				{
+					if (World.WorldTick < squad.NextUpdateTick)
+						continue;
 
-				squad.Update();
-				ReleaseStaleNoTargetSquad(squad);
+					squad.Update();
+					ReleaseStaleNoTargetSquad(squad);
 
-				var interval = squad.IsTargetValid || squad.FuzzyStateMachine.IsInTimeCriticalState
-					? Info.EngagedSquadInterval
-					: Info.AttackForceInterval;
-				squad.NextUpdateTick = World.WorldTick + Math.Max(1, interval);
+					var interval = squad.IsTargetValid || squad.FuzzyStateMachine.IsInTimeCriticalState
+						? Info.EngagedSquadInterval
+						: Info.AttackForceInterval;
+					squad.NextUpdateTick = World.WorldTick + Math.Max(1, interval);
+				}
 			}
 
 			if (Info.AttackWaveEnabled)
-				TickWaveSystem();
+				using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/Waves"))
+					TickWaveSystem();
 
 			if (--assignRolesTicks <= 0)
 			{
 				assignRolesTicks = Info.AssignRolesInterval;
 				if (minAttackForceDelayTicks <= 0)
-					TryFillTemplates(bot);
+					using (CNBotPerf.Sample(bot, "CNSquadManagerBotModule/FillTemplates"))
+						TryFillTemplates(bot);
 			}
 
 			if (minAttackForceDelayTicks > 0)
@@ -765,6 +948,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			if (respondToAttackCooldown > 0 && respondToAttackCooldown-- == MaxRespondToAttackCooldown)
 			{
+				using var protectScope = CNBotPerf.Sample(bot, "CNSquadManagerBotModule/ProtectOwn");
+
 				recentAttackers.RemoveAll(a => !IsValidAttackResponseTarget(a));
 				foreach (var attacker in recentAttackers.ToList())
 					ProtectOwn(bot, attacker);
@@ -779,6 +964,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			if (!IsLiveEnemyActor(e.Attacker))
 				return;
+
+			RecordFrontWaveCombat(FindSquadForDamage(self), e.Attacker.Owner);
 
 			// Being shot by an emplacement is contact, and contact is knowledge. The defence memory used
 			// to fill only from what the bot could see at the moment of a periodic scan, which in practice
@@ -799,10 +986,27 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			respondToAttackCooldown = MaxRespondToAttackCooldown;
 
-			if (combatAnalysis != null &&
-				self.Owner != Player &&
-				self.Owner.RelationshipWith(Player) == PlayerRelationship.Ally)
-				combatAnalysis.RegisterAllyAttack(e.Attacker.Owner);
+			// Tell our allies who is hitting us. This used to read self.Owner != Player, which cannot be
+			// true here - the attack-response modules are invoked for their OWN player's damaged actors -
+			// so RegisterAllyAttack had no reachable caller at all and NemesisAllyWeightPerHit was
+			// configured for something that never happened. An enemy could wipe out an allied bot without
+			// moving this bot's nemesis score by a point.
+			// Pushed outward rather than pulled: nothing tells a bot that its ally was hit, so the one
+			// that WAS hit does the telling. World.Players is a fixed-order array, so which allies are
+			// notified, and in what order, is the same on every machine.
+			if (e.Attacker.Owner == null)
+				return;
+
+			foreach (var other in World.Players)
+			{
+				if (other == Player || other.RelationshipWith(Player) != PlayerRelationship.Ally)
+					continue;
+
+				var allyAnalysis = other.PlayerActor.TraitsImplementing<CombatAnalysisBotModule>()
+					.FirstOrDefault(t => t.IsTraitEnabled());
+
+				allyAnalysis?.RegisterAllyAttack(e.Attacker.Owner);
+			}
 		}
 
 		public bool IsNemesis(Player player) =>
@@ -898,21 +1102,28 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 		void TrackIdleTime()
 		{
-			var seen = new HashSet<Actor>();
+			if (--idleScanTicks > 0)
+				return;
+
+			idleScanTicks = IdleScanInterval;
+			idleScanSeen.Clear();
 
 			void Track(Actor actor)
 			{
 				if (actor.Owner != Player || actor.IsDead || !actor.IsInWorld || actor.Info.HasTraitInfo<MobSpawnerSlaveInfo>())
 					return;
 
-				seen.Add(actor);
+				idleScanSeen.Add(actor);
 				if (activeUnits.Contains(actor) || actor.CurrentActivity is Enter)
 				{
-					idleTickCounters.Remove(actor);
+					idleSinceTick.Remove(actor);
 					return;
 				}
 
-				idleTickCounters[actor] = idleTickCounters.GetValueOrDefault(actor) + 1;
+				// Only the first sighting sets the clock. Every later one leaves it alone, which is what
+				// turns this from a per-tick tally into an elapsed-time measurement.
+				if (!idleSinceTick.ContainsKey(actor))
+					idleSinceTick[actor] = World.WorldTick;
 			}
 
 			foreach (var actor in World.ActorsHavingTrait<Mobile>())
@@ -920,8 +1131,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			foreach (var actor in World.ActorsHavingTrait<Aircraft>())
 				Track(actor);
 
-			foreach (var actor in idleTickCounters.Keys.Where(a => !seen.Contains(a)).ToList())
-				idleTickCounters.Remove(actor);
+			foreach (var actor in idleSinceTick.Keys.Where(a => !idleScanSeen.Contains(a)).ToList())
+				idleSinceTick.Remove(actor);
 		}
 
 		static bool CanActorAttackTarget(Actor actor, Actor target)
@@ -1009,14 +1220,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (slot.AllowedTypes.Length == 0)
 						continue;
 
+					// The score does not depend on the loop variable - same template, same slot, same
+					// count on every pass - so it was being recomputed identically once per missing
+					// instance. The calls themselves have to stay in the loop, because each one adds to
+					// the running demand.
+					var score = GetUnitDemandScore(template, slot, slot.Count, false);
 					for (var i = 0; i < missingInstances; i++)
-					{
-						AddPreferredDemand(
-							demand,
-							slot,
-							GetUnitDemandScore(template, slot, slot.Count, false),
-							existingByType);
-					}
+						AddPreferredDemand(demand, slot, score, existingByType);
 				}
 			}
 
@@ -1041,30 +1251,45 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (string.IsNullOrEmpty(typeName))
 				return 0;
 
-			var cap = 0;
-			foreach (var (_, template) in OrderedTemplates())
+			// Every template, every slot, every allowed type - asked once per demanded unit type per
+			// production queue on every production pass, which is where the unit builder's candidate
+			// sweep was measured spending nearly all of its time. The answer depends only on the
+			// templates and on GetEffectiveMaxInstances, so it is built once per tick for all types at
+			// once instead of rescanning the whole template set for each one.
+			if (templateUnitCapTick != World.WorldTick)
 			{
-				if (!TemplateAppliesToFaction(template))
-					continue;
+				templateUnitCapTick = World.WorldTick;
+				templateUnitCaps.Clear();
 
-				foreach (var (_, slot) in template.Slots)
+				foreach (var (_, template) in OrderedTemplates())
 				{
-					if (slot.AllowedTypes.Length == 0)
+					if (!TemplateAppliesToFaction(template))
 						continue;
 
-					foreach (var allowedType in slot.AllowedTypes)
+					var instances = GetEffectiveMaxInstances(template);
+					foreach (var (_, slot) in template.Slots)
 					{
-						if (!string.Equals(allowedType, typeName, StringComparison.OrdinalIgnoreCase))
-							continue;
-
-						cap += slot.Count * GetEffectiveMaxInstances(template);
-						break;
+						// A slot contributes its count to every type it accepts - the per-type scan found
+						// this slot for each of those types in turn. It contributes only once per type
+						// though, which is what the old loop's break meant: a type listed twice in one
+						// slot is still one slot. Hence the dedupe rather than a plain inner loop.
+						slotTypeScratch.Clear();
+						foreach (var allowedType in slot.AllowedTypes)
+							if (slotTypeScratch.Add(allowedType))
+								templateUnitCaps[allowedType] = templateUnitCaps.GetValueOrDefault(allowedType) + slot.Count * instances;
 					}
 				}
 			}
 
-			return cap;
+			return templateUnitCaps.GetValueOrDefault(typeName);
 		}
+
+		// Case-insensitive, because the per-type scan this replaces compared with OrdinalIgnoreCase -
+		// an ordinal map here would silently stop matching types whose casing differs between the
+		// template definition and the demand entry.
+		readonly Dictionary<string, int> templateUnitCaps = new(StringComparer.OrdinalIgnoreCase);
+		readonly HashSet<string> slotTypeScratch = new(StringComparer.OrdinalIgnoreCase);
+		int templateUnitCapTick = -1;
 
 		HashSet<string> typesIgnoringCashReserve;
 
@@ -1210,18 +1435,26 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (Info.IdleSalvageTicks <= 0)
 				return;
 
+			// Role, faction and score do not depend on which unit is being salvaged and do not change
+			// while this pass runs, so the filtering and the sort happen once instead of once per idle
+			// unit. Only the two conditions that genuinely vary stay inside the loop: whether the
+			// template has a slot for this unit, and the instance count - which does move as the pass
+			// creates squads, and would be wrong to bake into a precomputed list.
+			var rankedTemplates = OrderedTemplates()
+				.Where(kv => IsAttackRole(kv.Value.Role) && TemplateAppliesToFaction(kv.Value))
+				.OrderByDescending(kv => EffectiveScore(kv.Value))
+				.ToList();
+
 			foreach (var idleUnit in IdleSalvageCandidates(availableByType, claimedThisPass).ToList())
 			{
-				var candidates = OrderedTemplates()
-					.Where(kv => IsAttackRole(kv.Value.Role) &&
-						TemplateAppliesToFaction(kv.Value) &&
-						TemplateAcceptsUnit(kv.Value, idleUnit) &&
-						CountTemplateSquads(kv.Key) < GetEffectiveMaxInstances(kv.Value))
-					.OrderByDescending(kv => EffectiveScore(kv.Value))
-					.ToList();
-
-				foreach (var (templateName, template) in candidates)
+				foreach (var (templateName, template) in rankedTemplates)
 				{
+					if (!TemplateAcceptsUnit(template, idleUnit))
+						continue;
+
+					if (CountTemplateSquads(templateName) >= GetEffectiveMaxInstances(template))
+						continue;
+
 					var trialClaimed = new HashSet<Actor>(claimedThisPass);
 					var assignments = TryFillSlots(template, availableByType, trialClaimed);
 					if (!CanActivateTemplate(template, assignments))
@@ -1289,9 +1522,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			foreach (var unit in squad.Units)
-				idleTickCounters.Remove(unit);
+				idleSinceTick.Remove(unit);
 			foreach (var passenger in squad.PassengerUnits)
-				idleTickCounters.Remove(passenger);
+				idleSinceTick.Remove(passenger);
 
 			InitializeSquadState(squad);
 		}
@@ -1299,6 +1532,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		static bool CanActivateTemplate(CNTeamTemplateInfo template, List<CNSlotAssignment> assignments)
 		{
 			if (assignments == null)
+				return false;
+
+			// Transport squads are intentionally allowed to launch before their passenger slot is full so that
+			// the loading state can top them up.  Do not let a passenger-only assignment trigger that path when
+			// the carrier slot could not be filled, or those units will churn through unusable transport squads.
+			if (assignments.Any(a => IsCarrierSlot(a.SlotInfo)) &&
+				!assignments.Any(a => a.IsFulfilled && IsCarrierSlot(a.SlotInfo)))
 				return false;
 
 			var fulfilledCount = assignments.Count(a => a.IsFulfilled && !a.SlotInfo.Optional);
@@ -1364,7 +1604,10 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (actor == null || actor.IsDead || !actor.IsInWorld || claimed.Contains(actor))
 						continue;
 
-					if (idleTickCounters.GetValueOrDefault(actor) >= Info.IdleSalvageTicks)
+					// TryGetValue, not GetValueOrDefault: a missing entry means "not known to be idle",
+					// and defaulting it to 0 would read as "idle since tick 0" - every unit the sweep
+					// has not seen yet would qualify immediately.
+					if (idleSinceTick.TryGetValue(actor, out var since) && World.WorldTick - since >= Info.IdleSalvageTicks)
 						yield return actor;
 				}
 		}
@@ -1423,7 +1666,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 						activeUnits.Add(actor);
 						claimedOwners[actor] = squad;
-						idleTickCounters.Remove(actor);
+						idleSinceTick.Remove(actor);
 					}
 				}
 			}
@@ -1622,6 +1865,38 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return result;
 		}
 
+		/// <summary>
+		/// One weighted draw, without building the order behind it. Two of the three callers want only the
+		/// winner and were paying for a full permutation to get it: a second list, a removal per element,
+		/// and one random draw per element. The third genuinely walks the whole order and still calls
+		/// <see cref="WeightedTemplateOrder"/>.
+		/// <para>
+		/// Draws exactly as the first step of that method does - same weights, same
+		/// TemplateSelectionSharpness curve, one <c>NextFloat</c> - so a pick here and the head of an order
+		/// there are the same distribution.
+		/// </para>
+		/// </summary>
+		public T WeightedTemplatePick<T>(IReadOnlyList<T> items, Func<T, int> weight)
+		{
+			if (items == null || items.Count == 0)
+				return default;
+
+			var k = Math.Max(0, Info.TemplateSelectionSharpness);
+			var total = 0.0;
+			foreach (var item in items)
+				total += k == 0 ? 1.0 : Math.Pow(Math.Max(1, weight(item)), k);
+
+			var roll = World.LocalRandom.NextFloat() * total;
+			for (var i = 0; i < items.Count; i++)
+			{
+				roll -= k == 0 ? 1.0 : Math.Pow(Math.Max(1, weight(items[i])), k);
+				if (roll <= 0)
+					return items[i];
+			}
+
+			return items[^1];
+		}
+
 		public bool IsUnitAssignedToSquad(Actor actor)
 		{
 			return actor != null && activeUnits.Contains(actor);
@@ -1639,6 +1914,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			foreach (var tag in template.Tags)
 				score += GetTagScore(tag) - Info.TagSaturationPenalty * CountTaggedSquads(tag);
 
+			score += (int)templatePerformance.GetValueOrDefault(template);
+
 			var repeatPenalty = template.RepeatPenalty >= 0 ? template.RepeatPenalty : Info.RepeatPenalty;
 			score -= repeatPenalty * Squads.Count(s => s.IsValid && s.IsTemplateBacked && s.TemplateInfo == template);
 
@@ -1648,30 +1925,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		int GetTagScore(string tag)
 		{
 			var score = Info.TagWeights.GetValueOrDefault(tag);
-			score += (int)tagPerformance.GetValueOrDefault(tag);
 
 			if (!Info.NeedRules.TryGetValue(tag, out var rule))
 				return score;
 
-			var visibleCount = 0;
-			var globalCount = 0;
-			var hasVisible = false;
-			var hasGlobal = false;
-
-			foreach (var capability in rule.EnemyCapabilities)
-			{
-				if (activeVisibleThreatCounts.TryGetValue(capability, out var vc))
-					visibleCount += vc;
-				if (activeGlobalThreatCounts.TryGetValue(capability, out var gc))
-					globalCount += gc;
-				hasVisible |= activeVisibleThreatTags.Contains(capability) || vc > 0;
-				hasGlobal |= activeGlobalThreatTags.Contains(capability) || gc > 0;
-			}
+			var visibleCount = activeVisibleThreatCounts.GetValueOrDefault(tag);
+			var globalCount = activeGlobalThreatCounts.GetValueOrDefault(tag);
 
 			var dynamicScore = visibleCount * rule.VisibleWeight + globalCount * rule.GlobalWeight;
-			if (hasVisible)
+			if (visibleCount > 0)
 				dynamicScore += rule.VisibleBonus;
-			if (hasGlobal)
+			if (globalCount > 0)
 				dynamicScore += rule.GlobalBonus;
 
 			if (Info.MaxNeedScorePerTag > 0)
@@ -1710,18 +1974,35 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 				foreach (var cap in caps)
 				{
-					if (visible)
-					{
-						if (allTrackedVisibleTags.Contains(cap))
-							scratchVisibleThreatTags.Add(cap);
-						if (allTrackedVisiblePerUnitTags.Contains(cap))
-							scratchVisibleThreatCounts[cap] = (scratchVisibleThreatCounts.TryGetValue(cap, out var vc) ? vc : 0) + 1;
-					}
+					if (visible && allTrackedVisibleTags.Contains(cap))
+						scratchVisibleThreatTags.Add(cap);
 
 					if (allTrackedGlobalTags.Contains(cap))
 						scratchGlobalThreatTags.Add(cap);
-					if (allTrackedGlobalPerUnitTags.Contains(cap))
-						scratchGlobalThreatCounts[cap] = (scratchGlobalThreatCounts.TryGetValue(cap, out var gc) ? gc : 0) + 1;
+				}
+
+				// A NeedRule describes alternatives: an actor with any matching capability is one
+				// threat for that rule. Summing the capability buckets counted a Harvester+Economy
+				// harvester and a Production+Tech construction yard twice.
+				foreach (var (tag, rule) in Info.NeedRules)
+				{
+					var matches = false;
+					foreach (var capability in rule.EnemyCapabilities)
+					{
+						if (!caps.Contains(capability))
+							continue;
+
+						matches = true;
+						break;
+					}
+
+					if (!matches)
+						continue;
+
+					if (visible && (rule.VisibleWeight != 0 || rule.VisibleBonus != 0))
+						scratchVisibleThreatCounts[tag] = scratchVisibleThreatCounts.GetValueOrDefault(tag) + 1;
+					if (rule.GlobalWeight != 0 || rule.GlobalBonus != 0)
+						scratchGlobalThreatCounts[tag] = scratchGlobalThreatCounts.GetValueOrDefault(tag) + 1;
 				}
 
 				// Early exit only when no per-unit counting is needed and all binary tags are found.
@@ -1799,10 +2080,28 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// for other reasons (e.g. boarding a carrier) are not losses.
 			if (squad.TemplateInfo != null)
 			{
-				var deaths = squad.Units.Count(a => a != null && a.IsDead);
+				var deaths = 0;
+				foreach (var actor in squad.Units)
+				{
+					if (actor == null || !actor.IsDead)
+						continue;
+
+					deaths++;
+					damageSquadCache.Remove(actor);
+				}
+
+				// Passengers count too. Before the drop they live only in the slot assignment, never in
+				// squad.Units, and the purge below then removes the dead ones without any of them ever
+				// having been charged to the template. An APC carrying five engineers destroyed on the way
+				// in cost its template exactly one unit - so the riskiest transport templates, the ones
+				// that stake five passengers on one delivery, scored as the safest.
+				// Excluded where a passenger is also in Units, which is the case after a successful drop:
+				// that is the same actor and would otherwise be charged twice.
+				foreach (var assignment in squad.SlotAssignments)
+					deaths += assignment.Passengers.Count(a => a != null && a.IsDead && !squad.Units.Contains(a));
+
 				if (deaths > 0)
-					foreach (var tag in squad.TemplateInfo.Tags)
-						ApplyPerformancePenalty(tag, deaths);
+					ApplyPerformancePenalty(squad.TemplateName, squad.TemplateInfo, deaths);
 			}
 
 			squad.Units.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
@@ -1825,30 +2124,98 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			RefreshTargetClaim(squad);
 		}
 
-		void ApplyPerformancePenalty(string tag, int deaths)
+		void ApplyPerformancePenalty(string templateName, CNTeamTemplateInfo template, int deaths)
 		{
-			var value = tagPerformance.GetValueOrDefault(tag) - deaths * Info.PerformancePenaltyPerLoss;
-			if (Info.MaxPerformancePenaltyPerTag > 0)
-				value = Math.Max(value, -Info.MaxPerformancePenaltyPerTag);
+			var value = templatePerformance.GetValueOrDefault(template) - deaths * Info.PerformancePenaltyPerLoss;
+			if (Info.MaxPerformancePenaltyPerTemplate > 0)
+				value = Math.Max(value, -Info.MaxPerformancePenaltyPerTemplate);
 
-			tagPerformance[tag] = value;
-			CNBotLog.Debug($"CN AI: Tag '{tag}' lost {deaths} unit(s), performance penalty now {value:0.0}.");
+			templatePerformance[template] = value;
+			CNBotLog.Debug("{0} template '{1}' lost {2} unit(s), performance score now {3:0.0}",
+				Player, templateName ?? "unknown", deaths, value);
 		}
 
-		// Recovers every tracked tag's performance penalty back toward 0 each cleanup pass, so a
-		// tag that stops losing units stops being avoided instead of staying penalised forever.
-		void DecayTagPerformance()
+		void INotifyAppliedDamage.AppliedDamage(Actor self, Actor damaged, AttackInfo e)
 		{
-			if (tagPerformance.Count == 0)
+			if (self == null || damaged == null || e == null || e.Damage.Value <= 0
+				|| self.Owner != Player || damaged.Owner == null
+				|| damaged.Owner.RelationshipWith(Player) != PlayerRelationship.Enemy)
 				return;
 
-			foreach (var tag in tagPerformance.Keys.ToList())
+			var squad = FindSquadForDamage(self);
+			if (squad?.TemplateInfo == null)
+				return;
+
+			RecordFrontWaveCombat(squad, damaged.Owner);
+
+			var killed = damaged.TraitOrDefault<IHealth>()?.HP <= 0;
+			var reward = Info.PerformanceDamagePerPoint > 0
+				? e.Damage.Value / (float)Info.PerformanceDamagePerPoint : 0f;
+			if (killed)
+				reward += Info.PerformanceRewardPerKill;
+
+			if (reward <= 0)
+				return;
+
+			var previous = templatePerformance.GetValueOrDefault(squad.TemplateInfo);
+			var value = previous + reward;
+			if (Info.MaxPerformanceRewardPerTemplate > 0)
+				value = Math.Min(value, Info.MaxPerformanceRewardPerTemplate);
+
+			templatePerformance[squad.TemplateInfo] = value;
+
+			// One line per kill or newly earned whole point, rather than one line per hit. BotDebug is often
+			// enabled during five-bot tests, where per-projectile logging changes the workload being measured.
+			if (value > previous && (killed || Math.Floor(value) > Math.Floor(previous)))
+				CNBotLog.Debug("{0} template '{1}' dealt {2} damage{3}, performance score now {4:0.0}",
+					Player, squad.TemplateName ?? "unknown", e.Damage.Value, killed ? " and scored a kill" : string.Empty, value);
+		}
+
+		CNSquad FindSquadForDamage(Actor attacker)
+		{
+			if (!activeUnits.Contains(attacker))
+				return null;
+
+			if (damageSquadCache.TryGetValue(attacker, out var cached)
+				&& cached.TemplateInfo != null && cached.Units.Contains(attacker))
+				return cached;
+
+			damageSquadCache.Remove(attacker);
+			foreach (var squad in Squads)
 			{
-				var value = tagPerformance[tag] * Info.PerformanceDecay;
-				if (value > -0.5f)
-					tagPerformance.Remove(tag);
+				if (squad.TemplateInfo == null || !squad.Units.Contains(attacker))
+					continue;
+
+				damageSquadCache[attacker] = squad;
+				return squad;
+			}
+
+			return null;
+		}
+
+		void RecordFrontWaveCombat(CNSquad squad, Player enemy)
+		{
+			// A hit from an unrelated FFA opponent on the march must not release the rear strike into
+			// the wave's intended victim. It is synchronized to contact with that victim specifically.
+			if (IsWaveLaunched && squad != null && enemy != null && WaveTarget != null
+				&& enemy == WaveTarget.Owner && WaveParticipants.Contains(squad))
+				lastFrontWaveCombatTick = World.WorldTick;
+		}
+
+		// Recovers every tracked template's performance score back toward 0 each cleanup pass, so old
+		// success and old losses both stop steering composition once the observed behaviour has changed.
+		void DecayTemplatePerformance()
+		{
+			if (templatePerformance.Count == 0)
+				return;
+
+			foreach (var template in templatePerformance.Keys.ToList())
+			{
+				var value = templatePerformance[template] * Info.PerformanceDecay;
+				if (Math.Abs(value) < 0.5f)
+					templatePerformance.Remove(template);
 				else
-					tagPerformance[tag] = value;
+					templatePerformance[template] = value;
 			}
 		}
 
@@ -2006,7 +2373,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				return threshold;
 
 			var cut = threshold * Info.EconomyOverflowWaveMinReadyCutPct * milli / (100 * 1000);
-			return Math.Max(1, threshold - cut);
+
+			// Never below the profile's own AttackWaveMinReadySquads. The cut exists so a bot with money
+			// to burn attacks more often, and cutting the growth it has accumulated serves that; cutting
+			// through the floor its profile was written with does not. A played match caught it: a
+			// Steamroller configured for three squads launched with two, six units, which then spent the
+			// full 1800-tick attack budget achieving nothing. Being rich should make a wave arrive sooner,
+			// not make it too small to matter.
+			var floor = Math.Max(1, Info.AttackWaveMinReadySquads);
+			return Math.Max(floor, threshold - cut);
 		}
 
 		public double GetAttackFuzzyBoost()
@@ -2073,7 +2448,16 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (participants == null || participants.Count == 0)
 				return false;
 
-			var target = PickWaveTarget();
+			// The representative first, so the target is chosen against the armour that will be walking in.
+			ActorInfo victim = null;
+			foreach (var participant in participants)
+			{
+				victim = participant?.CenterUnit()?.Info;
+				if (victim != null)
+					break;
+			}
+
+			var target = PickWaveTarget(victim);
 			if (target == null)
 				return false;
 
@@ -2085,28 +2469,801 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (IsWaveLaunched)
 				return false;
 
-			// A representative of what is about to march, so "how hot is this approach" is measured
-			// against the armour that will actually be standing in it.
-			ActorInfo victim = null;
-			foreach (var participant in participants)
-			{
-				victim = participant?.CenterUnit()?.Info;
-				if (victim != null)
-					break;
-			}
-
-			var rally = ComputeRallyCell(target, victim);
-
 			WaveTarget = target;
-			WaveRallyCell = rally;
 			WaveParticipants.Clear();
+			wavePlans.Clear();
+			var pincer = BuildWavePlans(participants, target, victim, wavePlans);
 			foreach (var s in participants)
 				WaveParticipants.Add(s);
 
+			waveRallyReleased = false;
+			waveEntryReleased = false;
+
 			waveLaunchTick = World.WorldTick;
 			waveStartedTick = 0;
+			lastFrontWaveCombatTick = 0;
 			IsWaveLaunched = true;
+
+			(waveLaunchSquads, waveLaunchUnits) = CountWave();
+			waveReleaseSquads = 0;
+			waveReleaseUnits = 0;
+
+			// What this wave is walking into, per unit walking into it. The absolute figure says nothing on
+			// its own - a played match ranged from 154 to 36216 - but against the number of units carrying
+			// it, it is the closest thing to "is this force enough" that can be had without guessing.
+			var routeThreat = wavePlans.Values
+				.GroupBy(p => p.Flank)
+				.Sum(g => GetDefenseThreatAlongRoute(g.First().RallyCell, target, victim));
+			var threatPerUnit = waveLaunchUnits > 0 ? routeThreat / waveLaunchUnits : routeThreat;
+
+			// Held rather than launched when the run-in costs more per unit than the profile is willing to
+			// spend. Off by default on purpose: every failed wave in the log gives an upper bound, and not
+			// one successful wave gives a lower one, so any threshold I picked now would be invention. The
+			// figure is logged on every launch - set the option once a match shows where the line falls.
+			if (Info.WaveAbortThreatPerUnit > 0 && threatPerUnit > Info.WaveAbortThreatPerUnit)
+			{
+				CNBotLog.Debug("{0} wave held: run-in costs {1} per unit over {2} units, limit {3}",
+					Player, threatPerUnit, waveLaunchUnits, Info.WaveAbortThreatPerUnit);
+
+				IsWaveLaunched = false;
+				WaveTarget = null;
+				WaveParticipants.Clear();
+				wavePlans.Clear();
+				return false;
+			}
+
+			var firstPlan = wavePlans[participants[0]];
+			CNBotLog.Debug("{0} wave launched: {1} squads, {2} units, target {3} at {4}, {5} {6}",
+				Player, waveLaunchSquads, waveLaunchUnits, target.Info.Name, target.Location,
+				pincer ? "pincer" : "rally",
+				pincer ? "across 2 flanks" : firstPlan.EntryCell != null
+					? $"{firstPlan.RallyCell} then {firstPlan.EntryCell}"
+					: firstPlan.RallyCell.ToString());
+
+			CNBotLog.Debug("{0} wave strength: {1} units against a run-in of {2} ({3} per unit)",
+				Player, waveLaunchUnits, routeThreat, threatPerUnit);
+
+			foreach (var flank in wavePlans.Values.GroupBy(p => p.Flank).OrderBy(g => g.Key))
+			{
+				var plan = flank.First();
+				CNBotLog.Debug("{0} wave flank {1}: {2} squads, rally {3}{4}, route {5} waypoints",
+					Player, flank.Key, flank.Count(), plan.RallyCell,
+					plan.EntryCell != null ? $" then {plan.EntryCell}" : "", plan.Route.Length);
+			}
+
 			return true;
+		}
+
+		bool BuildWavePlans(
+			IList<CNSquad> participants,
+			Actor target,
+			ActorInfo victim,
+			Dictionary<CNSquad, CNWavePlan> plans)
+		{
+			if (TryBuildPincerWavePlans(participants, target, victim, plans))
+				return true;
+
+			var (rally, entry) = ComputeRallyCell(target, victim);
+			var route = BuildWaveRoute(rally, target);
+			foreach (var squad in participants)
+				plans[squad] = new CNWavePlan(0, rally, entry, route);
+
+			return false;
+		}
+
+		CPos[] BuildWaveRoute(CPos rally, Actor target)
+		{
+			// Only worth routing when the way in is a flank: a rally reached without touching the
+			// objective's region already goes round by itself, and the pathfinder is better at the detail
+			// than a handful of pinned corners would be.
+			if (Info.WaveRouteWaypoints <= 0 || tacticalMap == null)
+				return [];
+
+			var from = GetRandomBaseCenter();
+			var targetRegion = tacticalMap.GetRegionIdAt(target.Location);
+			if (targetRegion < 0 || tacticalMap.GetRegionIdAt(from) == targetRegion)
+				return [];
+
+			return BuildSafeRouteTo(from, rally, targetRegion).ToArray();
+		}
+
+		/// <summary>
+		/// Pinned ground route to a defended region's chosen entrance. The destination itself is deliberately
+		/// not included: the transport state appends its per-carrier drop cells after crossing the entrance.
+		/// </summary>
+		public CPos[] BuildTransportApproachRoute(CPos from, Actor target, ActorInfo victim)
+			=> BuildTransportApproachRoute(from, target, victim, null, out _);
+
+		/// <summary>
+		/// The transport infiltration route with cells covered by currently visible enemy detectors
+		/// removed. Unknown detectors remain an honest ambush; known ones must not be treated as harmless
+		/// merely because ordinary defence scoring expects the victim to be targetable already.
+		/// </summary>
+		public CPos[] BuildStealthApproachRoute(CPos from, Actor target, Actor infiltrator, out bool blockedByDetection)
+		{
+			blockedByDetection = false;
+			if (infiltrator == null)
+				return [];
+
+			return BuildTransportApproachRoute(from, target, infiltrator.Info, infiltrator, out blockedByDetection);
+		}
+
+		CPos[] BuildTransportApproachRoute(
+			CPos from,
+			Actor target,
+			ActorInfo victim,
+			Actor detectorAvoidanceActor,
+			out bool blockedByDetection)
+		{
+			blockedByDetection = false;
+			if (target == null || victim == null || tacticalMap == null || !World.Map.Contains(from))
+				return [];
+
+			var detectorCells = detectorAvoidanceActor == null
+				? null
+				: BuildKnownDetectorCells(detectorAvoidanceActor);
+			var hasKnownDetectors = detectorCells?.Count > 0;
+			if (hasKnownDetectors && detectorCells.Contains(target.Location))
+			{
+				blockedByDetection = true;
+				return [];
+			}
+
+			var fromPos = World.Map.CenterOfCell(from);
+			var detectorRejectedApproach = false;
+			bool DetectorSafeApproach(CPos candidate)
+			{
+				if (!hasKnownDetectors)
+					return true;
+
+				var candidateRally = StandOffCell(candidate, fromPos, Info.ApproachStandOffCells);
+				var candidateEntry = StandOffCell(candidate, target.CenterPosition, Info.ApproachStandOffCells);
+				var safe = !detectorCells.Contains(candidateRally) && !detectorCells.Contains(candidateEntry)
+					&& !KnownDetectionIntersectsLine(detectorCells, candidateRally, candidateEntry)
+					&& !KnownDetectionIntersectsLine(detectorCells, candidateEntry, target.Location);
+				if (!safe)
+					detectorRejectedApproach = true;
+
+				return safe;
+			}
+
+			var approach = PickApproachCell(target, victim, out _, DetectorSafeApproach);
+			if (!approach.HasValue)
+			{
+				blockedByDetection = detectorRejectedApproach || (hasKnownDetectors &&
+					KnownDetectionIntersectsLine(detectorCells, from, target.Location));
+				return [];
+			}
+
+			var targetRegion = tacticalMap.GetRegionIdAt(target.Location);
+			if (targetRegion < 0 || tacticalMap.GetRegionIdAt(from) == targetRegion)
+			{
+				blockedByDetection = hasKnownDetectors &&
+					KnownDetectionIntersectsLine(detectorCells, from, target.Location);
+				return [];
+			}
+
+			var rally = StandOffCell(approach.Value, fromPos, Info.ApproachStandOffCells);
+			var entry = StandOffCell(approach.Value, target.CenterPosition, Info.ApproachStandOffCells);
+			if (!World.Map.Contains(rally) || !World.Map.Contains(entry))
+				return [];
+			if (hasKnownDetectors &&
+				(detectorCells.Contains(rally) || detectorCells.Contains(entry) ||
+				 KnownDetectionIntersectsLine(detectorCells, rally, entry) ||
+				 KnownDetectionIntersectsLine(detectorCells, entry, target.Location)))
+			{
+				blockedByDetection = true;
+				return [];
+			}
+
+			var route = BuildSafeRouteTo(from, rally, targetRegion, target.Owner,
+				Math.Max(1, Info.TransportRouteWaypointSpacingCells), detectorAvoidanceActor);
+
+			// An empty route is valid only when the carrier is already beside the entrance. Farther away it
+			// means the blocked-region flood found no safe way round, so retain the old direct-path fallback.
+			if (route.Count == 0 && (rally - from).LengthSquared > 4)
+			{
+				blockedByDetection = hasKnownDetectors;
+				return [];
+			}
+
+			if (route.Count == 0 || route[^1] != rally)
+				route.Add(rally);
+			if (route[^1] != entry)
+				route.Add(entry);
+
+			return route.ToArray();
+		}
+
+		public bool IsCoveredByKnownDetector(Actor infiltrator, WPos position)
+		{
+			if (infiltrator == null)
+				return false;
+
+			foreach (var actor in World.Actors)
+			{
+				if (!IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(Player))
+					continue;
+
+				foreach (var detector in actor.TraitsImplementing<DetectCloaked>())
+				{
+					if (!DetectorMatches(infiltrator, detector))
+						continue;
+
+					var safeRange = detector.Range.Length + WDist.FromCells(StealthDetectorSafetyCells).Length;
+					if ((position - actor.CenterPosition).LengthSquared <= (long)safeRange * safeRange)
+						return true;
+				}
+			}
+
+			foreach (var (cell, typeName) in knownEnemyDetectors)
+			{
+				var info = World.Map.Rules.Actors.GetValueOrDefault(typeName);
+				if (info == null)
+					continue;
+
+				foreach (var detector in info.TraitInfos<DetectCloakedInfo>())
+				{
+					if (!DetectorInfoMatches(infiltrator, detector))
+						continue;
+
+					var safeRange = detector.Range.Length + WDist.FromCells(StealthDetectorSafetyCells).Length;
+					if ((position - World.Map.CenterOfCell(cell)).LengthSquared <= (long)safeRange * safeRange)
+						return true;
+				}
+			}
+
+			return false;
+		}
+
+		static bool DetectorMatches(Actor infiltrator, DetectCloaked detector)
+		{
+			if (detector.IsTraitDisabled || detector.Range == WDist.Zero)
+				return false;
+
+			foreach (var cloak in infiltrator.TraitsImplementing<Cloak>())
+				if (cloak.Info.DetectionTypes.Overlaps(detector.Info.DetectionTypes))
+					return true;
+
+			return false;
+		}
+
+		static bool DetectorInfoMatches(Actor infiltrator, DetectCloakedInfo detector)
+		{
+			foreach (var cloak in infiltrator.Info.TraitInfos<CloakInfo>())
+				if (cloak.DetectionTypes.Overlaps(detector.DetectionTypes))
+					return true;
+
+			return false;
+		}
+
+		HashSet<CPos> BuildKnownDetectorCells(Actor infiltrator)
+		{
+			var cells = new HashSet<CPos>();
+			foreach (var actor in World.Actors)
+			{
+				if (!IsLiveEnemyActor(actor) || !actor.CanBeViewedByPlayer(Player))
+					continue;
+
+				foreach (var detector in actor.TraitsImplementing<DetectCloaked>())
+				{
+					if (!DetectorMatches(infiltrator, detector))
+						continue;
+
+					var safeRange = detector.Range.Length + WDist.FromCells(StealthDetectorSafetyCells).Length;
+					var safeRangeSquared = (long)safeRange * safeRange;
+					var cellRange = (safeRange + 1023) / 1024;
+					foreach (var cell in World.Map.FindTilesInCircle(actor.Location, cellRange))
+						if ((World.Map.CenterOfCell(cell) - actor.CenterPosition).LengthSquared <= safeRangeSquared)
+							cells.Add(cell);
+				}
+			}
+
+			foreach (var (cell, typeName) in knownEnemyDetectors)
+			{
+				var info = World.Map.Rules.Actors.GetValueOrDefault(typeName);
+				if (info == null)
+					continue;
+
+				foreach (var detector in info.TraitInfos<DetectCloakedInfo>())
+				{
+					if (!DetectorInfoMatches(infiltrator, detector))
+						continue;
+
+					AddDetectorCells(cells, cell, World.Map.CenterOfCell(cell), detector.Range);
+				}
+			}
+
+			return cells;
+		}
+
+		void AddDetectorCells(HashSet<CPos> cells, CPos centerCell, WPos centerPosition, WDist range)
+		{
+			var safeRange = range.Length + WDist.FromCells(StealthDetectorSafetyCells).Length;
+			var safeRangeSquared = (long)safeRange * safeRange;
+			var cellRange = (safeRange + 1023) / 1024;
+			foreach (var cell in World.Map.FindTilesInCircle(centerCell, cellRange))
+				if ((World.Map.CenterOfCell(cell) - centerPosition).LengthSquared <= safeRangeSquared)
+					cells.Add(cell);
+		}
+
+		static bool KnownDetectionIntersectsLine(HashSet<CPos> detectorCells, CPos from, CPos to)
+		{
+			var delta = to - from;
+			var steps = Math.Max(Math.Abs(delta.X), Math.Abs(delta.Y));
+			if (steps == 0)
+				return detectorCells.Contains(from);
+
+			for (var i = 0; i <= steps; i++)
+			{
+				var cell = new CPos(from.X + delta.X * i / steps, from.Y + delta.Y * i / steps, from.Layer);
+				if (detectorCells.Contains(cell))
+					return true;
+			}
+
+			return false;
+		}
+
+		bool TryBuildPincerWavePlans(
+			IList<CNSquad> participants,
+			Actor target,
+			ActorInfo victim,
+			Dictionary<CNSquad, CNWavePlan> plans)
+		{
+			var minimumSquads = Math.Max(4, Info.PincerAttackMinSquads);
+			if (!Info.PincerAttackEnabled || participants.Count < minimumSquads || tacticalMap == null
+				|| victim == null || Info.WaveRouteWaypoints <= 0)
+				return false;
+
+			var doors = tacticalMap.GetRegionDoorsAt(target.Location);
+			if (doors.Count < 2)
+			{
+				CNBotLog.Debug("{0} pincer skipped: target region has {1} door(s)", Player, doors.Count);
+				return false;
+			}
+
+			var from = GetRandomBaseCenter();
+			var fromPos = World.Map.CenterOfCell(from);
+			var targetCell = target.Location;
+			var directLength = (target.CenterPosition - fromPos).Length;
+			if (directLength <= 0)
+				return false;
+
+			var targetRegion = tacticalMap.GetRegionIdAt(targetCell);
+			if (targetRegion < 0 || tacticalMap.GetRegionIdAt(from) == targetRegion)
+				return false;
+
+			var reach = WDist.FromCells(Math.Max(1, Info.ApproachSearchRadiusCells));
+			var reachSq = (long)reach.Length * reach.Length;
+			var maxRouteLength = directLength +
+				directLength * Math.Max(0, Info.ApproachDoorMaxDetourPercent) / 100;
+			var candidates = new List<(CPos Cell, CPos Rally, CPos Entry, CPos[] Route, int Threat)>();
+
+			foreach (var door in doors.OrderBy(d => d.Center.X).ThenBy(d => d.Center.Y))
+			{
+				var doorPos = World.Map.CenterOfCell(door.Center);
+				if ((doorPos - target.CenterPosition).LengthSquared > reachSq)
+					continue;
+
+				if ((doorPos - fromPos).Length + (target.CenterPosition - doorPos).Length > maxRouteLength)
+					continue;
+
+				var rally = StandOffCell(door.Center, fromPos, Info.ApproachStandOffCells);
+				var entry = StandOffCell(door.Center, target.CenterPosition, Info.ApproachStandOffCells);
+				if (!World.Map.Contains(rally) || !World.Map.Contains(entry))
+					continue;
+
+				var route = BuildSafeRouteTo(
+					from,
+					rally,
+					targetRegion,
+					target.Owner,
+					Math.Max(1, Info.PincerRouteWaypointSpacingCells)).ToArray();
+				if (route.Length == 0 && (rally - from).LengthSquared > 4)
+					continue;
+
+				candidates.Add((door.Center, rally, entry, route,
+					GetDefenseThreatAlongRoute(rally, target, victim)));
+			}
+
+			var minimumSeparation = Math.Max(1, Info.PincerAttackMinDoorSeparationCells);
+			var minimumSeparationSq = (long)minimumSeparation * minimumSeparation;
+			var bestA = -1;
+			var bestB = -1;
+			var bestThreat = int.MaxValue;
+			var bestSeparationSq = -1L;
+			for (var a = 0; a < candidates.Count; a++)
+			{
+				var av = candidates[a].Cell - targetCell;
+				for (var b = a + 1; b < candidates.Count; b++)
+				{
+					var bv = candidates[b].Cell - targetCell;
+					var dot = (long)av.X * bv.X + (long)av.Y * bv.Y;
+					if (dot > 0)
+						continue;
+
+					var separationSq = (candidates[a].Cell - candidates[b].Cell).LengthSquared;
+					if (separationSq < minimumSeparationSq)
+						continue;
+
+					var threat = candidates[a].Threat + candidates[b].Threat;
+					if (threat > bestThreat || (threat == bestThreat && separationSq <= bestSeparationSq))
+						continue;
+
+					bestA = a;
+					bestB = b;
+					bestThreat = threat;
+					bestSeparationSq = separationSq;
+				}
+			}
+
+			if (bestA < 0)
+			{
+				CNBotLog.Debug("{0} pincer skipped: {1}/{2} region doors reachable, no opposite pair",
+					Player, candidates.Count, doors.Count);
+				return false;
+			}
+
+			// Artillery and support attachments are one tactical group. Splitting an attached squad from
+			// the force it follows makes the nominal second flank real only in the log: on release it turns
+			// around and crosses the map to rejoin its leader.
+			var participantSet = participants.ToHashSet();
+			var groups = new Dictionary<CNSquad, List<CNSquad>>();
+			foreach (var squad in participants)
+			{
+				var root = squad.AttachedTo != null && participantSet.Contains(squad.AttachedTo)
+					? squad.AttachedTo
+					: squad;
+
+				if (!groups.TryGetValue(root, out var group))
+					groups[root] = group = [];
+
+				group.Add(squad);
+			}
+
+			var flankUnits = new int[2];
+			var flankSquads = new int[2];
+			var flankBySquad = new Dictionary<CNSquad, int>();
+			foreach (var group in groups
+				.OrderByDescending(g => g.Value.Sum(s => s.Units.Count))
+				.ThenBy(g => g.Key.CreatedTick)
+				.ThenBy(g => g.Key.TemplateName, StringComparer.Ordinal)
+				.ThenBy(g => g.Key.CenterUnit()?.ActorID ?? uint.MaxValue))
+			{
+				var flank = flankUnits[0] <= flankUnits[1] ? 0 : 1;
+				foreach (var squad in group.Value)
+				{
+					flankBySquad[squad] = flank;
+					flankUnits[flank] += squad.Units.Count;
+					flankSquads[flank]++;
+				}
+			}
+
+			if (flankSquads[0] < 2 || flankSquads[1] < 2)
+			{
+				CNBotLog.Debug("{0} pincer skipped: attached groups split into {1}/{2} squads",
+					Player, flankSquads[0], flankSquads[1]);
+				return false;
+			}
+
+			var approaches = new[] { candidates[bestA], candidates[bestB] };
+			foreach (var squad in participants)
+			{
+				var flank = flankBySquad[squad];
+				var (_, rally, entry, route, _) = approaches[flank];
+				plans[squad] = new CNWavePlan(flank, rally, entry, route);
+			}
+
+			CNBotLog.Debug(
+				"{0} pincer selected: doors {1}/{2}, separation {3} cells, threats {4}/{5}, squads {6}/{7}, units {8}/{9}",
+				Player, approaches[0].Cell, approaches[1].Cell, IntegerSquareRoot(bestSeparationSq),
+				approaches[0].Threat, approaches[1].Threat,
+				flankSquads[0], flankSquads[1], flankUnits[0], flankUnits[1]);
+
+			return true;
+		}
+
+		static long IntegerSquareRoot(long value)
+		{
+			if (value <= 0)
+				return 0;
+
+			var low = 1L;
+			var high = Math.Min(value, 3037000499L);
+			var answer = 0L;
+			while (low <= high)
+			{
+				var mid = low + (high - low) / 2;
+				if (mid <= value / mid)
+				{
+					answer = mid;
+					low = mid + 1;
+				}
+				else
+					high = mid - 1;
+			}
+
+			return answer;
+		}
+
+		// Distances to the gathering point that never set foot in the objective's own region or another
+		// region held by its owner. The march to a flanking door was being routed by the plain pathfinder,
+		// which quite reasonably took the
+		// shortest line - straight in through the near entrance, across the enemy base, and out to the far
+		// door. Walling the objective's region off and flooding from the rally gives the way round instead,
+		// and walking it downhill from our own ground reconstructs it without a second search.
+		readonly Dictionary<CPos, int> safeRouteDistances = [];
+		CPos safeRouteOrigin;
+		int safeRouteBlockedRegion = -2;
+		Player safeRouteBlockedOwner;
+		ActorInfo safeRouteDetectorVictim;
+		int safeRouteTick = -1;
+
+		void BuildSafeRouteDistances(
+			CPos rally,
+			int blockedRegionId,
+			Player blockedOwner,
+			Actor detectorAvoidanceActor)
+		{
+			var detectorVictim = detectorAvoidanceActor?.Info;
+			if (safeRouteTick == World.WorldTick && safeRouteOrigin == rally
+				&& safeRouteBlockedRegion == blockedRegionId && safeRouteBlockedOwner == blockedOwner
+				&& safeRouteDetectorVictim == detectorVictim)
+				return;
+
+			safeRouteTick = World.WorldTick;
+			safeRouteOrigin = rally;
+			safeRouteBlockedRegion = blockedRegionId;
+			safeRouteBlockedOwner = blockedOwner;
+			safeRouteDetectorVictim = detectorVictim;
+			safeRouteDistances.Clear();
+
+			if (tacticalMap == null || !World.Map.Contains(rally))
+				return;
+
+			var detectorCells = detectorAvoidanceActor == null
+				? null
+				: BuildKnownDetectorCells(detectorAvoidanceActor);
+			var queue = new Queue<CPos>();
+			foreach (var seed in World.Map.FindTilesInCircle(rally, 2))
+			{
+				if (!tacticalMap.IsPassableCell(seed) || safeRouteDistances.ContainsKey(seed)
+					|| (detectorCells?.Contains(seed) ?? false))
+					continue;
+
+				var seedRegion = tacticalMap.GetRegionIdAt(seed);
+				if (seedRegion == blockedRegionId || (blockedOwner != null
+					&& tacticalMap.GetRegionOwner(seedRegion) == blockedOwner))
+					continue;
+
+				safeRouteDistances[seed] = 0;
+				queue.Enqueue(seed);
+			}
+
+			while (queue.Count > 0 && safeRouteDistances.Count < MaxSafeRouteFloodCells)
+			{
+				var cell = queue.Dequeue();
+				var next = safeRouteDistances[cell] + 1;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var step = cell + dir;
+					if (safeRouteDistances.ContainsKey(step) || !tacticalMap.IsPassableCell(step)
+						|| (detectorCells?.Contains(step) ?? false))
+						continue;
+
+					// The objective's region and the target owner's other held regions are the wall.
+					// Everything reached from here is ground the wave can cross without walking into the
+					// base it is trying to flank.
+					var stepRegion = tacticalMap.GetRegionIdAt(step);
+					if (stepRegion == blockedRegionId || (blockedOwner != null
+						&& tacticalMap.GetRegionOwner(stepRegion) == blockedOwner))
+						continue;
+
+					safeRouteDistances[step] = next;
+					queue.Enqueue(step);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Waypoints from <paramref name="from"/> to the wave's gathering point that keep out of the
+		/// objective's region and, when supplied, other regions held by its owner. Returns an empty list
+		/// when no such way exists - in which case the wave marches
+		/// the way it always did and the pathfinder decides.
+		/// </summary>
+		List<CPos> BuildSafeRouteTo(
+			CPos from,
+			CPos rally,
+			int blockedRegionId,
+			Player blockedOwner = null,
+			int maximumWaypointSpacing = 0,
+			Actor detectorAvoidanceActor = null)
+		{
+			var route = new List<CPos>();
+			BuildSafeRouteDistances(rally, blockedRegionId, blockedOwner, detectorAvoidanceActor);
+
+			if (!safeRouteDistances.TryGetValue(from, out var distance))
+				return route;
+
+			var cell = from;
+			var guard = distance + 8;
+			while (distance > 0 && guard-- > 0)
+			{
+				var moved = false;
+				foreach (var dir in CVec.Directions)
+				{
+					var step = cell + dir;
+					if (!safeRouteDistances.TryGetValue(step, out var stepDistance) || stepDistance >= distance)
+						continue;
+
+					cell = step;
+					distance = stepDistance;
+					route.Add(cell);
+					moved = true;
+					break;
+				}
+
+				if (!moved)
+					break;
+			}
+
+			if (maximumWaypointSpacing > 0 && route.Count > 0)
+				return PinSafeRoute(route, from, maximumWaypointSpacing);
+
+			// Thinned to a handful of orders for an ordinary one-sided wave. Every cell of the run would be
+			// hundreds of queued moves for one march; what matters there is that the broad corners are pinned.
+			var spacing = Math.Max(1, route.Count / Math.Max(1, Info.WaveRouteWaypoints));
+			var thinned = new List<CPos>();
+			for (var i = spacing; i < route.Count; i += spacing)
+				thinned.Add(route[i]);
+
+			return thinned;
+		}
+
+		static List<CPos> PinSafeRoute(List<CPos> route, CPos from, int maximumWaypointSpacing)
+		{
+			var pinned = new List<CPos>();
+			var previous = from;
+			var previousDirection = CVec.Zero;
+			var hasDirection = false;
+			var sincePin = 0;
+			foreach (var cell in route)
+			{
+				var direction = cell - previous;
+				if (hasDirection && direction != previousDirection &&
+					(pinned.Count == 0 || pinned[^1] != previous))
+				{
+					pinned.Add(previous);
+					sincePin = 0;
+				}
+
+				sincePin++;
+				if (sincePin >= maximumWaypointSpacing)
+				{
+					pinned.Add(cell);
+					sincePin = 0;
+				}
+
+				previous = cell;
+				previousDirection = direction;
+				hasDirection = true;
+			}
+
+			if (pinned.Count == 0 || pinned[^1] != route[^1])
+				pinned.Add(route[^1]);
+
+			return pinned;
+		}
+
+		internal bool TryGetWavePlan(CNSquad squad, out CNWavePlan plan) => wavePlans.TryGetValue(squad, out plan);
+
+		internal bool IsWaveStageReady(CNSquad squad, bool entryStage, long arrivalSq)
+		{
+			if (!IsWaveLaunched || !WaveParticipants.Contains(squad))
+				return false;
+
+			if (entryStage ? waveEntryReleased : waveRallyReleased)
+				return true;
+
+			var flank0Count = 0;
+			var flank0Arrived = 0;
+			var flank1Count = 0;
+			var flank1Arrived = 0;
+			foreach (var participant in WaveParticipants)
+			{
+				if (participant == null || !participant.IsValid
+					|| !participant.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>()
+					|| !wavePlans.TryGetValue(participant, out var plan))
+					continue;
+
+				var expectedCell = entryStage ? plan.EntryCell : plan.RallyCell;
+				if (expectedCell == null)
+					continue;
+
+				var arrived = WaveSquadHasArrived(
+					participant, World.Map.CenterOfCell(expectedCell.Value), arrivalSq);
+				if (plan.Flank == 0)
+				{
+					flank0Count++;
+					if (arrived)
+						flank0Arrived++;
+				}
+				else
+				{
+					flank1Count++;
+					if (arrived)
+						flank1Arrived++;
+				}
+			}
+
+			var flankCount = (flank0Count > 0 ? 1 : 0) + (flank1Count > 0 ? 1 : 0);
+			if (flankCount == 0)
+				return true;
+
+			var percent = Math.Clamp(Info.AttackWaveStagingMinArrivedPercent, 1, 100);
+			bool FlankIsReady(int count, int arrived)
+			{
+				if (count == 0)
+					return true;
+
+				// The old single-rally calculation rounded down and is kept for ordinary waves. A pincer
+				// needs the ceiling per flank: with the common two squads per side, 66% rounded down to
+				// one and turned the intended 2+2 attack into two unrelated single-squad arrivals.
+				var required = flankCount > 1
+					? (count * percent + 99) / 100
+					: count * percent / 100;
+				return arrived >= Math.Max(1, required);
+			}
+
+			if (!FlankIsReady(flank0Count, flank0Arrived) || !FlankIsReady(flank1Count, flank1Arrived))
+				return false;
+
+			if (flankCount > 1)
+				CNBotLog.Debug("{0} pincer {1} synchronized: flank 0 {2}/{3}, flank 1 {4}/{5}, after {6} ticks",
+					Player, entryStage ? "entry" : "rally",
+					flank0Arrived, flank0Count, flank1Arrived, flank1Count, World.WorldTick - waveLaunchTick);
+
+			if (entryStage)
+				waveEntryReleased = true;
+			else
+				waveRallyReleased = true;
+
+			return true;
+		}
+
+		static bool WaveSquadHasArrived(CNSquad squad, WPos expected, long arrivalSq)
+		{
+			var live = 0;
+			var arrived = 0;
+			foreach (var unit in squad.Units)
+			{
+				if (unit == null || unit.IsDead || !unit.IsInWorld)
+					continue;
+
+				live++;
+				if ((unit.CenterPosition - expected).LengthSquared <= arrivalSq)
+					arrived++;
+			}
+
+			return live > 0 && arrived >= Math.Max(1, live * 2 / 3);
+		}
+
+		/// <summary>Squads still valid in the active wave, and the units in them.</summary>
+		(int Squads, int Units) CountWave()
+		{
+			var squads = 0;
+			var units = 0;
+			foreach (var squad in WaveParticipants)
+			{
+				if (squad == null || !squad.IsValid)
+					continue;
+
+				squads++;
+				units += squad.Units.Count;
+			}
+
+			return (squads, units);
 		}
 
 		void MonitorActiveWave()
@@ -2117,7 +3274,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			WaveParticipants.RemoveWhere(s => s == null || !s.IsValid);
 			if (WaveParticipants.Count == 0)
 			{
-				ClearActiveWave();
+				ClearActiveWave("no participants left");
 				return;
 			}
 
@@ -2136,6 +3293,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 						continue;
 
 					waveStartedTick = World.WorldTick;
+					(waveReleaseSquads, waveReleaseUnits) = CountWave();
+
+					// The gap between this and the launch figures is the wave that never made it to the
+					// gathering point - which is one of the two ways an army ends up strung out across the
+					// map, the other being what happens after this line.
+					CNBotLog.Debug("{0} wave released: {1} squads/{2} units of {3}/{4} launched, after {5} ticks",
+						Player, waveReleaseSquads, waveReleaseUnits, waveLaunchSquads, waveLaunchUnits,
+						World.WorldTick - waveLaunchTick);
+
 					break;
 				}
 			}
@@ -2145,7 +3311,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (waveStartedTick == 0)
 			{
 				if (World.WorldTick - waveLaunchTick >= Math.Max(1, Info.AttackWaveLaunchGraceTicks))
-					ClearActiveWave();
+					ClearActiveWave("never set off");
 
 				return;
 			}
@@ -2170,7 +3336,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					InitializeSquadStateForRole(squad);
 				}
 
-				ClearActiveWave();
+				ClearActiveWave("attack budget spent");
 			}
 		}
 
@@ -2185,14 +3351,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (WaveTarget != null && !WaveTarget.IsDead && WaveTarget.IsInWorld)
 				return true;
 
+			var previousOwner = WaveTarget?.Owner;
+
 			var nextTarget = PickWaveTarget();
 			if (nextTarget == null)
 			{
-				ClearActiveWave();
+				ClearActiveWave("nothing left to attack");
 				return false;
 			}
 
 			WaveTarget = nextTarget;
+			if (nextTarget.Owner != previousOwner)
+				lastFrontWaveCombatTick = 0;
+
 			foreach (var squad in WaveParticipants)
 				if (squad != null && squad.IsValid)
 					squad.SetActorToTarget(nextTarget);
@@ -2201,19 +3372,42 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		}
 
 		/// <summary>
-		/// Average position of the wave's living participants, or null while no wave is running.
-		/// The reference point squads keep formation against once the wave has been released.
+		/// Returns the enemy whose rear may be struck once the active front wave has genuinely made
+		/// contact. Wave launch/release are movement events; damage dealt or received by a participant
+		/// is the first deterministic simulation-side evidence that the front is actually fighting.
 		/// </summary>
-		public WPos? WaveCenterPosition()
+		public bool TryGetSubterraneanStrikeEnemy(out Player enemy)
+		{
+			enemy = null;
+			if (!IsWaveLaunched || waveStartedTick == 0 || lastFrontWaveCombatTick < waveLaunchTick
+				|| WaveTarget == null || WaveTarget.IsDead || !WaveTarget.IsInWorld)
+				return false;
+
+			enemy = WaveTarget.Owner;
+			return enemy != null && enemy.RelationshipWith(Player) == PlayerRelationship.Enemy;
+		}
+
+		/// <summary>
+		/// Average position of the wave's living participants on the requested squad's flank, or of the
+		/// whole wave when no squad is supplied. The reference point squads keep formation against once
+		/// the wave has been released.
+		/// </summary>
+		public WPos? WaveCenterPosition(CNSquad flankSquad = null)
 		{
 			if (!IsWaveLaunched || WaveParticipants.Count == 0)
 				return null;
+
+			var flank = flankSquad != null && wavePlans.TryGetValue(flankSquad, out var requestedPlan)
+				? requestedPlan.Flank
+				: -1;
 
 			long x = 0, y = 0, z = 0;
 			var count = 0;
 			foreach (var squad in WaveParticipants)
 			{
 				if (squad == null || !squad.IsValid)
+					continue;
+				if (flank >= 0 && (!wavePlans.TryGetValue(squad, out var plan) || plan.Flank != flank))
 					continue;
 
 				// Squads that fell under strength are sent home but stay registered, and averaging them
@@ -2245,7 +3439,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			if (squad == null || Info.WaveCohesionCells <= 0 || !IsWaveLaunched || !WaveParticipants.Contains(squad))
 				return false;
 
-			var center = WaveCenterPosition();
+			var center = WaveCenterPosition(squad);
 			if (center == null || WaveTarget == null || WaveTarget.IsDead || !WaveTarget.IsInWorld)
 				return false;
 
@@ -2260,15 +3454,41 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return (squadPos - targetPos).LengthSquared < (center.Value - targetPos).LengthSquared;
 		}
 
-		void ClearActiveWave()
+		/// <summary>
+		/// Ends the active wave and reports what became of it.
+		/// <para>
+		/// The whole life of a wave was invisible: a played match logged 137 rally decisions and not one
+		/// line about what happened to any of them, so "the army trickles across the map in a queue" could
+		/// not be told apart from "waves arrive together and lose", and neither from "waves never set off
+		/// at all". Three numbers separate them - what launched, what was still there at release, and what
+		/// is left now - and the reason says which of the four exits was taken.
+		/// </para>
+		/// </summary>
+		void ClearActiveWave(string reason = "unknown")
 		{
+			if (IsWaveLaunched)
+			{
+				var (squads, units) = CountWave();
+				CNBotLog.Debug(
+					"{0} wave ended ({1}): launched {2} squads/{3} units, released {4}/{5}, left {6}/{7}; "
+					+ "{8} ticks gathering, {9} attacking",
+					Player, reason, waveLaunchSquads, waveLaunchUnits, waveReleaseSquads, waveReleaseUnits,
+					squads, units,
+					(waveStartedTick == 0 ? World.WorldTick : waveStartedTick) - waveLaunchTick,
+					waveStartedTick == 0 ? 0 : World.WorldTick - waveStartedTick);
+			}
+
 			IsWaveLaunched = false;
 			WaveTarget = null;
 			waveStartedTick = 0;
+			lastFrontWaveCombatTick = 0;
 			WaveParticipants.Clear();
+			wavePlans.Clear();
+			waveRallyReleased = false;
+			waveEntryReleased = false;
 		}
 
-		public Actor PickWaveTarget()
+		public Actor PickWaveTarget(ActorInfo victim = null)
 		{
 			var ownCenter = GetWaveSourceActor();
 			if (ownCenter == null)
@@ -2284,8 +3504,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			Actor BestOf(IEnumerable<Actor> candidates)
 			{
 				return candidates
-					.OrderByDescending(WaveTargetValueScore)
-					.ThenBy(a => (a.CenterPosition - ownCenter.CenterPosition).LengthSquared)
+					.OrderByDescending(a => WaveTargetScore(a, ownCenter, victim))
 					.FirstOrDefault();
 			}
 
@@ -2297,6 +3516,33 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 
 			return BestOf(buildings);
+		}
+
+		/// <summary>
+		/// What a building is worth attacking: what it does for its owner, less what it costs to get at.
+		/// <para>
+		/// Value alone ranked by tag and then broke every tie on distance - and most buildings carry no tag
+		/// at all, construction yards included, so in practice the tie-break decided. That is how waves
+		/// ended up marching at the one building that sits in the middle of the base by definition: not
+		/// because it was valuable, but because among a field of zeroes it happened to be nearest to a
+		/// randomly chosen building of ours. A played match had waves of thirty units arrive at full
+		/// strength, lose seventy percent of themselves and take nothing.
+		/// </para>
+		/// The fire already known to cover a spot is what separates the edge of a base from its middle, and
+		/// it is the cheap measure - the defence memory is a short list, no flooding involved. A human peels
+		/// the perimeter first; this is that instinct, expressed as a number.
+		/// </summary>
+		int WaveTargetScore(Actor a, Actor ownCenter, ActorInfo victim)
+		{
+			var score = WaveTargetValueScore(a) * Math.Max(0, Info.WaveTargetValueWeight);
+
+			score -= GetDefenseThreatAt(a.CenterPosition, victim) / Math.Max(1, Info.WaveTargetThreatDivisor);
+
+			// Distance last and gently, in cells rather than squared: it should separate two otherwise
+			// equal targets, not decide between a soft one and a hard one.
+			score -= (a.CenterPosition - ownCenter.CenterPosition).Length / 1024;
+
+			return score;
 		}
 
 		static int WaveTargetValueScore(Actor a)
@@ -2321,7 +3567,15 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return buildings.Count > 0 ? buildings[World.LocalRandom.Next(buildings.Count)] : null;
 		}
 
-		CPos ComputeRallyCell(Actor target, ActorInfo victim)
+		/// <summary>
+		/// Where a wave gathers, and - when it is going in through a passage - where it regroups once
+		/// through it. The second cell is what stops the passage being a mere meeting point: released at
+		/// the door, every squad simply attack-moved at the objective and the pathfinder was free to walk
+		/// them right back around to whatever entrance was shortest, which a played match showed plainly -
+		/// an army gathered at the northern door and then filed in through the southern one, straight
+		/// across the base. Made a waypoint instead, the door is the way in rather than a rendezvous.
+		/// </summary>
+		(CPos Rally, CPos? Entry) ComputeRallyCell(Actor target, ActorInfo victim)
 		{
 			var ownCell = GetRandomBaseCenter();
 			var ownPos = World.Map.CenterOfCell(ownCell);
@@ -2332,7 +3586,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			// Degenerate case (own base ≈ target). Fall back to enemy cell.
 			if (deltaLen < 1024)
-				return World.Map.CellContaining(enemyPos);
+				return (World.Map.CellContaining(enemyPos), null);
 
 			// How far short of the target the wave gathers. Taking a share of the run rather than a
 			// fixed number of cells is what makes this map-independent: a flat offset meant "half the
@@ -2373,12 +3627,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// Measured along the final leg, from where the squads gather to what they are attacking —
 			// the stretch they actually have to cross. Comparing the two staging cells instead compared
 			// two points that are cold by construction.
-			var approach = PickApproachCell(target, victim);
+			var approach = PickApproachCell(target, victim, out var approachIsDoor);
 			var usable = approach != null && World.Map.Contains(approach.Value);
-			var approachThreat = usable
-				? GetDefenseThreatAlong(World.Map.CenterOfCell(approach.Value), target.CenterPosition, victim)
-				: -1;
-			var directThreat = GetDefenseThreatAlong(World.Map.CenterOfCell(cell), target.CenterPosition, victim);
+
+			// Reported, not decided on. Ranking the door against the line was the wrong question from the
+			// start: where the objective's region has one entrance both routes run through it, so the two
+			// numbers describe the same road, and the only thing separating them was an artefact - a fixed
+			// count of samples spread over routes of different lengths makes whichever candidate sits
+			// closer to the objective look hotter, because all of its samples land in the defended stretch.
+			// The door is where a wave should form up if it is going in that way; which door is a question
+			// for PickApproachCell, and it is the only place a threat figure decides anything now.
+			// Gather short of the passage, never inside it: a way in is narrow by definition, and forming
+			// up in one bunches the squad exactly where it is easiest to shell.
+			var rallyAtWayIn = usable
+				? StandOffCell(approach.Value, ownPos, Info.ApproachStandOffCells)
+				: cell;
+
+			var approachThreat = usable ? GetDefenseThreatAlongRoute(rallyAtWayIn, target, victim) : -1;
+			var directThreat = GetDefenseThreatAlongRoute(cell, target, victim);
 
 			// Logged unconditionally, and with more than the two staging cells, because the first version
 			// of this line could not distinguish the three ways it fails: no candidate found at all, an
@@ -2389,13 +3655,32 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			CNBotLog.Debug(
 				"{0} wave rally: direct {1} (threat {2}) vs approach {3} (threat {4}); target threat {5}, defences known {6}",
 				Player, cell, directThreat,
-				usable ? approach.Value.ToString() : "none", approachThreat,
+				usable ? rallyAtWayIn.ToString() : "none", approachThreat,
 				GetDefenseThreatAt(target.CenterPosition, victim), knownEnemyDefenses.Count);
 
-			if (usable && approachThreat < directThreat)
-				return approach.Value;
+			// The door, whenever there is one. A point on the line from base to target is an arbitrary spot
+			// in the open; a door is a defined place with terrain on both flanks, already on the route (the
+			// detour bound rejected anything that was not). The wave holds in front of it until
+			// IsWaveStageReady says it is complete - the whole point of gathering at a place
+			// rather than at a coordinate.
+			// A door needs no justification: it is the way into the objective's region, both routes run
+			// through it anyway. A chokepoint that merely lies near the target is a different claim - there
+			// may well be another way in - so it still has to be no worse than the line, the way every
+			// candidate had to be before doors existed. On open ground neither is available and this falls
+			// through to the line untouched.
+			if (usable && (approachIsDoor || approachThreat <= directThreat))
+			{
+				// And the far side of it, as the second stage. Without this the passage is only a meeting
+				// point: released, each squad attack-moves at the objective and the pathfinder takes
+				// whatever entrance is shortest from where it happens to stand - which is how an army
+				// gathered at the northern door and then filed in through the southern one, across the
+				// whole base. Stepping on toward the objective by the same offset the rally stepped back
+				// makes the door a waypoint, and gives the wave a second place to close up once through.
+				var entry = StandOffCell(approach.Value, target.CenterPosition, Info.ApproachStandOffCells);
+				return (rallyAtWayIn, World.Map.Contains(entry) ? entry : null);
+			}
 
-			return cell;
+			return (cell, null);
 		}
 
 		public CNSquad RegisterSquad(
@@ -2430,16 +3715,28 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// at least one such entry it never reaches zero participants and never clears. With one wave
 			// allowed at a time, that means no further wave for the rest of the timer.
 			WaveParticipants.Remove(squad);
+			wavePlans.Remove(squad);
 
 			Squads.Remove(squad);
 			foreach (var unit in squad.Units)
+			{
 				activeUnits.Remove(unit);
+				damageSquadCache.Remove(unit);
+			}
+
 			foreach (var assignment in squad.SlotAssignments)
 			{
 				foreach (var actor in assignment.Units)
+				{
 					activeUnits.Remove(actor);
+					damageSquadCache.Remove(actor);
+				}
+
 				foreach (var passenger in assignment.Passengers)
+				{
 					activeUnits.Remove(passenger);
+					damageSquadCache.Remove(passenger);
+				}
 			}
 		}
 
@@ -2792,6 +4089,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		// loop and is also the honest model — every other target decision in this bot already refuses to
 		// act on what it has not seen, and this one was the odd exception.
 		readonly Dictionary<CPos, string> knownEnemyDefenses = [];
+		readonly Dictionary<CPos, string> knownEnemyDetectors = [];
 
 		/// <summary>
 		/// How many enemy emplacements the bot has seen or been shot by. A measure of how dug in the
@@ -2809,11 +4107,17 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			foreach (var building in GetCachedEnemyBuildings())
 			{
-				if (building.IsDead || !building.IsInWorld || !building.Info.HasTraitInfo<AttackBaseInfo>())
+				if (building.IsDead || !building.IsInWorld)
 					continue;
 
-				if (building.CanBeViewedByPlayer(Player))
+				if (!building.CanBeViewedByPlayer(Player))
+					continue;
+
+				if (building.Info.HasTraitInfo<AttackBaseInfo>())
 					knownEnemyDefenses[building.Location] = building.Info.Name;
+
+				if (building.TraitsImplementing<DetectCloaked>().Any(d => !d.IsTraitDisabled && d.Range != WDist.Zero))
+					knownEnemyDetectors[building.Location] = building.Info.Name;
 			}
 
 			scratchForgottenDefenses.Clear();
@@ -2838,9 +4142,36 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			foreach (var cell in scratchForgottenDefenses)
 				knownEnemyDefenses.Remove(cell);
+
+			scratchForgottenDetectors.Clear();
+			foreach (var (cell, _) in knownEnemyDetectors)
+			{
+				if (!Player.Shroud.IsVisible(cell))
+					continue;
+
+				var stillActive = false;
+				foreach (var actor in World.ActorMap.GetActorsAt(cell))
+				{
+					if (!IsLiveEnemyActor(actor) || !actor.Info.HasTraitInfo<BuildingInfo>())
+						continue;
+
+					if (actor.TraitsImplementing<DetectCloaked>().Any(d => !d.IsTraitDisabled && d.Range != WDist.Zero))
+					{
+						stillActive = true;
+						break;
+					}
+				}
+
+				if (!stillActive)
+					scratchForgottenDetectors.Add(cell);
+			}
+
+			foreach (var cell in scratchForgottenDetectors)
+				knownEnemyDetectors.Remove(cell);
 		}
 
 		readonly List<CPos> scratchForgottenDefenses = [];
+		readonly List<CPos> scratchForgottenDetectors = [];
 
 		/// <summary>Longest weapon range this actor type can bring to bear.</summary>
 		public int MaxWeaponRange(ActorInfo info)
@@ -2928,22 +4259,176 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			return total;
 		}
 
+		// Distance field for measuring a run-in along the ground rather than through it. Flooded outward
+		// from the objective once and read back per candidate, which is the pattern BuildHarvesterDistances
+		// already established here for the same reason: an A* per candidate is hundreds of searches per
+		// decision, and the answer wanted is a property of the map, not of which candidate is asking.
+		// Cached per (tick, origin) because every candidate in one decision shares the same objective.
+		readonly Dictionary<CPos, int> approachDistances = [];
+		CPos approachDistanceOrigin;
+		int approachDistanceTick = -1;
+
+		void BuildApproachDistances(CPos origin)
+		{
+			if (approachDistanceTick == World.WorldTick && approachDistanceOrigin == origin)
+				return;
+
+			approachDistanceTick = World.WorldTick;
+			approachDistanceOrigin = origin;
+			approachDistances.Clear();
+
+			if (tacticalMap == null || !World.Map.Contains(origin))
+				return;
+
+			// Seeded from the objective's own cell where it is passable, and from its neighbours where it
+			// is not - a target is usually a building, and whether the cell under it can be driven on says
+			// nothing about whether the ground around it can.
+			var queue = new Queue<CPos>();
+			if (tacticalMap.IsPassableCell(origin))
+			{
+				approachDistances[origin] = 0;
+				queue.Enqueue(origin);
+			}
+			else
+			{
+				foreach (var dir in CVec.Directions)
+				{
+					var seed = origin + dir;
+					if (!tacticalMap.IsPassableCell(seed) || approachDistances.ContainsKey(seed))
+						continue;
+
+					approachDistances[seed] = 1;
+					queue.Enqueue(seed);
+				}
+			}
+
+			while (queue.Count > 0 && approachDistances.Count < MaxApproachFloodCells)
+			{
+				var cell = queue.Dequeue();
+				var next = approachDistances[cell] + 1;
+
+				foreach (var dir in CVec.Directions)
+				{
+					var step = cell + dir;
+					if (approachDistances.ContainsKey(step) || !tacticalMap.IsPassableCell(step))
+						continue;
+
+					approachDistances[step] = next;
+					queue.Enqueue(step);
+				}
+			}
+		}
+
+		/// <summary>
+		/// The defensive fire a squad would take on the way from <paramref name="from"/> to
+		/// <paramref name="target"/>, measured along the ground it would actually cross.
+		/// <para>
+		/// <see cref="GetDefenseThreatAlong"/> samples the straight line, and a straight line is not a
+		/// route: where the objective's region has one entrance, the line runs through the cliff beside it,
+		/// finds no turrets there, and reports a way in that no ground unit can take as the safest of all.
+		/// A played match showed the consequence - every door candidate measured several times hotter than
+		/// the line it was compared against, so the door lost every time defences were known at all.
+		/// </para>
+		/// Falls back to the straight line when the objective cannot be reached on foot from here at all,
+		/// which is the honest answer for air squads and for a target across water.
+		/// </summary>
+		int GetDefenseThreatAlongRoute(CPos from, Actor target, ActorInfo victim)
+		{
+			if (victim == null)
+				return 0;
+
+			BuildApproachDistances(target.Location);
+
+			if (!approachDistances.TryGetValue(from, out var distance) || distance <= 0)
+				return GetDefenseThreatAlong(World.Map.CenterOfCell(from), target.CenterPosition, victim);
+
+			// Walking the field downhill reconstructs a shortest route without a second search: every step
+			// goes to a neighbour strictly closer to the objective, and one exists by construction until
+			// the objective is reached.
+			var route = new List<CPos>(distance + 1) { from };
+			var cell = from;
+			while (distance > 0)
+			{
+				var moved = false;
+				foreach (var dir in CVec.Directions)
+				{
+					var step = cell + dir;
+					if (!approachDistances.TryGetValue(step, out var stepDistance) || stepDistance >= distance)
+						continue;
+
+					cell = step;
+					distance = stepDistance;
+					route.Add(cell);
+					moved = true;
+					break;
+				}
+
+				if (!moved)
+					break;
+			}
+
+			// Sampled every few cells rather than a fixed number of times along however long the route is.
+			// A fixed count makes the figure mean "average exposure", which ranks a candidate sitting right
+			// at the objective as the worst of all - every one of its samples lands in the defended stretch
+			// while a distant candidate spends most of its samples on empty ground. What is wanted is total
+			// fire taken while crossing, and that is proportional to ground covered under guns, so the
+			// spacing is what has to be fixed. Capped so a very long route cannot turn one ranking decision
+			// into thousands of range checks.
+			var spacing = Math.Max(1, Info.ApproachThreatSampleSpacingCells);
+			var maxRouteCells = Math.Max(1, Info.ApproachThreatSamples) * 8 * spacing;
+			var total = 0;
+			for (var i = 0; i < route.Count && i < maxRouteCells; i += spacing)
+				total += GetDefenseThreatAt(World.Map.CenterOfCell(route[i]), victim);
+
+			return total;
+		}
+
 		/// <summary>
 		/// The most lightly defended chokepoint within reach of <paramref name="target"/>, or null when
 		/// the tactical map has nothing to offer — in which case the caller stays on the direct line.
 		/// </summary>
-		public CPos? PickApproachCell(Actor target, ActorInfo victim)
+		public CPos? PickApproachCell(Actor target, ActorInfo victim) => PickApproachCell(target, victim, out _);
+
+		/// <summary>
+		/// The lightest-defended way into <paramref name="target"/>'s own region, or null when the tactical
+		/// map has nothing to offer — in which case the caller stays on the direct line.
+		/// </summary>
+		/// <param name="target">What the wave is being sent at.</param>
+		/// <param name="victim">The unit type the run-in is costed for.</param>
+		/// <param name="fromDoor">
+		/// Whether the answer is a door of the target's own region rather than a chokepoint that merely
+		/// happens to lie near it. The caller needs the difference: a door is the way in, so gathering at
+		/// it needs no justification, while a chokepoint is one of many and still has to earn its place.
+		/// </param>
+		public CPos? PickApproachCell(Actor target, ActorInfo victim, out bool fromDoor)
+			=> PickApproachCell(target, victim, out fromDoor, null);
+
+		CPos? PickApproachCell(
+			Actor target,
+			ActorInfo victim,
+			out bool fromDoor,
+			Func<CPos, bool> candidateFilter)
 		{
+			fromDoor = false;
 			if (!Info.AvoidDefendedApproaches || target == null || victim == null || tacticalMap == null)
 				return null;
 
-			// The useful set, not the raw one: these are the chokepoints reachable from this bot's own
-			// base that lead somewhere real. The raw list includes dead ends and pockets across
-			// impassable terrain, and staging at one of those is how the first version produced rally
-			// points the squads could not sensibly walk to.
-			var chokepoints = tacticalMap.GetUsefulChokepointsForOwnBase();
-			if (chokepoints.Count == 0)
+			// The doors of the region the target stands in, when the graph knows them: those are the ways
+			// into the ground being attacked, which is the question this method has always been asking and
+			// answering with a radius. The region graph is terrain, not anyone's claim, so it answers for
+			// ground this bot does not hold - and against a human opponent, who has no bot module to ask.
+			// Falls back to the useful chokepoint set when the target's region has no resolved door: the
+			// raw list includes dead ends and pockets across impassable terrain, and staging at one of
+			// those is how the first version produced rally points the squads could not sensibly walk to.
+			var doors = tacticalMap.GetRegionDoorsAt(target.Location);
+			var candidates = doors.Count > 0
+				? doors.Select(d => d.Center).ToList()
+				: tacticalMap.GetUsefulChokepointsForOwnBase().Select(c => c.Cell).ToList();
+
+			if (candidates.Count == 0)
 				return null;
+
+			fromDoor = doors.Count > 0;
 
 			var basePos = World.Map.CenterOfCell(GetRandomBaseCenter());
 			var directLength = (target.CenterPosition - basePos).Length;
@@ -2952,15 +4437,23 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 
 			var reach = WDist.FromCells(Math.Max(1, Info.ApproachSearchRadiusCells));
 			var reachSq = (long)reach.Length * reach.Length;
-			var maxRouteLength = directLength + directLength * Math.Max(0, Info.ApproachMaxDetourPercent) / 100;
+
+			// Which allowance applies depends on what the candidates are. A chokepoint near the objective is
+			// one of many and most are irrelevant, so it has to earn the detour; a door of the target's own
+			// region is the entrance, and the one off to the side is the back way in that this is for.
+			var detourPercent = doors.Count > 0 ? Info.ApproachDoorMaxDetourPercent : Info.ApproachMaxDetourPercent;
+			var maxRouteLength = directLength + directLength * Math.Max(0, detourPercent) / 100;
 
 			CPos? best = null;
 			var bestThreat = int.MaxValue;
 			var inRadius = 0;
 			var withinDetour = 0;
-			foreach (var chokepoint in chokepoints)
+			foreach (var candidate in candidates)
 			{
-				var pos = World.Map.CenterOfCell(chokepoint.Cell);
+				if (candidateFilter != null && !candidateFilter(candidate))
+					continue;
+
+				var pos = World.Map.CenterOfCell(candidate);
 				if ((pos - target.CenterPosition).LengthSquared > reachSq)
 					continue;
 
@@ -2980,12 +4473,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 				// was hotter than simply walking up the straight line ten times, against three where
 				// it was genuinely better. A chokepoint can be perfectly quiet and still open onto the
 				// muzzle of everything behind it - which is, after all, what a chokepoint is for.
-				var threat = GetDefenseThreatAlong(pos, target.CenterPosition, victim);
+				var threat = GetDefenseThreatAlongRoute(candidate, target, victim);
 				if (threat >= bestThreat)
 					continue;
 
 				bestThreat = threat;
-				best = chokepoint.Cell;
+				best = candidate;
 			}
 
 			// Which filter emptied the list. A played match logged "approach none" for every wave while
@@ -2995,19 +4488,22 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			// The detour bound is an ellipse through base and target, so it tightens as the two move
 			// together: at a short direct line even a chokepoint straight ahead can fail it. Whether
 			// that is what empties the list cannot be read without the distance it is scaled from.
+			// Says which source the candidates came from too, because a door list and a chokepoint list
+			// fail for different reasons: doors are few and already the right shape, so an empty result
+			// from them means the target's region genuinely has no resolved way in, while the chokepoint
+			// fallback failing usually means the radius or the detour bound was too tight.
 			if (best == null)
 				CNBotLog.Debug(
-					"{0} no approach: {1} useful chokepoints, {2} within {3} cells of target, {4} within detour "
-					+ "(direct {5} cells, route allowance {6})",
-					Player, chokepoints.Count, inRadius, Info.ApproachSearchRadiusCells, withinDetour,
+					"{0} no approach: {1} {2}, {3} within {4} cells of target, {5} within detour "
+					+ "(direct {6} cells, route allowance {7})",
+					Player, candidates.Count, doors.Count > 0 ? "region doors" : "useful chokepoints",
+					inRadius, Info.ApproachSearchRadiusCells, withinDetour,
 					directLength / 1024, maxRouteLength / 1024);
 
-			if (best == null)
-				return null;
-
-			// Gather short of the passage rather than inside it. A chokepoint is by definition narrow;
-			// assembling a squad in one bunches it up exactly where it is easiest to shell.
-			return StandOffCell(best.Value, basePos, Info.ApproachStandOffCells);
+			// The way in itself, not a point beside it. The caller needs the passage to work out both where
+			// to gather in front of it and where to regroup once through, and only it knows which end is
+			// which - stepping back from here toward the base, or on toward the objective.
+			return best;
 		}
 
 		/// <summary>Steps back from <paramref name="cell"/> toward <paramref name="towards"/>.</summary>
@@ -3194,12 +4690,13 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 			}
 		}
 
-		static void RemoveActorFromSquad(CNSquad squad, Actor actor)
+		void RemoveActorFromSquad(CNSquad squad, Actor actor)
 		{
 			if (actor == null)
 				return;
 
 			squad.Units.Remove(actor);
+			damageSquadCache.Remove(actor);
 			foreach (var assignment in squad.SlotAssignments)
 			{
 				assignment.Units.Remove(actor);
@@ -3272,6 +4769,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 		{
 			var buildings = GetCachedOwnBuildings();
 			return buildings.Count > 0 ? buildings.Random(World.LocalRandom).Location : initialBaseCenter;
+		}
+
+		public bool IsConstructionYard(Actor actor)
+		{
+			return actor != null && baseBuilder != null && baseBuilder.Info.ConstructionYardTypes.Contains(actor.Info.Name);
+		}
+
+		// A captured yard is itself now an owned building, so GetRandomBaseCenter may select the hostile
+		// outpost that the MCV is meant to escape. The primary base stays anchored to the bot's original
+		// base and is therefore the recovery destination.
+		public CPos GetPrimaryBaseCenter()
+		{
+			return baseBuilder?.PrimaryBase.Center ?? GetRandomBaseCenter();
 		}
 
 		public static Actor ClosestTo(IEnumerable<Actor> actors, Actor target)
@@ -3391,6 +4901,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads
 					if (health != null && health.DamageState > DamageState.Undamaged)
 						continue;
 				}
+
+				if (garrisonManager?.TryReserveInfantry(actor) == true)
+					continue;
 
 				units.Add(actor);
 			}

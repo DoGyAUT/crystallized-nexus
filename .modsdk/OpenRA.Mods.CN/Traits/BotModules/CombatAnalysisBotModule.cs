@@ -110,7 +110,10 @@ namespace OpenRA.Mods.Common.Traits
 		int decayTicks;
 		int nextThreatRecordTick;
 		int nextCombatUnitThreatRecordTick;
-		int nextNemesisRecordTick;
+
+		// Per attacker, because the score it throttles is per attacker too. One shared tick let whoever
+		// struck first in a frame mute everybody else until the interval expired.
+		readonly Dictionary<Player, int> nextNemesisRecordTickByAttacker = [];
 
 		public CombatAnalysisBotModule(Actor self, CombatAnalysisBotModuleInfo info)
 			: base(info)
@@ -247,14 +250,18 @@ namespace OpenRA.Mods.Common.Traits
 					nextCombatUnitThreatRecordTick = world.WorldTick + Math.Max(1, Info.CombatUnitThreatRecordInterval);
 			}
 
-			// Nemesis tracking — all owned actors (buildings + units)
-			if (world.WorldTick < nextNemesisRecordTick)
+			// Nemesis tracking — all owned actors (buildings + units).
+			// Throttled per attacker, not globally. The score is kept per enemy but the window was shared,
+			// so in a free-for-all whichever attacker's hit landed first in the event order silenced every
+			// other player for the whole interval - and could end up crowned nemesis while somebody else
+			// was doing more damage.
+			var attacker = e.Attacker.Owner;
+			if (nextNemesisRecordTickByAttacker.TryGetValue(attacker, out var nextTick) && world.WorldTick < nextTick)
 				return;
 
-			var attacker = e.Attacker.Owner;
 			nemesisScores.TryGetValue(attacker, out var current);
 			nemesisScores[attacker] = Math.Min(100f, current + Info.NemesisWeightPerHit);
-			nextNemesisRecordTick = world.WorldTick + Math.Max(1, Info.NemesisRecordInterval);
+			nextNemesisRecordTickByAttacker[attacker] = world.WorldTick + Math.Max(1, Info.NemesisRecordInterval);
 		}
 
 		/// <summary>
@@ -344,6 +351,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CombatAnalysisBotModule));
+
 			if (IsTraitDisabled)
 				return;
 			if (--decayTicks > 0)
