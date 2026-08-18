@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CNLauncher.ViewModels"
+        xmlns:v="using:CNLauncher.Views"
         x:Class="CNLauncher.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Crystallized Nexus"
@@ -112,7 +113,7 @@
                     <TextBlock Text="{Binding Meta}" FontSize="11" Margin="11,0,0,4"
                                Foreground="{StaticResource Muted}"
                                IsVisible="{Binding Meta, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                    <TextBlock Text="{Binding Body}" TextWrapping="Wrap" Margin="11,0,0,0"
+                    <TextBlock v:MarkdownText.Text="{Binding Body}" TextWrapping="Wrap" Margin="11,0,0,0"
                                FontSize="13" LineHeight="20" Foreground="{StaticResource Text}" />
                   </StackPanel>
                 </DataTemplate>

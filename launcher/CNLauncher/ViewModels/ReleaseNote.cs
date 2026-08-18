@@ -50,12 +50,10 @@ public static class ReleaseNoteBuilder
 		if (string.IsNullOrWhiteSpace(body))
 			return "No release notes for this build.";
 
+		// Markdown is kept intact here - MarkdownText in the view turns headings, bold,
+		// italic, code and bullets into styled inlines.
 		var lines = body.Replace("\r\n", "\n").Split('\n')
 			.Select(l => l.TrimEnd())
-
-			// Release bodies are markdown but the panel renders plain text, so heading
-			// markers would otherwise show up as literal hashes.
-			.Select(l => l.StartsWith('#') ? l.TrimStart('#', ' ') : l)
 
 			// The compare link that --generate-notes appends is dead weight in a launcher,
 			// where it is not clickable anyway.
