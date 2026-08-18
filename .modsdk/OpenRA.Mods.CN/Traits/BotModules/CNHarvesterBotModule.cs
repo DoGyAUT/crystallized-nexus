@@ -103,6 +103,15 @@ namespace OpenRA.Mods.Common.Traits
 			public CPos LastKnownPosition { get; set; }
 			public int StationaryTicks { get; set; }
 
+			// Where this harvester was the last time it was called deadlocked, and how many times in a
+			// row that has been the same jam. Without this the step-aside has no memory and picks the
+			// roomiest neighbour every time - which, once two adjacent cells are both open, is the cell
+			// it just came from. A played match logged one harvester flagged 360 times, 141 of them at
+			// 97,84 and 141 at 97,85: it spent the entire match walking back and forth between two
+			// cells while its actual problem went untouched.
+			public CPos? LastStuckCell { get; set; }
+			public int ConsecutiveStuckEvents { get; set; }
+
 			public HarvesterTraitWrapper(Actor actor)
 			{
 				Actor = actor;
@@ -113,6 +122,10 @@ namespace OpenRA.Mods.Common.Traits
 				LastKnownPosition = actor.Location;
 			}
 		}
+
+		// How far out to look for room when a harvester is wedged. Deliberately short: this is about
+		// breaking a jam at the dock, not about relocating.
+		const int StepAsideSearchRadius = 3;
 
 		const int StuckHarvesterThreshold = 200;
 		const int StuckNearRefineryRadius = 3;
@@ -198,6 +211,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNHarvesterBotModule));
+
 			respondToAttackCooldown--;
 
 			if (resourceLayer == null || resourceLayer.IsEmpty)
@@ -448,6 +463,53 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// Somewhere a wedged harvester could actually move to. Checked against blocking actors, not just
+		/// terrain, because what pins these is other harvesters rather than the ground. Prefers the
+		/// candidate with the most open ground around it, so it steps clear of the jam instead of taking
+		/// the next place in it.
+		/// </summary>
+		CPos? FindStepAsideCell(HarvesterTraitWrapper h, int minRadius, CPos? exclude)
+		{
+			var from = h.Actor.Location;
+
+			for (var radius = Math.Max(1, minRadius); radius <= StepAsideSearchRadius; radius++)
+			{
+				CPos? best = null;
+				var bestRoom = -1;
+
+				foreach (var cell in world.Map.FindTilesInAnnulus(from, radius, radius))
+				{
+					// Never straight back to where the last step-aside came from. That cell is open by
+					// definition - the harvester was standing on it - so on room alone it wins, and the
+					// two cells trade the harvester back and forth forever.
+					if (exclude.HasValue && cell == exclude.Value)
+						continue;
+
+					if (!world.Map.Contains(cell) || !h.Mobile.CanEnterCell(cell))
+						continue;
+
+					var room = 0;
+					foreach (var dir in CVec.Directions)
+						if (h.Mobile.CanEnterCell(cell + dir))
+							room++;
+
+					if (room > bestRoom)
+					{
+						bestRoom = room;
+						best = cell;
+					}
+				}
+
+				// Nearest ring that offers anything wins: the move only has to break the deadlock, and a
+				// short hop is the one most likely to succeed while everything around is still moving.
+				if (best != null)
+					return best;
+			}
+
+			return null;
+		}
+
 		bool HarvestIfAble(IBot bot, HarvesterTraitWrapper h)
 		{
 			if (h.Actor.IsDead || !h.Actor.IsInWorld || h.Mobile == null)
@@ -458,12 +520,42 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				isStuck = true;
 
+				// A refinery clears its reservations immediately when it dies, but the harvester's
+				// GenericDockSequence still has to reverse the unload body and drag the unit back from the
+				// dock's sub-cell position. Treating the now-unreserved harvester as deadlocked cancels that
+				// cleanup with an unqueued Move order: it keeps the GHORV unload voxel and cannot leave the
+				// off-grid dock position. The dock sequence already handles a dead host and must finish.
+				if (h.Actor.CurrentActivity?.ActivitiesImplementing<GenericDockSequence>().Any() == true)
+					isStuck = false;
+
+				// Standing ON its own dock is delivering, not deadlocking. StationaryTicks counts any tick
+				// where the harvester is not idle and has not changed cell, and unloading is exactly that -
+				// so every delivery eventually crossed the threshold, and the moment the load ran out the
+				// full-harvester exemption below stopped covering it. That is the whole of this signal: a
+				// played match logged 1517 "deadlocks", not one of them hemmed in, at the same dock cells
+				// and by the same harvesters thirty and forty times each - once per delivery.
+				// A harvester wedged on the APPROACH still counts, which is the case the check exists for;
+				// it is only the one already at the dock that is exempt.
+				var reservedHost = h.DockClientManager?.ReservedHost;
+				if (reservedHost != null
+					&& (h.Actor.Location - world.Map.CellContaining(reservedHost.DockPosition)).LengthSquared <= 4)
+					isStuck = false;
+
+				// HarvestResource deliberately waits BaleLoadDelay between each bale while remaining on one
+				// cell. On the long-delay harvesters that crosses the generic stationary threshold and made
+				// the bot cancel normal harvesting as a deadlock hundreds of times per match. Only exempt it
+				// while it is actually standing on harvestable material; a blocked move toward another cell
+				// still needs recovery.
+				if (isStuck && !h.Harvester.IsFull && h.Harvester.CanHarvestCell(h.Actor.Location)
+					&& h.Actor.CurrentActivity?.ActivitiesImplementing<HarvestResource>().Any() == true)
+					isStuck = false;
+
 				// A full harvester sitting near a refinery is usually just queueing for its turn to dock -
 				// don't flag that as stuck. An empty harvester has no legitimate reason to sit still there
 				// for this long (it should be docking-and-leaving or already searching for resources), so
 				// it stays flagged even near a refinery. This is what actually deadlocks a busy dock: an
 				// empty harvester wedged in the approach blocks everyone still queueing to deliver.
-				if (!h.Harvester.IsEmpty && h.StationaryTicks < StuckHarvesterHardThreshold)
+				if (isStuck && !h.Harvester.IsEmpty && h.StationaryTicks < StuckHarvesterHardThreshold)
 				{
 					foreach (var refinery in refineries.Actors)
 					{
@@ -493,9 +585,44 @@ namespace OpenRA.Mods.Common.Traits
 			if (h.Parachutable != null && h.Parachutable.IsInAir)
 				return false;
 
+			var steppingAside = false;
 			if (isStuck)
 			{
-				CNBotLog.Debug($"CN AI: Harvester {h.Actor} appears deadlocked at {h.Actor.Location}. Re-issuing harvest order.");
+				// Re-ordering alone never freed anything. Wedged means the harvester cannot move, and a
+				// fresh Harvest order gives it somewhere new to go without giving it room to go there;
+				// 200 ticks later it is flagged again. One played match logged 901 of these, with
+				// individual harvesters caught twenty to thirty times each, all within three cells of a
+				// refinery - the dock approach, where a stuck harvester also blocks everyone queueing
+				// behind it.
+				//
+				// So step aside first, and the Harvest order below is QUEUED behind that move rather than
+				// replacing it. This comment already claimed as much while both orders went out unqueued:
+				// the harvest resolved immediately, cancelled the step-aside, and left the harvester wedged
+				// exactly where it was - which is why the same harvesters kept reappearing here at the same
+				// cell, twenty and thirty times each.
+				// Same jam as last time, or the cell we were nudged off a moment ago? Then the nudge did
+				// not work, and repeating it at the same distance will not work either. Each repeat
+				// pushes the search one ring further out, so the harvester eventually leaves the area
+				// instead of shuffling inside it. A genuinely new jam somewhere else starts over at one.
+				var here = h.Actor.Location;
+				if (h.LastStuckCell.HasValue && (h.LastStuckCell.Value == here ||
+					(h.LastStuckCell.Value - here).LengthSquared <= 2))
+					h.ConsecutiveStuckEvents++;
+				else
+					h.ConsecutiveStuckEvents = 1;
+
+				var freeCell = FindStepAsideCell(h, h.ConsecutiveStuckEvents, h.LastStuckCell);
+				if (freeCell != null)
+				{
+					bot.QueueOrder(new Order("Move", h.Actor, Target.FromCell(world, freeCell.Value), false));
+					steppingAside = true;
+				}
+
+				CNBotLog.Debug($"CN AI: {player} harvester {h.Actor} appears deadlocked at {here} " +
+					$"(attempt {h.ConsecutiveStuckEvents}). " +
+					$"Stepping aside to {(freeCell != null ? freeCell.Value.ToString() : "nowhere - hemmed in")} and re-issuing harvest order.");
+
+				h.LastStuckCell = here;
 				h.StationaryTicks = 0;
 			}
 
@@ -503,10 +630,10 @@ namespace OpenRA.Mods.Common.Traits
 			ClearHarvesterRefinery(h.Actor);
 			var refineryAnchor = FindBestRefineryAnchor(h.Actor, h);
 			var newSafeResourcePatch = FindNextResource(h.Actor, h, refineryAnchor);
-			CNBotLog.Debug($"CN AI: Harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
+			CNBotLog.Debug($"CN AI: {player} harvester {h.Actor} is idle. Ordering to {newSafeResourcePatch} in search for new resources.");
 			if (newSafeResourcePatch.Type != TargetType.Invalid)
 			{
-				bot.QueueOrder(new Order("Harvest", h.Actor, newSafeResourcePatch, false));
+				bot.QueueOrder(new Order("Harvest", h.Actor, newSafeResourcePatch, steppingAside));
 				var assignedRefinery = refineryAnchor;
 				if (h.DockClientManager != null && newSafeResourcePatch.Type == TargetType.Terrain)
 					assignedRefinery = FindBestRefineryForResource(h.Actor, h.DockClientManager, world.Map.CellContaining(newSafeResourcePatch.CenterPosition), out _);
@@ -538,7 +665,14 @@ namespace OpenRA.Mods.Common.Traits
 			var minCellCost = harv.Mobile.Locomotor.Info.TerrainSpeeds.Values.Min(ti => ti.Cost);
 			var cellCostMultiplier = Info.HarvesterEnemyAvoidanceCostMultipler;
 
-			static int2 CellToBin(CPos cell, int radius) => new(cell.X / radius, cell.Y / radius);
+			// Floor division, not C#'s truncation toward zero. Negative cell coordinates are ordinary on an
+			// isometric map, and plain division makes the bin straddling zero twice as wide as every other:
+			// at radius 10, -9 and +9 both land in bin 0 while -10 is already in bin -1. A harvester on the
+			// negative side of an axis then drew its avoidance cost from a rectangle sitting on the
+			// positive side and could miss the threat in its actual neighbour.
+			static int FloorDiv(int value, int divisor) => (value >= 0 ? value : value - divisor + 1) / divisor;
+
+			static int2 CellToBin(CPos cell, int radius) => new(FloorDiv(cell.X, radius), FloorDiv(cell.Y, radius));
 
 			static int CalculateAvoidanceCostForBin(World world, int2 bin, int radius, Actor actor, int minCellCost, int multiplier)
 			{
@@ -552,8 +686,8 @@ namespace OpenRA.Mods.Common.Traits
 				return threatActors.Count() * minCellCost * multiplier;
 			}
 
-			var path = harv.Mobile.PathFinder.FindPathToTargetCells(
-				actor, scanFromActor.Location, targets, BlockedByActor.Stationary,
+			List<CPos> SearchFrom(CPos from) => harv.Mobile.PathFinder.FindPathToTargetCells(
+				actor, from, targets, BlockedByActor.Stationary,
 				loc =>
 				{
 					var bin = CellToBin(loc, cellRadius);
@@ -564,6 +698,19 @@ namespace OpenRA.Mods.Common.Traits
 					avoidanceCostForBin.Add(bin, avoidanceCost);
 					return avoidanceCost;
 				});
+
+			var path = SearchFrom(scanFromActor.Location);
+
+			// Searching from the refinery is deliberate - it finds the patch closest to where the load has to
+			// be delivered, not the one closest to wherever the harvester happens to idle. But the answer is
+			// then handed to the HARVESTER, and nothing in FindBestRefineryAnchor checks that the two can
+			// reach the same ground: the anchor only has to be dockable. An anchor whose own surroundings are
+			// mined out or cut off returns an empty path while the harvester still has resources within
+			// reach, and the caller reads that as "no resources left" and sits out the cooldown.
+			// One match logged 494 of these with 491 coming from three harvesters, one cluster of cells -
+			// a persistent local state, not a map running dry.
+			if (path.Count == 0 && refineryAnchor != null && refineryAnchor.Location != actor.Location)
+				path = SearchFrom(actor.Location);
 
 			if (path.Count == 0)
 				return Target.Invalid;
@@ -629,6 +776,7 @@ namespace OpenRA.Mods.Common.Traits
 			bestScore = int.MinValue;
 			Actor bestFree = null;
 			var bestFreeDistance = int.MaxValue;
+			var bestFreeScore = int.MinValue;
 
 			foreach (var refinery in refineries.Actors)
 			{
@@ -661,6 +809,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					bestFreeDistance = fieldDistance;
 					bestFree = refinery;
+					bestFreeScore = score;
 				}
 
 				if (score > bestScore)
@@ -681,6 +830,12 @@ namespace OpenRA.Mods.Common.Traits
 					(bestBusy > 0 || bestDock.ReservationCount > 0 || CountAssignedHarvesters(best) > 0) &&
 					bestFreeDistance <= bestDistance + Info.FreeRefineryDistanceSlack)
 				{
+					// The score has to travel with the refinery it belongs to. It did not: bestFree was
+					// returned while bestScore still held the score of the busy dock this preference just
+					// rejected. The caller checks its reassignment threshold against that number, so a
+					// switch could be waved through on the strength of a refinery the harvester is not
+					// being sent to.
+					bestScore = bestFreeScore;
 					return bestFree;
 				}
 			}
@@ -719,8 +874,17 @@ namespace OpenRA.Mods.Common.Traits
 					score += Info.RespawningFieldBonus;
 			}
 
-			score -= dock.ReservationCount * Info.RefineryOccupancyPenalty;
-			var persistentAssigned = CountAssignedHarvesters(refinery);
+			// The asking harvester does not count as congestion at its OWN dock. It was counted twice over:
+			// once in the reservation it already holds there and once in the persistent assignment, while
+			// only the nearby-busy term below ever excluded it. Its current refinery therefore started two
+			// full occupancy penalties behind every alternative - more than the reassignment threshold on
+			// its own - so two otherwise equal refineries would trade the same harvester back and forth
+			// indefinitely. A played match logged 176 reassignments with several straight reversals.
+			var ownReservation = dockClientManager.ReservedHostActor == refinery ? 1 : 0;
+			var ownAssignment = harvesterRefineryAssignment.GetValueOrDefault(actor) == refinery ? 1 : 0;
+
+			score -= Math.Max(0, dock.ReservationCount - ownReservation) * Info.RefineryOccupancyPenalty;
+			var persistentAssigned = Math.Max(0, CountAssignedHarvesters(refinery) - ownAssignment);
 			score -= persistentAssigned * Info.RefineryOccupancyPenalty;
 			var busyHarvesterCount = CountBusyHarvestersNearRefinery(refinery, actor);
 			score -= busyHarvesterCount * Info.BusyRefineryNearbyHarvesterPenalty;

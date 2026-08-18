@@ -138,6 +138,7 @@ Rules:
 	cn|rules/shared-vehicles.yaml
 	cn|rules/trees.yaml
 	cn|rules/bridges.yaml
+	cn|rules/cliffs.yaml
 	cn|rules/map-generators.yaml
 
 Weapons:

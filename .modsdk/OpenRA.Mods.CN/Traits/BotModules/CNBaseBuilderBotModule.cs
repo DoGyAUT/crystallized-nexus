@@ -269,6 +269,71 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Bot profiles that seal chokepoints when EnableChokepointSealing is set. Empty = all profiles.")]
 		public readonly FrozenSet<string> ChokepointSealProfiles = FrozenSet<string>.Empty;
 
+		[Desc("Wall off a set-back perimeter behind a territory door instead of sealing the door itself - the",
+			"door stays passable, but anything through it now has to cross open ground under fire before",
+			"reaching the base, or go the long way around the wall's ends. A generalisation of",
+			"EnableChokepointSealing (which blocks the gap outright) to CNTerritoryDoor. Opt-in.")]
+		public readonly bool EnableDoorKillZone = false;
+
+		[Desc("Bot profiles that build a door kill-zone when EnableDoorKillZone is set. Empty = all profiles.")]
+		public readonly FrozenSet<string> DoorKillZoneProfiles = FrozenSet<string>.Empty;
+
+		[Desc("Maximum cells that each open end of a fallback door kill-zone U may extend toward the door",
+			"to meet a thick impassable terrain shoulder. 0 disables terrain connections.")]
+		public readonly int DoorKillZoneTerrainConnectionMaxLength = 8;
+
+		[Desc("Sell wall segments that LineBuild added outside the wall shape selected by the bot.")]
+		public readonly bool SellUnplannedLineBuildSegments = true;
+
+		[Desc("Ticks to wait for predicted unwanted LineBuild segments to appear before checking them.")]
+		public readonly int UnplannedLineBuildCleanupDelay = 2;
+
+		[Desc("Ticks after which an unwanted LineBuild prediction is discarded if no wall appeared there.")]
+		public readonly int UnplannedLineBuildCleanupLifetime = 100;
+
+		[Desc("Score defense placement against territory doors (the handful of real ways into the player's",
+			"claimed ground) instead of the six chokepoints nearest each base. That per-base re-ranking is",
+			"what scattered a seven-base bot's defenses over seven neighbourhoods - doors are shared across",
+			"the whole territory, so the widest way in outweighs whatever chokepoint merely happened to be",
+			"closest. Falls back to chokepoint hotspots when no territory door exists yet. Opt-in.")]
+		public readonly bool EnableDoorDefense = false;
+
+		[Desc("Keep ordinary building placement inside the bot's core region (the one its starting position",
+			"is in) instead of letting the search ring spill across a door into a neighbouring region. Falls",
+			"back to the unrestricted candidate pool if the region filter would leave nothing to place on -",
+			"a base near a region's edge still has to be able to build. Opt-in.")]
+		public readonly bool EnableCoreRegionPlacement = false;
+
+		[Desc("Keep ordinary building placement inside the ground the bot actually holds. The region filter",
+			"above answers which pocket of the map a base is in; it cannot answer whether a spot is behind",
+			"the bot's own line, because a region reaches as far as the terrain does regardless of who holds",
+			"it - which is how bases creep onto the terrace above a cliff, on legitimate ground that happens",
+			"to be on the wrong side of the way in. The claim stops at resolved chokepoint corridors, so a",
+			"plateau reached only through a door falls outside it. Same graceful fallback as above. Opt-in.")]
+		public readonly bool EnableTerritoryPlacement = false;
+
+		[Desc("Cells around a territory door within which an own defence structure counts as covering it.",
+			"Feeds the coverage falloff that moves the defence budget from a filled door to an empty one.")]
+		public readonly int DoorCoverageRadius = 8;
+
+		[Desc("Consider only resource cells lying in the same region as the base a refinery is being built",
+			"for, and keep the refinery itself in that region. Refinery placement otherwise picks its field",
+			"out of a plain radius ring, which happily reaches across a cliff or a door into ground the",
+			"harvesters have to drive the long way round to. With this on, a region holding a single field",
+			"gets its refineries stacked at that field - there is nowhere else in the region worth putting",
+			"one - instead of the search wandering off to the next field over. Falls back to the",
+			"unrestricted cells if the filter would leave nothing.")]
+		public readonly bool EnableRegionRefineryPlacement = false;
+
+		[Desc("Cells of resource in a region per refinery built there: the region's own ResourceCellCount",
+			"divided by this, rounded up, is the cap. The per-indice limits cannot answer this question -",
+			"an indice is a raster square, not a field, so a single 153-cell field spread across four of",
+			"them permits eight refineries by that rule alone, which is how one field ends up with five",
+			"sitting on it. Counted per region rather than globally, so expanding into another region still",
+			"raises the ceiling. Reads the region's resource count as surveyed at map load, so it is a",
+			"capacity figure, not a live one. 0 disables the cap.")]
+		public readonly int ResourceCellsPerRegionRefinery = 0;
+
 		[Desc("Locomotor names used by harvesters. When set, refinery placement filters out resource cells " +
 			"with no passable path, preventing refineries next to cliffs.")]
 		public readonly FrozenSet<string> HarvesterLocomotors = FrozenSet<string>.Empty;
@@ -334,6 +399,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Ticks between base role reevaluations.")]
 		public readonly int BaseRoleUpdateInterval = 250;
+
+		[Desc("Take base roles from the role " + nameof(CNRegionManagerBotModule) + " gave the region the base",
+			"stands in, instead of deriving them from radii here. Every one of the heuristics below is a",
+			"distance standing in for an area - nearest-to-origin for Core, a radius around a chokepoint for",
+			"Outpost, a radius around a remembered attack for Military - and a region is that area, bounded",
+			"by the terrain rather than by a circle. Falls back to the radius heuristics whenever the region",
+			"manager is absent or holds no region yet, so nothing depends on the graph being ready.")]
+		public readonly bool EnableRegionBaseRoles = true;
 
 		[Desc("A base with at most this many buildings that also sits on a chokepoint becomes an Outpost:",
 			"defense and support only, and it is exempt from the per-base minimum.")]
@@ -480,6 +553,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Minimum spacing for defense buildings in the outer line.")]
 		public readonly int DefenseOuterMinSpacing = 3;
+
+		[Desc("Lowest defense spacing retained when placement retries relax the configured inner or outer spacing.")]
+		public readonly int DefenseMinimumRelaxedSpacing = 2;
+
+		[Desc("Radius in cells used to count a local cluster of defense buildings. 0 disables the cluster cap.")]
+		public readonly int DefenseClusterRadius = 6;
+
+		[Desc("Maximum defense buildings allowed inside DefenseClusterRadius. 0 disables the cluster cap.")]
+		public readonly int DefenseClusterMaxCount = 5;
+
+		[Desc("Score penalty per existing defense inside DefenseClusterRadius. Applied before candidate truncation",
+			"so an unsaturated door or approach remains eligible instead of being cut from the candidate list.")]
+		public readonly int DefenseClusterPenaltyPerBuilding = 80;
 
 		[Desc("Minimum padding between defense building footprints and valuable resource cells.",
 			"Reserves field edges for refinery placement.")]
@@ -726,9 +812,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Interval (in ticks) between checking whether a bankrupt AI should sell a building to recover a refinery.")]
 		public readonly int BankruptcyRecoveryInterval = 125;
 
-		[Desc("Do not sell a building for refinery recovery unless this much cash is still missing after accounting for current reserves.")]
-		public readonly int BankruptcyRecoveryMinimumShortfall = 100;
-
 		[Desc("Hard cash ceiling: bankruptcy recovery (tiers 1-3) never fires while the bot has more",
 			"than this in cash+resources, even when other conditions match. Prevents premature selling during transient cash dips.")]
 		public readonly int BankruptcyRecoveryMaxCash = 500;
@@ -833,11 +916,16 @@ namespace OpenRA.Mods.Common.Traits
 		// Staleness window for the cached supported-refinery capacity sweep.
 		const int SupportedRefineryCapacityMaxAgeTicks = 50;
 
+		// Rate limit for the "bankrupt with nothing to fund" note: the state it reports persists for
+		// minutes at a time, and the recovery check itself runs every BankruptcyRecoveryInterval ticks.
+		const int RefineryRecoveryDeclineLogInterval = 1500;
+
 		// Actor, ActorCount.
 		public Dictionary<string, int> BuildingsBeingProduced = [];
 		public IBotBaseExpansion[] BaseExpansionModules;
 		public CNResourceMapBotModule ResourceMapModule;
 		public CNTacticalMapBotModule TacticalMapModule;
+		public CNRegionManagerBotModule RegionManagerModule;
 
 		readonly World world;
 		readonly Player player;
@@ -883,6 +971,7 @@ namespace OpenRA.Mods.Common.Traits
 		int checkBestResourceLocationTicks;
 		int sellRefineryTick;
 		int bankruptcyRecoveryTick;
+		int nextRefineryRecoveryDeclineLogTick;
 		bool terminalRecoveryTriggered;
 		int defenseDangerMemoryDecayTick;
 		int nextDefenseDangerMemoryRecordTick;
@@ -912,6 +1001,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		IReadOnlyList<Actor> cachedPlayerBuildings = [];
 		int cachedPlayerBuildingsTick = -1;
+		IReadOnlyList<Actor> cachedAlliedBuildings = [];
+		int cachedAlliedBuildingsTick = -1;
 
 		ILookup<string, ProductionQueue> cachedQueues;
 		int cachedQueuesTick = -25;
@@ -939,6 +1030,33 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return cachedPlayerBuildings;
+		}
+
+		/// <summary>
+		/// Allied buildings, for the placement rules that are about geometry rather than ownership.
+		/// <para>
+		/// Everything the base builder knows about buildings came from GetCachedPlayerBuildings, so an
+		/// ally's base was simply not there as far as spacing was concerned: two allied bots building
+		/// toward each other interleaved their structures with no gap at all, because the only rule that
+		/// prevents that (GlobalMinSpacing) was measured against own buildings exclusively.
+		/// </para>
+		/// Deliberately separate from the own-buildings cache rather than merged into it: most callers
+		/// ask counting questions - how many refineries do I have, can I produce infantry - and those
+		/// must keep answering about this player alone.
+		/// </summary>
+		public IReadOnlyList<Actor> GetCachedAlliedBuildings()
+		{
+			var tick = world.WorldTick;
+			if (tick != cachedAlliedBuildingsTick)
+			{
+				cachedAlliedBuildings = world.ActorsHavingTrait<Building>()
+					.Where(a => a.Owner != player && !a.IsDead && a.IsInWorld
+						&& a.Owner.RelationshipWith(player) == PlayerRelationship.Ally)
+					.ToList();
+				cachedAlliedBuildingsTick = tick;
+			}
+
+			return cachedAlliedBuildings;
 		}
 
 		// Both active-value tables are rebuilt from the same small set of inputs (profile, tech stage,
@@ -1262,6 +1380,33 @@ namespace OpenRA.Mods.Common.Traits
 			return Info.ChokepointSealProfiles.Contains(profile.ToString());
 		}
 
+		public bool ShouldSealDoorKillZone()
+		{
+			if (!Info.EnableDoorKillZone || TacticalMapModule == null
+				|| Info.WallTypes.Count == 0)
+				return false;
+
+			if (Info.DoorKillZoneProfiles.Count == 0)
+				return true;
+
+			var profile = ActiveProfile == BotProfile.Adaptive && profileModule != null
+				? profileModule.ActiveProfile
+				: ActiveProfile;
+
+			return Info.DoorKillZoneProfiles.Contains(profile.ToString());
+		}
+
+		// Which of the two door-kill-zone modes this bot's active profile uses. Turtle/Tech fortify with
+		// a wall; everything else just spreads defense wider instead (see EnsureFlankCache).
+		public bool DoorKillZoneUsesWalls()
+		{
+			var profile = ActiveProfile == BotProfile.Adaptive && profileModule != null
+				? profileModule.ActiveProfile
+				: ActiveProfile;
+
+			return profile == BotProfile.Turtle || profile == BotProfile.Tech;
+		}
+
 		int GetBudgetWeightedValue(FrozenDictionary<string, int> budgetValues, int fallback)
 		{
 			if (profileModule == null || budgetValues == null || budgetValues.Count == 0)
@@ -1538,6 +1683,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		void EvaluateBaseRoles(List<CNBotBase> bases)
 		{
+			// The terrain-bounded answer, when there is one. Everything below this line is the older
+			// radius-based approximation of the same question, kept as the fallback for a map or a moment
+			// where the region graph has nothing to say.
+			if (EvaluateBaseRolesFromRegions(bases))
+			{
+				StampBaseRoles(bases);
+				return;
+			}
+
 			// A role change switches what gets built in a base but takes nothing back, so a role that
 			// follows the decaying danger memory tick by tick leaves half-finished structure in both
 			// directions. A base that has held a role for less than BaseRoleMinimumHoldTicks keeps it, and
@@ -1669,8 +1823,15 @@ namespace OpenRA.Mods.Common.Traits
 					&& HasEconomicSubstance(bases[i]))
 					bases[i].Role = CNBaseRole.Economy;
 
-			// Stamp the tick only where the role actually changed, so the hold measures how long a base has
-			// really been what it is. Entries of bases that no longer exist are dropped.
+			StampBaseRoles(bases);
+		}
+
+		/// <summary>
+		/// Stamp the tick only where the role actually changed, so the hold measures how long a base has
+		/// really been what it is. Entries of bases that no longer exist are dropped.
+		/// </summary>
+		void StampBaseRoles(List<CNBotBase> bases)
+		{
 			var refreshed = new Dictionary<uint, (CNBaseRole Role, int SinceTick)>(bases.Count);
 			foreach (var b in bases)
 			{
@@ -1684,6 +1845,94 @@ namespace OpenRA.Mods.Common.Traits
 			baseRoleByAnchor.Clear();
 			foreach (var kv in refreshed)
 				baseRoleByAnchor[kv.Key] = kv.Value;
+		}
+
+		/// <summary>
+		/// Gives every base the role of the region it stands in. Returns false when the region graph has
+		/// nothing to say yet, in which case the caller falls back to the radius heuristics.
+		/// <para>
+		/// No second hold timer here: the region manager already holds a region's role for
+		/// <c>RegionRoleMinimumHoldTicks</c>, so a base's role is exactly as stable as its ground, which is
+		/// the whole point of moving the decision there. What this pass still has to do is resolve the two
+		/// exclusive roles down to one base each - a region can hold several construction yards, and Core
+		/// and Military each describe a single place to send a category of building to.
+		/// </para>
+		/// </summary>
+		bool EvaluateBaseRolesFromRegions(List<CNBotBase> bases)
+		{
+			if (!Info.EnableRegionBaseRoles || RegionManagerModule == null || !RegionManagerModule.Ready || bases.Count == 0)
+				return false;
+
+			var anyClaimed = false;
+			foreach (var b in bases)
+			{
+				if (RegionManagerModule.IsClaimedAt(b.Center))
+				{
+					anyClaimed = true;
+					break;
+				}
+			}
+
+			// Before the first refresh, or on a map where the cut produced nothing, every base would come
+			// back Secondary - which is not an answer, it is the absence of one. Fall back rather than
+			// wipe roles the older path would have assigned.
+			if (!anyClaimed)
+				return false;
+
+			foreach (var b in bases)
+			{
+				// A group that lost its construction yard cannot hold a steering role: every one of them
+				// says what gets built somewhere, and nothing gets built there any more. Same rule the
+				// radius path applies, for the same reason.
+				b.Role = b.IsBuildSite
+					? RegionManagerModule.GetRoleAt(b.Center) switch
+					{
+						CNRegionRole.Core => CNBaseRole.Core,
+						CNRegionRole.Economy => CNBaseRole.Economy,
+						CNRegionRole.Military => CNBaseRole.Military,
+						CNRegionRole.Outpost => CNBaseRole.Outpost,
+						_ => CNBaseRole.Secondary,
+					}
+					: CNBaseRole.Secondary;
+			}
+
+			// Core goes to the base nearest where the bot started, Military to the biggest one at the
+			// front; the rest of their region falls back to Secondary and takes its ordinary share of the
+			// build order. Demoting to Secondary rather than to the region's second-best role on purpose:
+			// a second yard in the Core region is not an economy base, it is just another build site.
+			KeepOneBaseWithRole(bases, CNBaseRole.Core,
+				(best, candidate) => (candidate.Center - BaseOrigin).LengthSquared < (best.Center - BaseOrigin).LengthSquared);
+
+			KeepOneBaseWithRole(bases, CNBaseRole.Military,
+				(best, candidate) => candidate.Buildings.Count > best.Buildings.Count);
+
+			return true;
+		}
+
+		/// <summary>
+		/// Leaves <paramref name="role"/> on the single best base holding it per <paramref name="isBetter"/>,
+		/// and demotes every other holder to <see cref="CNBaseRole.Secondary"/>.
+		/// </summary>
+		static void KeepOneBaseWithRole(List<CNBotBase> bases, CNBaseRole role, Func<CNBotBase, CNBotBase, bool> isBetter)
+		{
+			CNBotBase keep = null;
+			foreach (var b in bases)
+			{
+				if (b.Role != role)
+					continue;
+
+				if (keep == null || isBetter(keep, b))
+					keep = b;
+			}
+
+			if (keep == null)
+				return;
+
+			// AnchorId, not object identity - the convention everywhere else a base is compared, since
+			// GetBases() hands out fresh CNBotBase instances on every call.
+			foreach (var b in bases)
+				if (b.Role == role && b.AnchorId != keep.AnchorId)
+					b.Role = CNBaseRole.Secondary;
 		}
 
 		/// <summary>
@@ -1845,8 +2094,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.ProductionTypes.Contains(actorType) || Info.NavalProductionTypes.Contains(actorType))
 				return CNBaseRole.Military;
 
+			// Tech belongs at the Core - except the kinds that earn their keep by covering ground. Those
+			// reach this method at all only because they skip the tech branch in GetOrderedBasesForBuilding
+			// on purpose, so that they spread across the bases that have none; handing them a Core
+			// preference here pulled them straight back to the spawn and undid it.
 			if (Info.TechTypes.Contains(actorType))
-				return CNBaseRole.Core;
+				return Info.DistributedTechTypes.Contains(actorType) ? null : CNBaseRole.Core;
 
 			return null;
 		}
@@ -1989,6 +2242,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.TechTypes.Contains(actorType) && !Info.DistributedTechTypes.Contains(actorType))
 				return bases
 					.OrderByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
+
+					// The Core base before the nearest one. Distance to BaseOrigin is the last radius in
+					// here standing in for "the main base", and it stops being that the moment the bot is
+					// driven off its start: the spawn point keeps attracting tech while the base that is
+					// meant to hold it sits elsewhere. Core now names a region, so ask for it directly and
+					// keep the distance only as the tiebreak it always was.
+					.ThenByDescending(b => b.Role == CNBaseRole.Core)
 					.ThenBy(b => (b.Center - BaseOrigin).LengthSquared)
 					.ToList();
 
@@ -2009,6 +2269,13 @@ namespace OpenRA.Mods.Common.Traits
 				.OrderByDescending(b => LacksCapabilityFloor(b, capability))
 				.ThenByDescending(b => wantsNearBuilding && b.CountOf(nearBuilding) > 0)
 
+				// A region whose ground is used up goes to the back. Sorted rather than filtered on
+				// purpose: if every region is full the bot must still be able to build somewhere, and the
+				// answer to "everything is full" is to expand, not to stop. The capability floor above
+				// still outranks it - a base missing its one guaranteed power plant gets it wherever it
+				// stands.
+				.ThenBy(b => IsRegionFullAt(b.Center))
+
 				// An outpost holds a chokepoint with defense and support; it is the last choice for anything
 				// that belongs to a role, but still a choice if no other base can take it.
 				.ThenBy(b => preferredRole != null && b.Role == CNBaseRole.Outpost)
@@ -2026,6 +2293,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly ActorIndex.OwnerAndNamesAndTrait<BuildingInfo> powerBuildings;
 		public readonly ActorIndex.OwnerAndNamesAndTrait<BuildingInfo> ConstructionYardBuildings;
 		public readonly ActorIndex.OwnerAndNamesAndTrait<BuildingInfo> ProductionBuildings;
+		public readonly ActorIndex.OwnerAndNamesAndTrait<BuildingInfo> DefenseBuildings;
 
 		public CNBaseBuilderBotModule(Actor self, CNBaseBuilderBotModuleInfo info)
 			: base(info)
@@ -2037,6 +2305,7 @@ namespace OpenRA.Mods.Common.Traits
 			powerBuildings = new ActorIndex.OwnerAndNamesAndTrait<BuildingInfo>(world, info.PowerTypes, player);
 			ConstructionYardBuildings = new ActorIndex.OwnerAndNamesAndTrait<BuildingInfo>(world, info.ConstructionYardTypes, player);
 			ProductionBuildings = new ActorIndex.OwnerAndNamesAndTrait<BuildingInfo>(world, info.ProductionTypes, player);
+			DefenseBuildings = new ActorIndex.OwnerAndNamesAndTrait<BuildingInfo>(world, info.DefenseTypes, player);
 		}
 
 		protected override void Created(Actor self)
@@ -2095,14 +2364,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNBaseBuilderBotModule));
+
 			if (firstTick)
 			{
 				ResourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				TacticalMapModule = bot.Player.PlayerActor.TraitsImplementing<CNTacticalMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
+				RegionManagerModule = bot.Player.PlayerActor.TraitsImplementing<CNRegionManagerBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				combatAnalysis = bot.Player.PlayerActor.TraitsImplementing<CombatAnalysisBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				firstTick = false;
 			}
+
+			// LineBuild resolves after the placement order, so the queue manager that selected the wall can
+			// only remove an accidental connection on a later bot tick. At most one segment is sold per tick;
+			// these lists are normally empty and a malformed line is small enough not to need a bulk order.
+			foreach (var builder in builders)
+				if (builder.TrySellUnplannedLineBuildSegment(bot))
+					break;
 
 			if (--economyOverflowTick <= 0)
 			{
@@ -2130,6 +2409,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (--checkBestResourceLocationTicks <= 0 && resourceLayer != null)
 			{
+				using var resourceScanScope = CNBotPerf.Sample(bot, "CNBaseBuilderBotModule/ResourceScan");
 				checkBestResourceLocationTicks = Info.CheckBestResourceLocationInterval;
 
 				// Clear outdated refinery requests: dead/disposed MCVs would otherwise block
@@ -2231,16 +2511,19 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (--bankruptcyRecoveryTick <= 0)
 			{
+				using var recoveryScope = CNBotPerf.Sample(bot, "CNBaseBuilderBotModule/Bankruptcy");
 				bankruptcyRecoveryTick = Math.Max(1, Info.BankruptcyRecoveryInterval);
 				TryRecoverBankruptEconomy(bot, queuesByCategory);
 			}
 
 			DecayDefenseDangerMemory();
 
-			builders[currentBuilderIndex].Tick(bot, queuesByCategory);
+			using (CNBotPerf.Sample(bot, "CNBaseBuilderBotModule/QueueManager"))
+				builders[currentBuilderIndex].Tick(bot, queuesByCategory);
 
 			if (Info.SellRefineryInterval >= 0 && --sellRefineryTick <= 0)
 			{
+				using var sellScope = CNBotPerf.Sample(bot, "CNBaseBuilderBotModule/SellRefinery");
 				SellUselessRefinery(bot);
 				sellRefineryTick = Info.SellRefineryInterval;
 			}
@@ -2397,6 +2680,56 @@ namespace OpenRA.Mods.Common.Traits
 			return bestHotspot;
 		}
 
+		// Territory doors when available and enabled (a handful, shared by the whole territory), else the
+		// six chokepoints nearest each base. Reused by both GetBestDefenseHotspot and
+		// GetDefensePlacementThreats so the ring this aims at and what actually scores candidates near it
+		// never disagree on which of the two sources is in play.
+		IEnumerable<DefensePlacementThreat> GetProactiveThreats(CPos reference)
+		{
+			if (TacticalMapModule == null)
+				return [];
+
+			if (Info.EnableDoorDefense)
+			{
+				var doors = TacticalMapModule.GetDoorHotspots(CountDefensesCovering);
+				if (doors.Count > 0)
+					return doors;
+			}
+
+			return TacticalMapModule.GetTopologyHotspots(reference);
+		}
+
+		/// <summary>
+		/// How many of this bot's defence structures stand close enough to a door to be holding it. Counted
+		/// rather than merely detected: the weight a door carries has to fall as it fills up, or the widest
+		/// one keeps winning the budget long after it is covered and the next door never gets anything.
+		/// </summary>
+		int CountDefensesCovering(CNTerritoryDoor door)
+		{
+			var radius = Math.Max(1, Info.DoorCoverageRadius);
+			var radiusSq = (long)radius * radius;
+
+			var count = 0;
+			foreach (var defense in DefenseBuildings.Actors)
+				if (!defense.IsDead && defense.IsInWorld && (defense.Location - door.Center).LengthSquared <= radiusSq)
+					count++;
+
+			return count;
+		}
+
+		/// <summary>
+		/// Whether the region a cell sits in already holds as many buildings as its ground is taken to
+		/// carry. False whenever the region graph is unavailable or the capacity notion is switched off,
+		/// so nothing changes where it cannot be answered.
+		/// </summary>
+		public bool IsRegionFullAt(CPos cell)
+		{
+			if (RegionManagerModule == null || !RegionManagerModule.Ready)
+				return false;
+
+			return RegionManagerModule.GetRegionStateAt(cell)?.IsFull ?? false;
+		}
+
 		public CPos? GetBestDefenseHotspot(CPos reference, DefenseRole role = DefenseRole.Default)
 		{
 			var bestHotspot = GetRecordedDangerHotspot(reference, role);
@@ -2404,7 +2737,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Early game: no attack recorded yet -> aim the first defenses at the nearest map chokepoint.
 			if (bestHotspot == null && TacticalMapModule != null && Info.TopologyHotspotWeight > 0)
 			{
-				var topology = TacticalMapModule.GetTopologyHotspots(reference);
+				var topology = GetProactiveThreats(reference);
 				var bestScore = long.MinValue;
 				foreach (var threat in topology)
 				{
@@ -2429,6 +2762,59 @@ namespace OpenRA.Mods.Common.Traits
 			return memory.GetDominantRole(Math.Max(1, Info.DefenseDangerMemoryMinimumWeight));
 		}
 
+		/// <summary>
+		/// Danger from attacks that actually happened, and nothing else. Same weighting and same cap as the
+		/// placement list, but only its reactive half.
+		/// <para>
+		/// The combined list is the right input for deciding WHERE to build defence - a bridge is worth
+		/// covering whether or not anyone has come over it yet. It is the wrong input for "am I under
+		/// attack", which is what the adaptive profile asks of it and what it publishes to allies as this
+		/// bot's danger: four bridges come to 528 on a quiet map, over the 420 that flips a bot to Turtle,
+		/// so map shape alone could turn a bot defensive and tell its team it was being attacked.
+		/// </para>
+		/// </summary>
+		public int GetReactiveDangerScore(CPos reference, DefenseRole role = DefenseRole.Default)
+		{
+			if (!Info.EnableDefenseDangerMemory || Info.DefensePlacementDangerWeight <= 0)
+				return 0;
+
+			var minimumWeight = Math.Max(1, Info.DefenseDangerMemoryMinimumWeight);
+			var candidates = new List<(int Weight, long Score)>();
+			foreach (var kv in defenseDangerMemory)
+			{
+				var weight = role == DefenseRole.Default ? kv.Value.TotalWeight : kv.Value.GetRoleWeight(role);
+				if (weight < minimumWeight)
+					continue;
+
+				var finalWeight = weight * Info.DefensePlacementDangerWeight / 100;
+				candidates.Add((finalWeight, (long)finalWeight - (kv.Key - reference).LengthSquared / 8));
+			}
+
+			// Capped like the placement list, so the two are on the same scale and the thresholds tuned
+			// against one still mean something against the other.
+			var total = 0;
+			foreach (var (weight, _) in candidates.OrderByDescending(c => c.Score).Take(Math.Max(1, Info.DefensePlacementMaxHotspots)))
+				total += weight;
+
+			return total;
+		}
+
+		/// <summary>
+		/// The other half: how exposed this ground is by its shape alone - doors, bridges, ramps, passages.
+		/// Constant on a given map, which is exactly why it must not be added to the danger reading above.
+		/// </summary>
+		public int GetStaticExposureScore(CPos reference)
+		{
+			if (TacticalMapModule == null || Info.TopologyHotspotWeight <= 0)
+				return 0;
+
+			var total = 0;
+			foreach (var threat in GetProactiveThreats(reference))
+				total += threat.Weight * Info.TopologyHotspotWeight / 100;
+
+			return total;
+		}
+
 		public DefensePlacementThreat[] GetDefensePlacementThreats(CPos reference, DefenseRole role = DefenseRole.Default)
 		{
 			var maxHotspots = Math.Max(1, Info.DefensePlacementMaxHotspots);
@@ -2450,10 +2836,11 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// Proactive: static map topology (bridges, cliff ramps, narrow passages) from the cartographer.
+			// Proactive: territory doors, or static map topology (bridges, cliff ramps, narrow passages) as
+			// a fallback - see GetProactiveThreats.
 			if (TacticalMapModule != null && Info.TopologyHotspotWeight > 0)
 			{
-				foreach (var threat in TacticalMapModule.GetTopologyHotspots(reference))
+				foreach (var threat in GetProactiveThreats(reference))
 				{
 					var finalWeight = threat.Weight * Info.TopologyHotspotWeight / 100;
 					if (finalWeight <= 0)
@@ -2551,6 +2938,18 @@ namespace OpenRA.Mods.Common.Traits
 					cachedHighGround[edge.Cell] = edge;
 
 			cachedChokepointDefenseAnchors = TacticalMapModule.GetChokepointDefenseAnchors(defenseCenter).ToList();
+
+			// Same anchor bonus, extended to territory doors - without this a door-sourced threat only
+			// pulls placement toward its center, not to a position actually behind it facing the approach.
+			if (Info.EnableDoorDefense)
+				cachedChokepointDefenseAnchors.AddRange(TacticalMapModule.GetDoorDefenseAnchors());
+
+			// C-mode kill zone: no wall (that is L-mode, Turtle/Tech - see DoorKillZoneUsesWalls), just a
+			// wider spread of anchor points along the same band a wall would have covered, so defense
+			// fans out across the arc instead of clustering on the tight 5-point line above.
+			if (ShouldSealDoorKillZone() && !DoorKillZoneUsesWalls())
+				foreach (var door in TacticalMapModule.GetTerritoryDoors())
+					cachedChokepointDefenseAnchors.AddRange(TacticalMapModule.GetDoorKillZoneCells(door));
 		}
 
 		// High-ground (height advantage / natural wall) bonus and sealed-flank (no enemy access) penalty.
@@ -2911,6 +3310,18 @@ namespace OpenRA.Mods.Common.Traits
 			var supportedCapacity = GetSupportedRefineryCapacity();
 			target = Math.Min(target, supportedCapacity);
 
+			// And against what the ground the bot actually holds can feed. The capacity above sums per
+			// indice, and an indice is a raster square rather than a field, so one field crossing four of
+			// them is counted four times over: a played match had it saying 8 where the regions said 3.
+			// Placement has been refusing the surplus on exactly these grounds for a while
+			// (RegionRefineryCapacityReached), which is worse than not wanting them in the first place -
+			// the bot kept queuing refineries and they ended up wherever placement would still take them.
+			// Skipped entirely when the region graph has nothing to say (-1) or holds no resources at all
+			// (0), and the minimum below still wins, so a bot can never be starved down by this.
+			var regionCapacity = GetRegionRefineryCapacity();
+			if (regionCapacity > 0)
+				target = Math.Min(target, regionCapacity);
+
 			return Math.Max(activeMinRefinery, target);
 		}
 
@@ -3085,6 +3496,9 @@ namespace OpenRA.Mods.Common.Traits
 		int cachedSupportedRefineryCapacity;
 		int cachedSupportedRefineryCapacityTick = int.MinValue;
 
+		// Last set of figures reported, so an unchanged picture is not restated every 50 ticks.
+		(int Supported, int Region, int Target, int Standing, int Scored) lastRefineryCapacityReport = (-1, -1, -1, -1, -1);
+
 		int GetSupportedRefineryCapacity()
 		{
 			if (ResourceMapModule == null)
@@ -3135,14 +3549,80 @@ namespace OpenRA.Mods.Common.Traits
 
 			// This caps GetTargetRefineryCount, so when it comes out low the bot stops wanting
 			// refineries entirely — no placement is ever attempted and nothing else reports why.
-			CNBotLog.Debug(
-				"{0} refinery capacity: {1} from {2}/{3} indices (largest field {4} cells, thresholds {5}/{6})",
-				player, supportedCapacity, scored, ResourceMapModule.GetIndicesLength(),
-				largestField, Info.MinFiniteFieldCellsForRefinery, Info.MinFiniteFieldCellsForExtraRefinery);
-
+			//
+			// Logged alongside the region graph's answer to the same question, because the two disagree and
+			// the disagreement is the suspected cause of the overshoot seen in play: an indice is a raster
+			// square, so a single field crossing four of them is counted four times over here, while a
+			// region counts its resource cells once. Only the region number gates PLACEMENT today
+			// (RegionRefineryCapacityReached); the target the bot works toward is still the indice sum, so
+			// it keeps wanting refineries the ground cannot feed and they end up wherever placement will
+			// still take them. Two numbers side by side say how far apart they actually are on a real map,
+			// which is what any change to either of them should be argued from.
+			// Stamped before the log, not after: GetTargetRefineryCount below re-enters this method, and
+			// only a filled cache stops that being an infinite recursion.
 			cachedSupportedRefineryCapacityTick = world.WorldTick;
 			cachedSupportedRefineryCapacity = Math.Max(Info.InititalMinimumRefineryCount, supportedCapacity);
+
+			// Boxed rather than formatted here: -1 means "the region graph has nothing to say yet", which
+			// reads as n/a in the log and must not be mistaken for a ceiling of zero.
+			var regionCapacity = GetRegionRefineryCapacity();
+			var regionCapacityText = regionCapacity < 0 ? (object)"n/a" : regionCapacity;
+			var standing = AIUtils.CountActorByCommonName(RefineryBuildings);
+			var target = GetTargetRefineryCount();
+
+			// Only when one of the numbers actually moves. It fired every 50 ticks per bot regardless,
+			// which came to 1570 lines in one match - fourteen percent of the whole log, second only to
+			// the ungated dock spam - and repeating an unchanged line that often buries the ones that did
+			// change. Same shape RegionRefineryCapacityReached already uses for its own cap message.
+			var signature = (supportedCapacity, regionCapacity, target, standing, scored);
+			if (signature == lastRefineryCapacityReport)
+				return cachedSupportedRefineryCapacity;
+
+			lastRefineryCapacityReport = signature;
+
+			CNBotLog.Debug(
+				"{0} refinery capacity: {1} from {2}/{3} indices (largest field {4} cells, thresholds {5}/{6}) | "
+				+ "region capacity {7}, target {8}, standing {9}",
+				player, supportedCapacity, scored, ResourceMapModule.GetIndicesLength(),
+				largestField, Info.MinFiniteFieldCellsForRefinery, Info.MinFiniteFieldCellsForExtraRefinery,
+				regionCapacityText, target, standing);
+
 			return cachedSupportedRefineryCapacity;
+		}
+
+		/// <summary>
+		/// The refinery ceiling the region graph implies: every region this bot holds, each capped by its
+		/// own resource cells at <see cref="CNBaseBuilderBotModuleInfo.ResourceCellsPerRegionRefinery"/>.
+		/// <para>
+		/// Clamps <see cref="GetTargetRefineryCount"/> alongside the indice-summed capacity, which was held
+		/// back until a played map showed what the two actually look like side by side: 8 from the indices
+		/// against 3 from the regions for the same bot. The per-region rule already gated placement, so the
+		/// bot was wanting refineries the ground could not feed and then putting them wherever placement
+		/// would still take them.
+		/// </para>
+		/// Returns -1 when the region graph or the region manager has nothing to say yet, which the log
+		/// prints as "n/a" rather than as a ceiling of zero.
+		/// </summary>
+		public int GetRegionRefineryCapacity()
+		{
+			var perRefinery = Info.ResourceCellsPerRegionRefinery;
+			if (perRefinery <= 0 || TacticalMapModule == null || !TacticalMapModule.TopologyReady
+				|| RegionManagerModule == null || !RegionManagerModule.Ready)
+				return -1;
+
+			var capacity = 0;
+			foreach (var region in TacticalMapModule.GetRegions())
+			{
+				// Held ground only, mirroring IsIndiceWithinReach: tiberium in a region the bot has not
+				// claimed is not capacity it has, it is capacity it would have to go and take.
+				var state = RegionManagerModule.GetRegionState(region.Id);
+				if (state == null || !state.Claimed || region.ResourceCellCount <= 0)
+					continue;
+
+				capacity += (region.ResourceCellCount + perRefinery - 1) / perRefinery;
+			}
+
+			return capacity;
 		}
 
 		/// <summary>
@@ -3426,8 +3906,31 @@ namespace OpenRA.Mods.Common.Traits
 		int GetCheapestBuildableRefineryCost(ILookup<string, ProductionQueue> queuesByCategory)
 			=> GetCheapestBuildableActorCost(Info.RefineryTypes, queuesByCategory);
 
-		bool HasQueuedOrProducingRefinery(ILookup<string, ProductionQueue> queuesByCategory)
-			=> HasQueuedOrProducingActor(Info.RefineryTypes, queuesByCategory);
+		/// <summary>
+		/// What is still owed on the cheapest refinery already on the production line, or -1 when none is.
+		/// A stalled item has been part-paid, so the shortfall that matters is the rest of it rather than
+		/// the price of starting over.
+		/// </summary>
+		int GetQueuedRefineryRemainingCost(ILookup<string, ProductionQueue> queuesByCategory)
+		{
+			if (Info.RefineryTypes.Count == 0)
+				return -1;
+
+			var best = -1;
+			foreach (var queue in queuesByCategory.SelectMany(q => q))
+			{
+				foreach (var item in queue.AllQueued())
+				{
+					if (!Info.RefineryTypes.Contains(item.Item))
+						continue;
+
+					if (best < 0 || item.RemainingCost < best)
+						best = item.RemainingCost;
+				}
+			}
+
+			return best;
+		}
 
 		static int GetCheapestBuildableActorCost(IReadOnlyCollection<string> types, ILookup<string, ProductionQueue> queuesByCategory)
 		{
@@ -3559,23 +4062,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (AIUtils.CountActorByCommonName(RefineryBuildings) > 0)
 				return false;
 
-			if (RequestedRefineries.Count > 0 || HasQueuedOrProducingRefinery(queuesByCategory))
-				return false;
-
 			if (AIUtils.CountActorByCommonName(ConstructionYardBuildings) <= 0)
 				return false;
 
-			var refineryCost = GetCheapestBuildableRefineryCost(queuesByCategory);
-			if (refineryCost <= 0)
-				return false;
-
 			var cash = PlayerResources.GetCashAndResources();
-			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
-				return false;
-
-			var shortfall = refineryCost - cash;
-			if (shortfall <= Info.BankruptcyRecoveryMinimumShortfall)
-				return false;
 
 			// Active income → wait for cash to accumulate instead of preemptively selling.
 			// The sampling window (~300 ticks) keeps this positive for a while after the last
@@ -3583,9 +4073,62 @@ namespace OpenRA.Mods.Common.Traits
 			if (IncomeRate > 0)
 				return false;
 
+			// A refinery already on the line used to end this outright - one is coming, nothing to do. It
+			// is not coming: a building under construction draws its cash as it goes, so with no income and
+			// an empty bank the queue item simply stalls, and the bot sits on a half-built refinery for the
+			// rest of the match. That is the reported state exactly - every refinery destroyed, one in
+			// production, no money.
+			// So a queued refinery only ends this while it can still be paid for. What has to be raised is
+			// then the REMAINder of its cost, not the price of a fresh one: most of it may already be paid.
+			// An outstanding expansion request is deliberately not counted as "one is coming" here: past
+			// the income check above there is no money to drive it either, so letting it suppress recovery
+			// only wedged the bot harder.
+			var remaining = GetQueuedRefineryRemainingCost(queuesByCategory);
+			if (remaining >= 0 && remaining <= cash)
+				return false;
+
+			var refineryCost = remaining >= 0 ? remaining : GetCheapestBuildableRefineryCost(queuesByCategory);
+			if (refineryCost <= 0)
+			{
+				// Broke, no refinery, and nothing a sale could pay for: either the queued one is already
+				// fully paid and only placement is missing, or no refinery is buildable at all (lost
+				// prerequisite). Both look identical from the outside - a bot standing still at cash 0 -
+				// so say which one it is instead of leaving it to be reconstructed from the log later.
+				if (world.WorldTick >= nextRefineryRecoveryDeclineLogTick)
+				{
+					nextRefineryRecoveryDeclineLogTick = world.WorldTick + RefineryRecoveryDeclineLogInterval;
+					CNBotLog.Debug("{0} refinery recovery declined: nothing to fund (queued remaining {1}, cheapest buildable {2}, cash {3}, requests {4})",
+						player, remaining, GetCheapestBuildableRefineryCost(queuesByCategory), cash, RequestedRefineries.Count);
+				}
+
+				return false;
+			}
+
+			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
+				return false;
+
+			// Every credit of the gap has to come out of a sale. A minimum-shortfall floor used to sit
+			// here, skipping the sale while the gap was small - but this line is only ever reached with
+			// no income at all, and a small gap does not close on its own any more than a large one does.
+			// It parked bots at cash 0 in front of a refinery that was a hundred credits from finished.
+			var shortfall = refineryCost - cash;
+			if (shortfall <= 0)
+				return false;
+
 			var sellCandidate = ChooseEmergencySellCandidate();
 			if (sellCandidate == null)
+			{
+				// The other way a bankrupt bot stands still: it wants to sell and every building it owns
+				// is protected (last conyard, last production, last power) or is itself a refinery.
+				if (world.WorldTick >= nextRefineryRecoveryDeclineLogTick)
+				{
+					nextRefineryRecoveryDeclineLogTick = world.WorldTick + RefineryRecoveryDeclineLogInterval;
+					CNBotLog.Debug("{0} refinery recovery declined: no sellable building (shortfall {1}, cash {2})",
+						player, shortfall, cash);
+				}
+
 				return false;
+			}
 
 			CNBotLog.Debug($"CN AI: Selling {sellCandidate} to recover refinery economy. Cash {cash}, refinery cost {refineryCost}.");
 			bot.QueueOrder(new Order("Sell", sellCandidate, Target.FromActor(sellCandidate), false));
@@ -3615,12 +4158,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
 				return false;
 
-			var shortfall = harvesterCost - cash;
-			if (shortfall <= Info.BankruptcyRecoveryMinimumShortfall)
-				return false;
-
 			// Active income → another harvester is probably still dumping. Wait it out.
 			if (IncomeRate > 0)
+				return false;
+
+			// No income, so the gap never shrinks by itself - see TryRecoverRefinery on the removed floor.
+			var shortfall = harvesterCost - cash;
+			if (shortfall <= 0)
 				return false;
 
 			var sellCandidate = ChooseEmergencySellCandidate();
@@ -3652,13 +4196,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.BankruptcyRecoveryMaxCash >= 0 && cash > Info.BankruptcyRecoveryMaxCash)
 				return false;
 
-			var shortfall = mcvCost - cash;
-			if (shortfall <= Info.BankruptcyRecoveryMinimumShortfall)
-				return false;
-
 			// Active income → economy is still alive (e.g. lost conyard mid-game while a refinery
 			// still works). Wait for the next dump before tearing down buildings.
 			if (IncomeRate > 0)
+				return false;
+
+			// No income, so the gap never shrinks by itself - see TryRecoverRefinery on the removed floor.
+			var shortfall = mcvCost - cash;
+			if (shortfall <= 0)
 				return false;
 
 			var sellCandidate = ChooseEmergencySellCandidate();
@@ -3790,6 +4335,7 @@ namespace OpenRA.Mods.Common.Traits
 			powerBuildings.Dispose();
 			ConstructionYardBuildings.Dispose();
 			ProductionBuildings.Dispose();
+			DefenseBuildings.Dispose();
 		}
 
 		void IBotSuggestRefineryProduction.RequestLocation(CPos refineryLocation, CPos conyardLocation, Actor expandActor)

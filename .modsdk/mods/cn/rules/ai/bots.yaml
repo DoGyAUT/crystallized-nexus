@@ -49,9 +49,11 @@ Player:
 			Normal: 100
 			Hard: 75
 			Brutal: 55
-		AdaptiveExpansionIncomeThreshold: 250
+		# The adaptive switching thresholds live in profiles.yaml, which mod.yaml loads AFTER this file.
+		# AdaptiveExpansionIncomeThreshold and AdaptiveRushUnitThreshold used to be set here as well, at
+		# 250 and 14, and were silently overwritten there with 300 and 12 - so the values anyone read here
+		# were not the values the bot ran on. One place only.
 		AdaptiveTurtleDangerThreshold: 420
-		AdaptiveRushUnitThreshold: 14
 		AdaptiveExpansionGraceTicks: 3600
 		RushUnitThresholdEarlyOffset: 6
 		RushUnitThresholdLateOffset: -4

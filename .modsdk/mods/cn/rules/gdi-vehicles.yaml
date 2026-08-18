@@ -508,7 +508,7 @@ GTMTNK:
 		Speed: 70
 		AlwaysTurnInPlace: true
 	CNHealth:
-		HP: 150
+		HP: 200
 	SecondaryHealth@ARMOR:
 		MaxHP: 400
 		InitialHP: -1
@@ -759,14 +759,14 @@ WARDEN:
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
-		Prerequisites: ~gaweap, gaarmory, ~techlevel.medium, ~tech.gdf
+		Prerequisites: ~gaweap, gaarmory, gatech, ~techlevel.high, ~tech.gdf
 		Description: actor-4tnk-description
 	Mobile:
 		Locomotor: heavytracked
 		Speed: 56
 		TurnSpeed: 5
 	CNHealth:
-		HP: 400
+		HP: 500
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -774,7 +774,7 @@ WARDEN:
 		MaxHeightDelta: 3
 		RequiresCondition: !inside-tunnel
 	SecondaryHealth@ARMOR:
-		MaxHP: 600
+		MaxHP: 700
 		InitialHP: -1
 		ArmorType: Superheavy
 		RegenerateRate: 0
@@ -869,9 +869,9 @@ HMEC:
 		TurnSpeed: 12
 		Speed: 42
 	CNHealth:
-		HP: 800
+		HP: 1000
 	SecondaryHealth@ARMOR:
-		MaxHP: 800
+		MaxHP: 1000
 		InitialHP: -1
 		ArmorType: Superheavy
 		RegenerateRate: 0
@@ -960,11 +960,11 @@ SONIC:
 		TurnSpeed: 16
 		Speed: 56
 	CNHealth:
-		HP: 150
+		HP: 200
 	Armor:
 		Type: Medium
 	SecondaryHealth@ARMOR:
-		MaxHP: 500
+		MaxHP: 600
 		InitialHP: -1
 		ArmorType: Heavy
 		RegenerateRate: 0

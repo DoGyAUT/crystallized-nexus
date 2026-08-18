@@ -45,9 +45,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (GetDockType.Overlaps(dock.GetDockType))
 			{
+				// No logging here. This ran on every completed dock cycle of every harvester, through
+				// Log.Write directly rather than CNBotLog.Debug, so unlike every other bot diagnostic it
+				// was not gated on the BotDebug setting and wrote for players who never asked for it. One
+				// match produced 799 lines from this one call site, out of nearly 8000 dock-debug lines
+				// that between them drowned the log the bot work is actually read from.
 				var currentActivity = self.CurrentActivity;
 				var willRequeue = currentActivity == null || (currentActivity is not CNFindAndDeliverResources && currentActivity.NextActivity == null);
-				Log.Write("debug", $"[DockDebug] CNHarvester.OnDockCompleted: hostDead={hostActor.IsDead}, currentActivity={currentActivity}, willRequeue={willRequeue}");
 
 				if (willRequeue)
 					self.QueueActivity(true, new CNFindAndDeliverResources(self));

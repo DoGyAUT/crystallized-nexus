@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -271,7 +270,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			if (buildings.Count == 0)
 				return squad.SquadManager.GetRandomBaseCenter();
 
-			IReadOnlyList<Actor> candidates = buildings;
+			var candidates = buildings;
 			foreach (var unit in squad.OrderableUnits)
 			{
 				var rearmActors = unit.Info.TraitInfoOrDefault<RearmableInfo>()?.RearmActors;
@@ -472,9 +471,21 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 	sealed class AircraftAttackRunState : AircraftStateBase, ICNState
 	{
-		bool approachIssued;
+		// How long the run-in manoeuvre gets before the attack goes ahead anyway. The approach is flown
+		// to pick the way in, not to make the target safer, so this is a flight time and not a condition.
+		const int ApproachHoldTicks = 100;
 
-		public void Activate(CNSquad squad) { approachIssued = false; }
+		bool approachIssued;
+		CPos approachCell;
+		int approachIssuedTick;
+		Actor orderedTarget;
+
+		public void Activate(CNSquad squad)
+		{
+			approachIssued = false;
+			approachIssuedTick = 0;
+			orderedTarget = null;
+		}
 
 		public void Tick(CNSquad squad)
 		{
@@ -499,8 +510,27 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			else if (leadAircraft != null &&
 				ScoreAircraftThreatAtTarget(squad, leadAircraft, squad.TargetActor) > MaxAcceptableAircraftThreatScore)
 			{
-				// While threat is high, hold off attack orders until approach move completes.
-				if (!approachIssued)
+				// While threat is high, hold off attack orders until the approach move completes.
+				if (approachIssued)
+				{
+					// And then attack regardless of the score. The score is measured around the TARGET, not
+					// around us - flying the approach cannot lower it by so much as a point - so a state
+					// that waits for it to fall waits forever. This branch used to do exactly that: order
+					// the approach, set the flag, and from then on return every tick with the squadron
+					// parked in mid-air until its target happened to die. The manoeuvre was only ever meant
+					// to choose the way in, which is what the comment above says; once it is flown, or has
+					// had long enough to be flown, the run goes ahead.
+					var arrivedAt = squad.World.Map.CenterOfCell(approachCell);
+					var arrived = (squad.CenterPosition() - arrivedAt).HorizontalLengthSquared
+						<= (long)WDist.FromCells(AircraftStagingRadiusCells).Length * WDist.FromCells(AircraftStagingRadiusCells).Length;
+
+					if (!arrived && squad.World.WorldTick - approachIssuedTick < ApproachHoldTicks)
+						return;
+
+					approachIssued = false;
+					goto issueAttack;
+				}
+
 				{
 					var saferTarget = FindAircraftTarget(squad);
 					if (saferTarget != null && saferTarget != squad.TargetActor)
@@ -513,17 +543,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 					// Only available target is heavily defended — look for a gap in AA coverage
 					// and route through it before committing the attack run.
-					var approachCell = FindLowThreatApproachCell(squad, leadAircraft, squad.TargetActor);
-					if (approachCell.HasValue)
+					var approachCell2 = FindLowThreatApproachCell(squad, leadAircraft, squad.TargetActor);
+					if (approachCell2.HasValue)
 					{
 						foreach (var unit in squad.OrderableUnits)
 						{
 							if (!unit.Info.HasTraitInfo<AircraftInfo>() || NeedsRearm(unit) || !unit.IsIdle)
 								continue;
 							squad.Bot.QueueOrder(new Order("Move", unit,
-								Target.FromCell(squad.World, approachCell.Value), false));
+								Target.FromCell(squad.World, approachCell2.Value), false));
 						}
 
+						approachCell = approachCell2.Value;
+						approachIssuedTick = squad.World.WorldTick;
 						approachIssued = true;
 					}
 					else
@@ -539,14 +571,19 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			approachIssued = false;
 		issueAttack:
 
+			var targetChanged = orderedTarget != squad.TargetActor;
 			var issuedAttack = false;
+			var issuedNewAttack = false;
 			foreach (var unit in squad.OrderableUnits)
 			{
 				if (!unit.Info.HasTraitInfo<AircraftInfo>())
 					continue;
 				if (NeedsRearm(unit))
 					continue;
-				if (BusyAttack(unit))
+
+				// An Attack activity aimed at the previous actor is not useful work. Waiting for it to
+				// unwind left an entire flight hovering over the first wreck before it engaged target two.
+				if (BusyAttack(unit) && !targetChanged)
 				{
 					issuedAttack = true;
 					continue;
@@ -557,7 +594,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 				squad.Bot.QueueOrder(new Order("Attack", unit, squad.Target, false));
 				issuedAttack = true;
+				issuedNewAttack = true;
 			}
+
+			if (issuedNewAttack)
+				orderedTarget = squad.TargetActor;
 
 			if (!issuedAttack)
 				squad.FuzzyStateMachine.ChangeState(squad, new AircraftReturnState(new AircraftAttackIdleState()));
@@ -604,6 +645,7 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		const int MaxStuckTicks = 375;
 		const int MinPositionChangeForMovement = 128; // sub-pixels (~2 cells)
 		const int MaxNoAmmoSpentTicks = 500;
+		const int ApproachHoldTicks = 100;
 
 		// Time since the lead aircraft last moved, regardless of attack status. This fires even when
 		// BusyAttack is true, catching the case where an attack activity is active but the aircraft
@@ -613,6 +655,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		int noAmmoSpentTicks;
 		int lastAmmoCount;
 		bool approachIssued;
+		CPos approachCell;
+		int approachIssuedTick;
+		Actor orderedTarget;
 		WPos lastPosition;
 
 		public void Activate(CNSquad squad)
@@ -620,6 +665,8 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			noMoveTicks = 0;
 			noAmmoSpentTicks = 0;
 			approachIssued = false;
+			approachIssuedTick = 0;
+			orderedTarget = null;
 			lastAmmoCount = TotalCombatAmmo(squad);
 			var lead = squad.OrderableUnits.FirstOrDefault(u => u.Info.HasTraitInfo<AircraftInfo>() && !u.IsDead && u.IsInWorld);
 			lastPosition = lead != null ? lead.CenterPosition : WPos.Zero;
@@ -681,25 +728,50 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				approachIssued = false;
 			}
 
+			var targetChanged = orderedTarget != squad.TargetActor;
+
 			// Approach routing through the lowest-threat gap in AA coverage.
-			// While threat is high, hold off attack orders: issue the approach move once and wait.
+			// While threat is high, hold off attack orders only until the approach has actually been
+			// flown. The score is measured around the target and cannot fall merely because we moved.
 			var threatAtTarget = ScoreAircraftThreatAtTarget(squad, leadAircraft, squad.TargetActor);
 			if (threatAtTarget > MaxAcceptableAircraftThreatScore)
 			{
+				if (approachIssued)
+				{
+					var arrivedAt = squad.World.Map.CenterOfCell(approachCell);
+					var stagingRange = WDist.FromCells(AircraftStagingRadiusCells).Length;
+					var arrived = (squad.CenterPosition() - arrivedAt).HorizontalLengthSquared
+						<= (long)stagingRange * stagingRange;
+
+					if (!arrived && squad.World.WorldTick - approachIssuedTick < ApproachHoldTicks)
+						return;
+
+					approachIssued = false;
+					goto issueAttack;
+				}
+
 				if (!approachIssued)
 				{
-					var approachCell = FindLowThreatApproachCell(squad, leadAircraft, squad.TargetActor);
-					if (approachCell.HasValue)
+					var saferApproachCell = FindLowThreatApproachCell(squad, leadAircraft, squad.TargetActor);
+					if (saferApproachCell.HasValue)
 					{
+						var issuedApproach = false;
 						foreach (var unit in squad.OrderableUnits)
 						{
-							if (!unit.Info.HasTraitInfo<AircraftInfo>() || NeedsRearm(unit) || !unit.IsIdle)
+							if (!unit.Info.HasTraitInfo<AircraftInfo>() || NeedsRearm(unit) || IsRearming(unit) ||
+								(!unit.IsIdle && !targetChanged))
 								continue;
 							squad.Bot.QueueOrder(new Order("Move", unit,
-								Target.FromCell(squad.World, approachCell.Value), false));
+								Target.FromCell(squad.World, saferApproachCell.Value), false));
+							issuedApproach = true;
 						}
 
-						approachIssued = true;
+						if (issuedApproach)
+						{
+							approachCell = saferApproachCell.Value;
+							approachIssuedTick = squad.World.WorldTick;
+							approachIssued = true;
+						}
 					}
 					else
 					{
@@ -715,12 +787,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 					}
 				}
 
-				// noMoveTicks handles the overall timeout; nothing extra needed here.
 				return;
 			}
 
 			approachIssued = false;
 
+		issueAttack:
 			var ammoCount = TotalCombatAmmo(squad);
 			if (ammoCount < lastAmmoCount)
 			{
@@ -732,13 +804,14 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 			var forceReissueAttack = noAmmoSpentTicks >= MaxNoAmmoSpentTicks;
 			var issuedAttack = false;
+			var issuedNewAttack = false;
 			foreach (var unit in squad.OrderableUnits)
 			{
 				if (!unit.Info.HasTraitInfo<AircraftInfo>())
 					continue;
 				if (NeedsRearm(unit))
 					continue;
-				if (BusyAttack(unit) && !forceReissueAttack)
+				if (BusyAttack(unit) && !forceReissueAttack && !targetChanged)
 				{
 					issuedAttack = true;
 					continue;
@@ -749,8 +822,12 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 
 				squad.Bot.QueueOrder(new Order("Attack", unit, squad.Target, false));
 				issuedAttack = true;
+				issuedNewAttack = true;
 				noMoveTicks = 0;
 			}
+
+			if (issuedNewAttack)
+				orderedTarget = squad.TargetActor;
 
 			if (forceReissueAttack && issuedAttack)
 				noAmmoSpentTicks = 0;

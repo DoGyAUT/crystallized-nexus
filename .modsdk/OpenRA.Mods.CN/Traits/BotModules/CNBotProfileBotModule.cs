@@ -83,6 +83,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Sum of defense danger hotspot weights above this triggers Turtle mode.")]
 		public readonly int AdaptiveTurtleDangerThreshold = 350;
 
+		[Desc("How much the map's own shape - doors, bridges, ramps - counts toward preferring Turtle, as a",
+			"fraction of what live danger counts for. Deliberately small: exposed ground is a reason to lean",
+			"defensive, being shot at is a reason to turn defensive, and the two used to be added together",
+			"as one number. 0 ignores map shape entirely.")]
+		public readonly float AdaptiveStaticExposureWeight = 0.25f;
+
 		[Desc("Total alive combat units across all squads above this triggers Rush mode (when not under attack).")]
 		public readonly int AdaptiveRushUnitThreshold = 15;
 
@@ -97,6 +103,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Added to RushUnitThreshold in Late tech stage (advanced units punch harder, lower threshold).")]
 		public readonly int RushUnitThresholdLateOffset = -3;
+
+		[Desc("Ticks between emergency danger checks while the full profile evaluation is on cooldown. The",
+			"danger memory records an attack at most every 30 ticks, so reading it oftener than this cannot",
+			"see anything new and only costs a threat scan per bot per tick.")]
+		public readonly int AdaptiveEmergencyCheckInterval = 25;
 
 		[Desc("Minimum ticks an adaptive bot keeps a non-emergency strategic intent before switching again.")]
 		public readonly int AdaptiveMinimumIntentHoldTicks = 3000;
@@ -125,6 +136,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Score added to Tech at full enemy fortification: out-range what cannot be walked into.")]
 		public readonly float AdaptiveFortificationTechBonus = 2f;
+
+		[Desc("Score for Tech while the economy is built out and earning (see AdaptiveTechCashTrendPerMinute).",
+			"This is the profile's whole case for itself, so it has to be able to win: measured over 200",
+			"evaluations, Expansion reached 9.1, Turtle 7.3 and Steamroller 6.8, while Tech - at the 2.5 this",
+			"replaces - topped out at 1.5 and was never once chosen. The gating condition is deliberately",
+			"strict (economy finished, not still expanding), so when it is met the profile should be a real",
+			"contender rather than a rounding error.")]
+		public readonly float AdaptiveTechCashRichBonus = 7f;
 
 		[Desc("Score added to Expansion at full enemy fortification: take the map while they sit still.")]
 		public readonly float AdaptiveFortificationExpansionBonus = 1f;
@@ -160,8 +179,15 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BotProfile[] AdaptiveStartProfiles = [];
 
 		[Desc("Score bonus added to the currently active profile during each evaluation. " +
-			"Prevents rapid oscillation: a profile has to beat the current one by this margin to trigger a switch.")]
-		public readonly float AdaptiveProfileMomentumBonus = 2f;
+			"Prevents rapid oscillation: a profile has to beat the current one by this margin to trigger a " +
+			"switch. Kept below 1.0 on purpose - at 2.0 it stopped being hysteresis and started deciding " +
+			"which states were reachable at all. Two worked examples from the score table below: once the " +
+			"danger passes, Turtle scores 0 but holds 2.0 against Expansion's 1.5, so it never leaves; and " +
+			"a cash-rich bot scores Tech at 2.5 against a running Expansion's 1.5 + 2.0, so the income " +
+			"signal the profile exists for could never trigger the switch it was written for. The right " +
+			"value is a matter for a played match - this is the largest one that leaves both transitions " +
+			"possible.")]
+		public readonly float AdaptiveProfileMomentumBonus = 0.75f;
 
 		[Desc("Score deducted per allied adaptive bot already running a given profile. " +
 			"Encourages teammates to spread across different strategies.")]
@@ -248,13 +274,23 @@ namespace OpenRA.Mods.Common.Traits
 		public CNBotStrategySnapshot CurrentStrategy { get; private set; }
 		public int LastDangerScore { get; private set; }
 
+		// Re-evaluation cadence for the tech stage. One second against thresholds measured in thousands
+		// of ticks: far finer than the thing being measured, and a stage that arrives a second late
+		// changes nothing downstream.
+		const int TechStageInterval = 25;
+
 		readonly World world;
 		readonly Player player;
 		Actor playerActor;
+		int techStageTicks = 1;
 		int switchCooldown;
 		int activeProfileSinceTick;
-		int lastEvalCash;
+		int lastEvalEarned;
 		int lastEvalCashTick;
+		int emergencyCheckTicks;
+
+		// High-water mark for UpdateTechStage - see there.
+		TechStage highestTechStage = TechStage.Early;
 		int profileConditionToken = Actor.InvalidConditionToken;
 
 		CNBaseBuilderBotModule baseBuilder;
@@ -284,6 +320,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNBotProfileBotModule));
+
 			// Re-resolved whenever the cached one is no longer enabled, not once at startup.
 			//
 			// There is one squad manager, base builder and MCV manager PER PROFILE, each gated by a
@@ -312,7 +350,16 @@ namespace OpenRA.Mods.Common.Traits
 					.TraitsImplementing<CNMcvExpansionManagerBotModule>()
 					.FirstOrDefault(t => t.IsTraitEnabled());
 
-			UpdateTechStage();
+			// Not every tick. The stage is decided by which buildings the bot owns and by tick thresholds
+			// measured in thousands of ticks, and it can only ever move forward - highestTechStage sees
+			// to that. Re-deciding it forty times a second meant scanning the whole building list once
+			// or twice per bot per tick for an answer that changes a handful of times per match. This
+			// module has no spikes at all, just a constant drip, and this was most of it.
+			if (--techStageTicks <= 0)
+			{
+				techStageTicks = TechStageInterval;
+				UpdateTechStage();
+			}
 
 			if (Info.Profile != BotProfile.Adaptive)
 			{
@@ -323,6 +370,23 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (--switchCooldown > 0)
 			{
+				// Except for the emergency, which is a response to being attacked and cannot wait for the
+				// evaluation cadence. SwitchTo lets it past the minimum intent hold, but the cooldown sits
+				// in front of the whole evaluation - so a heavy assault beginning just after one pass left
+				// the bot in Rush or Expansion for up to AdaptiveSwitchCooldownTicks with the emergency
+				// threshold long since exceeded. Only the danger reading is taken here; the full five-
+				// profile comparison stays on the long interval, where it belongs.
+				// On its own clock, not every tick: the reading walks the threat list, sorts it and
+				// allocates, while the danger memory it reads from only records an attack every 30 ticks
+				// anyway. Checking oftener than the data can change buys nothing and costs a scan per bot
+				// per tick - which is what the first version of this did.
+				if (--emergencyCheckTicks <= 0)
+				{
+					emergencyCheckTicks = Math.Max(1, Info.AdaptiveEmergencyCheckInterval);
+					if (TryEmergencyTurtle())
+						switchCooldown = Info.AdaptiveSwitchCooldownTicks;
+				}
+
 				UpdateStrategySnapshot();
 				return;
 			}
@@ -330,6 +394,30 @@ namespace OpenRA.Mods.Common.Traits
 			EvaluateAndSwitch();
 			UpdateStrategySnapshot();
 			switchCooldown = Info.AdaptiveSwitchCooldownTicks;
+		}
+
+		/// <summary>
+		/// The danger reading on its own, and the switch to Turtle if it has gone past the emergency
+		/// threshold. Split out of the full evaluation so it can run while that one is still on cooldown:
+		/// an emergency is a response to being attacked, and waiting out the evaluation cadence to notice
+		/// is the one thing it must not do. Returns whether it switched.
+		/// </summary>
+		bool TryEmergencyTurtle()
+		{
+			if (baseBuilder == null || ActiveProfile == BotProfile.Turtle)
+				return false;
+
+			// Reactive only. The combined placement list also carries doors, bridges and ramps, which are
+			// constant on a map - an emergency triggered by terrain would fire on the first tick and never
+			// clear.
+			var dangerScore = baseBuilder.GetReactiveDangerScore(baseBuilder.DefenseCenter);
+
+			LastDangerScore = dangerScore;
+			if (dangerScore < Info.AdaptiveEmergencyTurtleDangerThreshold)
+				return false;
+
+			SwitchTo(BotProfile.Turtle, emergency: true);
+			return true;
 		}
 
 		void UpdateTechStage()
@@ -351,6 +439,16 @@ namespace OpenRA.Mods.Common.Traits
 				ActiveTechStage = TechStage.Mid;
 			else
 				ActiveTechStage = TechStage.Early;
+
+			// Never backwards. The tick thresholds come from the ACTIVE profile, so a switch swaps them
+			// underneath an already-reached stage: a bot that hit Mid at 3000 under Tech and then turned
+			// Turtle, whose threshold is 6000, dropped back to Early on the next tick unless it happened
+			// to own a tech building. BuildingFractions and the rush offset then moved backwards with it.
+			// Tech reached is a fact about what the bot has done, not about which profile it is running.
+			if (ActiveTechStage < highestTechStage)
+				ActiveTechStage = highestTechStage;
+			else
+				highestTechStage = ActiveTechStage;
 		}
 
 		// Profiles considered during scored evaluation (excludes Adaptive — that is the mode, not a target).
@@ -369,15 +467,35 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// Collect inputs once.
-			var dangerThreats = baseBuilder.GetDefensePlacementThreats(baseBuilder.DefenseCenter);
-			var dangerScore = 0;
-			foreach (var t in dangerThreats)
-				dangerScore += t.Weight;
+			// Danger is what has actually been done to us; exposure is what the ground looks like. Summing
+			// the combined placement list conflated the two: four bridges came to 528 on an untouched map,
+			// past the 420 that turns a bot Turtle, so map shape alone could flip the profile - and
+			// LastDangerScore is published to allies as this bot's danger, so it told the team it was under
+			// attack as well. Kept apart now, and the static half is weighted in far below the live one.
+			var dangerScore = baseBuilder.GetReactiveDangerScore(baseBuilder.DefenseCenter);
+			var exposureScore = baseBuilder.GetStaticExposureScore(baseBuilder.DefenseCenter);
 
 			LastDangerScore = dangerScore;
 
-			// Emergency Turtle: bypass hysteresis entirely.
-			if (dangerScore >= Info.AdaptiveEmergencyTurtleDangerThreshold)
+			// Emergency Turtle: bypass hysteresis entirely - but only to GET there.
+			//
+			// This used to return unconditionally, and that is what froze adaptive bots. Once a bot was
+			// already turtling, every later evaluation hit this branch, did nothing (SwitchTo returns
+			// immediately when the profile is unchanged) and left again before the five-profile
+			// comparison below - which is the only thing that can ever take a bot back out of Turtle.
+			// The danger score it would have to fall under first is a decaying memory of being shot at,
+			// and in a busy match it sits near its cap indefinitely.
+			// Measured over an 86-minute six-bot match: nine evaluations in total, all of them inside
+			// the first twentieth of the match, none afterwards. Bots picked Expansion early, were
+			// attacked once, and spent the rest of the game on Turtle thresholds - which is visible in
+			// play as an expansion held at the Turtle cash requirement of 12000 by a bot whose last
+			// recorded decision was Expansion.
+			//
+			// Letting the evaluation run while turtling is not a risk: danger is already an input to the
+			// ordinary scoring, and Turtle rises with it, so a bot under real pressure keeps choosing
+			// Turtle on merit rather than by having the alternatives hidden from it. A switch away is
+			// additionally held for AdaptiveMinimumIntentHoldTicks, so this cannot oscillate quickly.
+			if (dangerScore >= Info.AdaptiveEmergencyTurtleDangerThreshold && ActiveProfile != BotProfile.Turtle)
 			{
 				SwitchTo(BotProfile.Turtle, emergency: true);
 				return;
@@ -392,17 +510,23 @@ namespace OpenRA.Mods.Common.Traits
 			var cash = playerResources.GetCashAndResources();
 			var stableEco = HasStableEconomy();
 
-			// Whether the till is filling, rather than how full it happens to be right now. Sampled
-			// between evaluations, so the window is however long the last hold lasted; dividing by the
-			// elapsed ticks keeps the rate comparable regardless.
+			// What the economy EARNS, not what the balance happens to do. Sampled between evaluations, so
+			// the window is however long the last hold lasted; dividing by the elapsed ticks keeps the rate
+			// comparable regardless.
+			// Taken from Earned rather than from the balance, because the balance is income minus spending
+			// and this is asked as an income question. A bot earning 3000 a minute and spending all 3000 on
+			// production held a trend of zero and never cleared the threshold, so its tech score stayed
+			// negative while its economy was in fact strong - and a one-off refund could make a dying
+			// economy look rich from the other direction.
+			var earned = playerResources.Earned;
 			var cashTrendPerMinute = 0f;
 			if (lastEvalCashTick > 0 && world.WorldTick > lastEvalCashTick)
 			{
 				var ticksPerMinute = 60000f / world.Timestep;
-				cashTrendPerMinute = (cash - lastEvalCash) * ticksPerMinute / (world.WorldTick - lastEvalCashTick);
+				cashTrendPerMinute = (earned - lastEvalEarned) * ticksPerMinute / (world.WorldTick - lastEvalCashTick);
 			}
 
-			lastEvalCash = cash;
+			lastEvalEarned = earned;
 			lastEvalCashTick = world.WorldTick;
 
 			// Team coordination: sample allied adaptive bots once per evaluation.
@@ -421,6 +545,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Normalized danger: 0 at no threat, 1.0 at the normal Turtle threshold.
 			var dangerRatio = (float)dangerScore / Math.Max(1, Info.AdaptiveTurtleDangerThreshold);
+
+			// Exposed ground is a reason to lean defensive, just a much weaker one than being shot at, and
+			// it must never on its own reach the threshold that live danger is measured against.
+			var exposureRatio = Math.Min(1f, (float)exposureScore / Math.Max(1, Info.AdaptiveTurtleDangerThreshold))
+				* Math.Max(0f, Info.AdaptiveStaticExposureWeight);
 
 			var rushThreshold = Info.AdaptiveRushUnitThreshold
 				+ (ActiveTechStage == TechStage.Early ? Info.RushUnitThresholdEarlyOffset : 0)
@@ -477,7 +606,7 @@ namespace OpenRA.Mods.Common.Traits
 					// Turtle: scales with danger + active threat. Has no penalty — being
 					// defensive is always valid when under pressure.
 					BotProfile.Turtle =>
-						dangerRatio * 3f + (hasActiveThreat ? 2f : 0f),
+						dangerRatio * 3f + exposureRatio + (hasActiveThreat ? 2f : 0f),
 
 					// Expansion: small constant baseline (reasonable fallback) plus a large
 					// bonus when the economy genuinely needs rebuilding. Running the fields dry counts
@@ -515,7 +644,7 @@ namespace OpenRA.Mods.Common.Traits
 					// Tech: modest bonus during the cash-rich window before late-game, and the answer to
 					// a fortified opponent - out-range what cannot be walked into.
 					BotProfile.Tech =>
-						(cashRich && ActiveTechStage != TechStage.Late ? 2.5f : -2f)
+						(cashRich && ActiveTechStage != TechStage.Late ? Info.AdaptiveTechCashRichBonus : -2f)
 						+ fortifiedRatio * Info.AdaptiveFortificationTechBonus,
 
 					_ => 0f
@@ -603,6 +732,11 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var p in world.Players)
 			{
 				if (p == player || !player.IsAlliedWith(p))
+					continue;
+
+				// A defeated ally keeps no ground and fights nobody, but its last recorded danger and
+				// coverage went on steering this bot's strategy to the end of the match.
+				if (p.WinState != WinState.Undefined)
 					continue;
 
 				foreach (var m in p.PlayerActor.TraitsImplementing<CNBotProfileBotModule>())
@@ -726,7 +860,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			TextNotificationsManager.AddSystemLine("Bot",
-				$"{player.PlayerName}: {from} → {to}{(emergency ? " (emergency)" : "")}");
+				$"{player.ResolvedPlayerName}: {from} → {to}{(emergency ? " (emergency)" : "")}");
 		}
 
 		void SwitchTo(BotProfile nextProfile, bool emergency)

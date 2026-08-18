@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Linq;
+using OpenRA.Mods.CN.Traits.BotModules;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -71,6 +72,12 @@ namespace OpenRA.Mods.Common.Traits
 		// How many indices the amortized initial scan processes per bot tick.
 		const int InitialScanIndicesPerTick = 8;
 
+		// A full sweep of the resource map takes this many UpdateResourceMapInverval periods. Expressed as
+		// a divisor rather than a fixed count so the lap time stays the same whatever size map is loaded:
+		// the old one-per-interval rule scaled the lap with the map and quietly went from seconds to
+		// minutes as maps got bigger.
+		const int IndiceSweepDivisor = 8;
+
 		readonly World world;
 		readonly Player player;
 		IResourceLayer resourceLayer;
@@ -97,6 +104,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNResourceMapBotModule));
+
 			if (firstTick)
 			{
 				resourceLayer = world.WorldActor.TraitOrDefault<IResourceLayer>();
@@ -150,8 +159,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (--updateResourceMapInterval <= 0)
 			{
 				updateResourceMapInterval = Info.UpdateResourceMapInverval;
-				UpdateResourceMap(updateResourceMapIndex);
-				updateResourceMapIndex = (updateResourceMapIndex + 1) % resourceMapIndices.Length;
+
+				// A budget for one full sweep, not for one indice. Refreshing a single square per interval
+				// meant a lap took indices * interval ticks - 2412 on a 36-square map, 8107 on a 121-square
+				// one, minutes either way - and every module reading this saw stale harvester, refinery and
+				// threat counts for that whole time. Rebalancing and expansion were working off a picture
+				// several minutes old.
+				var perSweep = Math.Max(1, (resourceMapIndices.Length + IndiceSweepDivisor - 1) / IndiceSweepDivisor);
+				for (var i = 0; i < perSweep; i++)
+				{
+					UpdateResourceMap(updateResourceMapIndex);
+					updateResourceMapIndex = (updateResourceMapIndex + 1) % resourceMapIndices.Length;
+				}
 			}
 		}
 

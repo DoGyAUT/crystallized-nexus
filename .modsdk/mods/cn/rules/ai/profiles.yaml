@@ -2,7 +2,24 @@ Player:
 	CNBotProfileBotModule@adaptive:
 		# Adaptive switching decides which profile is active.
 		AdaptiveMinimumIntentHoldTicks: 3000
-		AdaptiveEmergencyTurtleDangerThreshold: 650
+
+		# Both danger thresholds are on the scale of GetReactiveDangerScore, which sums the top
+		# DefensePlacementMaxHotspots (4) remembered hotspots, each capped at 10000 - so the range is
+		# 0 to 40000, and a bot in sustained combat sits at 24000-27500 (measured over 50 evaluations).
+		#
+		# They used to read 350 and 650, values from a scale that no longer exists. The consequence was
+		# not a mistuned bias but a broken comparison: dangerRatio = danger / 350 reached ~78, and it
+		# feeds the scores as ratio*3 for Turtle and -ratio*2 for Rush. Turtle therefore scored up to
+		# 248 and Rush down to -133, while every other criterion in the whole evaluation - army, economy,
+		# tech stage, team position - moves within about +-5. Profile choice was not a weighing of
+		# options, it was a readout of the danger number, which is why only Expansion (peace) and Turtle
+		# (anything else) were ever observed.
+		#
+		# Set so the ratio lands near 1 when genuinely under sustained attack: 12000 is three hotspots at
+		# 40% of cap, or one and a half at full. The emergency override sits at 30000, i.e. three of four
+		# hotspots pinned - a real assault rather than any contact at all.
+		AdaptiveTurtleDangerThreshold: 12000
+		AdaptiveEmergencyTurtleDangerThreshold: 30000
 		AdaptiveSteamrollerEarliestTick: 5000
 		# Relative to AdaptiveRushUnitThreshold below, not an absolute count. The old absolute 22 was
 		# never once reached in an eight-player game where armies peaked at 15, and the old 6000 cash
@@ -10,6 +27,10 @@ Player:
 		AdaptiveSteamrollerArmyRatio: 1.6
 		AdaptiveSteamrollerFortifiedArmyRatio: 1.0
 		AdaptiveTechCashTrendPerMinute: 400
+		# Raised from the hardcoded 2.5 that made Tech unwinnable - see the trait for the measured
+		# comparison. Kept here rather than only in code because this is the number to move first if
+		# bots turn out to tech too eagerly or still never do.
+		AdaptiveTechCashRichBonus: 7
 		AdaptiveExpansionIncomeThreshold: 300
 		AdaptiveRushUnitThreshold: 12
 

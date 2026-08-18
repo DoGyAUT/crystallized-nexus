@@ -113,9 +113,45 @@ TERRAIN & MAP
   TerrainDeformationWarhead
     Terrain deformation via weapons.
 
+  Destroyable Cliffs  [CNDestroyableCliff, CNDestroyableCliffLayer]
+    The Tiberian Sun "Destroyable Cliffs" tile set (dcliff01/dcliff02 —
+    717/718 temperate+desert, 987/988 snow) made functional. TS shipped no
+    destroyed artwork, so the collapsed state is assembled from stock ramp
+    templates: 403+404 for the wide cliff, 406+405 for the tall one, which
+    retile the footprint exactly and leave a two-cell-wide slope. Configured
+    in rules/cliffs.yaml (DestroyedTemplates: template id per cell offset) —
+    changing how a collapse looks is YAML, not code.
+    CNDestroyableCliffLayer finds the templates on map load and places the
+    actors itself, so any existing map using those tiles gets working cliffs;
+    fragments below MinimumTemplateCoverage stay decoration. The collapse
+    writes Map.Tiles and Map.Height (separate layers in OpenRA, unlike the
+    tile set), then recomputes CliffBackImpassability over the area — that
+    layer runs once at load and would otherwise keep the new path blocked.
+    Bots blow them open via CNCliffDemolitionBotModule (see AI — BOT MODULES).
+
+  Killable Veinholes  [CNLeavesPitOnDeath]
+    Veinholes are force-fire-only structures (NoAutoTarget +
+    RequiresForceFire) with 2500 HP that regenerate between attacks
+    (ChangesHealth) and answer damage with their active animation plus
+    tiberium clouds (SpawnActorOnDamage). No health bar — the actor is
+    Interactable but not Selectable, so nothing draws one.
+    A killed veinhole leaves a dent in the map via CNLeavesPitOnDeath: a
+    2x2 floor one height level down, ringed by single-cell ramps so the hole
+    stays walkable. The ramp pieces are not named in YAML — the trait
+    searches the tile set for 1x1 Clear templates by RampType and takes the
+    lowest matching id, which lands on the stock single-cell slopes
+    (templates 40-43, slope01-slope04, the same ids in all three tile sets)
+    and on template 0 for the flat floor. Searching rather than naming also
+    covers the "Ramp edge fixup" pieces as a fallback, which do differ per
+    tile set (643-654 temperate/desert, 721-732 snow). Each ring cell picks
+    its slope direction by scoring MapGrid's own ramp table against the
+    direction out of the hole, so the slope always faces outwards. The 4x4
+    dent reaches one row past the 3x3 footprint on the right and bottom.
+    GDI bots hunt veinholes down (CNVeinholeAssaultBotModule, see AI — BOT
+    MODULES); Nod bots leave them standing for their weed harvesters.
+
   ExplodeResourceWarhead
     Chain reactions on resource tiles (blue / red tiberium explodes when hit).
-
 
 GAMEPLAY MECHANICS
 ------------------
@@ -175,7 +211,7 @@ UNIT MECHANICS
   HuskFacing
     Corrects husk facing when a unit dies mid-turn.
 
-  CNSteeredMobile
+  CNSteeredMobile (WIP)
     Steered movement for vehicles (smooth arc turns).
 
   CNAircraftFallsToEarth
@@ -323,6 +359,24 @@ AI — BOT MODULES
       Assigns engineers/repair units to damaged bridge huts and requests
       replacement repairers via IBotRequestUnitProduction when none are
       available.
+
+    CNCliffDemolitionBotModule
+      Force-fires destroyable cliffs (see TERRAIN & MAP) open, but only where
+      the opening buys something: inside a region the bot holds, or inside an
+      enemy-held region it already has units in. Reads the sides a cliff
+      separates off the region graph (CNTacticalMapBotModule) and skips any
+      cliff with the same region on both sides. Prefers units not in a squad;
+      squad units are only pulled in while idle.
+
+    CNVeinholeAssaultBotModule
+      Force-fires veinholes down. Gated by faction Side (Sides: GDI), which
+      is the whole of the GDI/Nod split: nothing shoots a veinhole unaided,
+      so Nod simply not having the module is Nod leaving the weed alone for
+      its Nawast. Only engages a veinhole that already has MinimumAttackers
+      units within AttackerSearchRadius, which doubles as the leash — the
+      bot never marches across the map to weed a corner it has no interest
+      in. One veinhole at a time: veinholes regenerate, so half-damaging
+      three of them achieves nothing.
 
   Combat Intelligence
   ~~~~~~~~~~~~~~~~~~~

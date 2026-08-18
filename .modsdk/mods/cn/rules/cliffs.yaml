@@ -1,0 +1,83 @@
+# Destroyable cliffs.
+#
+# Tiberian Sun shipped a "Destroyable Cliffs" tile set (dcliff01/dcliff02) but no artwork for the
+# destroyed state - the cliff was swapped for tiles the tile set already had. These actors do the
+# same: they are placed automatically by CNDestroyableCliffLayer wherever those templates appear on
+# a map (nothing to place in the editor), and when shot down they retile their own footprint with
+# two of the stock ramp pieces, which turns the cliff into a passable slope.
+#
+# Tuning is entirely in DestroyedTemplates: any template of the right size can be dropped in at any
+# offset, so a collapse that joins the neighbouring cliffs badly is a YAML change, not a code one.
+# Ramp ids are the same in all three tile sets, only the cliff ids differ, which is why one actor
+# covers temperate/desert (717/718) and snow (987/988) at once.
+
+^DestroyableCliff:
+	Immobile:
+		OccupiesSpace: false
+	BodyOrientation:
+		UseClassicPerspectiveFudge: false
+		QuantizedFacings: 1
+	CNHealth:
+		HP: 1000
+	Armor:
+		Type: Building
+	# Same target types as the trees and the veinholes, the mod's other force-fire-only terrain: anything
+	# that can shoot ground, scenery or a structure can chip a cliff. Building stays in the list because
+	# a dozen weapons here name Building without naming Ground, and those are exactly the demolition
+	# weapons that ought to work on this.
+	Targetable:
+		TargetTypes: Ground, Trees, Building, NoAutoTarget
+		RequiresForceFire: true
+	Tooltip:
+		Name: meta-destroyablecliff-name
+	ShakeOnDeath:
+		Duration: 20
+		Intensity: 8
+	FireWarheadsOnDeath:
+		Weapon: Demolish
+
+DCLIFF1:
+	Inherits: ^DestroyableCliff
+	# dcliff01: six wide, four deep, plateau to the north, dropping south. ramp01 (403) and its mirror
+	# ramp02 (404) are 3x4 slopes with the cliff wall on opposite sides, so the pair meets in the middle:
+	# every one of the twenty cliff cells is retiled, nothing is written outside them, and what is left is
+	# a two-cell-wide slope running 3-2-1-0 between two walls.
+	CNDestroyableCliff:
+		Templates: 717, 987
+		DestroyedTemplates:
+			0,0: 403
+			3,0: 404
+	# The actor stands on the footprint cell nearest the middle - (2,1) for this template - so both the
+	# shape below is written from there. The aim points are not: a cliff is six cells of wall and a unit
+	# can only shoot what it can reach, so CNDestroyableCliff hands out one per cell of the footprint it
+	# found. With the single default offset every unit on the map aimed at the same spot and had to path
+	# to within weapon range of it, which for a short-ranged unit means walking into the cliff.
+	HitShape:
+		Type: Rectangle
+			TopLeft: -2560, -2048
+			BottomRight: 2560, 3072
+		# Emptied on purpose: CNDestroyableCliff supplies one aim point per cliff cell, taken from the
+		# footprint it actually found on the map. Leaving the default single offset here would add a
+		# duplicate one in the middle and nothing else.
+		TargetableOffsets:
+	Interactable:
+		Bounds: 5120, 5120, 0, 512
+
+DCLIFF2:
+	Inherits: ^DestroyableCliff
+	# dcliff02: the same cliff turned a quarter - four wide, six deep, plateau to the west, dropping east.
+	# ramp04 (406) and ramp03 (405) are the 4x3 pair that descends along x, stacked to meet in the middle.
+	CNDestroyableCliff:
+		Templates: 718, 988
+		DestroyedTemplates:
+			0,0: 406
+			0,3: 405
+	# Centre cell (1,2) for this template. The block is the same diamond as DCLIFF1 turned a quarter, so
+	# the shape is identical.
+	HitShape:
+		Type: Rectangle
+			TopLeft: -2560, -2048
+			BottomRight: 2560, 3072
+		TargetableOffsets:
+	Interactable:
+		Bounds: 5120, 5120, 0, 512

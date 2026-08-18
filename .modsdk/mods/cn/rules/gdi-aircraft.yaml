@@ -120,7 +120,10 @@ DSHP:
 ORCA_F1:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	# AutoTargetAll, not AutoTargetGround: every weapon on this aircraft can engage Air, and the
+	# ground template's ValidTargets list has no Air entry in either stance - so it could never pick
+	# an air target by itself however capable its guns were.
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
 	Inherits@VOXELDYNAMICS: ^VoxelDynamicsVTOL
 	Valued:
 		Cost: 1000
@@ -417,7 +420,10 @@ TRNSPORT:
 HORNET:
 	Inherits: ^EMPableAircraft
 	Inherits@EXPERIENCE: ^GainsExperience
-	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	# AutoTargetAll, not AutoTargetGround: every weapon on this aircraft can engage Air, and the
+	# ground template's ValidTargets list has no Air entry in either stance - so it could never pick
+	# an air target by itself however capable its guns were.
+	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
 	Inherits@VOXELDYNAMICS: ^VoxelDynamicsAircraft
 	Valued:
 		Cost: 1500

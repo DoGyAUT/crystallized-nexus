@@ -431,6 +431,8 @@ World:
 		CheckboxDisplayOrder: 2
 		CheckboxCategory: performance
 	BridgeLayer:
+	CNDestroyableCliffLayer:
+		CliffActorTypes: dcliff1, dcliff2
 	CustomTerrainDebugOverlay:
 	ResourceClaimLayer:
 	WarheadDebugOverlay:

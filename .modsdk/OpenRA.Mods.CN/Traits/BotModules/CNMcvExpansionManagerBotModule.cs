@@ -57,9 +57,31 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int StarvationFieldCells = 120;
 
 		[Desc("Percent of StarvationFieldCells used as the threshold when a worked field has a seeding " +
-			"tree in it. Lower rather than zero: regrowth is not inexhaustible, and a field mined faster " +
-			"than it seeds runs its owner dry all the same.")]
+			"tree in it. Lower rather than zero: regrowth is not inexhaustible, and the no-income fallback " +
+			"below catches a field that does not refill fast enough to support its owner.")]
 		public readonly int StarvationRespawningPercent = 50;
+
+		[Desc("Cash at or below which a worked economy with no recent income counts as starving.")]
+		public readonly int StarvationNoIncomeCashAmount = 250;
+
+		[Desc("Ticks without earned income before the low-cash starvation fallback activates.")]
+		public readonly int StarvationNoIncomeTicks = 750;
+
+		[Desc("Own buildings a held region needs before it counts as established rather than as a building " +
+			"site still being worked on. Eight proved too high in play - it left an Expansion bot sitting " +
+			"on three regions of one, three and five buildings and refusing to found anything, when what " +
+			"it needed was the essentials up and then on to the next.")]
+		public readonly int RegionDevelopedBuildings = 5;
+
+		[Desc("How many of the bot's regions may be under development at once. A construction yard adds a " +
+			"build site and no build throughput whatever - the player has one building queue, so nine " +
+			"yards share the same one building at a time, each grows nine times slower, and the ones " +
+			"founded last simply stay bare. Holding this at one makes a bot finish a region before it " +
+			"opens the next. 0 disables the gate. Starvation skips it, like it skips the cash bar.")]
+		public readonly int MaxRegionsUnderDevelopment = 1;
+
+		[Desc("Per-profile override of " + nameof(MaxRegionsUnderDevelopment) + ".")]
+		public readonly FrozenDictionary<string, int> MaxRegionsUnderDevelopmentCounts = null;
 
 		[Desc("Extra construction yards a starving bot may found beyond its configured ceiling. Bounded " +
 			"rather than unlimited: a profile set to two yards should not grow without end, but it must " +
@@ -183,6 +205,16 @@ namespace OpenRA.Mods.Common.Traits
 					"Recommended to set it equal or larger than ResourceMapStrideRadius.")]
 		public readonly int CRmodeFriendlyRefineryDislikeRange = 14;
 
+		[Desc("How much a perfect region adds to a candidate's attraction, as a percentage of the indice-side",
+			"square every other term is measured in. " + nameof(CNRegionManagerBotModule) + " scores each",
+			"region on its resources, its buildable space and how many ways in it has - the same three",
+			"questions this module answers per raster square, asked of the ground's actual shape instead.",
+			"A candidate in a region scoring 100 gets this much; one in a region scoring 0 gets nothing.",
+			"Deliberately below the distance term's reach, so a good region tilts a decision without",
+			"sending an MCV across the map for it. 0 disables. Nothing happens when the region graph is",
+			"unavailable, so a map it cannot read behaves exactly as before.")]
+		public readonly int RegionValueAttractionPercent = 25;
+
 		[Desc("Bonus attraction for resource indices with respawning resource sources.")]
 		public readonly int CRmodeRespawningFieldBonus = 96;
 
@@ -282,6 +314,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Deploy cell a travelling MCV has committed to, with an expiry as a safety net.
 		readonly Dictionary<Actor, (CPos Cell, int UntilTick)> mcvDeployGoals = [];
+
+		// An engineer-captured construction yard is already an expansion: sending the MCV that it
+		// becomes through the ordinary field scorer can turn it around and drive it straight back into
+		// enemy territory. The capture squad owns these MCVs until they have returned and unpacked in
+		// the primary base.
+		readonly Dictionary<Actor, (CPos BaseCell, int UntilTick)> recoveringMcvs = [];
+		readonly Dictionary<Actor, CPos> recoveryMcvDeployGoals = [];
 		readonly Dictionary<CPos, (ExpansionGoal Goal, int UntilTick)> pendingExpansionGoalLocks = [];
 		readonly Dictionary<Actor, (ExpansionGoal Goal, int UntilTick, CPos DeployCell)> conyardExpansionGoalLocks = [];
 
@@ -289,12 +328,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		PathFinder pathfinder;
 		CNResourceMapBotModule resourceMapModule;
+		CNRegionManagerBotModule regionManagerModule;
 		PlayerResources playerResources;
 		Actor mustUndeployCoyard;
 
 		int scanInterval;
 		int buildMCVInterval;
 		int moveConyardInterval;
+		int lastStarvationEarned;
+		int lastStarvationIncomeTick;
 		bool firstTick = true;
 		bool undeployEvenNoBase = false;
 		bool allowfallback = true;
@@ -336,6 +378,8 @@ namespace OpenRA.Mods.Common.Traits
 			cnBaseBuilder = self.TraitsImplementing<CNBaseBuilderBotModule>().FirstOrDefault();
 			pathfinder = world.WorldActor.Trait<PathFinder>();
 			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
+			lastStarvationEarned = playerResources.Earned;
+			lastStarvationIncomeTick = world.WorldTick;
 		}
 
 		protected override void TraitEnabled(Actor self)
@@ -784,6 +828,8 @@ namespace OpenRA.Mods.Common.Traits
 
 						attraction -= CalculateThreats(indiceSideLengthSquare, i);
 
+						attraction += CalculateRegionValueBonus(indiceCenter, indiceSideLengthSquare);
+
 						if (currentExpansionGoal == ExpansionGoal.DefenseOutpost && ownBaseCenter.HasValue && enemyBaseCenter.HasValue)
 							attraction += CalculateFrontlineOutpostBonus(indiceCenter, ownBaseCenter.Value, enemyBaseCenter.Value);
 
@@ -899,6 +945,11 @@ namespace OpenRA.Mods.Common.Traits
 						var threatPenalty = CalculateThreats(indiceSideLengthSquare, i);
 						attraction -= threatPenalty;
 
+						// Scored at the resource centre rather than the indice centre: that is the ground the
+						// MCV is actually being sent to work, and the two can sit in different regions when a
+						// raster square straddles a boundary.
+						attraction += CalculateRegionValueBonus(resourceCellsCenter, indiceSideLengthSquare);
+
 						var coordinationPenalty = CalculateExpansionCoordinationPenalty(resCenter, mcv, indiceSideLengthSquare);
 						attraction -= coordinationPenalty;
 
@@ -967,6 +1018,31 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// What the region a candidate stands in is worth, in the same currency as every other attraction
+		/// term (see the block comment in <see cref="GetExpansionCenter"/>): a share of
+		/// <paramref name="indiceSideLengthSquare"/>, scaled by the region's 0-100 score.
+		/// <para>
+		/// The indice terms above ask "how much tiberium is in this raster square" and "is there room to
+		/// build in it". A region asks the same of the ground's actual shape, and adds the question neither
+		/// can reach - how many ways into it there are. It overlaps the resource term on purpose rather
+		/// than replacing it: one measures the square an MCV would deploy in, the other the pocket it would
+		/// be committing to.
+		/// </para>
+		/// Zero whenever the region graph is unavailable, so nothing changes on a map it cannot read.
+		/// </summary>
+		int CalculateRegionValueBonus(CPos cell, int indiceSideLengthSquare)
+		{
+			if (regionManagerModule == null || !regionManagerModule.Ready || Info.RegionValueAttractionPercent <= 0)
+				return 0;
+
+			var state = regionManagerModule.GetRegionStateAt(cell);
+			if (state == null)
+				return 0;
+
+			return state.Value * indiceSideLengthSquare * Info.RegionValueAttractionPercent / (100 * 100);
+		}
+
 		int CalculateThreats(int indiceSideLengthSquare, int index)
 		{
 			var baseIndice = resourceMapModule.GetIndice(index);
@@ -986,12 +1062,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			using var perfScope = CNBotPerf.Sample(bot, nameof(CNMcvExpansionManagerBotModule));
+
 			attackrespondcooldown--;
 
 			if (firstTick)
 			{
 				resourceMapModule = bot.Player.PlayerActor.TraitsImplementing<CNResourceMapBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				profileModule = bot.Player.PlayerActor.TraitsImplementing<CNBotProfileBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
+				regionManagerModule = bot.Player.PlayerActor.TraitsImplementing<CNRegionManagerBotModule>().FirstOrDefault(t => t.IsTraitEnabled());
 				SwitchExpansionMode(Info.InitialExpansionMode);
 				currentExpansionGoal = Info.InitialExpansionMode == BotMcvExpansionMode.CheckResource
 					? ExpansionGoal.Economy : ExpansionGoal.BaseExtension;
@@ -1040,6 +1119,14 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var amcv in mcvDeployGoals.Keys.ToList())
 					if (amcv.IsDead || !amcv.IsInWorld)
 						mcvDeployGoals.Remove(amcv);
+
+				foreach (var (amcv, recovery) in recoveringMcvs.ToList())
+				{
+					if (amcv.IsDead || !amcv.IsInWorld || world.WorldTick >= recovery.UntilTick)
+						ReleaseCapturedMcv(amcv);
+					else if (amcv.IsIdle)
+						RecoverCapturedMcv(bot, amcv, recovery.BaseCell, recovery.UntilTick);
+				}
 
 				scanInterval = Info.ScanForNewMcvInterval;
 				DeployMcvs(bot, true);
@@ -1108,7 +1195,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			var worked = 0;
 			var cells = 0;
-			var respawning = false;
+			var respawning = 0;
+
+			// An indice is a raster square, not a field. Multiplying the threshold by the number of worked
+			// indices made every starting economy starved on the first adaptive evaluation: 106 cells across
+			// two squares was compared with 240, and all five bots selected Expansion. Keep one aggregate
+			// budget, and only blend how much of its regrowth discount applies when the squares differ.
 			for (var i = 0; i < resourceMapModule.GetIndicesLength(); i++)
 			{
 				var indice = resourceMapModule.GetIndice(i);
@@ -1117,7 +1209,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				worked++;
 				cells += indice.ResourceCellsCount;
-				respawning |= indice.HasRespawningResourceSource;
+				if (indice.HasRespawningResourceSource)
+					respawning++;
 			}
 
 			// No worked field at all is a different situation - the bot has not started mining yet, or
@@ -1125,12 +1218,27 @@ namespace OpenRA.Mods.Common.Traits
 			if (worked <= 0)
 				return false;
 
-			var threshold = respawning
-				? Info.StarvationFieldCells * Math.Clamp(Info.StarvationRespawningPercent, 0, 100) / 100
-				: Info.StarvationFieldCells;
+			var respawningPercent = Math.Clamp(Info.StarvationRespawningPercent, 0, 100);
+			var thresholdPercent = 100 - (100 - respawningPercent) * respawning / worked;
+			var threshold = Info.StarvationFieldCells * thresholdPercent / 100;
 
-			starvationReport = $"{cells} cells over {worked} field(s), threshold {threshold}{(respawning ? ", regrowing" : "")}";
-			return cells <= threshold;
+			var earned = playerResources.Earned;
+			if (earned != lastStarvationEarned)
+			{
+				lastStarvationEarned = earned;
+				lastStarvationIncomeTick = world.WorldTick;
+			}
+
+			var noIncomeTicks = world.WorldTick - lastStarvationIncomeTick;
+			var incomeStalled = Info.StarvationNoIncomeTicks > 0
+				&& noIncomeTicks >= Info.StarvationNoIncomeTicks
+				&& playerResources.GetCashAndResources() <= Info.StarvationNoIncomeCashAmount
+				&& cells <= Info.StarvationFieldCells;
+
+			starvationReport = $"{cells} cells over {worked} field(s), threshold {threshold}" +
+				$"{(respawning > 0 ? $", {respawning} regrowing" : "")}" +
+				$"{(incomeStalled ? $", no income for {noIncomeTicks} ticks" : "")}";
+			return cells <= threshold || incomeStalled;
 		}
 
 		// Last computed starvation inputs, for the expansion log. The verdict alone was not enough to
@@ -1161,6 +1269,11 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.MaxConcurrentMcvCounts != null
 				&& Info.MaxConcurrentMcvCounts.TryGetValue(profileKey, out var profileConcurrent)
 				? profileConcurrent : Info.MaxConcurrentMcvs;
+
+			var maxRegionsUnderDevelopment = profileKey != null
+				&& Info.MaxRegionsUnderDevelopmentCounts != null
+				&& Info.MaxRegionsUnderDevelopmentCounts.TryGetValue(profileKey, out var profileRegions)
+				? profileRegions : Info.MaxRegionsUnderDevelopment;
 
 			// With no construction yard the bot is rebuilding its base and one spare MCV is all that
 			// helps. With one, the cap is how many expansions may be under way at once — at 1 (the
@@ -1193,6 +1306,31 @@ namespace OpenRA.Mods.Common.Traits
 			// Replacing a lost base is unconditional; expanding beyond the minimum needs a reason.
 			if (conyardNum + mcvNum >= Info.MinimumConstructionYardCount)
 			{
+				// Finish a region before opening the next. A construction yard buys a build SITE and no
+				// build throughput whatever - the player has one building queue, so nine yards share the
+				// same one-building-at-a-time, each grows nine times slower, and the ones founded last stay
+				// bare. Seen directly in a played match: an Expansion bot holding nine yards, two of its
+				// regions carrying a single building each.
+				// Counted per region rather than per base because a region is the thing being developed -
+				// two construction yards in one pocket are one building site, not two.
+				// Starvation skips this the same way it skips the cash bar: a bot that cannot develop what
+				// it holds because the ground under it is dead has to be allowed to go where it is not.
+				if (!starving && maxRegionsUnderDevelopment > 0 && regionManagerModule != null && regionManagerModule.Ready)
+				{
+					var underDevelopment = 0;
+					foreach (var state in regionManagerModule.GetRegionStates())
+						if (regionManagerModule.IsUnderDevelopment(state, Info.RegionDevelopedBuildings))
+							underDevelopment++;
+
+					if (underDevelopment >= maxRegionsUnderDevelopment)
+					{
+						CNBotLog.Debug("{0} expansion held: {1} region(s) still under development, max {2}",
+							player, underDevelopment, maxRegionsUnderDevelopment);
+
+						return;
+					}
+				}
+
 				var cash = playerResources.GetCashAndResources();
 				var richEnough = cash >= buildCashAmount;
 				var opportunity = Info.EnableOpportunityExpansion
@@ -1241,11 +1379,112 @@ namespace OpenRA.Mods.Common.Traits
 			// mcvs.Actors is a pre-built index for this player's MCV types — no world scan needed.
 			foreach (var mcv in mcvs.Actors)
 			{
-				if (mcv.IsDead || !mcv.IsInWorld || !mcv.IsIdle)
+				if (mcv.IsDead || !mcv.IsInWorld || !mcv.IsIdle || recoveringMcvs.ContainsKey(mcv))
 					continue;
 				if (mcvRetryCooldown.TryGetValue(mcv, out var retryTick) && world.WorldTick < retryTick)
 					continue;
 				DeployMcv(bot, mcv, chooseLocation);
+			}
+		}
+
+		/// <summary>
+		/// Returns an engineer-captured MCV to an existing base and unpacks it there. Returns true once
+		/// the MCV is gone (deployed or destroyed), so the capture squad can release its mission state.
+		/// </summary>
+		public bool RecoverCapturedMcv(IBot bot, Actor mcv, CPos baseCenter, int untilTick)
+		{
+			if (mcv == null || mcv.IsDead || !mcv.IsInWorld || mcv.Owner != player)
+			{
+				ReleaseCapturedMcv(mcv);
+				return true;
+			}
+
+			// Drop any expansion decision made in the single module-ordering tick between the transform
+			// completing and the capture squad discovering ReplacedByActor.
+			var firstRecoveryOrder = recoveringMcvs.TryAdd(mcv, (baseCenter, untilTick));
+			if (!firstRecoveryOrder)
+				baseCenter = recoveringMcvs[mcv].BaseCell;
+			activeMCVs.Remove(mcv);
+			mcvDeployGoals.Remove(mcv);
+			mcvRetryCooldown.Remove(mcv);
+
+			// The ordinary expansion scan may have run first on the transform-completion tick and queued a
+			// complete outbound route plus deployment. The first recovery order must replace that queue even
+			// though the MCV is no longer idle; subsequent calls leave an active recovery route undisturbed.
+			if (!mcv.IsIdle && !firstRecoveryOrder)
+				return false;
+
+			var transformsInfo = mcv.Info.TraitInfoOrDefault<TransformsInfo>();
+			if (transformsInfo == null || !world.Map.Rules.Actors.TryGetValue(transformsInfo.IntoActor, out var actorInfo))
+			{
+				ReleaseCapturedMcv(mcv);
+				return true;
+			}
+
+			var buildingInfo = actorInfo.TraitInfoOrDefault<BuildingInfo>();
+			var mobile = mcv.TraitOrDefault<Mobile>();
+			if (buildingInfo == null || mobile == null)
+			{
+				ReleaseCapturedMcv(mcv);
+				return true;
+			}
+
+			if (!recoveryMcvDeployGoals.TryGetValue(mcv, out var deployCell)
+				|| !world.CanPlaceBuilding(deployCell + transformsInfo.Offset, actorInfo, buildingInfo, mcv)
+				|| !pathfinder.PathMightExistForLocomotorBlockedByImmovable(mobile.Locomotor, mcv.Location, deployCell))
+			{
+				var searchRadius = cnBaseBuilder != null ? cnBaseBuilder.GetEffectiveMaxBaseRadius() : 20;
+				var candidate = world.Map.FindTilesInAnnulus(baseCenter, 2, Math.Max(2, searchRadius))
+					.OrderBy(c => (c - baseCenter).LengthSquared)
+					.ThenBy(c => (c - mcv.Location).LengthSquared)
+					.ThenBy(c => c.Y)
+					.ThenBy(c => c.X)
+					.Where(c => world.CanPlaceBuilding(c + transformsInfo.Offset, actorInfo, buildingInfo, mcv)
+						&& pathfinder.PathMightExistForLocomotorBlockedByImmovable(mobile.Locomotor, mcv.Location, c))
+					.Select(c => (CPos?)c)
+					.FirstOrDefault();
+
+				if (!candidate.HasValue)
+				{
+					if (firstRecoveryOrder)
+						bot.QueueOrder(new Order("Stop", mcv, false));
+
+					return false;
+				}
+
+				deployCell = candidate.Value;
+				recoveryMcvDeployGoals[mcv] = deployCell;
+				CNBotLog.Debug("{0} recovering captured MCV {1} to {2}", player, mcv, deployCell);
+			}
+
+			enemyBaseLocationsCache = GetKnownEnemyBaseLocations();
+			var safePath = FindSafeMcvPath(mcv, mcv.Location, deployCell);
+			if (safePath == null)
+			{
+				recoveryMcvDeployGoals.Remove(mcv);
+				if (firstRecoveryOrder)
+					bot.QueueOrder(new Order("Stop", mcv, false));
+
+				return false;
+			}
+
+			var queued = false;
+			foreach (var waypoint in BuildSafeWaypoints(safePath, deployCell))
+			{
+				bot.QueueOrder(new Order("Move", mcv, Target.FromCell(world, waypoint), queued));
+				queued = true;
+			}
+
+			bot.QueueOrder(new Order("DeployTransform", mcv, queued));
+			return false;
+		}
+
+		public void ReleaseCapturedMcv(Actor mcv)
+		{
+			if (mcv != null)
+			{
+				recoveringMcvs.Remove(mcv);
+				recoveryMcvDeployGoals.Remove(mcv);
 			}
 		}
 
@@ -1717,7 +1956,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotRespondToAttack.RespondToAttack(IBot bot, Actor self, AttackInfo e)
 		{
-			if (attackrespondcooldown <= 0 && Info.McvTypes.Contains(self.Info.Name))
+			if (attackrespondcooldown <= 0 && Info.McvTypes.Contains(self.Info.Name)
+				&& !recoveringMcvs.ContainsKey(self))
 			{
 				attackrespondcooldown = 20;
 

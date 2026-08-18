@@ -23,51 +23,51 @@ Player:
 		AttackWaveStagingTimeoutTicks: 900
 		AttackWaveStagingArrivalCells: 5
 		WaveHoldScatterCells: 4
-		WaveParticipantRoles: Assault, ArtilleryAssault, SubterraneanAssault, Raider, Stealth
+		WaveParticipantRoles: Assault, ArtilleryAssault, Raider, Stealth
 		KnownSquadTags: Frontline, AntiInfantry, AntiArmor, AntiAir, Siege, Harass, Stealth, Transport, Support, Infantry, Vehicle, Aircraft
 		RoleWeights:
-			Assault: 10
-			ArtilleryAssault: 8
-			AircraftAttack: 8
-			AircraftRaider: 6
-			Raider: 6
-			SubterraneanAssault: 7
-			Transport: 4
-			SubterraneanTransport: 4
-			AirTransport: 4
-			Stealth: 5
-			Support: 3
+			Assault: 9
+			ArtilleryAssault: 7
+			AircraftAttack: 7
+			AircraftRaider: 9
+			Raider: 10
+			SubterraneanAssault: 9
+			Transport: 7
+			SubterraneanTransport: 8
+			AirTransport: 8
+			Stealth: 7
+			Support: 5
 		TagWeights:
-			Frontline: 12
-			Support: 8
-			Stealth: 5
-			Transport: 4
+			Frontline: 8
+			Support: 6
+			Stealth: 6
+			Transport: 6
 			Infantry: 5
-			Vehicle: 6
-			Aircraft: 6
-			Siege: 5
-			Harass: 5
+			Vehicle: 7
+			Aircraft: 7
+			Siege: 4
+			Harass: 10
 		NeedRules:
 			AntiInfantry:
 				EnemyCapabilities: Infantry
-				VisibleWeight: 8
+				VisibleWeight: 5
 				GlobalWeight: 1
 			AntiArmor:
-				EnemyCapabilities: Vehicle, Tank
-				VisibleWeight: 10
-				GlobalWeight: 2
+				EnemyCapabilities: Vehicle
+				VisibleWeight: 6
+				GlobalWeight: 1
 			AntiAir:
 				EnemyCapabilities: Aircraft
-				VisibleWeight: 14
-				GlobalWeight: 4
+				VisibleWeight: 9
+				GlobalWeight: 2
 			Siege:
 				EnemyCapabilities: Defense, Production, Tech, Superweapon, Artillery
-				VisibleWeight: 8
-				GlobalWeight: 2
+				VisibleWeight: 5
+				GlobalWeight: 1
 			Harass:
 				EnemyCapabilities: Harvester, Economy, Power
-				VisibleWeight: 8
-				GlobalWeight: 2
+				VisibleWeight: 4
+				GlobalWeight: 1
 		IdleSalvageTicks: 300
 		Teams:
 			GDI_Engineer_CaptureDrop:
@@ -140,7 +140,7 @@ Player:
 				Role: Assault
 				Tags: AntiArmor, AntiAir, Infantry
 				MaxInstances: 6
-				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
+				PriorityTargetCapabilities: Aircraft, Vehicle, Harvester
 				ScaleWithBuilding: gapile
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
@@ -198,18 +198,18 @@ Player:
 			GDI_APC_Attack:
 				Role: Transport
 				Tags: Transport, Harass, Frontline, Infantry, Vehicle
-				MaxInstances: 3
+				MaxInstances: 1
 				ScaleWithBuilding: gaweap
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Harvester, Economy, Power
 				Slots:
 					1:
-						Count: 1
+						Count: 4
 						AllowedTypes: apc
 						IsCarrier: True
 					2:
-						Count: 5
+						Count: 20
 						AllowedTypes: gasol, e2
 						IsPassenger: True
 			GDI_Archon_Attack:
@@ -222,7 +222,7 @@ Player:
 				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle
 				Slots:
 					1:
-						Count: 4
+						Count: 5
 						AllowedTypes: gtmtnk
 			GDI_Titan_Attack:
 				Role: Assault
@@ -257,14 +257,15 @@ Player:
 			GDI_HoverMLRS_Raid:
 				Role: Raider
 				Tags: AntiArmor, AntiAir, Harass, Vehicle
-				MaxInstances: 4
+				Bias: 6
+				MaxInstances: 5
 				ScaleWithBuilding: gaweap
-				SquadsPerBuilding: 1
+				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Harvester, Economy, Aircraft, Vehicle
 				Slots:
 					1:
-						Count: 3
+						Count: 4
 						AllowedTypes: hvr
 			GDI_Warden_AA:
 				Role: Raider
@@ -294,15 +295,15 @@ Player:
 				Role: ArtilleryAssault
 				Tags: Siege, Vehicle
 				Bias: 12
-				MaxInstances: 3
+				MaxInstances: 4
 				ScaleWithBuilding: gaweap
-				SquadsPerBuilding: 1
+				SquadsPerBuilding: 2
 				AttachToRole: Assault
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Defense, Production, Tech
 				Slots:
 					1:
-						Count: 3
+						Count: 4
 						AllowedTypes: jugg
 			GDI_Sonic_Breaker:
 				Role: Assault
@@ -315,7 +316,7 @@ Player:
 				PriorityTargetCapabilities: Defense, Vehicle, Production, Economy
 				Slots:
 					1:
-						Count: 2
+						Count: 3
 						AllowedTypes: sonic
 			GDI_MammothMkII_Tech:
 				Role: Assault
@@ -349,31 +350,45 @@ Player:
 				Role: AircraftAttack
 				Tags: Siege, Harass, Aircraft
 				Bias: 8
-				MaxInstances: 2
+				MaxInstances: 3
 				ScaleWithBuilding: gahpad
-				SquadsPerBuilding: 1
+				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Economy, Production, Tech, Superweapon
 				Slots:
 					1:
-						Count: 2
+						Count: 3
 						AllowedTypes: orca_b
 			GDI_Hornet_Strike:
 				Role: AircraftRaider
 				Tags: AntiArmor, Harass, Aircraft
-				MaxInstances: 3
+				Bias: 4
+				MaxInstances: 4
 				ScaleWithBuilding: gahpad
-				SquadsPerBuilding: 1
+				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Vehicle, Defense, Tech, Superweapon
 				Slots:
 					1:
-						Count: 2
+						Count: 3
 						AllowedTypes: hornet
 			GDI_Orca_Raid:
 				Role: AircraftRaider
 				Tags: Harass, Siege, Aircraft
-				MaxInstances: 4
+				Bias: 4
+				MaxInstances: 5
+				ScaleWithBuilding: gahpad
+				SquadsPerBuilding: 2
+				MinSlotsToActivate: 1
+				PriorityTargetCapabilities: Harvester, Economy, Power
+				Slots:
+					1:
+						Count: 4
+						AllowedTypes: orca_f1
+			GDI_Orca_TransportAttack:
+				Role: AirTransport
+				Tags: Transport, Harass, Siege, Infantry, Aircraft
+				MaxInstances: 1
 				ScaleWithBuilding: gahpad
 				SquadsPerBuilding: 1
 				MinSlotsToActivate: 1
@@ -381,22 +396,10 @@ Player:
 				Slots:
 					1:
 						Count: 3
-						AllowedTypes: orca_f1
-			GDI_Orca_TransportAttack:
-				Role: AirTransport
-				Tags: Transport, Harass, Siege, Infantry, Aircraft
-				MaxInstances: 3
-				ScaleWithBuilding: gahpad
-				SquadsPerBuilding: 1
-				MinSlotsToActivate: 1
-				PriorityTargetCapabilities: Harvester, Economy, Power
-				Slots:
-					1:
-						Count: 1
 						AllowedTypes: orca_tran
 						IsAircraftCarrier: True
 					2:
-						Count: 5
+						Count: 15
 						AllowedTypes: gasol, e2
 						IsPassenger: True
 			Nod_BasicInfantry_AntiInfantry:
@@ -415,7 +418,7 @@ Player:
 				Role: Assault
 				Tags: AntiArmor, AntiAir, Infantry
 				MaxInstances: 6
-				PriorityTargetCapabilities: Harvester, Vehicle, Aircraft
+				PriorityTargetCapabilities: Aircraft, Vehicle, Harvester
 				ScaleWithBuilding: nahand
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
@@ -470,10 +473,10 @@ Player:
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
-				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle
+				PriorityTargetCapabilities: Aircraft, Harvester, Economy, Power, Vehicle
 				Slots:
 					1:
-						Count: 4
+						Count: 5
 						AllowedTypes: bike
 			Nod_Scorpion_Attack:
 				Role: Assault
@@ -485,7 +488,7 @@ Player:
 				PriorityTargetCapabilities: Harvester, Economy, Power, Vehicle
 				Slots:
 					1:
-						Count: 4
+						Count: 5
 						AllowedTypes: ltnk
 			Nod_Repair:
 				Role: Support
@@ -542,44 +545,44 @@ Player:
 				Role: ArtilleryAssault
 				Tags: Siege, Vehicle
 				Bias: 12
-				MaxInstances: 3
+				MaxInstances: 4
 				ScaleWithBuilding: naweap
-				SquadsPerBuilding: 1
+				SquadsPerBuilding: 2
 				AttachToRole: Assault
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Defense, Production, Tech
 				Slots:
 					1:
-						Count: 3
+						Count: 4
 						AllowedTypes: nhwtz
 			Nod_Subtank_Raid:
 				Role: SubterraneanAssault
 				Tags: Harass, Siege, Vehicle
 				Bias: 8
-				MaxInstances: 3
+				MaxInstances: 2
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Harvester, Economy, Power, Production
 				Slots:
 					1:
-						Count: 3
+						Count: 8
 						AllowedTypes: subtank
 			Nod_SubAPC_Ambush:
 				Role: SubterraneanTransport
 				Tags: Transport, Harass, Siege, Infantry, Vehicle
-				MaxInstances: 2
+				MaxInstances: 1
 				ScaleWithBuilding: naweap
 				SquadsPerBuilding: 1
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Economy, Production, Power, Tech
 				Slots:
 					1:
-						Count: 1
+						Count: 4
 						AllowedTypes: sapc
 						IsCarrier: True
 					2:
-						Count: 5
+						Count: 20
 						AllowedTypes: acolyte, nacad, e3
 						IsPassenger: True
 			Nod_StealthTank_Strike:
@@ -593,30 +596,31 @@ Player:
 				PriorityTargetCapabilities: Harvester, Aircraft, Tech, Power
 				Slots:
 					1:
-						Count: 3
+						Count: 5
 						AllowedTypes: stnk
 			Nod_Scrin_Strike:
 				Role: AircraftAttack
 				Tags: AntiArmor, Siege, Harass, Aircraft
 				Bias: 8
-				MaxInstances: 2
+				MaxInstances: 3
 				ScaleWithBuilding: nahpad
-				SquadsPerBuilding: 1
+				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Economy, Vehicle, Production, Tech, Superweapon
 				Slots:
 					1:
-						Count: 2
+						Count: 3
 						AllowedTypes: scrin
 			Nod_Hydra_Raid:
 				Role: AircraftRaider
 				Tags: AntiInfantry, Harass, Siege, Aircraft
-				MaxInstances: 4
+				Bias: 4
+				MaxInstances: 5
 				ScaleWithBuilding: nahpad
-				SquadsPerBuilding: 1
+				SquadsPerBuilding: 2
 				MinSlotsToActivate: 1
 				PriorityTargetCapabilities: Harvester, Economy, Power
 				Slots:
 					1:
-						Count: 3
+						Count: 4
 						AllowedTypes: hydra

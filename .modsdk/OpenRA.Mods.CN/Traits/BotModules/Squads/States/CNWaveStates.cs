@@ -47,10 +47,11 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			var mgr = squad.SquadManager;
 
 			// Wave launched and this squad is a participant → switch to MoveToRally.
-			if (mgr.IsWaveLaunched && mgr.WaveParticipants.Contains(squad))
+			if (mgr.IsWaveLaunched && mgr.WaveParticipants.Contains(squad)
+				&& mgr.TryGetWavePlan(squad, out var plan))
 			{
 				squad.FuzzyStateMachine.ChangeState(squad,
-					new CNWaveMoveToRallyState(mgr.WaveRallyCell, mgr.WaveTarget));
+					new CNWaveMoveToRallyState(plan.RallyCell, mgr.WaveTarget, plan.EntryCell, plan.Route));
 				return;
 			}
 
@@ -162,16 +163,34 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		const int MaxNoProgressTicks = 225;
 		const int MinProgressDistance = 512;
 		readonly CPos rallyCell;
+
+		// Where the wave closes up again once through the passage it gathered in front of, or null when
+		// this is already that second stage - or when it never had a passage to go through at all.
+		readonly CPos? nextCell;
+
+		// The pinned way round belongs to the march out, not to the short step through the passage that
+		// follows it - replaying it there would send the wave back out and round again.
+		readonly bool followRoute;
+		readonly CPos[] route;
+
 		Actor waveTarget;
 		WPos rallyPos;
 		int stagingStartTick;
 		int lastProgressTick;
 		long lastDistanceSq;
 
-		public CNWaveMoveToRallyState(CPos rallyCell, Actor waveTarget)
+		public CNWaveMoveToRallyState(
+			CPos rallyCell,
+			Actor waveTarget,
+			CPos? nextCell = null,
+			CPos[] route = null,
+			bool followRoute = true)
 		{
 			this.rallyCell = rallyCell;
 			this.waveTarget = waveTarget;
+			this.nextCell = nextCell;
+			this.route = route ?? [];
+			this.followRoute = followRoute;
 		}
 
 		public void Activate(CNSquad squad)
@@ -185,9 +204,24 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				squad.SetActorToTarget(waveTarget);
 
 			var orderName = CNSquadHelper.GetMovementOrderName(squad);
-			var target = Target.FromCell(squad.World, rallyCell);
-			squad.Bot.QueueOrder(new Order(orderName, null, target, false,
-				groupedActors: squad.OrderableUnits.ToArray()));
+			var units = squad.OrderableUnits.ToArray();
+
+			// Pinned corners first, then the gathering point. Left to itself the pathfinder takes the
+			// shortest line to the rally, and for a flanking door that line runs in through the near
+			// entrance and straight across the base the wave is going round to flank. The waypoints only
+			// exist when the manager found a way round; otherwise this is the single move it always was.
+			var queued = false;
+			if (followRoute)
+				foreach (var waypoint in route)
+				{
+					squad.Bot.QueueOrder(new Order(orderName, null, Target.FromCell(squad.World, waypoint), queued,
+						groupedActors: units));
+
+					queued = true;
+				}
+
+			squad.Bot.QueueOrder(new Order(orderName, null, Target.FromCell(squad.World, rallyCell), queued,
+				groupedActors: units));
 		}
 
 		public void Tick(CNSquad squad)
@@ -206,15 +240,20 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 				return;
 			}
 
-			// Re-target if the original wave target died mid-march so the squad
-			// has a fresh objective to switch to on arrival.
-			if (waveTarget == null || waveTarget.IsDead || !waveTarget.IsInWorld)
-			{
-				waveTarget = squad.SquadManager.PickWaveTarget()
-					?? CNSquadHelper.FindTarget(squad);
-				if (waveTarget != null)
-					squad.SetActorToTarget(waveTarget);
-			}
+			// While this squad is still part of the wave, the manager owns the objective. Picking our own
+			// replacement here and writing it back on arrival is how a coordinated wave comes apart: the
+			// target dies while several squads are staging, each independently chooses a different one,
+			// the manager then settles on a third for everybody - and each squad overwrites it again the
+			// moment it arrives. Only a squad that has left the wave answers for itself.
+			var manager = squad.SquadManager;
+			var inWave = manager.IsWaveLaunched && manager.WaveParticipants.Contains(squad);
+			if (inWave)
+				waveTarget = manager.WaveTarget;
+			else if (waveTarget == null || waveTarget.IsDead || !waveTarget.IsInWorld)
+				waveTarget = manager.PickWaveTarget() ?? CNSquadHelper.FindTarget(squad);
+
+			if (waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld)
+				squad.SetActorToTarget(waveTarget);
 
 			var arrivalDist = WDist.FromCells(squad.SquadManager.Info.AttackWaveStagingArrivalCells);
 			var arrivalSq = (long)arrivalDist.Length * arrivalDist.Length;
@@ -247,12 +286,36 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			// closing on it by definition, so leaving this armed would evict every waiting squad
 			// after MaxNoProgressTicks and defeat the staging. From then on the timeout governs,
 			// with the manager's AttackWaveMaxActiveTicks as the outer backstop.
-			var stuck = stagingStartTick == 0 && squad.World.WorldTick - lastProgressTick >= MaxNoProgressTicks;
+			//
+			// And it is disarmed entirely while a pinned route is being walked, because it measures
+			// straight-line closing on the FINAL rally - which a route round the objective deliberately
+			// does not do. Going west to reach a northern door looks exactly like being stuck, and after
+			// MaxNoProgressTicks the squad would abandon the way round and take the direct line straight
+			// through the base the route existed to avoid.
+			var onRoute = followRoute && route.Length > 0;
+			var stuck = !onRoute && stagingStartTick == 0
+				&& squad.World.WorldTick - lastProgressTick >= MaxNoProgressTicks;
+			var stageReady = inWave
+				? manager.IsWaveStageReady(squad, entryStage: !followRoute, arrivalSq)
+				: selfArrived;
 
-			if (EnoughWaveParticipantsArrived(squad, rallyPos, arrivalSq) || nearbyEnemy != null || timedOut || stuck)
+			if (stageReady || nearbyEnemy != null || timedOut || stuck)
 			{
 				if (nearbyEnemy == null && waveTarget != null && !waveTarget.IsDead && waveTarget.IsInWorld)
 					squad.SetActorToTarget(waveTarget);
+
+				// Second stage: through the passage, then close up again on its far side before the run-in.
+				// Without it the passage was only a meeting point - released here, every squad attack-moves
+				// at the objective and the pathfinder takes whatever entrance is shortest from where it
+				// stands, which is how an army gathered at one door and then filed in through another.
+				// Skipped when something is already shooting at us: a wave under fire has to fight where it
+				// stands, not march to a waypoint.
+				if (nextCell != null && nearbyEnemy == null)
+				{
+					squad.FuzzyStateMachine.ChangeState(squad,
+						new CNWaveMoveToRallyState(nextCell.Value, waveTarget, null, [], followRoute: false));
+					return;
+				}
 
 				squad.SquadManager.InitializeSquadStateForRole(squad);
 			}
@@ -261,8 +324,9 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 		public void Deactivate(CNSquad squad) { }
 
 		/// <summary>
-		/// True once two thirds of a squad's live units stand within arrival tolerance of the rally
-		/// point. Every wave shares one rally cell, so this is safe to ask about any participant.
+		/// True once two thirds of a squad's live units stand within arrival tolerance of this stage's
+		/// assigned point. The manager applies it to each participant's own flank plan before releasing
+		/// the stage.
 		/// </summary>
 		static bool HasArrivedAtRally(CNSquad squad, WPos rallyPos, long arrivalSq)
 		{
@@ -279,50 +343,6 @@ namespace OpenRA.Mods.CN.Traits.BotModules.Squads.States
 			}
 
 			return live > 0 && arrived >= System.Math.Max(1, live * 2 / 3);
-		}
-
-		/// <summary>
-		/// The condition for leaving the rally point: enough of the WAVE has assembled — not just
-		/// enough of this one squad. Judging only its own units made the rally cell a shared waypoint
-		/// rather than a meeting point, so squads filed into the enemy base one after another.
-		/// <para>
-		/// Only participants that are still staging count. Participation used to end when a squad left
-		/// the staging states, so the set pruned itself and the denominator shrank as squads peeled off.
-		/// Now that a wave outlives its launch, squads pulled out of staging early — by an ambush on the
-		/// way, or by getting stuck — would otherwise stay in the count forever as "not arrived" and put
-		/// the threshold out of reach for everyone still waiting.
-		/// </para>
-		/// </summary>
-		static bool EnoughWaveParticipantsArrived(CNSquad squad, WPos rallyPos, long arrivalSq)
-		{
-			var mgr = squad.SquadManager;
-
-			// The wave dissolved (target died, hard timeout) or this squad was dropped from it —
-			// fall back to judging itself, otherwise it would wait for a wave that no longer exists.
-			if (!mgr.IsWaveLaunched || !mgr.WaveParticipants.Contains(squad))
-				return HasArrivedAtRally(squad, rallyPos, arrivalSq);
-
-			var participants = 0;
-			var arrived = 0;
-			foreach (var participant in mgr.WaveParticipants)
-			{
-				if (participant == null || !participant.IsValid)
-					continue;
-
-				// Squads that have already left staging are on their way and are not being waited for.
-				if (!participant.FuzzyStateMachine.IsInAnyState<CNWaveHoldState, CNWaveMoveToRallyState>())
-					continue;
-
-				participants++;
-				if (HasArrivedAtRally(participant, rallyPos, arrivalSq))
-					arrived++;
-			}
-
-			if (participants == 0)
-				return true;
-
-			var percent = System.Math.Clamp(mgr.Info.AttackWaveStagingMinArrivedPercent, 1, 100);
-			return arrived >= System.Math.Max(1, participants * percent / 100);
 		}
 	}
 }
