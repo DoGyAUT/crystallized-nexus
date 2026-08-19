@@ -179,6 +179,18 @@
 		MidColor: FFC845
 		ColdColor: FFFFFF
 
+^HeavyArtilleryWeapon:
+	Inherits: ^ArtilleryWeapon
+	Projectile: Bullet
+		Shadow: true
+		ContrailLength: 32
+		ContrailDelay: 0
+		ContrailStartWidth: 0c56
+		ContrailEndWidth: 0c0
+		ContrailStartColor: FFE8C0
+		ContrailStartColorAlpha: 150
+		ContrailEndColorAlpha: 0
+
 ^DefaultMissile:
 	Inherits@DefaultWahead: ^MissileWarhead
 	Inherits@FLASH: ^FlashSmallY

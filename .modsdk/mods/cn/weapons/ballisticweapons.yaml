@@ -113,17 +113,16 @@ RPGTower:
 		ExplosionPalette: effect
 
 155mm:
-	Inherits: ^ArtilleryWeapon
+	Inherits: ^HeavyArtilleryWeapon
 	Report: 150mm_v1.ogg, 150mm_v2.ogg, 150mm_v3.ogg
 	ReloadDelay: 110
-	Range: 18c0
-	MinRange: 5c0
+	Range: 20c0
+	MinRange: 2c0
 	TargetActorCenter: true
 	Projectile: Bullet
 		Speed: 384
 		LaunchAngle: 165
 		Inaccuracy: 0c512
-	MinRange: 5c0
 	Warhead@1Dam: SpreadDamage
 		Damage: 250
 	Warhead@2Eff: CreateEffect
@@ -140,11 +139,11 @@ RPGTower:
 		InvalidTargets: Infantry, Building
 
 Jugg90mm:
-	Inherits: ^ArtilleryWeapon
+	Inherits: ^HeavyArtilleryWeapon
 	Report: 90mm_v1.ogg, 90mm_v2.ogg, 90mm_v3.ogg
 	ReloadDelay: 150
-	Range: 18c0
-	MinRange: 5c0
+	Range: 20c0
+	MinRange: 2c0
 	Burst: 3
 	BurstDelays: 6, 10
 	TargetActorCenter: true
