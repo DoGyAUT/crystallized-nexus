@@ -353,7 +353,7 @@
 		TurnRate: 1
 	FormationMove:
 		Columns: 0
-		Spacing: 2
+		Spacing: 1
 		FrontAtTarget: true
 		ValidOrders: Move, AttackMove
 	GrantConditionOnBotOwner@AUTOCRUSHER:
