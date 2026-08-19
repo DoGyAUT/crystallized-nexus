@@ -1085,6 +1085,7 @@ JUGG:
 		DeploySounds: juggerdeploy1.ogg
 		UndeploySounds: juggerundeploy1.ogg
 		Voice: Move
+		CanDeployOnRamps: True
 	EntersTunnels:
 		RequireForceMoveCondition: !undeployed
 	Repairable:
@@ -1101,7 +1102,7 @@ JUGG:
 	Turreted:
 		Turret: deployed
 		TurnSpeed: 20
-		InitialFacing: 512
+		InitialFacing: 0
 		Offset: -153,-17,633
 		RealignDelay: -1
 	WithSpriteTurret@deployed:

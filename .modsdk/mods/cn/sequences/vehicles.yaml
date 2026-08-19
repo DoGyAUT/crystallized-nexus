@@ -465,6 +465,7 @@ stnk:
 scorpion:
 	Defaults:
 		Filename: scorpion.shp
+		Offset: 0, 0, 18
 	stand:
 		Start: 160
 		Facings: -8
@@ -594,27 +595,27 @@ jugg:
 		Facings: -8
 		Stride: 14
 		ShadowStart: -1
-		Offset: 0, 0, 12
+		Offset: 0, 0, 18
 	walk:
 		Length: 14
 		Facings: -8
 		ShadowStart: -1
-		Offset: 0, 0, 12
+		Offset: 0, 0, 18
 		Tick: 60
 	turret:
 		Filename: djugg_a.shp
 		Facings: 32
-		Offset: 0, -4, 12
+		Offset: 0, -4, 18
 	idle:
 		Filename: djugg.shp
 		ShadowStart: -1
-		Offset: 0, 0, 12
+		Offset: 0, 0, 18
 	make:
 		Filename: djuggmk.shp
-		Length: 34
+		Length: 27
 		Tick: 80
 		ShadowStart: -1
-		Offset: 0, -16, 12
+		Offset: 0, -16, 18
 	muzzle:
 		Filename: tankmuzzle_small.png
 		Facings: -32
