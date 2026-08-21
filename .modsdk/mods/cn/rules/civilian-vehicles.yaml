@@ -12,6 +12,9 @@
 		Type: Light
 	Mobile:
 		Speed: 56
+		SpeedRelatedWithFacing: true
+		TurnsWhileMoving: true
+		InitSpeedPercentageWithFacing: -50
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 5c0
@@ -61,6 +64,9 @@ BUS:
 	Mobile:
 		TurnSpeed: 20
 		Speed: 113
+		SpeedRelatedWithFacing: true
+		TurnsWhileMoving: true
+		InitSpeedPercentageWithFacing: -50
 		PauseOnCondition: empdisable || loading || being-captured || carried
 	CNHealth:
 		HP: 100
@@ -88,6 +94,9 @@ PICK:
 	Mobile:
 		TurnSpeed: 20
 		Speed: 113
+		SpeedRelatedWithFacing: true
+		TurnsWhileMoving: true
+		InitSpeedPercentageWithFacing: -50
 		PauseOnCondition: empdisable || loading || being-captured || carried
 	CNHealth:
 		HP: 100
@@ -115,6 +124,9 @@ CAR:
 	Mobile:
 		TurnSpeed: 20
 		Speed: 113
+		SpeedRelatedWithFacing: true
+		TurnsWhileMoving: true
+		InitSpeedPercentageWithFacing: -50
 		PauseOnCondition: empdisable || loading || being-captured || carried
 	CNHealth:
 		HP: 100
@@ -142,6 +154,9 @@ WINI:
 	Mobile:
 		TurnSpeed: 20
 		Speed: 113
+		SpeedRelatedWithFacing: true
+		TurnsWhileMoving: true
+		InitSpeedPercentageWithFacing: -50
 		PauseOnCondition: empdisable || loading || being-captured || carried
 	CNHealth:
 		HP: 200
