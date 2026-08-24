@@ -54,14 +54,18 @@
 		RBGSwapIndex: 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239
 		LightEffectIndex: 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239
 		#RBGSwapMode: None #None #GRB #BGR #RBG #BRG #GBR
-
+	LoadPaletteWithLightModifiedAndRBGSwapped@unitterraintem:
+		Name: unitterrain
+		Tileset: TEMPERATE
+		Filename: isotem.pal
+		ShadowIndex: 1
 
 	## Snow
 	LoadPaletteWithLightModifiedAndRBGSwapped@terrainsno:
 		Name: terrain
 		Tileset: SNOW
 		Filename: isosno.pal
-		## TS snow is very bright which make cyan color weapon invisible, so we make it dimmer
+		## TS snow is very bright which make cyan or other light color effect invisible, so we make it dimmer
 		Intensity: 0.85
 		RedTint: 0.85
 		GreenTint: 0.85
@@ -118,6 +122,19 @@
 		GreenTint: 0.9
 		BlueTint: 0.9
 		#RBGSwapMode: None #None #GRB #BGR #RBG #BRG #GBR
+	LoadPaletteWithLightModifiedAndRBGSwapped@unitterrainsno:
+		Name: unitterrain
+		Tileset: SNOW
+		Filename: isosno.pal
+		ShadowIndex: 1
+		## Change only snow color for tree and civilian house
+		RBGSwapIndex: 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127
+		LightEffectIndex: 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127
+		Intensity: 0.9
+		RedTint: 0.9
+		GreenTint: 0.9
+		BlueTint: 0.9
+		#RBGSwapMode: None #None #GRB #BGR #RBG #BRG #GBR
 
 	## Desert
 	LoadPaletteWithLightModifiedAndRBGSwapped@terraindes:
@@ -164,7 +181,11 @@
 		RBGSwapIndex: 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239
 		LightEffectIndex: 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239
 		#RBGSwapMode: None #None #GRB #BGR #RBG #BRG #GBR
-
+	LoadPaletteWithLightModifiedAndRBGSwapped@unitterraindes:
+		Name: unitterrain
+		Tileset: DESERT
+		Filename: isotem.pal
+		ShadowIndex: 1
 
 
 	PaletteFromFile@playerforcetem:

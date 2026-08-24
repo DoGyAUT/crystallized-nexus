@@ -9,3 +9,5 @@
 		RBGSwapMode: BRG
 	LoadPaletteWithLightModifiedAndRBGSwapped@playersno-nomuzzle:
 		RBGSwapMode: BRG
+	LoadPaletteWithLightModifiedAndRBGSwapped@unitterrainsno:
+		RBGSwapMode: BRG

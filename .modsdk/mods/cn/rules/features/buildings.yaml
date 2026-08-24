@@ -186,7 +186,7 @@
 		Range: 4c0
 		MaxHeightDelta: 3
 	RenderSprites:
-		Palette: terraindecoration
+		Palette: unitterrain
 	MapEditorData:
 		Categories: Civilian building
 

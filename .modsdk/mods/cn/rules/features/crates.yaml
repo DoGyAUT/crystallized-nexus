@@ -6,7 +6,7 @@
 		Duration: 4500
 		TerrainTypes: Clear, Rough, Sand, Road, DirtRoad, Tiberium, BlueTiberium, RedTiberium, Veins, Green, Pavement
 	RenderSprites:
-		Palette: terraindecoration
+		Palette: unitterrain
 	WithCrateBody:
 	MapEditorData:
 		Categories: System

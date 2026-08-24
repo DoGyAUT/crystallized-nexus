@@ -54,7 +54,7 @@
 	AppearsOnMapPreview:
 		Terrain: Tree
 	RenderSprites:
-		Palette: terraindecoration
+		Palette: unitterrain
 	WithSpriteBody:
 	CNWindSway:
 	Tooltip:

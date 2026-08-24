@@ -28,7 +28,7 @@ CABHUT:
 
 ^LowBridgeRamp:
 	RenderSprites:
-		Palette: terraindecoration
+		Palette: terrain
 	WithSpriteBody:
 	AppearsOnRadar:
 	RadarColorFromTerrain:
@@ -179,7 +179,7 @@ LOBRDG_R_SW:
 
 ^ElevatedBridgePlaceholder:
 	RenderSprites:
-		Palette: terraindecoration
+		Palette: terrain
 	WithSpriteBody:
 	CNOffsetSpriteSequenceShadow:
 		Offset: 0, 0, -49

@@ -1403,7 +1403,7 @@ GALITE:
 		Name: actor-galite-name
 	RenderSprites:
 		Image: galite
-		Palette: terraindecoration
+		Palette: unitterrain
 	-WithMakeAnimation:
 	-WithDeathAnimation:
 	Sellable:
