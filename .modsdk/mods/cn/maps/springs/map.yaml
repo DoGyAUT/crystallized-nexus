@@ -931,7 +931,7 @@ Actors:
 		Owner: Neutral
 		Location: 97,20
 
-Rules:
+Rules:  cn|rules/TilesetPalettePresets/sno-grassgreenzone.yaml
 	World:
 		TerrainTunnelLayer:
 		TerrainTunnel@a:
@@ -983,8 +983,6 @@ Rules:
 			Height: 2
 			TerrainType: Clear
 	^BaseWorld:
-		TerrainLighting:
-			Intensity: 0.62
 	INGRNLMP:
 		TerrainLightSource:
 			Range: 7c832

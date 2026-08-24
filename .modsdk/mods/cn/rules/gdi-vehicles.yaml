@@ -206,7 +206,7 @@ APC:
 	LeavesTrails:
 		RequiresCondition: !inside-tunnel && inwater
 		Image: wake
-		Palette: effect
+		Palette: terrain
 		TrailWhileStationary: True
 		TerrainTypes: Water
 		StationaryInterval: 18
@@ -299,7 +299,7 @@ CYCLOPS:
 	LeavesTrails:
 		RequiresCondition: !inside-tunnel
 		Image: wake
-		Palette: effect
+		Palette: terrain
 		TerrainTypes: Water
 		TrailWhileStationary: True
 		StationaryInterval: 18
@@ -391,7 +391,7 @@ HVR:
 	LeavesTrails:
 		RequiresCondition: !inside-tunnel
 		Image: wake
-		Palette: effect
+		Palette: terrain
 		TerrainTypes: Water
 		TrailWhileStationary: True
 		StationaryInterval: 18

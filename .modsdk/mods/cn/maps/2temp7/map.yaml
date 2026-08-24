@@ -617,3 +617,5 @@ Actors:
 	Actor190: srock02
 		Location: 140,17
 		Owner: Neutral
+
+Rules: cn|rules/TilesetPalettePresets/tem-jade2rose.yaml

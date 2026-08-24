@@ -255,21 +255,33 @@ explosion:
 		Tick: 11
 		BloomGlow: True
 	small_watersplash:
-		Filename: h2o_exp2.shp
+		TilesetFilenames:
+			TEMPERATE: h2o_exp2_t.shp
+			SNOW: h2o_exp2_s.shp
+			DESERT: h2o_exp2_t.shp
 		IgnoreWorldTint: False
 		AlphaFade: False
 		Alpha: 0.5
 	large_watersplash:
-		Filename: h2o_exp1.shp
+		TilesetFilenames:
+			TEMPERATE: h2o_exp1_t.shp
+			SNOW: h2o_exp1_s.shp
+			DESERT: h2o_exp1_t.shp
 		Offset: 0, 0, 39
 		IgnoreWorldTint: False
 		AlphaFade: False
 		Alpha: 0.5
 	water_piff:
-		Filename: w_piff.shp
+		TilesetFilenames:
+			TEMPERATE: w_piff_t.shp
+			SNOW: w_piff_s.shp
+			DESERT: w_piff_t.shp
 		IgnoreWorldTint: False
 	water_piffs:
-		Filename: w_piffs.shp
+		TilesetFilenames:
+			TEMPERATE: w_piffs_t.shp
+			SNOW: w_piffs_s.shp
+			DESERT: w_piffs_t.shp
 		IgnoreWorldTint: False
 	piff:
 		Filename: piff.shp
@@ -1158,7 +1170,10 @@ moveflsh:
 
 wake:
 	idle:
-		Filename: wake2.shp
+		TilesetFilenames:
+			TEMPERATE: wake2_t.shp
+			SNOW: wake2_s.shp
+			DESERT: wake2_t.shp
 		Length: *
 		Tick: 180
 		ZOffset: -512
@@ -1866,13 +1881,15 @@ tuntop04:
 		Offset: -24, -49, 49
 
 dig:
+	Defaults:
+		TilesetFilenames:
+			TEMPERATE: dig_t.shp
+			SNOW: dig_s.shp
+			DESERT: dig_t.shp
 	idle:
-		Filename: dig.png
-		Palette: terrain
 		Length: *
 		ZOffset: 511
 		Offset: 0, 0, 24
-		BlendMode: Alpha
 
 typeglyphs:
 	Defaults:

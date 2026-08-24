@@ -1,0 +1,11 @@
+^Palettes:
+	LoadPaletteWithLightModifiedAndRBGSwapped@terraindes:
+		RBGSwapMode: BGR
+	LoadPaletteWithLightModifiedAndRBGSwapped@terraindecdes:
+		RBGSwapMode: BGR
+	LoadPaletteWithLightModifiedAndRBGSwapped@playerdes:
+		RBGSwapMode: BGR
+	LoadPaletteWithLightModifiedAndRBGSwapped@playerdes-nobright:
+		RBGSwapMode: BGR
+	LoadPaletteWithLightModifiedAndRBGSwapped@playerdes-nomuzzle:
+		RBGSwapMode: BGR
