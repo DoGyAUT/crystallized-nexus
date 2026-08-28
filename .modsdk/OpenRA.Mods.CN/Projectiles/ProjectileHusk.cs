@@ -6,11 +6,13 @@
 #endregion
 
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using OpenRA.GameRules;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Effects;
+using OpenRA.Mods.Common.Graphics;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 using Util = OpenRA.Mods.Common.Util;
@@ -93,6 +95,52 @@ namespace OpenRA.Mods.CN.Projectiles
 		[Desc("Use the Player Palette to render the trail sequence.")]
 		public readonly bool TrailUsePlayerPalette = false;
 
+		[Desc("When set, display a line behind the actor. Length is measured in ticks after appearing.")]
+		public readonly int ContrailLength = 0;
+
+		[Desc("Time (in ticks) after which the line should appear. Controls the distance to the actor.")]
+		public readonly int ContrailDelay = 1;
+
+		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
+		public readonly int ContrailZOffset = 2047;
+
+		[Desc("Thickness of the emitted line at the start of the contrail.")]
+		public readonly WDist ContrailStartWidth = new(64);
+
+		[Desc("Thickness of the emitted line at the end of the contrail. Will default to " + nameof(ContrailStartWidth) + " if left undefined")]
+		public readonly WDist? ContrailEndWidth = null;
+
+		[Desc("RGB color at the contrail start.")]
+		public readonly Color ContrailStartColor = Color.White;
+
+		[Desc("Use player remap color instead of a custom color at the contrail the start.")]
+		public readonly bool ContrailStartColorUsePlayerColor = false;
+
+		[Desc("The alpha value [from 0 to 255] of color at the contrail the start.")]
+		public readonly int ContrailStartColorAlpha = 255;
+
+		[Desc("RGB color at the contrail end. Will default to " + nameof(ContrailStartColor) + " if left undefined")]
+		public readonly Color? ContrailEndColor;
+
+		[Desc("Use player remap color instead of a custom color at the contrail end.")]
+		public readonly bool ContrailEndColorUsePlayerColor = false;
+
+		[Desc("The alpha value [from 0 to 255] of color at the contrail end.")]
+		public readonly int ContrailEndColorAlpha = 0;
+
+		[Desc("Up to how many times does this projectile bounce when touching ground without hitting a target.",
+			"0 implies exploding on contact with the originally targeted position.")]
+		public readonly ImmutableArray<int> BounceCounts = ImmutableArray<int>.Empty;
+
+		[Desc("Modify speed of each bounce by this percentage of previous speed on X, Y, Z. It must be non-negative number.")]
+		public readonly WVec BounceVelocityPercentageModifier = new(80, 80, 50);
+
+		[Desc("Terrain where the projectile explodes instead of bouncing.")]
+		public readonly FrozenSet<string> InvalidBounceTerrain = [];
+
+		[Desc("The projectile can only remain this long (in ticks), leave empty or set to -1 to disable.")]
+		public readonly ImmutableArray<int> ExistTicks = ImmutableArray<int>.Empty;
+
 		public IProjectile Create(ProjectileArgs args) { return new ProjectileHusk(this, args); }
 	}
 
@@ -113,6 +161,10 @@ namespace OpenRA.Mods.CN.Projectiles
 		WAngle facing;
 		int spin;
 		WDist dat;
+		int remainingTicks;
+		int remainingBounces;
+
+		readonly ContrailRenderable contrail;
 
 		[VerifySync]
 		WPos pos, lastPos;
@@ -162,8 +214,8 @@ namespace OpenRA.Mods.CN.Projectiles
 
 			if (!string.IsNullOrEmpty(info.Image))
 			{
-				anim = new Animation(args.SourceActor.World, info.Image, GetEffectiveFacing);
-				anim.PlayRepeating(info.Sequences.Random(args.SourceActor.World.SharedRandom));
+				anim = new Animation(world, info.Image, GetEffectiveFacing);
+				anim.PlayRepeating(info.Sequences.Random(world.SharedRandom));
 			}
 
 			shadowColor = new float3(info.ShadowColor.R, info.ShadowColor.G, info.ShadowColor.B) / 255f;
@@ -173,6 +225,21 @@ namespace OpenRA.Mods.CN.Projectiles
 			if (info.TrailUsePlayerPalette)
 				trailPalette += args.SourceActor.Owner.InternalName;
 			smokeTicks = info.TrailDelay;
+
+			if (info.ContrailLength > 0)
+			{
+				var startcolor = Color.FromArgb(info.ContrailStartColorAlpha, info.ContrailStartColor);
+				var endcolor = Color.FromArgb(info.ContrailEndColorAlpha, info.ContrailEndColor ?? startcolor);
+				contrail = new ContrailRenderable(world, args.SourceActor,
+					startcolor, info.ContrailStartColorUsePlayerColor,
+					endcolor, info.ContrailEndColor == null ? info.ContrailStartColorUsePlayerColor : info.ContrailEndColorUsePlayerColor,
+					info.ContrailStartWidth,
+					info.ContrailEndWidth ?? info.ContrailStartWidth,
+					info.ContrailLength, info.ContrailDelay, info.ContrailZOffset);
+			}
+
+			remainingBounces = info.BounceCounts.Length > 0 ? info.BounceCounts[world.SharedRandom.Next(info.BounceCounts.Length)] : 0;
+			remainingTicks = info.ExistTicks.Length > 0 ? info.ExistTicks[world.SharedRandom.Next(info.ExistTicks.Length)] : -1;
 		}
 
 		public void Tick(World world)
@@ -191,19 +258,37 @@ namespace OpenRA.Mods.CN.Projectiles
 
 			velocity += acceleration;
 
+			if (info.ContrailLength > 0)
+				contrail.Update(pos);
+
 			// Explodes
-			if (dat.Length <= 0)
+			if (remainingTicks == 0)
 			{
-				pos -= new WVec(0, 0, dat.Length);
-				world.AddFrameEndTask(w => w.Remove(this));
+				Explode(world);
+			}
+			else if (dat.Length <= 0 && remainingBounces <= 0)
+			{
+				// if the projectile hits the horizontal ground (not cliff), we will fix it to the surface
+				// we use "dat.Length > velocity.Z" for a simple test on hits the horizontal ground or cliff
+				if (dat.Length > velocity.Z)
+					pos -= new WVec(0, 0, dat.Length);
 
-				var warheadArgs = new WarheadArgs(args)
-				{
-					ImpactOrientation = new WRot(WAngle.Zero, Util.GetVerticalAngle(lastPos, pos), args.Facing),
-					ImpactPosition = pos,
-				};
+				Explode(world);
+			}
+			else if (dat.Length <= 0 && remainingBounces > 0)
+			{
+				var cell = world.Map.CellContaining(pos);
+				if ((!world.Map.Contains(cell)) || info.InvalidBounceTerrain.Contains(world.Map.GetTerrainInfo(cell).Type))
+					Explode(world);
 
-				args.Weapon.Impact(Target.FromPos(pos), warheadArgs);
+				// if the projectile bounces on the cliff, we will revert the X and Y of the speed, while Z does not revert.
+				// if the projectile bounces on the horizontal ground, we will only revert the Z of the speed, while X and Y does not revert.
+				var xyDeflectpara = 1;
+				if (dat.Length <= velocity.Z)
+					xyDeflectpara = -1;
+
+				velocity = new WVec(xyDeflectpara * velocity.X * info.BounceVelocityPercentageModifier.X / 100, xyDeflectpara * velocity.Y * info.BounceVelocityPercentageModifier.Y / 100, -velocity.Z * xyDeflectpara * info.BounceVelocityPercentageModifier.Z / 100);
+				remainingBounces--;
 			}
 
 			if (!string.IsNullOrEmpty(info.TrailImage) && --smokeTicks < 0)
@@ -215,6 +300,9 @@ namespace OpenRA.Mods.CN.Projectiles
 			}
 
 			anim?.Tick();
+
+			if (remainingTicks > 0)
+				remainingTicks--;
 		}
 
 		WAngle GetEffectiveFacing()
@@ -222,10 +310,29 @@ namespace OpenRA.Mods.CN.Projectiles
 			return facing;
 		}
 
+		protected virtual void Explode(World world)
+		{
+			if (info.ContrailLength > 0)
+				world.AddFrameEndTask(w => w.Add(new ContrailFader(pos, contrail)));
+
+			world.AddFrameEndTask(w => w.Remove(this));
+
+			var warheadArgs = new WarheadArgs(args)
+			{
+				ImpactOrientation = new WRot(WAngle.Zero, Util.GetVerticalAngle(lastPos, pos), args.Facing),
+				ImpactPosition = pos,
+			};
+
+			args.Weapon.Impact(Target.FromPos(pos), warheadArgs);
+		}
+
 		public IEnumerable<IRenderable> Render(WorldRenderer wr)
 		{
 			if (anim == null)
 				yield break;
+
+			if (info.ContrailLength > 0)
+				yield return contrail;
 
 			var world = args.SourceActor.World;
 			if (!world.FogObscures(pos))
