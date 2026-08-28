@@ -287,14 +287,15 @@ IonStormAmbientBolt:
 
 Blood:
 	Range: 1c0
-	Projectile: Bullet
-		Speed: 91, 181
+	Projectile: ProjectileHusk
+		Velocity: 15, -25, 100
+		VelocityRandomFactor: 50, 50, 200
+		Acceleration: 0, 0, -15
+		UseRangeModifierAsVelocityX: false
 		Image: blood
 		Sequences: 1, 2, 3
 		Palette: player
 		IsPlayerPalette: true
-		LaunchAngle: 45, 200
-		Inaccuracy: 1c424
 		ContrailLength: 10
 		ContrailStartColor: 8B1A1A
 		ContrailStartColorAlpha: 200
@@ -303,5 +304,3 @@ Blood:
 		ContrailEndWidth: 0c16
 		Shadow: false
 		Blockable: false
-	Warhead@DUMMY: TargetDamage
-		Damage: 0
