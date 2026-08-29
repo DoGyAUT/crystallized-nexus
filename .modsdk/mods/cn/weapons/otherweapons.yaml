@@ -191,6 +191,7 @@ TibCloudDamage:
 		Shadow: true
 		TrailImage: durasmoke_medium
 		TrailPalette: effect
+		InvalidBounceTerrain: Water, Waterfall
 	Warhead@1Dam: SpreadDamage
 		Spread: 200
 		Falloff: 100, 100, 0
@@ -213,6 +214,9 @@ TibCloudDamage:
 SmallDebris:
 	Inherits: ^Debris
 	Inherits@FLASH: ^FlashSmallY
+	Projectile: ProjectileHusk
+		BounceVelocityPercentageModifier: 90, 90, 60
+		BounceCounts: 0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,2,2,2,2, 3,3,3, 4, 4, 6, 6
 
 LargeDebris:
 	Inherits: ^Debris
@@ -220,6 +224,18 @@ LargeDebris:
 	Projectile: ProjectileHusk
 		Image: dbrislg
 		Sequences: 2, 3, 4, 6, 7, 9, 10
+		BounceVelocityPercentageModifier: 80, 80, 50
+		BounceCounts: 0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,2,2,2,2, 3,3,3, 4, 4, 4
+		 ## Make LargeDebris sometimes explode in the mid air
+		ExistTicks: 30,46,62,78,94,110,126,142,158,174,190,206,222,238,254,270,286
+	 ## and spawn SmallDebris
+	Warhead@Cluster: FireCluster
+		Weapon: SmallDebris
+		RandomClusterCount: 2
+		Dimensions: 3,3
+		Footprint: xxx, x_x, xxx
+		ValidTargets: Ground, Air, Water
+		AirThreshold: 100c0
 	Warhead@1Dam: SpreadDamage
 		Spread: 320
 		Damage: 50
