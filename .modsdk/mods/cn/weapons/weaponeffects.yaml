@@ -102,6 +102,9 @@ BulletCasing:
 		Image: bulletcasing
 		Sequences: 1,2,3,4,5,6,7,8
 		UseRangeModifierAsVelocityX: false
+		InvalidBounceTerrain: Water, Waterfall
+		BounceVelocityPercentageModifier: 80, 80, 50
+		BounceCounts: 0,0,0,0,0,1,1,1,1,2,2 ## means has 46% not bounce, 37% bounce once, 18% bounce twice.
 	Warhead@2Eff: CreateEffect
 		Explosions: bulletcasingscorch1, bulletcasingscorch2, bulletcasingscorch3, bulletcasingscorch4, bulletcasingscorch5, bulletcasingscorch6, bulletcasingscorch7
 		ExplosionPalette: effect
@@ -122,6 +125,7 @@ BulletCasingAir:
 	Projectile: ProjectileHusk
 		Velocity: 15, -10, 75
 		VelocityRandomFactor: 8, 20, 40
+		BounceVelocityPercentageModifier: 60, 60, 30
 
 CannonCasing:
 	Inherits: BulletCasing
